@@ -235,7 +235,7 @@ CREATE TABLE IF NOT EXISTS public.qr_settings (
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );
 
--- 17. In-App Notifications Table
+-- 18. In-App Notifications Table
 CREATE TABLE IF NOT EXISTS public.notifications (
     id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
     user_id TEXT,
@@ -245,6 +245,17 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     type TEXT DEFAULT 'info' CHECK (type IN ('info', 'success', 'warning', 'alert')),
     ride_id TEXT,
     is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- 19. Ride Messages Table
+CREATE TABLE IF NOT EXISTS public.ride_messages (
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    ride_id TEXT REFERENCES public.rides(id) ON DELETE CASCADE,
+    sender_id TEXT NOT NULL,
+    sender_role TEXT NOT NULL CHECK (sender_role IN ('passenger', 'captain', 'admin')),
+    sender_name TEXT NOT NULL,
+    message TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );
 

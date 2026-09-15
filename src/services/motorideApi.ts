@@ -18,6 +18,7 @@ const API_BASE = '/api/motoride';
 
 // Local and cross-browser memory store for resilient instant sync
 const localRidesStore: Map<string, MotorideRide> = new Map();
+const localMessagesStore: Map<string, any[]> = new Map();
 
 // Initialize from localStorage if available in browser
 if (typeof window !== 'undefined') {
@@ -42,6 +43,16 @@ const saveLocalRides = () => {
     } catch {}
   }
 };
+
+realtimeSync.on('RIDE_MESSAGE_RECEIVED', (msg: any) => {
+  if (msg && msg.ride_id) {
+    const list = localMessagesStore.get(msg.ride_id) || [];
+    if (!list.some((m) => m.id === msg.id)) {
+      list.push(msg);
+      localMessagesStore.set(msg.ride_id, list);
+    }
+  }
+});
 
 // Listen to incoming real-time broadcast and SSE events to keep local store in sync across all devices
 realtimeSync.on('RIDE_CREATED', (ride: MotorideRide) => {
@@ -878,22 +889,81 @@ export const motorideApi = {
 
   // 8. Ride Chat Messages
   async getRideMessages(rideId: string): Promise<any[]> {
+    const map = new Map<string, any>();
+
+    // 1. Local memory store
+    const local = localMessagesStore.get(rideId) || [];
+    local.forEach((m) => { if (m && m.id) map.set(m.id, m); });
+
+    // 2. Fetch from Supabase if configured
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('ride_messages').select('*').eq('ride_id', rideId).order('created_at', { ascending: true });
+        if (!error && data && Array.isArray(data)) {
+          data.forEach((m: any) => {
+            if (m && m.id) map.set(m.id, m);
+          });
+        }
+      } catch (err) {
+        console.warn('Supabase getRideMessages notice:', err);
+      }
+    }
+
+    // 3. Fetch from Backend API
     const json = await safeFetchJson<{ messages?: any[] }>(`${API_BASE}/rides/${rideId}/messages`, undefined, { messages: [] });
-    return json.messages || [];
+    if (json?.messages && Array.isArray(json.messages)) {
+      json.messages.forEach((m: any) => {
+        if (m && m.id) map.set(m.id, m);
+      });
+    }
+
+    const result = Array.from(map.values()).sort(
+      (a, b) => new Date(a.created_at || a.timestamp || 0).getTime() - new Date(b.created_at || b.timestamp || 0).getTime()
+    );
+    localMessagesStore.set(rideId, result);
+    return result;
   },
 
   async sendRideMessage(rideId: string, data: { sender_id: string; sender_role: 'passenger' | 'captain'; sender_name: string; message: string }): Promise<any> {
-    realtimeSync.broadcast('RIDE_MESSAGE_RECEIVED', {
-      id: `msg_${Date.now()}`,
+    const newMsg = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ride_id: rideId,
       ...data,
       created_at: new Date().toISOString(),
-    });
-    const json = await safeFetchJson<{ message?: any }>(`${API_BASE}/rides/${rideId}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    }, { message: { id: `msg_${Date.now()}`, ride_id: rideId, ...data, timestamp: new Date().toISOString() } });
-    return json.message;
+    };
+
+    // 1. Store locally
+    const list = localMessagesStore.get(rideId) || [];
+    if (!list.some((m) => m.id === newMsg.id)) {
+      list.push(newMsg);
+      localMessagesStore.set(rideId, list);
+    }
+
+    // 2. Broadcast instantly via Realtime
+    realtimeSync.broadcast('RIDE_MESSAGE_RECEIVED', newMsg);
+
+    // 3. Insert into Supabase if configured
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('ride_messages').insert([newMsg]);
+      } catch (err) {
+        console.warn('Supabase insert message notice:', err);
+      }
+    }
+
+    // 4. Post to Backend API
+    safeFetchJson<{ message?: any }>(
+      `${API_BASE}/rides/${rideId}/messages`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      },
+      { message: newMsg }
+    ).catch(() => {});
+
+    return newMsg;
   },
 };
