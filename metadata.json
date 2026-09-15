@@ -1,0 +1,6 @@
+{
+  "name": "TravelMeter - Bike Rental & Fare System",
+  "description": "Motoride: Production-ready ride-hailing platform with Passenger App, Captain App, and Admin Panel connected via real-time shared Supabase backend, offer-fare system, live GPS tracking, and wallet.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

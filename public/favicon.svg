@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Black Background -->
+  <rect width="512" height="512" rx="112" fill="#000000"/>
+  <!-- White App Icon (Bike) -->
+  <g fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" transform="translate(40, 48) scale(18)">
+    <circle cx="18.5" cy="17.5" r="3.5" />
+    <circle cx="5.5" cy="17.5" r="3.5" />
+    <circle cx="15" cy="5" r="1" fill="#ffffff" />
+    <path d="M12 17.5V14l-3-3 4-3 2 3h2" />
+  </g>
+</svg>
