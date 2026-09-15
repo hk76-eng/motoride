@@ -422,12 +422,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const cpt = await motorideApi.getCaptainById(captainId);
       if (cpt) {
         setCaptain(cpt);
-        setIsOnline(cpt.is_online);
+        setIsOnline(Boolean(cpt.is_online));
       }
       const w = await motorideApi.getWallet(captainId);
-      if (w) {
-        setWalletBalance(w.wallet.balance);
-        setWalletTransactions(w.transactions);
+      if (w && w.wallet) {
+        setWalletBalance(w.wallet.balance || 0);
+        setWalletTransactions(w.transactions || []);
       }
     } catch {}
   };
@@ -435,21 +435,26 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const loadAvailableRides = async () => {
     try {
       const list = await motorideApi.getRides({ active_for_captain: true });
-      setAvailableRides(list);
+      if (Array.isArray(list)) {
+        setAvailableRides(list);
+      }
     } catch {}
   };
 
   const loadActiveRide = async () => {
     try {
       const list = await motorideApi.getRides({ captain_id: captainId });
-      const current = list.find(
-        (r) =>
-          r.status === 'captain_accepted' ||
-          r.status === 'captain_arrived' ||
-          r.status === 'trip_started'
-      );
-      if (current) {
-        setActiveRide(current);
+      if (Array.isArray(list)) {
+        const current = list.find(
+          (r) =>
+            r &&
+            (r.status === 'captain_accepted' ||
+              r.status === 'captain_arrived' ||
+              r.status === 'trip_started')
+        );
+        if (current) {
+          setActiveRide(current);
+        }
       }
     } catch {}
   };
@@ -465,10 +470,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const handleToggleOnline = async () => {
     try {
-      const updated = await motorideApi.toggleCaptainOnline(captainId, !isOnline);
-      setIsOnline(updated.is_online);
+      const nextState = !isOnline;
+      setIsOnline(nextState);
+      const updated = await motorideApi.toggleCaptainOnline(captainId, nextState);
+      if (updated && typeof updated.is_online === 'boolean') {
+        setIsOnline(updated.is_online);
+      }
     } catch (err: any) {
-      alert(err.message || 'Failed to toggle status');
+      console.warn('Failed to toggle status:', err);
     }
   };
 

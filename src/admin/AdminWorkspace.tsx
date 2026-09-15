@@ -380,12 +380,12 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   </div>
                   <span
                     className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                      cpt.is_online
+                      cpt?.is_online
                         ? 'bg-emerald-500/20 text-emerald-400'
                         : 'bg-slate-800 text-slate-400'
                     }`}
                   >
-                    {cpt.is_online ? 'ONLINE' : 'OFFLINE'}
+                    {cpt?.is_online ? 'ONLINE' : 'OFFLINE'}
                   </span>
                 </div>
 
@@ -393,12 +393,12 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 <div className="p-3 rounded-xl bg-slate-900/80 text-xs text-slate-300 flex items-center justify-between">
                   <div>
                     <span className="text-slate-400 block text-[10px]">VEHICLE</span>
-                    <span className="font-bold">{cpt.vehicle?.model || 'Mahindra Centuro'}</span>
+                    <span className="font-bold">{cpt?.vehicle?.model || 'Mahindra Centuro'}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px]">PLATE</span>
                     <span className="font-mono-num font-bold text-amber-300">
-                      {cpt.vehicle?.plate_number || 'PB65AA1257'}
+                      {cpt?.vehicle?.plate_number || 'PB65AA1257'}
                     </span>
                   </div>
                   <div>

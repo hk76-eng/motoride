@@ -477,7 +477,9 @@ export const motorideApi = {
 
     // Supabase or Fallback
     const fallbackCaptains = await this.getCaptains();
-    const online = fallbackCaptains.filter((c) => c.is_online !== false && c.is_approved !== false && c.is_active !== false);
+    const online = Array.isArray(fallbackCaptains)
+      ? fallbackCaptains.filter((c) => c && c.is_online !== false && c.is_approved !== false && c.is_active !== false)
+      : [];
     return {
       captains: online,
       nearestCaptain: online[0] || null,
@@ -486,21 +488,21 @@ export const motorideApi = {
 
   async getCaptains(): Promise<Captain[]> {
     const json = await safeFetchJson<{ captains?: Captain[] }>(`${API_BASE}/captains`, undefined, { captains: [] });
-    return json.captains || [];
+    return Array.isArray(json?.captains) ? json.captains : [];
   },
 
   async getCaptainById(id: string): Promise<Captain | null> {
     const json = await safeFetchJson<{ captain?: Captain }>(`${API_BASE}/captains/${id}`, undefined, {});
-    return json.captain || null;
+    return json?.captain || null;
   },
 
   async toggleCaptainOnline(id: string, is_online?: boolean): Promise<Captain> {
-    const json = await safeFetchJson<{ captain: Captain }>(`${API_BASE}/captains/${id}/toggle-online`, {
+    const json = await safeFetchJson<{ captain?: Captain }>(`${API_BASE}/captains/${id}/toggle-online`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_online }),
     });
-    return json.captain;
+    return json?.captain || ({ id, is_online: Boolean(is_online) } as any);
   },
 
   async updateCaptainVehicle(
