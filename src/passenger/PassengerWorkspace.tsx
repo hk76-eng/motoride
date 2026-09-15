@@ -1009,14 +1009,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowChatModal(true)}
-                      className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-md transition-all active:scale-95"
-                      title="Chat with Captain"
-                    >
-                      <MessageSquare className="w-4 h-4 stroke-[2.5]" />
-                    </button>
                     <a
                       href={`tel:${activeRide.captain_phone || '+919876543210'}`}
                       className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-md transition-all active:scale-95"
@@ -1079,16 +1071,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     ₹{activeRide.final_fare || activeRide.offered_fare}
                   </span>
                 </div>
-
-                {/* Chat with Captain Button */}
-                <button
-                  type="button"
-                  onClick={() => setShowChatModal(true)}
-                  className="w-full py-2.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md"
-                >
-                  <MessageSquare className="w-4 h-4 text-emerald-400" />
-                  <span>Chat with Captain ({activeRide.captain_name || 'Captain'})</span>
-                </button>
 
                 {activeRide.status !== 'trip_started' && (
                   <button
