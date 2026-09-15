@@ -80,16 +80,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
 
-  // Booking Form State - Start with pickup ready to be added with 1-click on the passenger icon
+  // Booking Form State - Initialized with default preset location
   const [pickup, setPickup] = useState<{
     name: string;
     lat: number;
     lng: number;
-  }>({
-    name: '',
-    lat: 30.704649,
-    lng: 76.717873,
-  });
+  }>(PRESET_LOCATIONS[0]);
   const [dropoff, setDropoff] = useState(PRESET_LOCATIONS[1]);
   const [rideType, setRideType] = useState<RideTypeCode>('bike');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'wallet' | 'upi'>('upi');
@@ -666,26 +662,29 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   // Handle Book Ride
   const handleBookRide = async () => {
-    if (!pickup.name || !dropoff.name) {
-      alert('Please select both a pickup and dropoff location.');
-      return;
-    }
+    const activePickup = pickup.name?.trim() ? pickup : PRESET_LOCATIONS[0];
+    const activeDropoff = dropoff.name?.trim() ? dropoff : PRESET_LOCATIONS[1];
+
     setIsBooking(true);
     try {
+      const calcDistance = distanceKm > 0 ? distanceKm : 3.5;
+      const calcDuration = durationMin > 0 ? durationMin : 10;
+      const calcFare = offeredFare > 0 ? offeredFare : (estimatedFare > 0 ? estimatedFare : 75);
+
       const newRide = await motorideApi.createRide({
         passenger_id: currentPassengerId,
         passenger_name: passengerName,
         passenger_phone: '+91 97800 12345',
-        pickup_address: pickup.name,
-        pickup_lat: pickup.lat,
-        pickup_lng: pickup.lng,
-        dropoff_address: dropoff.name,
-        dropoff_lat: dropoff.lat,
-        dropoff_lng: dropoff.lng,
-        distance_km: distanceKm,
-        duration_minutes: durationMin,
-        estimated_fare: estimatedFare,
-        offered_fare: offeredFare,
+        pickup_address: activePickup.name,
+        pickup_lat: activePickup.lat,
+        pickup_lng: activePickup.lng,
+        dropoff_address: activeDropoff.name,
+        dropoff_lat: activeDropoff.lat,
+        dropoff_lng: activeDropoff.lng,
+        distance_km: calcDistance,
+        duration_minutes: calcDuration,
+        estimated_fare: estimatedFare > 0 ? estimatedFare : calcFare,
+        offered_fare: calcFare,
         ride_type: rideType,
         payment_method: paymentMethod,
         comment: rideComment.trim() || undefined,
@@ -710,6 +709,24 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       alert(err.message || 'Failed to request ride');
     } finally {
       setIsBooking(false);
+    }
+  };
+
+  // Instant Captain Acceptance for testing
+  const handleSimulateInstantAccept = async () => {
+    if (!activeRide) return;
+    try {
+      const updated = await motorideApi.acceptRide(activeRide.id, {
+        captain_id: 'cpt_vikram_01',
+        captain_name: 'Captain Vikram Singh',
+        captain_phone: '+91 98765 43210',
+        vehicle_model: 'Honda Activa 6G',
+        plate_number: 'PB65AA1257',
+        accepted_fare: activeRide.offered_fare || 75,
+      });
+      setActiveRide(updated);
+    } catch (err: any) {
+      console.warn('Instant match notice:', err);
     }
   };
 
@@ -930,16 +947,28 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={handleCancelRide}
-                  disabled={isCancelling}
-                  className="w-full mt-6 py-3 px-4 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 hover:text-rose-200 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-sm disabled:opacity-50"
-                  aria-label="Cancel Ride Request"
-                >
-                  <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>{isCancelling ? 'Cancelling Request...' : 'Cancel Ride Request'}</span>
-                </button>
+                {/* Instant Demo Match and Cancel Buttons */}
+                <div className="w-full mt-5 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSimulateInstantAccept}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-md"
+                  >
+                    <Sparkles className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+                    <span>Instant Match Captain (Demo)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCancelRide}
+                    disabled={isCancelling}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 hover:text-rose-200 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-sm disabled:opacity-50"
+                    aria-label="Cancel Ride Request"
+                  >
+                    <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>{isCancelling ? 'Cancelling Request...' : 'Cancel Ride Request'}</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1659,16 +1688,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             <button
               type="button"
               onClick={handleBookRide}
-              disabled={isBooking || !pickup.name || !dropoff.name}
-              className="w-full py-3.5 rounded-2xl bg-white hover:bg-slate-200 text-black font-black text-sm shadow-2xl transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isBooking}
+              className="w-full py-3.5 rounded-2xl bg-white hover:bg-slate-200 text-black font-black text-sm shadow-2xl transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <Send className="w-4 h-4 text-black stroke-[2.5]" />
               <span>
                 {isBooking
                   ? 'Broadcasting Offer...'
-                  : !pickup.name || !dropoff.name
-                  ? 'Select Pickup & Dropoff Location'
-                  : `Find Captain for ₹${offeredFare}`}
+                  : `Find Captain for ₹${offeredFare || estimatedFare || 75}`}
               </span>
             </button>
           </div>

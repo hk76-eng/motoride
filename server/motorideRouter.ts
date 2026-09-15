@@ -172,6 +172,58 @@ motorideRouter.post('/rides', (req: Request, res: Response) => {
       created_at: now,
     });
 
+    // Simulate active Captain counter-offers for testing if not manually accepted
+    setTimeout(() => {
+      const current = ridesStore.get(rideId);
+      if (current && (current.status === 'requested' || current.status === 'captain_offered')) {
+        const offer1: RideOffer = {
+          id: `off_${Date.now()}_1`,
+          ride_id: rideId,
+          captain_id: 'cpt_vikram_01',
+          captain_name: 'Captain Vikram Singh',
+          captain_phone: '+91 98765 43210',
+          vehicle_model: 'Honda Activa 6G',
+          plate_number: 'PB65AA1257',
+          rating: 4.92,
+          counter_fare: Number(offered_fare),
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        };
+        current.offers = [offer1];
+        current.status = 'captain_offered';
+        current.updated_at = new Date().toISOString();
+        ridesStore.set(rideId, current);
+        broadcastEvent('RIDE_OFFER_RECEIVED', { ride: current, offer: offer1 });
+        broadcastEvent('RIDE_UPDATED', current);
+      }
+    }, 2500);
+
+    setTimeout(() => {
+      const current = ridesStore.get(rideId);
+      if (current && (current.status === 'requested' || current.status === 'captain_offered')) {
+        const offer2: RideOffer = {
+          id: `off_${Date.now()}_2`,
+          ride_id: rideId,
+          captain_id: 'cpt_amit_02',
+          captain_name: 'Captain Amit Kumar',
+          captain_phone: '+91 98111 55667',
+          vehicle_model: 'Hero Splendor Plus',
+          plate_number: 'CH01AB4432',
+          rating: 4.88,
+          counter_fare: Math.max(30, Number(offered_fare) - 5),
+          status: 'pending',
+          created_at: new Date().toISOString(),
+        };
+        const existing = (current.offers || []).filter((o) => o.captain_id !== 'cpt_amit_02');
+        current.offers = [...existing, offer2];
+        current.status = 'captain_offered';
+        current.updated_at = new Date().toISOString();
+        ridesStore.set(rideId, current);
+        broadcastEvent('RIDE_OFFER_RECEIVED', { ride: current, offer: offer2 });
+        broadcastEvent('RIDE_UPDATED', current);
+      }
+    }, 5000);
+
     res.status(201).json({ success: true, ride: newRide });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to create ride' });

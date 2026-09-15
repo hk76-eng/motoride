@@ -1022,27 +1022,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
             </div>
           )}
 
-          {/* Dedicated Floating "Nearest Captain" Button if available */}
-          {!isCaptainMode && nearestCaptain && (
-            <div className="absolute bottom-28 sm:bottom-24 right-3.5 z-[500] flex flex-col gap-2 items-end">
-              <button
-                type="button"
-                onClick={handleFocusNearestCaptain}
-                title={`Locate Nearest Captain (${nearestCaptain.name})`}
-                aria-label="Locate Nearest Captain"
-                className="flex items-center gap-2 px-3.5 py-2.5 rounded-full bg-slate-950 text-emerald-400 border-2 border-emerald-500 shadow-2xl active:scale-95 transition-all cursor-pointer hover:bg-slate-900 hover:text-emerald-300 ring-4 ring-emerald-500/20"
-              >
-                <div className="relative flex items-center justify-center">
-                  <span className="absolute -inset-1 rounded-full bg-emerald-400 animate-ping opacity-75 pointer-events-none" />
-                  <span className="text-base leading-none">🏍️</span>
-                </div>
-                <span className="text-xs font-black text-white tracking-tight">
-                  Nearest Captain
-                </span>
-              </button>
-            </div>
-          )}
-
           {/* Top Right: Google Maps Layering Switcher, Navigator Controls & Recenter */}
           <div className="absolute top-3 right-3 z-[400] flex items-center gap-2 max-w-[calc(100%-1.5rem)]">
             {/* Layer Quick Switcher (Hidden in Captain Dashboard) */}
