@@ -23,6 +23,23 @@ export const motorideApi = {
     captain_id?: string;
     active_for_captain?: boolean;
   }): Promise<MotorideRide[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.set('status', params.status);
+    if (params?.passenger_id) queryParams.set('passenger_id', params.passenger_id);
+    if (params?.captain_id) queryParams.set('captain_id', params.captain_id);
+    if (params?.active_for_captain) queryParams.set('active_for_captain', 'true');
+
+    let backendRides: MotorideRide[] = [];
+    try {
+      const res = await fetch(`${API_BASE}/rides?${queryParams.toString()}`);
+      if (res.ok) {
+        const json = await res.json();
+        backendRides = json.rides || [];
+      }
+    } catch (err) {
+      console.warn('Backend getRides error:', err);
+    }
+
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -35,26 +52,35 @@ export const motorideApi = {
           if (params?.captain_id) query = query.eq('captain_id', params.captain_id);
         }
         const { data, error } = await query;
-        if (!error && data) {
-          return data as MotorideRide[];
+        if (!error && data && data.length > 0) {
+          const map = new Map<string, MotorideRide>();
+          backendRides.forEach((r) => map.set(r.id, r));
+          (data as MotorideRide[]).forEach((r) => {
+            if (!map.has(r.id)) {
+              map.set(r.id, r);
+            }
+          });
+          return Array.from(map.values()).sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
         }
       } catch (err) {
-        console.warn('Supabase getRides error, falling back to shared backend API:', err);
+        console.warn('Supabase getRides error:', err);
       }
     }
 
-    const queryParams = new URLSearchParams();
-    if (params?.status) queryParams.set('status', params.status);
-    if (params?.passenger_id) queryParams.set('passenger_id', params.passenger_id);
-    if (params?.captain_id) queryParams.set('captain_id', params.captain_id);
-    if (params?.active_for_captain) queryParams.set('active_for_captain', 'true');
-
-    const res = await fetch(`${API_BASE}/rides?${queryParams.toString()}`);
-    const json = await res.json();
-    return json.rides || [];
+    return backendRides;
   },
 
   async getRideById(id: string): Promise<MotorideRide | null> {
+    try {
+      const res = await fetch(`${API_BASE}/rides/${id}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.ride) return json.ride;
+      }
+    } catch {}
+
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -65,52 +91,52 @@ export const motorideApi = {
       }
     }
 
-    const res = await fetch(`${API_BASE}/rides/${id}`);
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.ride || null;
+    return null;
   },
 
   async createRide(rideData: Partial<MotorideRide>): Promise<MotorideRide> {
+    const rideCode = `RIDE-${Math.floor(1000 + Math.random() * 9000)}`;
+    const rideId = `ride_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const payload = {
+      ...rideData,
+      id: rideId,
+      ride_code: rideCode,
+      status: 'requested',
+      final_fare: rideData.offered_fare || rideData.estimated_fare || 75,
+      payment_status: 'pending',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // 1. Post to shared backend first to guarantee instant cross-browser and cross-device SSE sync
+    let createdRide: MotorideRide = payload as MotorideRide;
+    try {
+      const res = await fetch(`${API_BASE}/rides`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.ride) {
+          createdRide = json.ride;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend createRide warning:', err);
+    }
+
+    // 2. Also persist to Supabase if configured
     const supabase = getSupabase();
     if (supabase) {
       try {
-        const rideCode = `RIDE-${Math.floor(1000 + Math.random() * 9000)}`;
-        const payload = {
-          ...rideData,
-          ride_code: rideCode,
-          status: 'requested',
-          final_fare: rideData.offered_fare || rideData.estimated_fare,
-          payment_status: 'pending',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        const { data, error } = await supabase.from('rides').insert([payload]).select().single();
-        if (!error && data) {
-          // Notify shared server as well so SSE triggers on devices listening to SSE
-          fetch(`${API_BASE}/rides`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-          }).catch(() => {});
-          return data as MotorideRide;
-        }
+        await supabase.from('rides').insert([createdRide]);
       } catch (err) {
-        console.warn('Supabase insert ride fallback to backend:', err);
+        console.warn('Supabase insert ride warning:', err);
       }
     }
 
-    const res = await fetch(`${API_BASE}/rides`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(rideData),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to create ride');
-    }
-    const json = await res.json();
-    return json.ride;
+    return createdRide;
   },
 
   async acceptRide(

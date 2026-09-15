@@ -99,9 +99,25 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       loadAllData();
     });
 
+    // 4-second poll to ensure admin view updates across devices
+    const pollInterval = setInterval(() => {
+      loadAllData();
+    }, 4000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadAllData();
+      }
+    };
+    window.addEventListener('focus', handleVisibility);
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       unsub();
       unsubCreate();
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleVisibility);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 

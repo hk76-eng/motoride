@@ -319,6 +319,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         if (prev.some((r) => r.id === newRide.id)) return prev;
         return [newRide, ...prev];
       });
+      // Vibrate mobile device when new ride arrives
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try {
+          navigator.vibrate([100, 50, 100]);
+        } catch {}
+      }
     });
 
     const unsubRideUpdated = realtimeSync.on('RIDE_UPDATED', (updatedRide: MotorideRide) => {
@@ -339,11 +345,32 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       });
     });
 
+    // Continuous 2.5-second polling to ensure cross-browser/mobile sync even if SSE sleeps on mobile
+    const pollInterval = setInterval(() => {
+      loadAvailableRides();
+      if (activeRide) {
+        loadActiveRide();
+      }
+    }, 2500);
+
+    // Immediate re-fetch when switching back to mobile browser tab
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadAvailableRides();
+        loadActiveRide();
+      }
+    };
+    window.addEventListener('focus', handleVisibility);
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       unsubRideCreated();
       unsubRideUpdated();
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleVisibility);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [captainId]);
+  }, [captainId, activeRide?.id]);
 
   // Fallback simulator for active ride ONLY when GPS is denied, unavailable, or in sandboxed demo
   useEffect(() => {

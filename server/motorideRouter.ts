@@ -125,10 +125,11 @@ motorideRouter.post('/rides', (req: Request, res: Response) => {
       payment_method = 'cash',
     } = req.body;
 
-    const rideId = `ride_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const rideCode = `RIDE-${Math.floor(1000 + Math.random() * 9000)}`;
-    const now = new Date().toISOString();
+    const rideId = req.body.id || `ride_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const rideCode = req.body.ride_code || `RIDE-${Math.floor(1000 + Math.random() * 9000)}`;
+    const now = req.body.created_at || new Date().toISOString();
 
+    const existingRide = ridesStore.get(rideId);
     const newRide: MotorideRide = {
       id: rideId,
       ride_code: rideCode,
@@ -145,14 +146,19 @@ motorideRouter.post('/rides', (req: Request, res: Response) => {
       duration_minutes: Number(duration_minutes),
       estimated_fare: Number(estimated_fare),
       offered_fare: Number(offered_fare),
-      final_fare: Number(offered_fare),
+      final_fare: Number(req.body.final_fare || offered_fare),
       ride_type,
-      status: 'requested',
+      status: req.body.status || existingRide?.status || 'requested',
       payment_method,
-      payment_status: 'pending',
+      payment_status: req.body.payment_status || 'pending',
       created_at: now,
-      updated_at: now,
-      offers: [],
+      updated_at: new Date().toISOString(),
+      offers: req.body.offers || existingRide?.offers || [],
+      captain_id: req.body.captain_id || existingRide?.captain_id,
+      captain_name: req.body.captain_name || existingRide?.captain_name,
+      captain_phone: req.body.captain_phone || existingRide?.captain_phone,
+      vehicle_model: req.body.vehicle_model || existingRide?.vehicle_model,
+      plate_number: req.body.plate_number || existingRide?.plate_number,
     };
 
     ridesStore.set(rideId, newRide);
