@@ -1009,6 +1009,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowChatModal(true)}
+                      className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-md transition-all active:scale-95 cursor-pointer"
+                      title="Chat with Captain"
+                    >
+                      <MessageSquare className="w-4 h-4 stroke-[2.5]" />
+                    </button>
                     <a
                       href={`tel:${activeRide.captain_phone || '+919876543210'}`}
                       className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-md transition-all active:scale-95"
