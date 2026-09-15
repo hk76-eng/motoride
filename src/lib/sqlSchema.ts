@@ -91,12 +91,12 @@ CREATE TABLE IF NOT EXISTS public.ride_types (
 
 -- 8. Main Rides Table
 CREATE TABLE IF NOT EXISTS public.rides (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
     ride_code TEXT UNIQUE NOT NULL,
-    passenger_id UUID NOT NULL,
+    passenger_id TEXT NOT NULL,
     passenger_name TEXT NOT NULL,
     passenger_phone TEXT,
-    captain_id UUID,
+    captain_id TEXT,
     captain_name TEXT,
     captain_phone TEXT,
     vehicle_model TEXT,
@@ -142,9 +142,9 @@ CREATE INDEX IF NOT EXISTS idx_rides_created ON public.rides(created_at DESC);
 
 -- 9. Ride Offers Table (inDrive style counter-offers)
 CREATE TABLE IF NOT EXISTS public.ride_offers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    ride_id UUID REFERENCES public.rides(id) ON DELETE CASCADE,
-    captain_id UUID NOT NULL,
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    ride_id TEXT REFERENCES public.rides(id) ON DELETE CASCADE,
+    captain_id TEXT NOT NULL,
     captain_name TEXT NOT NULL,
     captain_phone TEXT,
     vehicle_model TEXT,
@@ -157,8 +157,8 @@ CREATE TABLE IF NOT EXISTS public.ride_offers (
 
 -- 10. Ride Status History Table
 CREATE TABLE IF NOT EXISTS public.ride_status_history (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    ride_id UUID REFERENCES public.rides(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    ride_id TEXT REFERENCES public.rides(id) ON DELETE CASCADE,
     previous_status TEXT,
     new_status TEXT NOT NULL,
     changed_by TEXT,
@@ -168,9 +168,9 @@ CREATE TABLE IF NOT EXISTS public.ride_status_history (
 
 -- 11. Captain Live Locations Table
 CREATE TABLE IF NOT EXISTS public.captain_locations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    captain_id UUID NOT NULL,
-    ride_id UUID,
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    captain_id TEXT NOT NULL,
+    ride_id TEXT,
     lat DOUBLE PRECISION NOT NULL,
     lng DOUBLE PRECISION NOT NULL,
     speed DOUBLE PRECISION DEFAULT 0,
@@ -180,8 +180,8 @@ CREATE TABLE IF NOT EXISTS public.captain_locations (
 
 -- 12. Wallets Table
 CREATE TABLE IF NOT EXISTS public.wallets (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL UNIQUE,
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    user_id TEXT NOT NULL UNIQUE,
     role TEXT NOT NULL CHECK (role IN ('passenger', 'captain', 'admin')),
     balance NUMERIC(12, 2) DEFAULT 250.00,
     currency TEXT DEFAULT '₹',
@@ -190,22 +190,22 @@ CREATE TABLE IF NOT EXISTS public.wallets (
 
 -- 13. Wallet Transactions Table
 CREATE TABLE IF NOT EXISTS public.wallet_transactions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    wallet_id UUID REFERENCES public.wallets(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL,
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    wallet_id TEXT REFERENCES public.wallets(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
     amount NUMERIC(12, 2) NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('credit', 'debit')),
     category TEXT NOT NULL CHECK (category IN ('ride_earning', 'commission_fee', 'topup', 'ride_payment', 'refund')),
     description TEXT NOT NULL,
-    reference_ride_id UUID,
+    reference_ride_id TEXT,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );
 
 -- 14. Earnings Table
 CREATE TABLE IF NOT EXISTS public.earnings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    captain_id UUID NOT NULL,
-    ride_id UUID REFERENCES public.rides(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    captain_id TEXT NOT NULL,
+    ride_id TEXT REFERENCES public.rides(id) ON DELETE CASCADE,
     ride_date DATE DEFAULT CURRENT_DATE,
     gross_fare NUMERIC(10, 2) NOT NULL,
     platform_commission NUMERIC(10, 2) NOT NULL,
@@ -215,10 +215,10 @@ CREATE TABLE IF NOT EXISTS public.earnings (
 
 -- 15. Ratings & Reviews Table
 CREATE TABLE IF NOT EXISTS public.ratings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    ride_id UUID REFERENCES public.rides(id) ON DELETE CASCADE,
-    passenger_id UUID NOT NULL,
-    captain_id UUID NOT NULL,
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    ride_id TEXT REFERENCES public.rides(id) ON DELETE CASCADE,
+    passenger_id TEXT NOT NULL,
+    captain_id TEXT NOT NULL,
     score INTEGER NOT NULL CHECK (score >= 1 AND score <= 5),
     review TEXT,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS public.ratings (
 
 -- 16. QR Code / Admin Payment Settings Table
 CREATE TABLE IF NOT EXISTS public.qr_settings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
     qr_image_url TEXT NOT NULL,
     upi_id TEXT NOT NULL DEFAULT 'motoride.platform@upi',
     merchant_name TEXT NOT NULL DEFAULT 'Motoride Technologies Ltd',
@@ -237,20 +237,20 @@ CREATE TABLE IF NOT EXISTS public.qr_settings (
 
 -- 17. In-App Notifications Table
 CREATE TABLE IF NOT EXISTS public.notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID,
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    user_id TEXT,
     role_target TEXT DEFAULT 'all',
     title TEXT NOT NULL,
     message TEXT NOT NULL,
     type TEXT DEFAULT 'info' CHECK (type IN ('info', 'success', 'warning', 'alert')),
-    ride_id UUID,
+    ride_id TEXT,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );
 
 -- 18. Passenger Live Locations Table (Cross-device real-time GPS tracking)
 CREATE TABLE IF NOT EXISTS public.passenger_locations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
     passenger_id TEXT NOT NULL,
     ride_id TEXT,
     latitude DOUBLE PRECISION NOT NULL,
@@ -272,8 +272,8 @@ ON public.passenger_locations(ride_id);
 -- ATOMIC RIDE ACCEPTANCE STORED PROCEDURE (Prevents Simultaneous Captain Claims)
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.accept_ride_atomic(
-    p_ride_id UUID,
-    p_captain_id UUID,
+    p_ride_id TEXT,
+    p_captain_id TEXT,
     p_captain_name TEXT,
     p_captain_phone TEXT,
     p_vehicle_model TEXT,

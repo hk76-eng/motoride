@@ -8,19 +8,35 @@ class RealtimeSyncManager {
   private sseSource: EventSource | null = null;
   private isConnected: boolean = false;
   private reconnectTimeout: any = null;
+  private supabaseChannel: any = null;
 
   constructor() {
     this.init();
   }
 
   private init() {
-    // 1. Initialize Supabase Realtime if configured
+    // 1. Initialize Supabase Realtime Broadcast & Postgres changes
     if (isSupabaseConfigured()) {
       const supabase = getSupabase();
       if (supabase) {
         try {
-          const channel = supabase
-            .channel('motoride-realtime-channel')
+          this.supabaseChannel = supabase
+            .channel('motoride-global-realtime', {
+              config: { broadcast: { self: false } },
+            })
+            .on('broadcast', { event: 'MOTORIDE_EVENT' }, ({ payload }: any) => {
+              if (payload?.event) {
+                this.emit(payload.event, payload.data);
+              }
+            })
+            .on('broadcast', { event: 'REQUEST_ACTIVE_SYNC' }, () => {
+              this.emit('REQUEST_SYNC_RECEIVED', {});
+            })
+            .on('broadcast', { event: 'ACTIVE_RIDES_SYNC' }, ({ payload }: any) => {
+              if (Array.isArray(payload?.rides)) {
+                this.emit('ACTIVE_RIDES_SYNC_RECEIVED', payload.rides);
+              }
+            })
             .on(
               'postgres_changes',
               { event: '*', schema: 'public', table: 'rides' },
@@ -58,7 +74,12 @@ class RealtimeSyncManager {
               }
             )
             .subscribe((status: string) => {
-              console.log('Supabase Realtime subscription status:', status);
+              if (status === 'SUBSCRIBED') {
+                this.isConnected = true;
+                this.emit('CONNECTION_STATUS', { connected: true, type: 'supabase_realtime' });
+                // Request any active ride state from connected peers
+                this.requestSync();
+              }
             });
         } catch (err) {
           console.warn('Supabase Realtime setup warning:', err);
@@ -66,7 +87,7 @@ class RealtimeSyncManager {
       }
     }
 
-    // 2. Initialize Shared Backend SSE stream for instant cross-device sync
+    // 2. Initialize Shared Backend SSE stream if available
     this.connectSSE();
 
     // Reconnect on tab focus / wake up from background on mobile
@@ -76,6 +97,7 @@ class RealtimeSyncManager {
           if (!this.isConnected || !this.sseSource || this.sseSource.readyState === EventSource.CLOSED) {
             this.connectSSE();
           }
+          this.requestSync();
         }
       };
       window.addEventListener('visibilitychange', handleWake);
@@ -109,13 +131,16 @@ class RealtimeSyncManager {
       };
 
       this.sseSource.onerror = () => {
-        this.isConnected = false;
-        this.emit('CONNECTION_STATUS', { connected: false, type: 'sse' });
+        // SSE is unavailable on static hosting (like Vercel) - fallback seamlessly to Supabase Realtime
+        if (!isSupabaseConfigured()) {
+          this.isConnected = false;
+          this.emit('CONNECTION_STATUS', { connected: false, type: 'sse' });
+        }
         this.sseSource?.close();
         clearTimeout(this.reconnectTimeout);
         this.reconnectTimeout = setTimeout(() => {
           this.connectSSE();
-        }, 3000);
+        }, 8000);
       };
     } catch (err) {
       console.warn('SSE connection attempt error:', err);
@@ -146,6 +171,59 @@ class RealtimeSyncManager {
     }
   }
 
+  /**
+   * Broadcasts an event locally AND across all connected browsers/devices via Supabase Realtime.
+   */
+  public broadcast(event: string, data: any) {
+    // 1. Emit locally immediately
+    this.emit(event, data);
+
+    // 2. Broadcast via Supabase channel to all other clients across devices
+    if (this.supabaseChannel) {
+      try {
+        this.supabaseChannel
+          .send({
+            type: 'broadcast',
+            event: 'MOTORIDE_EVENT',
+            payload: { event, data },
+          })
+          .catch((err: any) => {
+            console.warn('Supabase broadcast error:', err);
+          });
+      } catch (err) {
+        console.warn('Supabase broadcast send failed:', err);
+      }
+    }
+  }
+
+  public requestSync() {
+    if (this.supabaseChannel) {
+      try {
+        this.supabaseChannel
+          .send({
+            type: 'broadcast',
+            event: 'REQUEST_ACTIVE_SYNC',
+            payload: {},
+          })
+          .catch(() => {});
+      } catch {}
+    }
+  }
+
+  public sendActiveRidesSync(rides: MotorideRide[]) {
+    if (this.supabaseChannel && Array.isArray(rides) && rides.length > 0) {
+      try {
+        this.supabaseChannel
+          .send({
+            type: 'broadcast',
+            event: 'ACTIVE_RIDES_SYNC',
+            payload: { rides },
+          })
+          .catch(() => {});
+      } catch {}
+    }
+  }
+
   public getStatus() {
     return {
       isConnected: this.isConnected,
@@ -155,3 +233,4 @@ class RealtimeSyncManager {
 }
 
 export const realtimeSync = new RealtimeSyncManager();
+

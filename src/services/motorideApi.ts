@@ -12,8 +12,92 @@ import {
   PassengerLiveLocation,
 } from '../types/motoride';
 import { getSupabase } from '../lib/supabase';
+import { realtimeSync } from './realtimeSync';
 
 const API_BASE = '/api/motoride';
+
+// Local and cross-browser memory store for resilient instant sync
+const localRidesStore: Map<string, MotorideRide> = new Map();
+
+// Initialize from localStorage if available in browser
+if (typeof window !== 'undefined') {
+  try {
+    const saved = localStorage.getItem('motoride_active_rides_cache');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((r: MotorideRide) => {
+          if (r && r.id) localRidesStore.set(r.id, r);
+        });
+      }
+    }
+  } catch {}
+}
+
+const saveLocalRides = () => {
+  if (typeof window !== 'undefined') {
+    try {
+      const arr = Array.from(localRidesStore.values()).slice(0, 30);
+      localStorage.setItem('motoride_active_rides_cache', JSON.stringify(arr));
+    } catch {}
+  }
+};
+
+// Listen to incoming real-time broadcast and SSE events to keep local store in sync across all devices
+realtimeSync.on('RIDE_CREATED', (ride: MotorideRide) => {
+  if (ride && ride.id) {
+    localRidesStore.set(ride.id, ride);
+    saveLocalRides();
+  }
+});
+
+realtimeSync.on('RIDE_UPDATED', (ride: MotorideRide) => {
+  if (ride && ride.id) {
+    const existing = localRidesStore.get(ride.id) || {};
+    localRidesStore.set(ride.id, { ...existing, ...ride });
+    saveLocalRides();
+  }
+});
+
+realtimeSync.on('RIDE_ACCEPTED', (ride: MotorideRide) => {
+  if (ride && ride.id) {
+    const existing = localRidesStore.get(ride.id) || ({} as Partial<MotorideRide>);
+    localRidesStore.set(ride.id, { ...existing, ...ride, status: 'captain_accepted' } as MotorideRide);
+    saveLocalRides();
+  }
+});
+
+realtimeSync.on('RIDE_OFFER_RECEIVED', (payload: any) => {
+  const ride = payload?.ride;
+  const offer = payload?.offer;
+  if (ride && ride.id) {
+    const existing = localRidesStore.get(ride.id) || ({} as Partial<MotorideRide>);
+    const existingOffers = existing.offers || [];
+    const updatedOffers = offer && !existingOffers.some((o: any) => o.id === offer.id)
+      ? [...existingOffers, offer]
+      : (ride.offers || existingOffers);
+    localRidesStore.set(ride.id, { ...existing, ...ride, offers: updatedOffers } as MotorideRide);
+    saveLocalRides();
+  }
+});
+
+realtimeSync.on('ACTIVE_RIDES_SYNC_RECEIVED', (rides: MotorideRide[]) => {
+  if (Array.isArray(rides)) {
+    rides.forEach((r) => {
+      if (r && r.id) localRidesStore.set(r.id, r);
+    });
+    saveLocalRides();
+  }
+});
+
+realtimeSync.on('REQUEST_SYNC_RECEIVED', () => {
+  const activeRides = Array.from(localRidesStore.values()).filter(
+    (r) => r.status === 'requested' || r.status === 'captain_offered' || r.status === 'captain_accepted' || r.status === 'captain_arrived' || r.status === 'trip_started'
+  );
+  if (activeRides.length > 0) {
+    realtimeSync.sendActiveRidesSync(activeRides);
+  }
+});
 
 async function safeFetchJson<T = any>(url: string, options?: RequestInit, fallback: T = {} as T): Promise<T> {
   try {
@@ -59,13 +143,30 @@ export const motorideApi = {
     if (params?.captain_id) queryParams.set('captain_id', params.captain_id);
     if (params?.active_for_captain) queryParams.set('active_for_captain', 'true');
 
+    const map = new Map<string, MotorideRide>();
+
+    // 1. Include local & cross-tab synced in-memory rides
+    localRidesStore.forEach((r) => {
+      if (r && r.id) map.set(r.id, r);
+    });
+
+    // 2. Fetch from backend API if available
     const json = await safeFetchJson<{ rides?: MotorideRide[] }>(
       `${API_BASE}/rides?${queryParams.toString()}`,
       undefined,
       { rides: [] }
     );
-    let backendRides: MotorideRide[] = Array.isArray(json?.rides) ? json.rides : [];
+    if (Array.isArray(json?.rides)) {
+      json.rides.forEach((r) => {
+        if (r && r.id) {
+          map.set(r.id, r);
+          localRidesStore.set(r.id, r);
+        }
+      });
+      saveLocalRides();
+    }
 
+    // 3. Fetch from Supabase PostgreSQL if table exists
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -78,37 +179,67 @@ export const motorideApi = {
           if (params?.captain_id) query = query.eq('captain_id', params.captain_id);
         }
         const { data, error } = await query;
-        if (!error && data && data.length > 0) {
-          const map = new Map<string, MotorideRide>();
-          backendRides.forEach((r) => map.set(r.id, r));
+        if (!error && data && Array.isArray(data)) {
           (data as MotorideRide[]).forEach((r) => {
-            if (!map.has(r.id)) {
+            if (r && r.id) {
               map.set(r.id, r);
+              localRidesStore.set(r.id, r);
             }
           });
-          return Array.from(map.values()).sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          saveLocalRides();
         }
       } catch (err) {
-        console.warn('Supabase getRides error:', err);
+        console.warn('Supabase getRides notice:', err);
       }
     }
 
-    return backendRides;
+    let result = Array.from(map.values());
+
+    // Apply strict filtering to ensure precision
+    if (params?.active_for_captain) {
+      result = result.filter(
+        (r) => r && (r.status === 'requested' || r.status === 'captain_offered')
+      );
+    } else {
+      if (params?.status && params.status !== 'all') {
+        result = result.filter((r) => r && r.status === params.status);
+      }
+      if (params?.passenger_id) {
+        result = result.filter((r) => r && r.passenger_id === params.passenger_id);
+      }
+      if (params?.captain_id) {
+        result = result.filter((r) => r && r.captain_id === params.captain_id);
+      }
+    }
+
+    return result.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
   },
 
   async getRideById(id: string): Promise<MotorideRide | null> {
+    if (localRidesStore.has(id)) {
+      return localRidesStore.get(id)!;
+    }
+
     const json = await safeFetchJson<{ ride?: MotorideRide }>(`${API_BASE}/rides/${id}`, undefined, {});
-    if (json?.ride) return json.ride;
+    if (json?.ride) {
+      localRidesStore.set(id, json.ride);
+      saveLocalRides();
+      return json.ride;
+    }
 
     const supabase = getSupabase();
     if (supabase) {
       try {
         const { data, error } = await supabase.from('rides').select('*').eq('id', id).single();
-        if (!error && data) return data as MotorideRide;
+        if (!error && data) {
+          localRidesStore.set(id, data as MotorideRide);
+          saveLocalRides();
+          return data as MotorideRide;
+        }
       } catch (err) {
-        console.warn('Supabase getRideById error:', err);
+        console.warn('Supabase getRideById notice:', err);
       }
     }
 
@@ -118,7 +249,7 @@ export const motorideApi = {
   async createRide(rideData: Partial<MotorideRide>): Promise<MotorideRide> {
     const rideCode = `RIDE-${Math.floor(1000 + Math.random() * 9000)}`;
     const rideId = `ride_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const payload = {
+    const payload: MotorideRide = {
       ...rideData,
       id: rideId,
       ride_code: rideCode,
@@ -127,34 +258,37 @@ export const motorideApi = {
       payment_status: 'pending',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    };
+    } as MotorideRide;
 
-    // 1. Post to shared backend first to guarantee instant cross-browser and cross-device SSE sync
-    let createdRide: MotorideRide = payload as MotorideRide;
-    const json = await safeFetchJson<{ ride?: MotorideRide }>(
+    // 1. Store locally in memory and persistent storage
+    localRidesStore.set(payload.id, payload);
+    saveLocalRides();
+
+    // 2. Broadcast immediately over Supabase Realtime to ALL connected captains & browsers
+    realtimeSync.broadcast('RIDE_CREATED', payload);
+
+    // 3. Post to Supabase database if tables exist
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('rides').insert([payload]);
+      } catch (err) {
+        console.warn('Supabase insert ride notice:', err);
+      }
+    }
+
+    // 4. Also post to backend if running
+    safeFetchJson<{ ride?: MotorideRide }>(
       `${API_BASE}/rides`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
-      { ride: createdRide }
-    );
-    if (json?.ride) {
-      createdRide = json.ride;
-    }
+      { ride: payload }
+    ).catch(() => {});
 
-    // 2. Also persist to Supabase if configured
-    const supabase = getSupabase();
-    if (supabase) {
-      try {
-        await supabase.from('rides').insert([createdRide]);
-      } catch (err) {
-        console.warn('Supabase insert ride warning:', err);
-      }
-    }
-
-    return createdRide;
+    return payload;
   },
 
   async acceptRide(
@@ -168,6 +302,27 @@ export const motorideApi = {
       accepted_fare?: number;
     }
   ): Promise<MotorideRide> {
+    const existing = localRidesStore.get(rideId) || ({ id: rideId } as MotorideRide);
+    const updatedRide: MotorideRide = {
+      ...existing,
+      id: rideId,
+      status: 'captain_accepted',
+      captain_id: captainData.captain_id,
+      captain_name: captainData.captain_name,
+      captain_phone: captainData.captain_phone,
+      vehicle_model: captainData.vehicle_model,
+      plate_number: captainData.plate_number,
+      final_fare: captainData.accepted_fare || existing.final_fare || 75,
+      updated_at: new Date().toISOString(),
+    };
+
+    localRidesStore.set(rideId, updatedRide);
+    saveLocalRides();
+
+    // Broadcast instantly to all browsers and devices
+    realtimeSync.broadcast('RIDE_ACCEPTED', updatedRide);
+    realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
+
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -180,41 +335,27 @@ export const motorideApi = {
           p_plate_number: captainData.plate_number || '',
           p_accepted_fare: captainData.accepted_fare || 0,
         });
-        if (!error && data && data.success) {
-          // Sync with backend API
-          fetch(`${API_BASE}/rides/${rideId}/accept`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(captainData),
-          }).catch(() => {});
+        if (!error && data?.success && data.ride) {
           return data.ride as MotorideRide;
+        } else {
+          await supabase.from('rides').update(updatedRide).eq('id', rideId);
         }
       } catch (err) {
-        console.warn('Supabase RPC fallback to backend:', err);
+        console.warn('Supabase accept ride notice:', err);
       }
     }
 
-    const json = await safeFetchJson<{ ride: MotorideRide }>(
+    safeFetchJson<{ ride: MotorideRide }>(
       `${API_BASE}/rides/${rideId}/accept`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(captainData),
       },
-      {
-        ride: {
-          id: rideId,
-          status: 'captain_accepted',
-          captain_id: captainData.captain_id,
-          captain_name: captainData.captain_name,
-          captain_phone: captainData.captain_phone,
-          vehicle_model: captainData.vehicle_model,
-          plate_number: captainData.plate_number,
-          final_fare: captainData.accepted_fare || 75,
-        } as any,
-      }
-    );
-    return json.ride;
+      { ride: updatedRide }
+    ).catch(() => {});
+
+    return updatedRide;
   },
 
   async sendCounterOffer(
@@ -228,41 +369,92 @@ export const motorideApi = {
       counter_fare: number;
     }
   ): Promise<{ ride: MotorideRide; offer: RideOffer }> {
-    const json = await safeFetchJson<{ ride: MotorideRide; offer: RideOffer }>(
+    const existing = localRidesStore.get(rideId) || ({ id: rideId } as MotorideRide);
+    const updatedRide: MotorideRide = {
+      ...existing,
+      id: rideId,
+      status: 'captain_offered',
+      updated_at: new Date().toISOString(),
+    };
+
+    const newOffer: RideOffer = {
+      id: `off_${Date.now()}`,
+      ride_id: rideId,
+      ...offerData,
+      status: 'pending',
+      rating: 4.9,
+      created_at: new Date().toISOString(),
+    };
+
+    const existingOffers = updatedRide.offers || [];
+    updatedRide.offers = [...existingOffers, newOffer];
+
+    localRidesStore.set(rideId, updatedRide);
+    saveLocalRides();
+
+    // Broadcast counter offer to passenger immediately across devices
+    realtimeSync.broadcast('RIDE_OFFER_RECEIVED', { ride: updatedRide, offer: newOffer });
+    realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('rides').update({ status: 'captain_offered' }).eq('id', rideId);
+        await supabase.from('ride_offers').insert([newOffer]);
+      } catch (err) {
+        console.warn('Supabase counter offer notice:', err);
+      }
+    }
+
+    safeFetchJson<{ ride: MotorideRide; offer: RideOffer }>(
       `${API_BASE}/rides/${rideId}/offer`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(offerData),
       },
-      {
-        ride: { id: rideId, status: 'captain_offered' } as any,
-        offer: {
-          id: `off_${Date.now()}`,
-          ride_id: rideId,
-          ...offerData,
-          status: 'pending',
-          rating: 4.9,
-          created_at: new Date().toISOString(),
-        },
-      }
-    );
-    return json;
+      { ride: updatedRide, offer: newOffer }
+    ).catch(() => {});
+
+    return { ride: updatedRide, offer: newOffer };
   },
 
   async acceptCounterOffer(rideId: string, offerId: string): Promise<MotorideRide> {
-    const json = await safeFetchJson<{ ride: MotorideRide }>(
+    const existing = localRidesStore.get(rideId) || ({ id: rideId } as MotorideRide);
+    const updatedRide: MotorideRide = {
+      ...existing,
+      id: rideId,
+      status: 'captain_accepted',
+      updated_at: new Date().toISOString(),
+    };
+
+    localRidesStore.set(rideId, updatedRide);
+    saveLocalRides();
+
+    realtimeSync.broadcast('RIDE_ACCEPTED', updatedRide);
+    realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('rides').update({ status: 'captain_accepted' }).eq('id', rideId);
+        await supabase.from('ride_offers').update({ status: 'accepted' }).eq('id', offerId);
+      } catch (err) {
+        console.warn('Supabase accept counter offer notice:', err);
+      }
+    }
+
+    safeFetchJson<{ ride: MotorideRide }>(
       `${API_BASE}/rides/${rideId}/accept-offer`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ offer_id: offerId }),
       },
-      {
-        ride: { id: rideId, status: 'captain_accepted' } as any,
-      }
-    );
-    return json.ride;
+      { ride: updatedRide }
+    ).catch(() => {});
+
+    return updatedRide;
   },
 
   async updateRideStatus(
@@ -274,6 +466,26 @@ export const motorideApi = {
       final_fare?: number;
     }
   ): Promise<MotorideRide> {
+    const existing = localRidesStore.get(rideId) || ({ id: rideId } as MotorideRide);
+    const updatedRide: MotorideRide = {
+      ...existing,
+      id: rideId,
+      status,
+      ...extra,
+      updated_at: new Date().toISOString(),
+    };
+    if (status === 'trip_started') updatedRide.trip_started_at = new Date().toISOString();
+    if (status === 'trip_completed') {
+      updatedRide.trip_completed_at = new Date().toISOString();
+      updatedRide.payment_status = 'paid';
+    }
+
+    localRidesStore.set(rideId, updatedRide);
+    saveLocalRides();
+
+    realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
+    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status });
+
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -291,25 +503,25 @@ export const motorideApi = {
         }
         await supabase.from('rides').update(updatePayload).eq('id', rideId);
       } catch (err) {
-        console.warn('Supabase status update error:', err);
+        console.warn('Supabase status update notice:', err);
       }
     }
 
-    const json = await safeFetchJson<{ ride: MotorideRide }>(
+    safeFetchJson<{ ride: MotorideRide }>(
       `${API_BASE}/rides/${rideId}/status`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, ...extra }),
       },
-      {
-        ride: { id: rideId, status, ...extra } as any,
-      }
-    );
-    return json.ride;
+      { ride: updatedRide }
+    ).catch(() => {});
+
+    return updatedRide;
   },
 
   async updateCaptainLocation(rideId: string, lat: number, lng: number): Promise<void> {
+    realtimeSync.broadcast('CAPTAIN_LOCATION_UPDATED', { ride_id: rideId, lat, lng });
     fetch(`${API_BASE}/rides/${rideId}/location`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -327,10 +539,19 @@ export const motorideApi = {
     heading?: number | null;
     speed?: number | null;
   }): Promise<void> {
+    // Broadcast live location to passenger's screen
+    realtimeSync.broadcast('CAPTAIN_LOCATION_UPDATED', {
+      captain_id: data.captain_id,
+      ride_id: data.ride_id,
+      lat: data.latitude,
+      lng: data.longitude,
+      heading: data.heading,
+      speed: data.speed,
+    });
+
     const supabase = getSupabase();
     if (supabase) {
       try {
-        // 1. Update captains record current coordinates
         await supabase.from('captains').update({
           current_lat: data.latitude,
           current_lng: data.longitude,
@@ -338,7 +559,6 @@ export const motorideApi = {
           updated_at: new Date().toISOString(),
         }).eq('id', data.captain_id);
 
-        // 2. If ride is active, also update rides table coordinates
         if (data.ride_id) {
           await supabase.from('rides').update({
             captain_current_lat: data.latitude,
@@ -347,7 +567,6 @@ export const motorideApi = {
           }).eq('id', data.ride_id);
         }
 
-        // 3. Upsert to captain_locations if table exists
         await supabase.from('captain_locations').upsert(
           {
             captain_id: data.captain_id,
@@ -374,7 +593,6 @@ export const motorideApi = {
       }).catch(() => {});
     }
 
-    // Always sync with backend captain-location endpoint for SSE and cross-device sync
     fetch(`${API_BASE}/captain-location`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -392,6 +610,17 @@ export const motorideApi = {
     heading?: number | null;
     speed?: number | null;
   }): Promise<void> {
+    // Broadcast live passenger location to captain's screen
+    realtimeSync.broadcast('PASSENGER_LOCATION_UPDATED', {
+      passenger_id: data.passenger_id,
+      ride_id: data.ride_id,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      accuracy: data.accuracy,
+      heading: data.heading,
+      speed: data.speed,
+    });
+
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -413,7 +642,6 @@ export const motorideApi = {
       }
     }
 
-    // Always sync with backend API endpoint for SSE and cross-device sync
     fetch(`${API_BASE}/passenger-location`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -480,7 +708,6 @@ export const motorideApi = {
       console.warn('getAvailableCaptains API fallback:', err);
     }
 
-    // Supabase or Fallback
     const fallbackCaptains = await this.getCaptains();
     const online = Array.isArray(fallbackCaptains)
       ? fallbackCaptains.filter((c) => c && c.is_online !== false && c.is_approved !== false && c.is_active !== false)
@@ -656,6 +883,12 @@ export const motorideApi = {
   },
 
   async sendRideMessage(rideId: string, data: { sender_id: string; sender_role: 'passenger' | 'captain'; sender_name: string; message: string }): Promise<any> {
+    realtimeSync.broadcast('RIDE_MESSAGE_RECEIVED', {
+      id: `msg_${Date.now()}`,
+      ride_id: rideId,
+      ...data,
+      created_at: new Date().toISOString(),
+    });
     const json = await safeFetchJson<{ message?: any }>(`${API_BASE}/rides/${rideId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
