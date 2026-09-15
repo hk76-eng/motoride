@@ -576,6 +576,87 @@ motorideRouter.post('/passenger-location', (req: Request, res: Response) => {
   res.json({ success: true, location: record });
 });
 
+// Proxy Geocode Search with Fallback (Prevents HTML response parse errors from Nominatim)
+motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
+  const query = (req.query.q as string || '').trim();
+  if (!query) {
+    return res.json({ success: true, results: [] });
+  }
+
+  const localPresets = [
+    { name: 'Sector 70, Mohali Market', lat: 30.704649, lng: 76.717873 },
+    { name: 'Phase 8B Industrial Area, Mohali', lat: 30.718214, lng: 76.732124 },
+    { name: 'Sector 62 Phase 8, Mohali City Center', lat: 30.705892, lng: 76.726418 },
+    { name: 'Sector 17 Plaza, Chandigarh', lat: 30.739834, lng: 76.782702 },
+    { name: 'ISBT Sector 43, Chandigarh', lat: 30.722511, lng: 76.745632 },
+    { name: 'Shaheed Bhagat Singh Int. Airport Mohali', lat: 30.673523, lng: 76.788544 },
+    { name: 'VR Punjab Mall, Kharar Road', lat: 30.748231, lng: 76.689241 },
+    { name: 'Elante Mall, Industrial Area Phase 1', lat: 30.705423, lng: 76.801235 },
+    { name: 'Chandigarh Railway Station, Daria', lat: 30.704123, lng: 76.828456 },
+    { name: 'Max Super Speciality Hospital, Phase 6', lat: 30.732145, lng: 76.708234 },
+  ];
+
+  const matched = localPresets.filter((item) =>
+    item.name.toLowerCase().includes(query.toLowerCase())
+  );
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'MotorideRideApp/2.0 (contact@motoride.app)',
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(3000),
+    });
+
+    const text = await response.text();
+    if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const results = parsed.map((item: any) => ({
+          name: item.display_name.split(',').slice(0, 3).join(', ').trim(),
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+        }));
+        return res.json({ success: true, results });
+      }
+    }
+  } catch {}
+
+  res.json({ success: true, results: matched });
+});
+
+// Proxy Reverse Geocode
+motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
+  const { lat, lng } = req.query;
+  if (!lat || !lng) {
+    return res.json({ success: true, address: 'Current Location' });
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'MotorideRideApp/2.0 (contact@motoride.app)',
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(3000),
+    });
+
+    const text = await response.text();
+    if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
+      const parsed = JSON.parse(text);
+      if (parsed && parsed.display_name) {
+        const shortName = parsed.display_name.split(',').slice(0, 3).join(', ').trim();
+        return res.json({ success: true, address: shortName });
+      }
+    }
+  } catch {}
+
+  res.json({ success: true, address: `Location (${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)})` });
+});
+
 // Get Latest Passenger Live Location
 motorideRouter.get('/rides/:id/passenger-location', (req: Request, res: Response) => {
   const ride = ridesStore.get(req.params.id);

@@ -91,28 +91,23 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
     const lat = currentLocation.latitude;
     const lng = currentLocation.longitude;
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       setIsReverseGeocoding(true);
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.display_name) {
-            const addr = data.address || {};
-            const parts: string[] = [];
-            if (addr.road || addr.suburb || addr.neighbourhood) {
-              parts.push(addr.road || addr.neighbourhood || addr.suburb);
+      try {
+        const res = await fetch(`/api/motoride/geocode/reverse?lat=${lat}&lng=${lng}`);
+        if (res.ok) {
+          const text = await res.text();
+          if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
+            const data = JSON.parse(text);
+            if (data.address) {
+              setResolvedAddress(data.address);
             }
-            if (addr.city || addr.town || addr.village || addr.county) {
-              parts.push(addr.city || addr.town || addr.village || addr.county);
-            }
-            if (addr.state) {
-              parts.push(addr.state);
-            }
-            setResolvedAddress(parts.length > 0 ? parts.join(', ') : data.display_name.split(',').slice(0, 3).join(','));
           }
-        })
-        .catch(() => {})
-        .finally(() => setIsReverseGeocoding(false));
+        }
+      } catch {}
+      finally {
+        setIsReverseGeocoding(false);
+      }
     }, 700);
 
     return () => clearTimeout(timer);
@@ -124,10 +119,19 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.trim())}&limit=5&addressdetails=1`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        setSearchResults(data);
+      const res = await fetch(`/api/motoride/geocode/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      if (res.ok) {
+        const text = await res.text();
+        if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
+          const data = JSON.parse(text);
+          if (data.results && Array.isArray(data.results)) {
+            setSearchResults(data.results.map((r: any) => ({
+              lat: String(r.lat),
+              lon: String(r.lng),
+              display_name: r.name,
+            })));
+          }
+        }
       }
     } catch {
       setSearchResults([]);

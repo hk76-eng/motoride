@@ -162,21 +162,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       setIsSearchingPickup(true);
       try {
         const q = pickupInputText.trim();
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&addressdetails=1`
-        );
+        const res = await fetch(`/api/motoride/geocode/search?q=${encodeURIComponent(q)}`);
         if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setPickupSuggestions(
-              data.map((item: any) => ({
-                name: item.display_name.split(',').slice(0, 3).join(', ').trim(),
-                lat: parseFloat(item.lat),
-                lng: parseFloat(item.lon),
-              }))
-            );
-          } else {
-            setPickupSuggestions([]);
+          const text = await res.text();
+          if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
+            const data = JSON.parse(text);
+            if (data.results && Array.isArray(data.results)) {
+              setPickupSuggestions(data.results);
+            } else {
+              setPickupSuggestions([]);
+            }
           }
         }
       } catch (err) {
@@ -184,7 +179,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       } finally {
         setIsSearchingPickup(false);
       }
-    }, 350);
+    }, 300);
     return () => clearTimeout(timer);
   }, [pickupInputText, pickupMode]);
 
@@ -198,21 +193,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       setIsSearchingDropoff(true);
       try {
         const q = dropoffInputText.trim();
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=5&addressdetails=1`
-        );
+        const res = await fetch(`/api/motoride/geocode/search?q=${encodeURIComponent(q)}`);
         if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setDropoffSuggestions(
-              data.map((item: any) => ({
-                name: item.display_name.split(',').slice(0, 3).join(', ').trim(),
-                lat: parseFloat(item.lat),
-                lng: parseFloat(item.lon),
-              }))
-            );
-          } else {
-            setDropoffSuggestions([]);
+          const text = await res.text();
+          if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
+            const data = JSON.parse(text);
+            if (data.results && Array.isArray(data.results)) {
+              setDropoffSuggestions(data.results);
+            } else {
+              setDropoffSuggestions([]);
+            }
           }
         }
       } catch (err) {
@@ -220,7 +210,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       } finally {
         setIsSearchingDropoff(false);
       }
-    }, 350);
+    }, 300);
     return () => clearTimeout(timer);
   }, [dropoffInputText, dropoffMode]);
 
