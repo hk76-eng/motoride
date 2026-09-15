@@ -703,16 +703,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             )}
           </div>
 
-          {/* Chat with Passenger Button */}
-          <button
-            type="button"
-            onClick={() => setShowChatModal(true)}
-            className="w-full py-2.5 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md"
-          >
-            <MessageSquare className="w-4 h-4 text-emerald-400" />
-            <span>Chat with Passenger ({activeRide.passenger_name})</span>
-          </button>
-
           {/* Workflow Step Action Buttons */}
           <div className="flex flex-col gap-2 pt-2">
             {activeRide.status === 'captain_accepted' && (
