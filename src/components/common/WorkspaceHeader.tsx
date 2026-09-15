@@ -74,52 +74,34 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
           </div>
         </div>
 
-        {/* Right Section: Workspace Switcher Tabs & Logged-in Supabase User Profile */}
+        {/* Right Section: Workspace Switcher Single Tab & Logged-in Supabase User Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Workspace Switcher Tabs */}
-          <nav aria-label="Workspaces" className="flex items-center bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+          {/* Workspace Switcher Single Tab */}
+          <nav aria-label="Workspaces" className="flex items-center">
             <button
               type="button"
-              onClick={() => onRoleChange('passenger')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              onClick={() => onRoleChange(currentRole === 'passenger' ? 'captain' : 'passenger')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
                 currentRole === 'passenger'
-                  ? 'bg-emerald-500 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25'
+                  : 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25'
               }`}
+              title={`Switch to ${currentRole === 'passenger' ? 'Captain' : 'Passenger'} App`}
             >
-              <User className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Passenger</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onRoleChange('captain')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                currentRole === 'captain'
-                  ? 'bg-amber-500 text-slate-950 shadow-md font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Bike className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Captain</span>
-              {currentRole === 'captain' && (
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${isCaptainOnline ? 'bg-emerald-950' : 'bg-rose-900'}`}
-                />
+              {currentRole === 'passenger' ? (
+                <>
+                  <User className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Passenger App</span>
+                </>
+              ) : (
+                <>
+                  <Bike className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Captain App</span>
+                  {isCaptainOnline && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  )}
+                </>
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onRoleChange('admin')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                currentRole === 'admin'
-                  ? 'bg-indigo-500 text-white shadow-md font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Admin</span>
             </button>
           </nav>
 
