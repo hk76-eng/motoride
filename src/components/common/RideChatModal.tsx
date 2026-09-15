@@ -118,9 +118,6 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
           <div className="flex flex-col items-center justify-center h-full text-center py-6 text-slate-400 text-xs">
             <ShieldCheck className="w-8 h-8 text-emerald-400/60 mb-2 stroke-[1.5]" />
             <p className="font-semibold text-slate-300">No messages yet</p>
-            <p className="text-[11px] text-slate-500 max-w-[220px] mt-1">
-              Send a message to coordinate pickup spot or drop-off details with {otherPartyName}.
-            </p>
           </div>
         ) : (
           messages.map((m, index) => {
