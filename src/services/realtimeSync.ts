@@ -68,6 +68,20 @@ class RealtimeSyncManager {
 
     // 2. Initialize Shared Backend SSE stream for instant cross-device sync
     this.connectSSE();
+
+    // Reconnect on tab focus / wake up from background on mobile
+    if (typeof window !== 'undefined') {
+      const handleWake = () => {
+        if (document.visibilityState === 'visible' || navigator.onLine) {
+          if (!this.isConnected || !this.sseSource || this.sseSource.readyState === EventSource.CLOSED) {
+            this.connectSSE();
+          }
+        }
+      };
+      window.addEventListener('visibilitychange', handleWake);
+      window.addEventListener('focus', handleWake);
+      window.addEventListener('online', handleWake);
+    }
   }
 
   private connectSSE() {

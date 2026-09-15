@@ -348,9 +348,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     // Continuous 2.5-second polling to ensure cross-browser/mobile sync even if SSE sleeps on mobile
     const pollInterval = setInterval(() => {
       loadAvailableRides();
-      if (activeRide) {
-        loadActiveRide();
-      }
+      loadActiveRide();
     }, 2500);
 
     // Immediate re-fetch when switching back to mobile browser tab

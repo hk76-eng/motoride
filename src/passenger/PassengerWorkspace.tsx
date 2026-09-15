@@ -548,11 +548,28 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       }
     });
 
+    // Continuous 2.5s polling to guarantee cross-browser / mobile sync even if SSE disconnects
+    const pollTimer = setInterval(() => {
+      loadActiveRide();
+    }, 2500);
+
+    const handleFocus = () => {
+      if (document.visibilityState === 'visible') {
+        loadActiveRide();
+        loadRideHistory();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
     return () => {
       unsubUpdate();
       unsubAccepted();
       unsubLocation();
       unsubOffer();
+      clearInterval(pollTimer);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [currentPassengerId]);
 
