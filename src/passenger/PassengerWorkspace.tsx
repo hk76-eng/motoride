@@ -954,17 +954,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </div>
                 )}
 
-                {/* Instant Demo Match and Cancel Buttons */}
-                <div className="w-full mt-5 flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSimulateInstantAccept}
-                    className="w-full py-2.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-md"
-                  >
-                    <Sparkles className="w-4 h-4 text-slate-950 stroke-[2.5]" />
-                    <span>Instant Match Captain (Demo)</span>
-                  </button>
-
+                {/* Cancel Button */}
+                <div className="w-full mt-5">
                   <button
                     type="button"
                     onClick={handleCancelRide}
