@@ -939,9 +939,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                           A
                         </span>
                         <div className="min-w-0 flex-1">
-                          <span className="text-[10px] uppercase font-black text-emerald-700 tracking-wider">
-                            Pickup
-                          </span>
                           <p className="text-sm font-bold text-slate-900 leading-snug">
                             {ride.pickup_address}
                           </p>
@@ -954,9 +951,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                           B
                         </span>
                         <div className="min-w-0 flex-1">
-                          <span className="text-[10px] uppercase font-black text-rose-700 tracking-wider">
-                            Dropoff
-                          </span>
                           <p className="text-xs font-medium text-slate-700 leading-snug">
                             {ride.dropoff_address}
                           </p>
@@ -968,9 +962,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                     <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
                       <span className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-black uppercase tracking-wider">
                         {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
-                      </span>
-                      <span className="text-[11px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                        Tap to view on map
                       </span>
                     </div>
                   </div>
@@ -1035,10 +1026,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               A
             </span>
             <div className="min-w-0 flex-1">
-              <span className="text-[10px] uppercase font-black text-emerald-700 tracking-wider block">
-                A Pickup
-              </span>
-              <p className="text-sm font-bold text-slate-900 leading-snug mt-0.5">
+              <p className="text-sm font-bold text-slate-900 leading-snug">
                 {ride.pickup_address}
               </p>
             </div>
@@ -1050,10 +1038,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               B
             </span>
             <div className="min-w-0 flex-1">
-              <span className="text-[10px] uppercase font-black text-rose-700 tracking-wider block">
-                B Dropoff
-              </span>
-              <p className="text-xs font-medium text-slate-700 leading-snug mt-0.5">
+              <p className="text-xs font-medium text-slate-700 leading-snug">
                 {ride.dropoff_address}
               </p>
             </div>
@@ -1207,40 +1192,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         </div>
       )}
 
-      {/* Inspected Ride Map Top Route Banner showing Ride Distance and A & B Route */}
-      {inspectedRide && !activeRide && (
-        <div className="fixed sm:absolute top-16 sm:top-4 left-1/2 -translate-x-1/2 z-[1050] max-w-[92%] sm:max-w-md w-full pointer-events-none">
-          <div className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-emerald-500/40 shadow-2xl text-white flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="flex items-center -space-x-1 shrink-0">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center border border-slate-900 shadow-xs">
-                  A
-                </span>
-                <span className="w-5 h-5 rounded-full bg-rose-500 text-white font-black text-[10px] flex items-center justify-center border border-slate-900 shadow-xs">
-                  B
-                </span>
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] font-black text-emerald-400 block uppercase tracking-wider leading-tight">
-                  Route Preview
-                </span>
-                <span className="text-xs font-bold text-slate-200 truncate block">
-                  Ride Distance: <strong className="text-white font-mono-num">{inspectedDropoffDistText || `${inspectedRide.distance_km} km`}</strong>
-                </span>
-              </div>
-            </div>
-
-            <div className="shrink-0 text-right">
-              <span className="text-xs sm:text-sm font-black text-amber-400 font-mono-num block">
-                ₹{inspectedRide.offered_fare}
-              </span>
-              <span className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">
-                Offered Fare
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Center Main Page: Captain Live Ride Requests Page (100% Full / Minimized to Bottom View / Inspected Ride Route Details) */}
       <div
