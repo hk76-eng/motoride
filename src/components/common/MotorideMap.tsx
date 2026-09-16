@@ -66,6 +66,8 @@ interface MotorideMapProps {
   dropoffLat?: number | null;
   dropoffLng?: number | null;
   dropoffAddress?: string;
+  pickupDistanceText?: string;
+  dropoffDistanceText?: string;
   captainLat?: number | null;
   captainLng?: number | null;
   captainHeading?: number;
@@ -101,6 +103,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   dropoffLat,
   dropoffLng,
   dropoffAddress,
+  pickupDistanceText,
+  dropoffDistanceText,
   captainLat,
   captainLng,
   captainHeading = 0,
@@ -195,13 +199,14 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
 
 
   // Custom DivIcons for Location A and Location B
-  const createPickupIcon = () =>
+  const createPickupIcon = (distanceText?: string) =>
     L.divIcon({
       className: 'custom-pin-icon marker-pin-a',
       html: `
-        <div style="position: relative; width: 84px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
-          <div style="padding: 3px 8px; margin-bottom: 3px; border-radius: 6px; background: #020617; color: #34d399; font-weight: 900; font-size: 11px; border: 1.5px solid #10b981; box-shadow: 0 4px 14px rgba(0,0,0,0.7); white-space: nowrap; letter-spacing: 0.5px; font-family: system-ui, -apple-system, sans-serif;">
-            A • PICKUP
+        <div style="position: relative; width: ${distanceText ? '124px' : '96px'}; height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
+          <div style="padding: 3px 8px; margin-bottom: 3px; border-radius: 6px; background: #020617; color: #34d399; font-weight: 900; font-size: 11px; border: 1.5px solid #10b981; box-shadow: 0 4px 14px rgba(0,0,0,0.7); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 4px;">
+            <span>A • PICKUP</span>
+            ${distanceText ? `<span style="background: #10b981; color: #020617; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 900;">${distanceText}</span>` : ''}
           </div>
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
             <div style="width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.85); border: 2.5px solid #ffffff;">
@@ -211,18 +216,19 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           </div>
         </div>
       `,
-      iconSize: [96, 64],
-      iconAnchor: [48, 64],
-      popupAnchor: [0, -64],
+      iconSize: [distanceText ? 124 : 96, 68],
+      iconAnchor: [distanceText ? 62 : 48, 68],
+      popupAnchor: [0, -68],
     });
 
-  const createDropoffIcon = () =>
+  const createDropoffIcon = (distanceText?: string) =>
     L.divIcon({
       className: 'custom-pin-icon marker-pin-b',
       html: `
-        <div style="position: relative; width: 84px; height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
-          <div style="padding: 3px 8px; margin-bottom: 3px; border-radius: 6px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 14px rgba(0,0,0,0.7); white-space: nowrap; letter-spacing: 0.5px; font-family: system-ui, -apple-system, sans-serif;">
-            B • DROP-OFF
+        <div style="position: relative; width: ${distanceText ? '124px' : '96px'}; height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
+          <div style="padding: 3px 8px; margin-bottom: 3px; border-radius: 6px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 14px rgba(0,0,0,0.7); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 4px;">
+            <span>B • DROPOFF</span>
+            ${distanceText ? `<span style="background: #f43f5e; color: #ffffff; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 900;">${distanceText}</span>` : ''}
           </div>
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
             <div style="width: 32px; height: 32px; border-radius: 50%; background: #f43f5e; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px; box-shadow: 0 4px 16px rgba(244, 63, 94, 0.85); border: 2.5px solid #ffffff;">
@@ -232,9 +238,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           </div>
         </div>
       `,
-      iconSize: [96, 64],
-      iconAnchor: [48, 64],
-      popupAnchor: [0, -64],
+      iconSize: [distanceText ? 124 : 96, 68],
+      iconAnchor: [distanceText ? 62 : 48, 68],
+      popupAnchor: [0, -68],
     });
 
   const createCaptainIcon = (
@@ -496,10 +502,10 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       }
     }
 
-    // 2. Pickup Marker (Location A - Only shown when pickup location is selected AND not at passenger standing position to prevent duplicate pins)
-    if (hasPickup && pickupLat && pickupLng && !isPickupAtPassenger) {
+    // 2. Pickup Marker (Location A - Only shown when pickup location is selected AND not at passenger standing position to prevent duplicate pins, or always in Captain mode / AB mode)
+    if (hasPickup && pickupLat && pickupLng && (!isPickupAtPassenger || isCaptainMode || showLocationsABOnly)) {
       bounds.push([pickupLat, pickupLng]);
-      const aIcon = createPickupIcon();
+      const aIcon = createPickupIcon(pickupDistanceText);
 
       if (!pickupMarkerRef.current || !map.hasLayer(pickupMarkerRef.current)) {
         if (pickupMarkerRef.current) {
@@ -515,7 +521,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           .bindPopup(`
             <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 175px; color: #000000;">
               <div style="font-weight: 900; color: #059669; display: flex; align-items: center; gap: 6px; font-size: 13px;">
-                <span>🟢 Pickup Location (A)</span>
+                <span>🟢 Pickup Location (A)${pickupDistanceText ? ` • ${pickupDistanceText}` : ''}</span>
               </div>
               <div style="color: #1e293b; font-size: 11px; margin-top: 5px; font-weight: 600;">
                 ${pickupAddress || 'Selected Pickup Point'}<br/>
@@ -524,8 +530,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
             </div>
           `);
       } else {
-        // Do NOT call setIcon on existing marker - this prevents DOM reconstruction which causes shaking
         pickupMarkerRef.current.setLatLng([pickupLat, pickupLng]);
+        pickupMarkerRef.current.setIcon(aIcon);
       }
     } else if (pickupMarkerRef.current) {
       map.removeLayer(pickupMarkerRef.current);
@@ -557,7 +563,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     // 3. Dropoff Marker (Location B - Only shown when dropoff location is selected)
     if (hasDropoff && dropoffLat && dropoffLng) {
       bounds.push([dropoffLat, dropoffLng]);
-      const bIcon = createDropoffIcon();
+      const bIcon = createDropoffIcon(dropoffDistanceText);
 
       if (!dropoffMarkerRef.current || !map.hasLayer(dropoffMarkerRef.current)) {
         if (dropoffMarkerRef.current) {
@@ -570,10 +576,10 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           zIndexOffset: 1500,
         })
           .addTo(map)
-          .bindPopup(`<b>Destination (B):</b><br/>${dropoffAddress || 'Selected Point'}`);
+          .bindPopup(`<b>Destination (B):${dropoffDistanceText ? ` (${dropoffDistanceText})` : ''}</b><br/>${dropoffAddress || 'Selected Point'}`);
       } else {
-        // Do NOT call setIcon on existing marker - this prevents DOM reconstruction which causes shaking
         dropoffMarkerRef.current.setLatLng([dropoffLat, dropoffLng]);
+        dropoffMarkerRef.current.setIcon(bIcon);
       }
     } else if (dropoffMarkerRef.current) {
       map.removeLayer(dropoffMarkerRef.current);
@@ -827,8 +833,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           map.panTo([captainLat, captainLng], { animate: true, duration: 0.4 });
         }
       } else {
-        // Active ride in captain mode: fit route bounds or follow captain
-        if (bounds.length > 1 && !isFollowingCaptain) {
+        // Active ride or inspecting route in captain mode: fit route bounds to show Location A and B
+        if (bounds.length > 1) {
           map.invalidateSize();
           map.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 16, animate: false });
         } else if (isFollowingCaptain) {

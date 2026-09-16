@@ -31,6 +31,7 @@ import {
   MapPin,
   Power,
   Volume2,
+  Sun,
 } from 'lucide-react';
 import { Captain } from '../types/motoride';
 
@@ -66,6 +67,90 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   const [autoAccept, setAutoAccept] = useState(false);
   const [highAccuracyGps, setHighAccuracyGps] = useState(true);
   const [audioAlerts, setAudioAlerts] = useState(true);
+  const [doNotScreenOff, setDoNotScreenOff] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('motoride_captain_do_not_screen_off');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  // Screen Wake Lock Sentinel Reference
+  const wakeLockRef = useRef<any>(null);
+
+  // Maintain Screen Wake Lock when doNotScreenOff is enabled
+  useEffect(() => {
+    let isMounted = true;
+
+    const requestWakeLock = async () => {
+      if (!doNotScreenOff) {
+        if (wakeLockRef.current) {
+          try {
+            await wakeLockRef.current.release();
+          } catch (e) {
+            // ignore
+          }
+          wakeLockRef.current = null;
+        }
+        return;
+      }
+
+      if ('wakeLock' in navigator && (navigator as any).wakeLock) {
+        try {
+          if (!wakeLockRef.current) {
+            const lock = await (navigator as any).wakeLock.request('screen');
+            if (isMounted) {
+              wakeLockRef.current = lock;
+              lock.addEventListener('release', () => {
+                wakeLockRef.current = null;
+              });
+            } else {
+              lock.release();
+            }
+          }
+        } catch (err: any) {
+          console.warn('Wake Lock request notice:', err?.message);
+        }
+      }
+    };
+
+    requestWakeLock();
+
+    // Re-acquire wake lock on tab visibility change
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && doNotScreenOff) {
+        requestWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      isMounted = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockRef.current) {
+        try {
+          wakeLockRef.current.release();
+        } catch (e) {
+          // ignore
+        }
+        wakeLockRef.current = null;
+      }
+    };
+  }, [doNotScreenOff]);
+
+  const handleToggleDoNotScreenOff = () => {
+    const nextState = !doNotScreenOff;
+    setDoNotScreenOff(nextState);
+    try {
+      localStorage.setItem('motoride_captain_do_not_screen_off', String(nextState));
+    } catch (e) {
+      console.warn(e);
+    }
+    setToastMessage(nextState ? 'Screen will stay awake during rides' : 'Screen sleep timeout restored');
+    setIsSavedToast(true);
+    setTimeout(() => setIsSavedToast(false), 2500);
+  };
 
   // Captain Avatar Photo (Stored in state & localStorage)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
@@ -549,6 +634,40 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                   <span
                     className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
                       highAccuracyGps ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-black/40 border border-white/10">
+                <div className="flex flex-col pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-white">Do Not Screen Off</span>
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border transition-all ${
+                        doNotScreenOff
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}
+                    >
+                      {doNotScreenOff ? 'AWAKE' : 'OFF'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">Keep screen awake while waiting or during active rides</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={doNotScreenOff}
+                  onClick={handleToggleDoNotScreenOff}
+                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                    doNotScreenOff ? 'bg-amber-500' : 'bg-slate-800'
+                  }`}
+                  title={doNotScreenOff ? 'Screen stay awake is enabled' : 'Screen stay awake is disabled'}
+                >
+                  <span
+                    className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
+                      doNotScreenOff ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
