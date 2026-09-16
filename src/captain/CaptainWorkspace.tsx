@@ -40,6 +40,8 @@ interface CaptainWorkspaceProps {
   captainName?: string;
   onOpenWallet?: () => void;
   onSignOut?: () => void;
+  isOnline?: boolean;
+  onToggleOnline?: () => void;
 }
 
 // Haversine distance calculator for real-time proximity
@@ -62,9 +64,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   captainName = 'Captain Vikram Singh',
   onOpenWallet,
   onSignOut,
+  isOnline: propIsOnline,
+  onToggleOnline: propToggleOnline,
 }) => {
   const [captain, setCaptain] = useState<Captain | null>(null);
-  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [internalOnline, setInternalOnline] = useState<boolean>(true);
+  const isOnline = propIsOnline !== undefined ? propIsOnline : internalOnline;
   const [availableRides, setAvailableRides] = useState<MotorideRide[]>([]);
   const [activeRide, setActiveRide] = useState<MotorideRide | null>(null);
   const [counterFareInput, setCounterFareInput] = useState<{ [rideId: string]: number }>({});
@@ -420,7 +425,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const cpt = await motorideApi.getCaptainById(captainId);
       if (cpt) {
         setCaptain(cpt);
-        setIsOnline(Boolean(cpt.is_online));
+        setInternalOnline(Boolean(cpt.is_online));
       }
       const w = await motorideApi.getWallet(captainId);
       if (w && w.wallet) {
@@ -467,12 +472,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   };
 
   const handleToggleOnline = async () => {
+    if (propToggleOnline) {
+      propToggleOnline();
+      return;
+    }
     try {
       const nextState = !isOnline;
-      setIsOnline(nextState);
+      setInternalOnline(nextState);
       const updated = await motorideApi.toggleCaptainOnline(captainId, nextState);
       if (updated && typeof updated.is_online === 'boolean') {
-        setIsOnline(updated.is_online);
+        setInternalOnline(updated.is_online);
       }
     } catch (err: any) {
       console.warn('Failed to toggle status:', err);
@@ -761,38 +770,25 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           </div>
 
           {!isOnline || availableRides.length === 0 ? (
-            <div className="text-center py-10 sm:py-14 text-slate-300 text-xs flex flex-col items-center justify-center gap-5">
-              {/* Round Shaped Center Online/Offline Button with Radar Sonar Pulses */}
-              <div className="relative flex items-center justify-center my-2">
-                {/* Radar Sonar Pulse Rings when Online */}
-                {isOnline && (
-                  <>
-                    <div className="absolute w-36 h-36 sm:w-40 sm:h-40 rounded-full bg-emerald-500/20 animate-ping pointer-events-none" />
-                    <div className="absolute w-44 h-44 sm:w-48 sm:h-48 rounded-full border border-emerald-500/30 animate-pulse pointer-events-none" />
-                  </>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleToggleOnline}
-                  className={`relative z-10 w-28 h-28 sm:w-32 sm:h-32 rounded-full flex flex-col items-center justify-center gap-1.5 shadow-2xl transition-all duration-300 active:scale-95 cursor-pointer border-4 select-none ${
-                    isOnline
-                      ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-slate-950 border-emerald-300 shadow-emerald-500/40 hover:from-emerald-400 hover:to-emerald-500 hover:scale-105'
-                      : 'bg-gradient-to-br from-rose-500 to-rose-600 text-white border-rose-300 shadow-rose-500/40 hover:from-rose-400 hover:to-rose-500 hover:scale-105'
-                  }`}
-                  title={isOnline ? 'Currently Online. Click to go Offline' : 'Currently Offline. Click to go Online'}
-                >
-                  <Power className="w-7 h-7 sm:w-8 sm:h-8 stroke-[3]" />
-                  <span className="text-xs sm:text-sm font-black tracking-wider uppercase">
-                    {isOnline ? 'ONLINE' : 'OFFLINE'}
-                  </span>
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      isOnline ? 'bg-slate-950 animate-pulse' : 'bg-white'
-                    }`}
-                  />
-                </button>
-              </div>
+            <div className="text-center py-10 sm:py-14 text-slate-300 text-xs flex flex-col items-center justify-center gap-4">
+              {/* Radar Scanning Visual when Online / Offline Status */}
+              {isOnline ? (
+                <div className="relative flex items-center justify-center my-2">
+                  <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-emerald-500/15 animate-ping pointer-events-none" />
+                  <div className="absolute w-36 h-36 sm:w-40 sm:h-40 rounded-full border border-emerald-500/25 animate-pulse pointer-events-none" />
+                  <div className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-emerald-500/20 border-2 border-emerald-400/50 flex flex-col items-center justify-center gap-1 text-emerald-300 shadow-xl shadow-emerald-500/20">
+                    <Radio className="w-7 h-7 sm:w-8 sm:h-8 animate-pulse text-emerald-400" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Active</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative flex items-center justify-center my-2">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-rose-500/15 border-2 border-rose-400/40 flex flex-col items-center justify-center gap-1 text-rose-300 shadow-xl">
+                    <AlertCircle className="w-7 h-7 sm:w-8 sm:h-8 text-rose-400" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">Offline</span>
+                  </div>
+                </div>
+              )}
 
               {/* Status & Scanning Message */}
               <div className="flex flex-col items-center gap-1 text-center px-4">
@@ -809,10 +805,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                     </>
                   )}
                 </p>
-                <span className="text-[11px] text-slate-300 max-w-sm">
+                <span className="text-[11px] text-slate-400 max-w-sm">
                   {isOnline
-                    ? 'Passenger requests appear here instantly in real time with audio alert'
-                    : 'Tap the round button above to go Online and start receiving rides'}
+                    ? 'Passenger ride requests appear here instantly in real time with audio alert'
+                    : 'Use the Online capsule button near Captain App at the top right to go Online and receive rides'}
                 </span>
               </div>
             </div>
@@ -1030,21 +1026,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               is100Full ? 'border-b border-white/15' : 'cursor-pointer hover:bg-black/60 transition-colors'
             }`}
           >
-            {/* Left: Status & Live Requests Count */}
+            {/* Left: Live Requests Count */}
             <div className="flex items-center gap-2 min-w-0">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-black/60 border border-white/15 text-xs">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
-                  }`}
-                />
-                <span className="font-bold text-slate-300">
-                  {isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold font-mono-num">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold font-mono-num">
                 <Bike className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>{availableRides.length} Requests</span>
+                <span>{availableRides.length} Live Requests</span>
               </div>
             </div>
 

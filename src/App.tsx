@@ -9,6 +9,7 @@ import { NotificationsModal } from './components/common/NotificationsModal';
 import { AuthPage } from './components/AuthPage';
 import { supabaseAuth, AuthUser } from './lib/supabaseAuth';
 import { isSupabaseConfigured } from './lib/supabase';
+import { motorideApi } from './services/motorideApi';
 
 export default function App() {
   // Supabase Authenticated User Session
@@ -60,6 +61,16 @@ export default function App() {
     setCurrentRole(role);
   };
 
+  const handleToggleCaptainOnline = async () => {
+    const nextState = !isCaptainOnline;
+    setIsCaptainOnline(nextState);
+    try {
+      await motorideApi.toggleCaptainOnline(currentUser?.id || 'cpt_vikram_01', nextState);
+    } catch (err) {
+      console.warn('Failed to toggle captain online:', err);
+    }
+  };
+
   // =========================================================================
   // GATING: If not signed in, show the Supabase Auth Portal
   // =========================================================================
@@ -84,6 +95,7 @@ export default function App() {
         currentUser={currentUser}
         onSignOut={handleSignOut}
         isCaptainOnline={isCaptainOnline}
+        onToggleCaptainOnline={handleToggleCaptainOnline}
       />
 
       {/* Cross-Device Multi-User Real-Time Sync Banner */}
@@ -126,6 +138,8 @@ export default function App() {
             captainName={currentUser.name || 'Captain Vikram Singh'}
             onOpenWallet={() => setIsWalletOpen(true)}
             onSignOut={handleSignOut}
+            isOnline={isCaptainOnline}
+            onToggleOnline={handleToggleCaptainOnline}
           />
         )}
 

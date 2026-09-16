@@ -30,6 +30,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   currentUser,
   onSignOut,
   isCaptainOnline = true,
+  onToggleCaptainOnline,
 }) => {
   const [isLiveConnected, setIsLiveConnected] = useState(true);
   const [supabaseActive, setSupabaseActive] = useState(isSupabaseConfigured());
@@ -76,8 +77,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
 
         {/* Right Section: Workspace Switcher Single Tab & Logged-in Supabase User Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Workspace Switcher Single Tab */}
-          <nav aria-label="Workspaces" className="flex items-center">
+          {/* Workspace Switcher Single Tab & Captain Online Capsule */}
+          <nav aria-label="Workspaces" className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => onRoleChange(currentRole === 'passenger' ? 'captain' : 'passenger')}
@@ -97,12 +98,30 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                 <>
                   <Bike className="w-3.5 h-3.5 text-amber-400" />
                   <span>Captain App</span>
-                  {isCaptainOnline && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  )}
                 </>
               )}
             </button>
+
+            {/* Small capsule form Online button Near Captain App Right side */}
+            {currentRole === 'captain' && onToggleCaptainOnline && (
+              <button
+                type="button"
+                onClick={onToggleCaptainOnline}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold transition-all cursor-pointer border shadow-sm select-none active:scale-95 ${
+                  isCaptainOnline
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                    : 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
+                }`}
+                title={isCaptainOnline ? 'Status: Online (Click to go Offline)' : 'Status: Offline (Click to go Online)'}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    isCaptainOnline ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'
+                  }`}
+                />
+                <span>{isCaptainOnline ? 'Online' : 'Offline'}</span>
+              </button>
+            )}
           </nav>
 
           {/* User Account Info & Sign Out */}
