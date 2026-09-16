@@ -712,9 +712,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                         <Navigation className="w-3 h-3 fill-white stroke-white shrink-0" />
                         <span>{navTitle}</span>
                       </a>
-                      <span className="text-[10px] text-slate-500">
-                        {activeRide.distance_km} km • ~{activeRide.duration_minutes}m
-                      </span>
                     </div>
                   </div>
 
