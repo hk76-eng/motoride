@@ -646,6 +646,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       dropoffLng={currentRideOnMap ? currentRideOnMap.dropoff_lng : null}
       dropoffAddress={currentRideOnMap ? currentRideOnMap.dropoff_address : undefined}
       dropoffDistanceText={inspectedDropoffDistText}
+      rideDistanceText={inspectedDropoffDistText}
+      bottomSheetPadding={inspectedRide && !activeRide ? 360 : 60}
       showLocationsABOnly={Boolean(inspectedRide && !activeRide)}
       className={`w-full h-full ${isFullBackground ? 'rounded-none border-0' : 'shadow-2xl border border-slate-800'}`}
       showOverlayControls={true}
@@ -1062,9 +1064,15 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             <span className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-black uppercase tracking-wider">
               {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
             </span>
-            <span className="text-slate-600 font-medium">
-              Trip: {ride.distance_km} km • ~{ride.duration_minutes} mins
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold flex items-center gap-1">
+                <span>Ride Distance:</span>
+                <span className="font-mono-num font-black">{ride.distance_km ? `${ride.distance_km} km` : dropoffDistText}</span>
+              </span>
+              <span className="text-slate-500 font-medium hidden xs:inline">
+                ~{ride.duration_minutes || 14} mins
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1199,13 +1207,48 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         </div>
       )}
 
+      {/* Inspected Ride Map Top Route Banner showing Ride Distance and A & B Route */}
+      {inspectedRide && !activeRide && (
+        <div className="fixed sm:absolute top-16 sm:top-4 left-1/2 -translate-x-1/2 z-[1050] max-w-[92%] sm:max-w-md w-full pointer-events-none">
+          <div className="px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl bg-slate-900/95 backdrop-blur-xl border border-emerald-500/40 shadow-2xl text-white flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center -space-x-1 shrink-0">
+                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center border border-slate-900 shadow-xs">
+                  A
+                </span>
+                <span className="w-5 h-5 rounded-full bg-rose-500 text-white font-black text-[10px] flex items-center justify-center border border-slate-900 shadow-xs">
+                  B
+                </span>
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-black text-emerald-400 block uppercase tracking-wider leading-tight">
+                  Route Preview
+                </span>
+                <span className="text-xs font-bold text-slate-200 truncate block">
+                  Ride Distance: <strong className="text-white font-mono-num">{inspectedDropoffDistText || `${inspectedRide.distance_km} km`}</strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="shrink-0 text-right">
+              <span className="text-xs sm:text-sm font-black text-amber-400 font-mono-num block">
+                ₹{inspectedRide.offered_fare}
+              </span>
+              <span className="text-[9px] text-slate-400 uppercase tracking-wider font-semibold">
+                Offered Fare
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Center Main Page: Captain Live Ride Requests Page (100% Full / Minimized to Bottom View / Inspected Ride Route Details) */}
       <div
         className={`fixed sm:absolute bottom-0 left-1/2 -translate-x-1/2 z-[1000] transition-all duration-300 ease-out flex flex-col ${
           is100Full
             ? 'inset-0 w-full h-full max-w-full'
             : inspectedRide && !activeRide
-            ? 'h-auto max-h-[82dvh] sm:max-h-[75vh] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
+            ? 'h-auto max-h-[58dvh] sm:max-h-[52vh] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
             : 'h-16 sm:h-[72px] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
         }`}
       >

@@ -81,6 +81,8 @@ interface MotorideMapProps {
   passengerName?: string;
   showPassengerOnly?: boolean;
   showLocationsABOnly?: boolean;
+  bottomSheetPadding?: number;
+  rideDistanceText?: string;
   isLiveGpsActive?: boolean;
   onLocateMe?: () => void;
   onSetPickupToPassengerLocation?: (lat: number, lng: number) => void;
@@ -118,6 +120,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   passengerName = 'You',
   showPassengerOnly = false,
   showLocationsABOnly = false,
+  bottomSheetPadding,
+  rideDistanceText,
   isLiveGpsActive = false,
   onLocateMe,
   onSetPickupToPassengerLocation,
@@ -588,7 +592,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
 
     // 4. Captain Marker (Only shown if showPassengerOnly is false and coordinates provided)
     if (!showPassengerOnly && captainLat && captainLng) {
-      bounds.push([captainLat, captainLng]);
+      if (!showLocationsABOnly) {
+        bounds.push([captainLat, captainLng]);
+      }
       const cIcon = createCaptainIcon(
         captainHeading,
         captainName || (isCaptainMode ? 'You (Captain)' : 'Captain'),
@@ -758,11 +764,10 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       const formattedDistance = distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance} km`;
 
       const tooltipContent = `
-        <div style="display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 9999px; background: rgba(2, 6, 23, 0.95); border: 1.5px solid rgba(16, 185, 129, 0.7); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); font-size: 11px; font-weight: 800; color: #f8fafc; backdrop-filter: blur(8px);">
+        <div style="display: flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 9999px; background: rgba(2, 6, 23, 0.95); border: 1.5px solid rgba(16, 185, 129, 0.8); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); font-size: 11px; font-weight: 800; color: #f8fafc; backdrop-filter: blur(8px); white-space: nowrap;">
           <span style="display: flex; width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399;"></span>
-          <span style="color: #34d399; font-weight: 900; letter-spacing: 0.5px;">A ➔ B</span>
-          <span style="color: #64748b;">•</span>
-          <span style="font-family: monospace; color: #ffffff; font-size: 12px; font-weight: 900;">${formattedDistance}</span>
+          <span style="color: #34d399; font-weight: 900; letter-spacing: 0.5px;">Ride Distance:</span>
+          <span style="font-family: monospace; color: #ffffff; font-size: 12px; font-weight: 900;">${rideDistanceText || formattedDistance}</span>
         </div>
       `;
 
@@ -823,7 +828,20 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     // Auto-fit bounds or center on position
-    if (isCaptainMode && captainLat && captainLng) {
+    if (showLocationsABOnly && hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
+      const abBounds = L.latLngBounds([
+        [pickupLat, pickupLng],
+        [dropoffLat, dropoffLng],
+      ]);
+      map.invalidateSize();
+      const bottomPad = bottomSheetPadding || 340;
+      map.fitBounds(abBounds, {
+        paddingTopLeft: [70, 40],
+        paddingBottomRight: [40, bottomPad],
+        maxZoom: 16,
+        animate: true,
+      });
+    } else if (isCaptainMode && captainLat && captainLng) {
       if (!hasPickup && !hasDropoff) {
         // Standby/Browsing mode: focus on captain live GPS
         if (!hasInitiallyCenteredCaptainRef.current) {
@@ -836,7 +854,13 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         // Active ride or inspecting route in captain mode: fit route bounds to show Location A and B
         if (bounds.length > 1) {
           map.invalidateSize();
-          map.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 16, animate: false });
+          const bottomPad = bottomSheetPadding || 60;
+          map.fitBounds(L.latLngBounds(bounds), {
+            paddingTopLeft: [60, 40],
+            paddingBottomRight: [40, bottomPad],
+            maxZoom: 16,
+            animate: false,
+          });
         } else if (isFollowingCaptain) {
           map.panTo([captainLat, captainLng], { animate: true, duration: 0.4 });
         }
