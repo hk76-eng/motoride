@@ -28,7 +28,9 @@ if (typeof window !== 'undefined') {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
         parsed.forEach((r: MotorideRide) => {
-          if (r && r.id) localRidesStore.set(r.id, r);
+          if (r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100') {
+            localRidesStore.set(r.id, r);
+          }
         });
       }
     }
@@ -209,7 +211,11 @@ export const motorideApi = {
     // Apply strict filtering to ensure precision
     if (params?.active_for_captain) {
       result = result.filter(
-        (r) => r && (r.status === 'requested' || r.status === 'captain_offered')
+        (r) =>
+          r &&
+          (r.status === 'requested' || r.status === 'captain_offered') &&
+          !r.id?.includes('demo') &&
+          r.passenger_id !== 'usr_demo_100'
       );
     } else {
       if (params?.status && params.status !== 'all') {

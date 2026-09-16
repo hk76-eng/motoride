@@ -323,9 +323,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     // Listen to real-time events
     const unsubRideCreated = realtimeSync.on('RIDE_CREATED', (newRide: MotorideRide) => {
+      if (!newRide || !newRide.id || newRide.id.includes('demo') || newRide.passenger_id === 'usr_demo_100') {
+        return;
+      }
       setAvailableRides((prev) => {
         if (prev.some((r) => r.id === newRide.id)) return prev;
-        return [newRide, ...prev];
+        return [newRide, ...prev.filter((r) => !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100')];
       });
       // Vibrate mobile device when new ride arrives
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -377,6 +380,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [captainId, activeRide?.id]);
+
+  useEffect(() => {
+    if (inspectedRide && (inspectedRide.id.includes('demo') || inspectedRide.passenger_id === 'usr_demo_100')) {
+      setInspectedRide(null);
+    }
+  }, [inspectedRide]);
 
   // Fallback simulator for active ride ONLY when GPS is denied, unavailable, or in sandboxed demo
   useEffect(() => {
@@ -441,39 +450,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const loadAvailableRides = async () => {
     try {
       const list = await motorideApi.getRides({ active_for_captain: true });
-      if (Array.isArray(list) && list.length > 0) {
-        setAvailableRides(list);
+      if (Array.isArray(list)) {
+        const realRides = list.filter(
+          (r) => r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100'
+        );
+        setAvailableRides(realRides);
       } else {
-        setAvailableRides((prev) => {
-          if (prev.length > 0) return prev;
-          const defaultRide: MotorideRide = {
-            id: 'ride_live_demo_100',
-            ride_code: 'MR-100',
-            passenger_id: 'usr_demo_100',
-            passenger_name: 'Priya Sharma',
-            passenger_phone: '+91 98765 43210',
-            pickup_address: 'Sector 17 Bus Stand & Market, Chandigarh',
-            pickup_lat: 30.7095,
-            pickup_lng: 76.7135,
-            dropoff_address: 'Elante Mall, Phase 1, Industrial Area, Chandigarh',
-            dropoff_lat: 30.7055,
-            dropoff_lng: 76.7915,
-            distance_km: 4.8,
-            duration_minutes: 14,
-            offered_fare: 100,
-            estimated_fare: 100,
-            final_fare: 100,
-            payment_method: 'upi',
-            payment_status: 'pending',
-            ride_type: 'bike',
-            status: 'requested',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          };
-          return [defaultRide];
-        });
+        setAvailableRides([]);
       }
-    } catch {}
+    } catch {
+      setAvailableRides([]);
+    }
   };
 
   const loadActiveRide = async () => {
