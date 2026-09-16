@@ -98,8 +98,8 @@ export default function App() {
         onToggleCaptainOnline={handleToggleCaptainOnline}
       />
 
-      {/* Cross-Device Multi-User Real-Time Sync Banner */}
-      {showTestingGuide && (
+      {/* Cross-Device Multi-User Real-Time Sync Banner (Hidden in Captain App) */}
+      {showTestingGuide && currentRole !== 'captain' && (
         <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900 to-indigo-950/70 border-b border-slate-800/80 px-3 sm:px-6 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
