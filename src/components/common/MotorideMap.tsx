@@ -83,7 +83,6 @@ interface MotorideMapProps {
   showLocationsABOnly?: boolean;
   bottomSheetPadding?: number;
   rideDistanceText?: string;
-  showRideDistanceTooltip?: boolean;
   isLiveGpsActive?: boolean;
   onLocateMe?: () => void;
   onSetPickupToPassengerLocation?: (lat: number, lng: number) => void;
@@ -123,7 +122,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   showLocationsABOnly = false,
   bottomSheetPadding,
   rideDistanceText,
-  showRideDistanceTooltip = false,
   isLiveGpsActive = false,
   onLocateMe,
   onSetPickupToPassengerLocation,
@@ -811,15 +809,13 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         polylineRef.current.setLatLngs(latlngs);
       }
 
-      // Unbind previous tooltip
+      // Refresh the tooltip to display updated distance centered on stretched polyline
       polylineRef.current.unbindTooltip();
-      if (showRideDistanceTooltip) {
-        polylineRef.current.bindTooltip(tooltipContent, {
-          permanent: true,
-          direction: 'center',
-          className: 'custom-distance-tooltip',
-        }).openTooltip();
-      }
+      polylineRef.current.bindTooltip(tooltipContent, {
+        permanent: true,
+        direction: 'center',
+        className: 'custom-distance-tooltip',
+      }).openTooltip();
     } else {
       if (polylineRef.current) {
         map.removeLayer(polylineRef.current);
