@@ -914,7 +914,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
                               <Navigation className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                              <span>{pickupDistText} (pickup distance)</span>
+                              <span>{pickupDistText}</span>
                             </span>
                           </div>
                         </div>
@@ -1011,7 +1011,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-[11px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
                   <Navigation className="w-3 h-3 text-emerald-600 shrink-0" />
-                  <span>{pickupDistText} (pickup distance)</span>
+                  <span>{pickupDistText}</span>
                 </span>
               </div>
             </div>
