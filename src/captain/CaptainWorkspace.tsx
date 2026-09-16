@@ -660,17 +660,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => setShowChatModal(true)}
-                className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 shadow-sm"
+                className="p-2.5 rounded-xl bg-black text-white border border-slate-800 hover:bg-slate-900 shadow-sm transition-all active:scale-95 cursor-pointer"
                 title="Chat with Passenger"
               >
-                <MessageSquare className="w-4 h-4 stroke-[2.5]" />
+                <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
               </button>
               <a
                 href={`tel:${activeRide.passenger_phone || '+919780012345'}`}
-                className="p-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-500 shadow-sm"
+                className="p-2.5 rounded-xl bg-black text-white border border-slate-800 hover:bg-slate-900 shadow-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center"
                 title="Call Passenger"
               >
-                <Phone className="w-4 h-4 stroke-[2.5]" />
+                <Phone className="w-4 h-4 stroke-[2.5] text-white" />
               </a>
             </div>
           </div>
@@ -685,7 +685,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 {activeRide.payment_method.toUpperCase()} Payment • Agreed Fare:
               </span>
             </div>
-            <span className="text-lg font-black text-emerald-600 font-mono-num">
+            <span className="text-lg font-black text-black font-mono-num">
               ₹{activeRide.final_fare || activeRide.offered_fare}
             </span>
           </div>
@@ -769,10 +769,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => handleStatusChange('trip_started')}
-                className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-2xl bg-black hover:bg-slate-900 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border border-slate-800"
               >
-                <Navigation className="w-4 h-4 stroke-[2.5]" />
-                <span>Passenger Boarded • Start Trip</span>
+                <Navigation className="w-4 h-4 stroke-[2.5] text-white fill-white" />
+                <span className="text-white">Passenger Boarded • Start Trip</span>
               </button>
             )}
 
