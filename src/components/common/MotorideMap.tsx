@@ -745,32 +745,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         [dropoffLat, dropoffLng],
       ];
 
-      // Calculate distance using Haversine formula
-      const calcDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-        const R = 6371; // km
-        const dLat = ((lat2 - lat1) * Math.PI) / 180;
-        const dLon = ((lon2 - lon1) * Math.PI) / 180;
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos((lat1 * Math.PI) / 180) *
-            Math.cos((lat2 * Math.PI) / 180) *
-            Math.sin(dLon / 2) *
-            Math.sin(dLon / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return Number((R * c).toFixed(1));
-      };
-
-      const distance = calcDistance(pickupLat, pickupLng, dropoffLat, dropoffLng);
-      const formattedDistance = distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance} km`;
-
-      const tooltipContent = `
-        <div style="display: flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 9999px; background: rgba(2, 6, 23, 0.95); border: 1.5px solid rgba(16, 185, 129, 0.8); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6); font-size: 11px; font-weight: 800; color: #f8fafc; backdrop-filter: blur(8px); white-space: nowrap;">
-          <span style="display: flex; width: 7px; height: 7px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399;"></span>
-          <span style="color: #34d399; font-weight: 900; letter-spacing: 0.5px;">Ride Distance:</span>
-          <span style="font-family: monospace; color: #ffffff; font-size: 12px; font-weight: 900;">${rideDistanceText || formattedDistance}</span>
-        </div>
-      `;
-
       // 5a. Stretched glow / casing polyline
       if (!polylineGlowRef.current || !map.hasLayer(polylineGlowRef.current)) {
         if (polylineGlowRef.current) {
@@ -809,13 +783,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         polylineRef.current.setLatLngs(latlngs);
       }
 
-      // Refresh the tooltip to display updated distance centered on stretched polyline
+      // Ensure no distance tooltip/tab is attached to the route polyline on map
       polylineRef.current.unbindTooltip();
-      polylineRef.current.bindTooltip(tooltipContent, {
-        permanent: true,
-        direction: 'center',
-        className: 'custom-distance-tooltip',
-      }).openTooltip();
     } else {
       if (polylineRef.current) {
         map.removeLayer(polylineRef.current);
