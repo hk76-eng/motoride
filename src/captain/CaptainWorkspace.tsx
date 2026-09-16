@@ -1033,14 +1033,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               A
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] uppercase font-black text-emerald-700 tracking-wider">
-                  A Pickup
-                </span>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
-                  Marker A shows pickup distance ({pickupDistText})
-                </span>
-              </div>
+              <span className="text-[10px] uppercase font-black text-emerald-700 tracking-wider block">
+                A Pickup
+              </span>
               <p className="text-sm font-bold text-slate-900 leading-snug mt-0.5">
                 {ride.pickup_address}
               </p>
@@ -1053,14 +1048,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               B
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[10px] uppercase font-black text-rose-700 tracking-wider">
-                  B Dropoff
-                </span>
-                <span className="text-[11px] font-bold text-rose-700 bg-rose-100/70 px-2 py-0.5 rounded-md">
-                  Marker B shows dropoff distance ({dropoffDistText})
-                </span>
-              </div>
+              <span className="text-[10px] uppercase font-black text-rose-700 tracking-wider block">
+                B Dropoff
+              </span>
               <p className="text-xs font-medium text-slate-700 leading-snug mt-0.5">
                 {ride.dropoff_address}
               </p>
