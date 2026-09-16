@@ -780,10 +780,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => handleStatusChange('trip_completed')}
-                className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-2xl bg-black hover:bg-slate-900 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border border-slate-800"
               >
-                <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-                <span>Arrived at Destination • Complete Trip</span>
+                <CheckCircle2 className="w-4 h-4 stroke-[2.5] text-white" />
+                <span className="text-white">Arrived at Destination • Complete Trip</span>
               </button>
             )}
 
