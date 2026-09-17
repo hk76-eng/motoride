@@ -137,7 +137,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   id="btn-nav-signout"
                   onClick={onSignOut}
                   className="p-2 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/30 transition-all cursor-pointer"
-                  title="Sign Out of TravelMeter"
+                  title="Sign Out of Motoride"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
