@@ -48,15 +48,26 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
       <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
         {/* Brand & Active Workspace */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-black border border-white/20 flex items-center justify-center font-black text-white shadow-md shadow-black/60 shrink-0">
-              <Bike className="w-5 h-5 text-white stroke-[2.5]" />
-            </div>
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/motoride-logo.png"
+              alt="Motoride"
+              referrerPolicy="no-referrer"
+              className="w-9 h-9 rounded-xl object-cover bg-black border border-white/20 shadow-md shadow-black/80 shrink-0"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = 'none';
+              }}
+            />
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold tracking-tight text-white text-base">MOTORIDE</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-extrabold tracking-tight text-white text-base">
+                  Motoride
+                </span>
+                <span className="text-[11px] text-emerald-400 font-semibold hidden xs:inline">
+                  – Ride & Courier Booking
+                </span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">
-                  v2.0
+                  Live
                 </span>
               </div>
               <div className="flex items-center gap-2 text-[11px] text-slate-400">
@@ -66,8 +77,8 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                       isLiveConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
                     }`}
                   />
-                  <span className="font-medium">
-                    {supabaseActive ? 'Supabase Realtime' : 'Shared Cloud Realtime'}
+                  <span className="font-medium text-[10px] sm:text-[11px]">
+                    {supabaseActive ? 'Supabase Realtime Cloud' : 'Realtime Sync'}
                   </span>
                 </span>
               </div>

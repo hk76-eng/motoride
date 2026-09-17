@@ -71,20 +71,26 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
         {/* Brand Logo */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-black border border-white/20 flex items-center justify-center shadow-lg shadow-black/60">
-            <Bike className="w-6 h-6 text-white stroke-[2.5]" />
-          </div>
+          <img
+            src="/motoride-logo.png"
+            alt="Motoride"
+            referrerPolicy="no-referrer"
+            className="w-10 h-10 rounded-xl object-cover bg-black border border-white/20 shadow-lg shadow-black/60 shrink-0"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
+          />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-lg tracking-tight text-white">
-                Travel<span className="text-emerald-400">Meter</span>
+                Motoride
               </span>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 ₹{pricingSettings.rate_per_km}/KM
               </span>
             </div>
             <p className="text-xs text-slate-400 hidden sm:block">
-              Bike Rental & Real-Time Fare System
+              Ride & Courier Booking
             </p>
           </div>
         </div>

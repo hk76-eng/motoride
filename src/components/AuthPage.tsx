@@ -196,21 +196,28 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       {/* Top Header Brand */}
       <header className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between border-b border-slate-800/60 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-lg shadow-emerald-500/20 flex items-center justify-center">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <Navigation className="w-5 h-5 text-emerald-400 fill-emerald-400/20 rotate-45" />
-            </div>
-          </div>
+          <img
+            src="/motoride-logo.png"
+            alt="Motoride"
+            referrerPolicy="no-referrer"
+            className="w-12 h-12 rounded-2xl object-cover bg-black border border-white/20 shadow-lg shadow-black/60 shrink-0"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
+          />
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-black text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-emerald-400 bg-clip-text text-transparent">
-                MotoRide
+                Motoride
+              </span>
+              <span className="text-xs text-emerald-400 font-semibold hidden sm:inline">
+                – Ride & Courier Booking
               </span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-bold text-emerald-400 tracking-wide uppercase">
-                Enterprise v3.2
+                Enterprise
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium">Real-Time Mobility & Live Captain Dispatch</p>
+            <p className="text-[11px] text-slate-400 font-medium">Real-Time Mobility, Parcel Delivery & Live Captain Bidding</p>
           </div>
         </div>
 
