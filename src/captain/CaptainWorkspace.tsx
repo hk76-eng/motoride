@@ -534,9 +534,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       return;
     }
     try {
+      const captainSavedAvatar = localStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
       await motorideApi.sendCounterOffer(rideId, {
         captain_id: captain?.id || captainId,
         captain_name: captain?.full_name || 'Vikram Singh',
+        captain_avatar: captainSavedAvatar,
         captain_phone: captain?.phone || '+91 98765 43210',
         vehicle_model: captain?.vehicle?.model || 'Mahindra Centuro PB65AA1257',
         plate_number: captain?.vehicle?.plate_number || 'PB65AA1257',

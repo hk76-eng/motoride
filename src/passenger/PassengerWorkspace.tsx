@@ -669,6 +669,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   // Handle Book Ride
   const handleBookRide = async () => {
+    if (!hasSelectedLocations || offeredFare <= 0) {
+      return;
+    }
     const activePickup = pickup.name?.trim() ? pickup : PRESET_LOCATIONS[0];
     const activeDropoff = dropoff.name?.trim() ? dropoff : PRESET_LOCATIONS[1];
 
@@ -834,57 +837,75 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     />
   );
 
+  // Helper to get reliable captain avatar picture
+  const getCaptainAvatarUrl = (name?: string, avatar?: string) => {
+    if (avatar && avatar.trim()) return avatar;
+    const localCaptainAvatar = localStorage.getItem('motoride_captain_avatar');
+    if (localCaptainAvatar) return localCaptainAvatar;
+    const sampleAvatars = [
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=150&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
+    ];
+    const hash = (name || 'captain')
+      .split('')
+      .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    return sampleAvatars[hash % sampleAvatars.length];
+  };
+
   const renderControlPanel = () => (
     <div className="flex flex-col gap-4">
       {activeRide ? (
-          /* Active Ride Cards */
-          <div className="bg-slate-900/95 border border-slate-800 rounded-3xl p-5 flex flex-col gap-4 shadow-xl">
+          /* Active Ride Cards - White Background with Black Text, Icons and Dark Black Outlines */
+          <div className="bg-white border-2 border-black rounded-3xl p-5 flex flex-col gap-4 shadow-2xl text-black">
             {/* Status Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-black/20">
               <div>
-                <span className="text-[11px] font-mono-num font-bold text-emerald-400 block">
+                <span className="text-[11px] font-mono-num font-black text-black block">
                   {activeRide.ride_code}
                 </span>
-                <h2 className="text-base font-extrabold text-white capitalize">
+                <h2 className="text-base font-black text-black capitalize">
                   {activeRide.status.replace(/_/g, ' ')}
                 </h2>
               </div>
-              <div className="w-9 h-9 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                <Bike className="w-5 h-5 text-emerald-400" />
+              <div className="w-9 h-9 rounded-2xl bg-slate-100 border border-black flex items-center justify-center">
+                <Bike className="w-5 h-5 text-black stroke-[2.5]" />
               </div>
             </div>
 
             {/* Passenger Live GPS Sharing Status in Active Ride */}
             {gpsErrorMessage ? (
-              <div className="p-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between gap-3">
+              <div className="p-3 rounded-2xl bg-rose-50 border border-black text-rose-900 text-xs flex items-center justify-between gap-3 font-semibold">
                 <div className="flex items-center gap-2 min-w-0">
-                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span className="font-semibold">{gpsErrorMessage}</span>
+                  <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />
+                  <span className="font-bold">{gpsErrorMessage}</span>
                 </div>
                 <button
                   type="button"
                   onClick={startWatchingLocation}
-                  className="px-2.5 py-1 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs shrink-0 active:scale-95 cursor-pointer shadow"
+                  className="px-2.5 py-1 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs shrink-0 active:scale-95 cursor-pointer shadow border border-black"
                 >
                   Enable GPS
                 </button>
               </div>
             ) : (
-              <div className="px-3 py-2 rounded-2xl bg-slate-950 border border-slate-800/90 flex items-center justify-between text-xs">
+              <div className="px-3 py-2 rounded-2xl bg-slate-50 border border-black flex items-center justify-between text-xs text-black">
                 <div className="flex items-center gap-2">
                   <div className="relative flex items-center justify-center w-2.5 h-2.5">
-                    <span className="absolute w-full h-full rounded-full bg-emerald-400 animate-ping opacity-75" />
-                    <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="absolute w-full h-full rounded-full bg-black/40 animate-ping opacity-75" />
+                    <span className="relative w-2 h-2 rounded-full bg-black" />
                   </div>
-                  <span className="text-slate-300 font-semibold">Live GPS Sharing:</span>
-                  <span className="text-emerald-400 font-bold">Active</span>
+                  <span className="text-slate-800 font-bold">Live GPS Sharing:</span>
+                  <span className="text-black font-black">Active</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-400 font-mono-num">
+                  <span className="text-[11px] text-slate-700 font-mono-num font-bold">
                     {passengerGps.accuracy ? `±${Math.round(passengerGps.accuracy)}m` : 'High Precision'}
                   </span>
                   {nowTick - passengerGps.timestamp > 30000 && (
-                    <span className="text-[10px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-500/30 font-bold">
+                    <span className="text-[10px] text-black bg-slate-200 px-1.5 py-0.5 rounded border border-black/30 font-black">
                       Stale (&gt;30s)
                     </span>
                   )}
@@ -892,22 +913,22 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
             )}
 
-            {/* Case 1: Searching Nearby Captains Radar */}
+            {/* Case 1: Searching Nearby Captains Radar - White Background with Black Text and Icons */}
             {(activeRide.status === 'requested' || activeRide.status === 'captain_offered') && (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
+              <div className="flex flex-col items-center justify-center py-6 text-center text-black">
                 <div className="relative flex items-center justify-center w-28 h-28 my-2">
-                  <div className="absolute inset-0 rounded-full bg-emerald-500/15 animate-ping" />
-                  <div className="absolute w-20 h-20 rounded-full bg-emerald-500/20 animate-pulse" />
-                  <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center text-slate-950 font-black shadow-lg">
-                    <Bike className="w-7 h-7 stroke-[2.5]" />
+                  <div className="absolute inset-0 rounded-full bg-slate-200/80 animate-ping border border-black/10" />
+                  <div className="absolute w-20 h-20 rounded-full bg-slate-200 animate-pulse border border-black/20" />
+                  <div className="w-14 h-14 rounded-full bg-black flex items-center justify-center text-white font-black shadow-lg border border-black">
+                    <Bike className="w-7 h-7 text-white stroke-[2.5]" />
                   </div>
                 </div>
-                <h3 className="text-sm font-bold text-slate-100 mt-2">
+                <h3 className="text-base font-black text-black mt-2">
                   Radar Active • Contacting Captains
                 </h3>
-                <p className="text-xs text-slate-400 max-w-xs mt-1">
+                <p className="text-xs text-slate-700 font-medium max-w-xs mt-1">
                   Broadcasting your offer of{' '}
-                  <span className="text-emerald-400 font-bold font-mono-num">
+                  <span className="text-black font-black font-mono-num">
                     ₹{activeRide.offered_fare}
                   </span>{' '}
                   to all nearby active captains in real time.
@@ -916,35 +937,62 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 {/* Incoming Counter Offers from Captains */}
                 {activeRide.offers && activeRide.offers.length > 0 && (
                   <div className="w-full mt-5 flex flex-col gap-2.5 text-left">
-                    <h4 className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" />
+                    <h4 className="text-xs font-black text-black flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-black" />
                       <span>Incoming Captain Offers ({activeRide.offers.length})</span>
                     </h4>
                     {activeRide.offers.map((offer) => (
                       <div
                         key={offer.id}
-                        className="p-3 rounded-2xl bg-slate-950 border border-amber-500/30 flex items-center justify-between gap-3 shadow-md"
+                        className="p-3 rounded-2xl bg-slate-50 border-2 border-black flex items-center justify-between gap-3 shadow-xs text-black"
                       >
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-sm text-white">{offer.captain_name}</span>
-                            <span className="flex items-center text-[10px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
-                              <Star className="w-3 h-3 fill-amber-400 mr-0.5" />
-                              {offer.rating}
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Captain Profile Pick */}
+                          <div className="relative shrink-0">
+                            <img
+                              src={getCaptainAvatarUrl(offer.captain_name, offer.captain_avatar || offer.avatar_url)}
+                              alt={offer.captain_name || 'Captain'}
+                              referrerPolicy="no-referrer"
+                              className="w-11 h-11 rounded-full object-cover border-2 border-black bg-slate-200 shadow-xs"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src =
+                                  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                              }}
+                            />
+                            <span
+                              className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-black border border-white"
+                              title="Verified Captain"
+                            >
+                              ✓
                             </span>
                           </div>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {offer.vehicle_model} • {offer.plate_number}
-                          </p>
+
+                          {/* Captain Info */}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-black text-sm text-black truncate">
+                                {offer.captain_name}
+                              </span>
+                              <span className="flex items-center text-[10px] text-black bg-slate-200 px-1.5 py-0.5 rounded border border-black/30 font-bold shrink-0">
+                                <Star className="w-3 h-3 fill-black text-black mr-0.5" />
+                                {offer.rating}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-700 mt-0.5 font-medium truncate">
+                              {offer.vehicle_model} • {offer.plate_number}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-extrabold text-emerald-400 font-mono-num">
+
+                        {/* Counter Fare & Accept Button */}
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-sm font-black text-black font-mono-num">
                             ₹{offer.counter_fare}
                           </span>
                           <button
                             type="button"
                             onClick={() => handleAcceptOffer(offer.id)}
-                            className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-xl bg-black hover:bg-slate-800 text-white font-black text-xs shadow-md border border-black transition-all active:scale-95 cursor-pointer"
                           >
                             Accept
                           </button>
@@ -960,10 +1008,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="button"
                     onClick={handleCancelRide}
                     disabled={isCancelling}
-                    className="w-full py-2.5 px-4 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 hover:text-rose-200 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-sm disabled:opacity-50"
+                    className="w-full py-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-black text-black font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-xs disabled:opacity-50"
                     aria-label="Cancel Ride Request"
                   >
-                    <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <XCircle className="w-4 h-4 text-black shrink-0" />
                     <span>{isCancelling ? 'Cancelling Request...' : 'Cancel Ride Request'}</span>
                   </button>
                 </div>
@@ -974,25 +1022,37 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             {(activeRide.status === 'captain_accepted' ||
               activeRide.status === 'captain_arrived' ||
               activeRide.status === 'trip_started') && (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 text-black">
                 {/* Captain Details Box */}
-                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-black flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center font-bold text-amber-400 text-lg">
-                      🏍️
+                    <div className="relative shrink-0">
+                      <img
+                        src={getCaptainAvatarUrl(activeRide.captain_name || undefined)}
+                        alt={activeRide.captain_name || 'Captain'}
+                        referrerPolicy="no-referrer"
+                        className="w-12 h-12 rounded-full object-cover border-2 border-black bg-slate-200 shadow-xs"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src =
+                            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                      <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-black border border-white">
+                        ✓
+                      </span>
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-extrabold text-white text-sm">
+                        <span className="font-black text-black text-sm">
                           {activeRide.captain_name || 'Vikram Singh'}
                         </span>
-                        <span className="flex items-center text-[10px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded font-bold">
-                          <Star className="w-3 h-3 fill-amber-400 mr-0.5" /> 4.92
+                        <span className="flex items-center text-[10px] text-black bg-slate-200 border border-black/30 px-1.5 py-0.5 rounded font-bold">
+                          <Star className="w-3 h-3 fill-black text-black mr-0.5" /> 4.92
                         </span>
                       </div>
-                      <p className="text-xs text-slate-400 font-mono-num mt-0.5">
+                      <p className="text-xs text-slate-600 font-mono-num mt-0.5 font-medium">
                         {activeRide.vehicle_model || 'Mahindra Centuro'} •{' '}
-                        <span className="text-slate-200 font-bold">
+                        <span className="text-black font-black">
                           {activeRide.plate_number || 'PB65AA1257'}
                         </span>
                       </p>
@@ -1003,14 +1063,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowChatModal(true)}
-                      className="p-3 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-md transition-all active:scale-95 cursor-pointer"
+                      className="p-3 rounded-2xl bg-slate-100 text-black border border-black hover:bg-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer"
                       title="Chat with Captain"
                     >
                       <MessageSquare className="w-4 h-4 stroke-[2.5]" />
                     </button>
                     <a
                       href={`tel:${activeRide.captain_phone || '+919876543210'}`}
-                      className="p-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-md transition-all active:scale-95"
+                      className="p-3 rounded-2xl bg-black hover:bg-slate-800 text-white font-bold shadow-sm transition-all active:scale-95 border border-black"
                       title="Call Captain"
                     >
                       <Phone className="w-4 h-4 stroke-[2.5]" />
@@ -1023,8 +1083,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   <div
                     className={`p-2 rounded-xl border ${
                       activeRide.status === 'captain_accepted'
-                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold'
-                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                        ? 'bg-black text-white border-black font-black'
+                        : 'bg-slate-100 border-black/30 text-slate-600 font-semibold'
                     }`}
                   >
                     1. En Route
@@ -1032,8 +1092,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   <div
                     className={`p-2 rounded-xl border ${
                       activeRide.status === 'captain_arrived'
-                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold'
-                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                        ? 'bg-black text-white border-black font-black'
+                        : 'bg-slate-100 border-black/30 text-slate-600 font-semibold'
                     }`}
                   >
                     2. Arrived
@@ -1041,8 +1101,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   <div
                     className={`p-2 rounded-xl border ${
                       activeRide.status === 'trip_started'
-                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold'
-                        : 'bg-slate-950 border-slate-800 text-slate-400'
+                        ? 'bg-black text-white border-black font-black'
+                        : 'bg-slate-100 border-black/30 text-slate-600 font-semibold'
                     }`}
                   >
                     3. Riding
@@ -1050,23 +1110,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 </div>
 
                 {/* Route Summary */}
-                <div className="text-xs text-slate-300 space-y-1.5 p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80">
+                <div className="text-xs text-black space-y-1.5 p-3 rounded-2xl bg-slate-50 border border-black">
                   <p className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span className="text-slate-400">From:</span>
-                    <span className="truncate font-semibold">{activeRide.pickup_address}</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-black" />
+                    <span className="text-slate-600 font-bold">From:</span>
+                    <span className="truncate font-black">{activeRide.pickup_address}</span>
                   </p>
                   <p className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-rose-400" />
-                    <span className="text-slate-400">To:</span>
-                    <span className="truncate font-semibold">{activeRide.dropoff_address}</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-400 border border-black" />
+                    <span className="text-slate-600 font-bold">To:</span>
+                    <span className="truncate font-black">{activeRide.dropoff_address}</span>
                   </p>
                 </div>
 
                 {/* Fare and payment summary */}
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
-                  <span className="text-xs text-emerald-300 font-medium">Agreed Fare:</span>
-                  <span className="font-mono-num font-extrabold text-base text-emerald-400">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-100 border border-black">
+                  <span className="text-xs text-black font-bold">Agreed Fare:</span>
+                  <span className="font-mono-num font-black text-base text-black">
                     ₹{activeRide.final_fare || activeRide.offered_fare}
                   </span>
                 </div>
@@ -1076,10 +1136,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="button"
                     onClick={handleCancelRide}
                     disabled={isCancelling}
-                    className="w-full py-2.5 rounded-xl border border-rose-500/40 text-rose-400 hover:bg-rose-500/15 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl border border-black text-black bg-slate-100 hover:bg-slate-200 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50"
                     aria-label="Cancel Ride"
                   >
-                    <XCircle className="w-4 h-4 shrink-0" />
+                    <XCircle className="w-4 h-4 shrink-0 text-black" />
                     <span>{isCancelling ? 'Cancelling...' : 'Cancel Ride'}</span>
                   </button>
                 )}
@@ -1088,21 +1148,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
             {/* Case 3: Trip Completed & Rating Form */}
             {activeRide.status === 'trip_completed' && (
-              <div className="flex flex-col items-center text-center py-4 gap-3">
-                <div className="w-14 h-14 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <div className="flex flex-col items-center text-center py-4 gap-3 text-black">
+                <div className="w-14 h-14 rounded-full bg-slate-100 text-black border-2 border-black flex items-center justify-center">
                   <CheckCircle2 className="w-8 h-8 stroke-[2.5]" />
                 </div>
-                <h3 className="text-lg font-black text-white">Trip Completed!</h3>
-                <p className="text-xs text-slate-400">
+                <h3 className="text-lg font-black text-black">Trip Completed!</h3>
+                <p className="text-xs text-slate-700 font-medium">
                   Total distance: {activeRide.distance_km} km • Final Fare:{' '}
-                  <span className="font-mono-num font-bold text-white">
+                  <span className="font-mono-num font-black text-black">
                     ₹{activeRide.final_fare}
                   </span>
                 </p>
 
                 {/* 1-5 Star Rating */}
-                <div className="w-full mt-2 p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center gap-3">
-                  <span className="text-xs font-bold text-slate-200">Rate Captain Vikram</span>
+                <div className="w-full mt-2 p-4 rounded-2xl bg-slate-50 border border-black flex flex-col items-center gap-3">
+                  <span className="text-xs font-black text-black">Rate Captain Vikram</span>
                   <div className="flex items-center gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
@@ -1114,8 +1174,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         <Star
                           className={`w-7 h-7 ${
                             star <= ratingScore
-                              ? 'fill-amber-400 text-amber-400'
-                              : 'text-slate-600'
+                              ? 'fill-black text-black'
+                              : 'text-slate-300'
                           }`}
                         />
                       </button>
@@ -1127,14 +1187,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     value={reviewText}
                     onChange={(e) => setReviewText(e.target.value)}
                     placeholder="Leave a quick note (e.g. smooth ride, on time)"
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-900 border border-slate-800 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-black text-black placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-black font-medium"
                   />
 
                   <button
                     type="button"
                     onClick={handleRateRide}
                     disabled={ratingSubmitted}
-                    className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 border border-black"
                   >
                     {ratingSubmitted ? 'Submitted!' : 'Submit Rating & Done'}
                   </button>
@@ -1143,13 +1203,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             )}
           </div>
         ) : (
-          /* Standard Ride Booking Form - Black Transparent Theme with Pure White Text and Icons */
-          <div className="bg-black/85 backdrop-blur-xl border border-white/20 rounded-3xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-2xl text-white">
+          /* Standard Ride Booking Form - White Theme with Black Text, Icons and Dark Black Outlines */
+          <div className="bg-white border-2 border-black rounded-3xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-2xl text-black">
             {/* Header with Motoride Booking Title and Dropdown Collapse Button */}
-            <div className="flex items-center justify-between pb-2 border-b border-white/15">
+            <div className="flex items-center justify-between pb-2 border-b border-black/20">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
-                <h2 className="text-sm sm:text-base font-black text-white tracking-tight">
+                <span className="w-2.5 h-2.5 rounded-full bg-black animate-pulse" />
+                <h2 className="text-sm sm:text-base font-black text-black tracking-tight">
                   Motoride Booking
                 </h2>
               </div>
@@ -1158,30 +1218,30 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => setIsCardMinimized(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/30 text-xs font-bold transition-all active:scale-95 cursor-pointer group shadow-xs"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-black text-xs font-bold transition-all active:scale-95 cursor-pointer group shadow-xs"
                 title="Drop down booking form to see full map"
               >
                 <span>Drop Down</span>
-                <ChevronDown className="w-4 h-4 text-white group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
+                <ChevronDown className="w-4 h-4 text-black group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
               </button>
             </div>
 
             {/* Service / Ride Type Selector - Show on Top of Booking Page */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-black text-white tracking-wider">Choose Service</label>
-              <div className="flex items-center justify-around py-2 px-2 bg-white/10 rounded-2xl border border-white/20">
+              <label className="text-[11px] font-black text-black tracking-wider">Choose Service</label>
+              <div className="flex items-center justify-around py-2 px-2 bg-slate-100 rounded-2xl border border-black">
                 <button
                   type="button"
                   onClick={() => setRideType('bike')}
                   className={`p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
                     rideType === 'bike'
-                      ? 'text-white scale-125 drop-shadow-[0_2px_10px_rgba(255,255,255,0.4)] bg-white/25 ring-2 ring-white'
-                      : 'text-white/60 hover:text-white'
+                      ? 'text-black scale-125 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)] bg-white ring-2 ring-black border border-black shadow-md'
+                      : 'text-slate-600 hover:text-black'
                   }`}
                   title="Bike"
                   aria-label="Bike"
                 >
-                  <Bike className="w-6 h-6 text-white stroke-[2.5]" />
+                  <Bike className="w-6 h-6 stroke-[2.5]" />
                 </button>
 
                 <button
@@ -1189,7 +1249,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   onClick={() => setRideType('auto')}
                   className={`p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
                     rideType === 'auto'
-                      ? 'scale-125 drop-shadow-[0_2px_10px_rgba(255,255,255,0.4)] bg-white/25 ring-2 ring-white'
+                      ? 'scale-125 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)] bg-white ring-2 ring-black border border-black shadow-md'
                       : 'opacity-60 hover:opacity-100'
                   }`}
                   title="Auto"
@@ -1203,13 +1263,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   onClick={() => setRideType('car')}
                   className={`p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
                     rideType === 'car'
-                      ? 'text-white scale-125 drop-shadow-[0_2px_10px_rgba(255,255,255,0.4)] bg-white/25 ring-2 ring-white'
-                      : 'text-white/60 hover:text-white'
+                      ? 'text-black scale-125 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)] bg-white ring-2 ring-black border border-black shadow-md'
+                      : 'text-slate-600 hover:text-black'
                   }`}
                   title="Comfort AC Cab"
                   aria-label="Comfort AC Cab"
                 >
-                  <Car className="w-6 h-6 text-white stroke-[2.5]" />
+                  <Car className="w-6 h-6 stroke-[2.5]" />
                 </button>
 
                 <button
@@ -1217,22 +1277,22 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   onClick={() => setRideType('courier')}
                   className={`p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
                     rideType === 'courier'
-                      ? 'text-white scale-125 drop-shadow-[0_2px_10px_rgba(255,255,255,0.4)] bg-white/25 ring-2 ring-white'
-                      : 'text-white/60 hover:text-white'
+                      ? 'text-black scale-125 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)] bg-white ring-2 ring-black border border-black shadow-md'
+                      : 'text-slate-600 hover:text-black'
                   }`}
                   title="Courier Parcel"
                   aria-label="Courier Parcel"
                 >
-                  <Package className="w-6 h-6 text-white stroke-[2.5]" />
+                  <Package className="w-6 h-6 stroke-[2.5]" />
                 </button>
               </div>
             </div>
 
             {/* Location Permission Denied / Error Banner */}
             {gpsErrorMessage && (
-              <div className="p-3.5 rounded-2xl bg-rose-950/80 border border-rose-500/50 text-rose-200 text-xs flex items-center justify-between gap-3 shadow-sm">
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-800 text-xs flex items-center justify-between gap-3 shadow-sm">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+                  <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
                   <span className="font-semibold text-xs leading-snug">{gpsErrorMessage}</span>
                 </div>
                 <button
@@ -1248,7 +1308,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             {/* Pickup Location Field (Preset Dropdown or Manual Text Typing) */}
             <div className="flex flex-col gap-1.5 relative">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-black text-white/90 tracking-wider">
+                <label className="text-[11px] font-black text-black tracking-wider">
                   Pickup Location (A)
                 </label>
                 <button
@@ -1263,17 +1323,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       setShowPickupSuggestions(false);
                     }
                   }}
-                  className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-emerald-400 hover:text-emerald-300 border border-white/10 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-black border border-black transition-colors cursor-pointer"
                 >
                   {pickupMode === 'preset' ? (
                     <>
-                      <PenLine className="w-3 h-3" />
-                      <span>Write Manually</span>
+                      <PenLine className="w-3 h-3 text-black" />
+                      <span className="text-black">Write Manually</span>
                     </>
                   ) : (
                     <>
-                      <List className="w-3 h-3" />
-                      <span>Select Preset</span>
+                      <List className="w-3 h-3 text-black" />
+                      <span className="text-black">Select Preset</span>
                     </>
                   )}
                 </button>
@@ -1301,24 +1361,24 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         setPickup(found);
                       }
                     }}
-                    className={`w-full pl-9 ${pickup.name ? 'pr-16' : 'pr-9'} py-2.5 rounded-xl bg-black/70 border ${pickup.name ? 'border-white/25' : 'border-emerald-500/60 ring-1 ring-emerald-500/30'} text-xs text-white font-semibold focus:outline-none focus:border-white appearance-none cursor-pointer hover:border-white/40 transition-colors shadow-xs`}
+                    className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-slate-50 border border-black text-xs text-black font-semibold focus:outline-none focus:ring-2 focus:ring-black appearance-none cursor-pointer hover:bg-slate-100 transition-colors shadow-xs"
                   >
-                    <option value="" disabled className="bg-slate-900 text-slate-400">
+                    <option value="" disabled className="bg-white text-slate-500">
                       📍 Select Pickup Location
                     </option>
-                    <option value="My Live GPS Location" className="bg-slate-900 text-emerald-400 font-bold">
+                    <option value="My Live GPS Location" className="bg-white text-emerald-700 font-bold">
                       🎯 My Live GPS Location (Current Position)
                     </option>
                     {PRESET_LOCATIONS.map((loc) => (
-                      <option key={loc.name} value={loc.name} className="bg-slate-900 text-white">
+                      <option key={loc.name} value={loc.name} className="bg-white text-black">
                         {loc.name}
                       </option>
                     ))}
-                    <option value="__MANUAL_WRITE__" className="bg-slate-900 text-amber-300 font-bold">
+                    <option value="__MANUAL_WRITE__" className="bg-white text-blue-700 font-bold">
                       ✍️ Type Custom Address Manually...
                     </option>
                   </select>
-                  <MapPin className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
+                  <MapPin className="w-4 h-4 text-black absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
                   
                   {/* Right Corner: Clear Cross Sign & Dropdown Indicator */}
                   <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10">
@@ -1332,12 +1392,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         }}
                         title="Cancel / Clear pickup location"
                         aria-label="Cancel pickup location"
-                        className="p-1 rounded-md bg-white/15 hover:bg-white/30 text-white transition-all cursor-pointer flex items-center justify-center active:scale-95 shadow-xs"
+                        className="p-1 rounded-md bg-slate-200 hover:bg-slate-300 text-black border border-black transition-all cursor-pointer flex items-center justify-center active:scale-95 shadow-xs"
                       >
                         <X className="w-3.5 h-3.5 stroke-[2.5]" />
                       </button>
                     ) : null}
-                    <ChevronDown className="w-4 h-4 text-white pointer-events-none stroke-[2.5]" />
+                    <ChevronDown className="w-4 h-4 text-black pointer-events-none stroke-[2.5]" />
                   </div>
                 </div>
               ) : (
@@ -1349,13 +1409,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       onChange={(e) => handleManualPickupChange(e.target.value)}
                       onFocus={() => setShowPickupSuggestions(true)}
                       placeholder="Type custom pickup location or landmark..."
-                      className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-black/80 border border-emerald-500/60 ring-1 ring-emerald-500/30 text-xs text-white placeholder-white/40 font-semibold focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/40 shadow-xs"
+                      className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-slate-50 border border-black text-xs text-black placeholder-slate-500 font-semibold focus:outline-none focus:ring-2 focus:ring-black shadow-xs"
                     />
-                    <MapPin className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
+                    <MapPin className="w-4 h-4 text-black absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
 
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10">
                       {isSearchingPickup && (
-                        <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 text-black animate-spin" />
                       )}
                       {pickupInputText ? (
                         <button
@@ -1366,7 +1426,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                             setPickupSuggestions([]);
                           }}
                           title="Clear pickup text"
-                          className="p-1 rounded-md bg-white/15 hover:bg-white/30 text-white transition-all cursor-pointer flex items-center justify-center active:scale-95"
+                          className="p-1 rounded-md bg-slate-200 hover:bg-slate-300 text-black border border-black transition-all cursor-pointer flex items-center justify-center active:scale-95"
                         >
                           <X className="w-3.5 h-3.5 stroke-[2.5]" />
                         </button>
@@ -1376,19 +1436,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                   {/* Suggestions Popover */}
                   {showPickupSuggestions && pickupSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-900/98 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                      <div className="px-2.5 py-1 text-[10px] uppercase font-bold text-slate-400 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between">
+                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-black rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
+                      <div className="px-2.5 py-1 text-[10px] uppercase font-bold text-slate-700 bg-slate-100 border-b border-black flex items-center justify-between">
                         <span>Matching Places</span>
-                        <span className="text-emerald-400">Click to select</span>
+                        <span className="text-black font-bold">Click to select</span>
                       </div>
                       {pickupSuggestions.map((item, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => handleSelectPickupSuggestion(item)}
-                          className="w-full px-3 py-2 text-left text-xs text-slate-200 hover:bg-emerald-500/20 hover:text-white flex items-center gap-2 border-b border-slate-800/60 last:border-0 transition-colors cursor-pointer"
+                          className="w-full px-3 py-2 text-left text-xs text-slate-800 hover:bg-slate-100 hover:text-black flex items-center gap-2 border-b border-slate-200 last:border-0 transition-colors cursor-pointer"
                         >
-                          <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <MapPin className="w-3.5 h-3.5 text-black shrink-0" />
                           <span className="truncate font-medium">{item.name}</span>
                         </button>
                       ))}
@@ -1401,7 +1461,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             {/* Dropoff Location Field (Preset Dropdown or Manual Text Typing) */}
             <div className="flex flex-col gap-1.5 relative">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-black text-white/90 tracking-wider">
+                <label className="text-[11px] font-black text-black tracking-wider">
                   Drop-off Location (B)
                 </label>
                 <button
@@ -1416,17 +1476,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       setShowDropoffSuggestions(false);
                     }
                   }}
-                  className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-white/10 hover:bg-white/20 text-blue-400 hover:text-blue-300 border border-white/10 transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-black border border-black transition-colors cursor-pointer"
                 >
                   {dropoffMode === 'preset' ? (
                     <>
-                      <PenLine className="w-3 h-3" />
-                      <span>Write Manually</span>
+                      <PenLine className="w-3 h-3 text-black" />
+                      <span className="text-black">Write Manually</span>
                     </>
                   ) : (
                     <>
-                      <List className="w-3 h-3" />
-                      <span>Select Preset</span>
+                      <List className="w-3 h-3 text-black" />
+                      <span className="text-black">Select Preset</span>
                     </>
                   )}
                 </button>
@@ -1447,21 +1507,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       const found = PRESET_LOCATIONS.find((l) => l.name === val);
                       if (found) setDropoff(found);
                     }}
-                    className={`w-full pl-9 ${dropoff.name ? 'pr-16' : 'pr-9'} py-2.5 rounded-xl bg-black/70 border border-white/25 text-xs text-white font-semibold focus:outline-none focus:border-white appearance-none cursor-pointer hover:border-white/40 transition-colors shadow-xs`}
+                    className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-slate-50 border border-black text-xs text-black font-semibold focus:outline-none focus:ring-2 focus:ring-black appearance-none cursor-pointer hover:bg-slate-100 transition-colors shadow-xs"
                   >
-                    <option value="" disabled className="bg-slate-900 text-slate-400">
+                    <option value="" disabled className="bg-white text-slate-500">
                       Select Dropoff Location
                     </option>
                     {PRESET_LOCATIONS.map((loc) => (
-                      <option key={loc.name} value={loc.name} className="bg-slate-900 text-white">
+                      <option key={loc.name} value={loc.name} className="bg-white text-black">
                         {loc.name}
                       </option>
                     ))}
-                    <option value="__MANUAL_WRITE__" className="bg-slate-900 text-amber-300 font-bold">
+                    <option value="__MANUAL_WRITE__" className="bg-white text-blue-700 font-bold">
                       ✍️ Type Custom Address Manually...
                     </option>
                   </select>
-                  <Navigation className="w-4 h-4 text-blue-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
+                  <Navigation className="w-4 h-4 text-black absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
 
                   {/* Right Corner: Clear Cross Sign & Dropdown Indicator */}
                   <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10">
@@ -1475,12 +1535,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         }}
                         title="Cancel / Clear dropoff location"
                         aria-label="Cancel dropoff location"
-                        className="p-1 rounded-md bg-white/15 hover:bg-white/30 text-white transition-all cursor-pointer flex items-center justify-center active:scale-95 shadow-xs"
+                        className="p-1 rounded-md bg-slate-200 hover:bg-slate-300 text-black border border-black transition-all cursor-pointer flex items-center justify-center active:scale-95 shadow-xs"
                       >
                         <X className="w-3.5 h-3.5 stroke-[2.5]" />
                       </button>
                     ) : null}
-                    <ChevronDown className="w-4 h-4 text-white pointer-events-none stroke-[2.5]" />
+                    <ChevronDown className="w-4 h-4 text-black pointer-events-none stroke-[2.5]" />
                   </div>
                 </div>
               ) : (
@@ -1492,13 +1552,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       onChange={(e) => handleManualDropoffChange(e.target.value)}
                       onFocus={() => setShowDropoffSuggestions(true)}
                       placeholder="Type custom drop-off destination or landmark..."
-                      className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-black/80 border border-blue-500/60 ring-1 ring-blue-500/30 text-xs text-white placeholder-white/40 font-semibold focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-400/40 shadow-xs"
+                      className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-slate-50 border border-black text-xs text-black placeholder-slate-500 font-semibold focus:outline-none focus:ring-2 focus:ring-black shadow-xs"
                     />
-                    <Navigation className="w-4 h-4 text-blue-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
+                    <Navigation className="w-4 h-4 text-black absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
 
                     <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10">
                       {isSearchingDropoff && (
-                        <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />
+                        <Loader2 className="w-3.5 h-3.5 text-black animate-spin" />
                       )}
                       {dropoffInputText ? (
                         <button
@@ -1509,7 +1569,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                             setDropoffSuggestions([]);
                           }}
                           title="Clear dropoff text"
-                          className="p-1 rounded-md bg-white/15 hover:bg-white/30 text-white transition-all cursor-pointer flex items-center justify-center active:scale-95"
+                          className="p-1 rounded-md bg-slate-200 hover:bg-slate-300 text-black border border-black transition-all cursor-pointer flex items-center justify-center active:scale-95"
                         >
                           <X className="w-3.5 h-3.5 stroke-[2.5]" />
                         </button>
@@ -1519,19 +1579,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                   {/* Suggestions Popover */}
                   {showDropoffSuggestions && dropoffSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-900/98 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
-                      <div className="px-2.5 py-1 text-[10px] uppercase font-bold text-slate-400 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between">
+                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-black rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
+                      <div className="px-2.5 py-1 text-[10px] uppercase font-bold text-slate-700 bg-slate-100 border-b border-black flex items-center justify-between">
                         <span>Matching Places</span>
-                        <span className="text-blue-400">Click to select</span>
+                        <span className="text-black font-bold">Click to select</span>
                       </div>
                       {dropoffSuggestions.map((item, idx) => (
                         <button
                           key={idx}
                           type="button"
                           onClick={() => handleSelectDropoffSuggestion(item)}
-                          className="w-full px-3 py-2 text-left text-xs text-slate-200 hover:bg-blue-500/20 hover:text-white flex items-center gap-2 border-b border-slate-800/60 last:border-0 transition-colors cursor-pointer"
+                          className="w-full px-3 py-2 text-left text-xs text-slate-800 hover:bg-slate-100 hover:text-black flex items-center gap-2 border-b border-slate-200 last:border-0 transition-colors cursor-pointer"
                         >
-                          <Navigation className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                          <Navigation className="w-3.5 h-3.5 text-black shrink-0" />
                           <span className="truncate font-medium">{item.name}</span>
                         </button>
                       ))}
@@ -1542,17 +1602,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             </div>
 
             {/* Fare & Payment Control Card */}
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-white/10 border border-white/20 flex flex-col gap-3 shadow-xs">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-black flex flex-col gap-3 shadow-xs">
               {/* Fare Stepper: (-) Fare ₹ 0 (+) comment box icon */}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setOfferedFare((prev) => Math.max(estimatedFare, prev - 5))}
                   disabled={!hasSelectedLocations || offeredFare <= estimatedFare}
-                  className={`w-10 h-10 shrink-0 rounded-xl border font-black text-xl flex items-center justify-center transition-all shadow-xs ${
+                  className={`w-10 h-10 shrink-0 rounded-xl border border-black font-black text-xl flex items-center justify-center transition-all shadow-xs ${
                     !hasSelectedLocations || offeredFare <= estimatedFare
-                      ? 'bg-white/5 border-white/10 text-white/30 cursor-not-allowed'
-                      : 'bg-white/10 border-white/30 text-white hover:bg-white/20 cursor-pointer active:scale-95'
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-white text-black hover:bg-slate-100 cursor-pointer active:scale-95'
                   }`}
                   title={
                     !hasSelectedLocations
@@ -1567,11 +1627,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 </button>
 
                 {/* Center: Fare ₹ 0 */}
-                <div className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-white/10 rounded-xl border border-white/25 hover:border-white/40 px-3 py-2 transition-all shadow-xs">
-                  <span className="text-white text-xs sm:text-sm font-bold whitespace-nowrap select-none">
+                <div className="flex-1 min-w-0 flex items-center justify-center gap-1.5 bg-white rounded-xl border border-black hover:bg-slate-50 px-3 py-2 transition-all shadow-xs">
+                  <span className="text-black text-xs sm:text-sm font-bold whitespace-nowrap select-none">
                     Fare
                   </span>
-                  <span className="text-white font-mono-num font-black text-base">₹</span>
+                  <span className="text-black font-mono-num font-black text-base">₹</span>
                   <input
                     type="number"
                     min={estimatedFare}
@@ -1581,7 +1641,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       const val = Number(e.target.value);
                       setOfferedFare(Math.max(estimatedFare, isNaN(val) ? estimatedFare : val));
                     }}
-                    className="w-14 sm:w-18 text-left font-mono-num font-black text-base sm:text-lg text-white bg-transparent focus:outline-none disabled:opacity-75"
+                    className="w-14 sm:w-18 text-left font-mono-num font-black text-base sm:text-lg text-black bg-transparent focus:outline-none disabled:opacity-75"
                   />
                 </div>
 
@@ -1589,10 +1649,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   type="button"
                   onClick={() => setOfferedFare((prev) => prev + 5)}
                   disabled={!hasSelectedLocations}
-                  className={`w-10 h-10 shrink-0 rounded-xl border font-black text-xl flex items-center justify-center active:scale-95 transition-all shadow-xs ${
+                  className={`w-10 h-10 shrink-0 rounded-xl border border-black font-black text-xl flex items-center justify-center active:scale-95 transition-all shadow-xs ${
                     !hasSelectedLocations
-                      ? 'bg-white/5 border-white/10 text-white/30 cursor-not-allowed'
-                      : 'bg-white/10 border-white/30 text-white hover:bg-white/20 cursor-pointer'
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                      : 'bg-white text-black hover:bg-slate-100 cursor-pointer'
                   }`}
                   title={!hasSelectedLocations ? 'Select pickup & dropoff to set fare' : 'Increase Fare'}
                   aria-label="Increase Fare"
@@ -1604,17 +1664,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowCommentInput((prev) => !prev)}
-                  className={`w-10 h-10 shrink-0 rounded-xl border cursor-pointer flex items-center justify-center active:scale-95 transition-all relative ${
+                  className={`w-10 h-10 shrink-0 rounded-xl border border-black cursor-pointer flex items-center justify-center active:scale-95 transition-all relative ${
                     rideComment.trim() || showCommentInput
-                      ? 'bg-white border-white text-black shadow-xs'
-                      : 'bg-white/10 border-white/30 text-white hover:bg-white/20'
+                      ? 'bg-black text-white shadow-xs'
+                      : 'bg-white text-black hover:bg-slate-100'
                   }`}
                   title="Add comment / instruction for captain"
                   aria-label="Add comment for captain"
                 >
                   <MessageSquare className="w-4 h-4 stroke-[2.5]" />
                   {rideComment.trim() && (
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-black" />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
                   )}
                 </button>
               </div>
@@ -1627,14 +1687,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     value={rideComment}
                     onChange={(e) => setRideComment(e.target.value)}
                     placeholder="Note for captain (e.g. Near gate 2, 2 bags, etc.)"
-                    className="w-full pl-3 pr-8 py-2 rounded-xl bg-black/70 border border-white/30 text-xs text-white placeholder-white/50 focus:outline-none focus:border-white shadow-xs font-medium"
+                    className="w-full pl-3 pr-8 py-2 rounded-xl bg-white border border-black text-xs text-black placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-black shadow-xs font-medium"
                     autoFocus
                   />
                   {rideComment && (
                     <button
                       type="button"
                       onClick={() => setRideComment('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/80 hover:text-white text-xs cursor-pointer font-bold"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-black text-xs cursor-pointer font-bold"
                     >
                       ✕
                     </button>
@@ -1643,16 +1703,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               )}
 
               {/* Pay Via: upi | cash */}
-              <div className="flex items-center justify-between pt-2 border-t border-white/15 text-xs">
-                <span className="text-white font-black tracking-wide">Pay Via:</span>
+              <div className="flex items-center justify-between pt-2 border-t border-black/20 text-xs">
+                <span className="text-black font-black tracking-wide">Pay Via:</span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('upi')}
-                    className={`px-4 py-1.5 rounded-xl font-black uppercase tracking-wider text-xs cursor-pointer transition-all ${
+                    className={`px-4 py-1.5 rounded-xl font-black uppercase tracking-wider text-xs cursor-pointer transition-all border border-black ${
                       paymentMethod === 'upi'
-                        ? 'bg-white text-black shadow-md font-black ring-1 ring-white'
-                        : 'bg-white/10 text-white hover:bg-white/20 border border-white/30 font-bold'
+                        ? 'bg-black text-white shadow-md font-black ring-1 ring-black'
+                        : 'bg-white text-black hover:bg-slate-100 font-bold'
                     }`}
                   >
                     upi
@@ -1660,10 +1720,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('cash')}
-                    className={`px-4 py-1.5 rounded-xl font-black lowercase tracking-wider text-xs cursor-pointer transition-all ${
+                    className={`px-4 py-1.5 rounded-xl font-black lowercase tracking-wider text-xs cursor-pointer transition-all border border-black ${
                       paymentMethod === 'cash'
-                        ? 'bg-white text-black shadow-md font-black ring-1 ring-white'
-                        : 'bg-white/10 text-white hover:bg-white/20 border border-white/30 font-bold'
+                        ? 'bg-black text-white shadow-md font-black ring-1 ring-black'
+                        : 'bg-white text-black hover:bg-slate-100 font-bold'
                     }`}
                   >
                     cash
@@ -1676,14 +1736,27 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             <button
               type="button"
               onClick={handleBookRide}
-              disabled={isBooking}
-              className="w-full py-3.5 rounded-2xl bg-white hover:bg-slate-200 text-black font-black text-sm shadow-2xl transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              disabled={isBooking || offeredFare <= 0 || !hasSelectedLocations}
+              className={`w-full py-3.5 rounded-2xl font-black text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 border-2 ${
+                isBooking || offeredFare <= 0 || !hasSelectedLocations
+                  ? 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed shadow-none'
+                  : 'bg-black hover:bg-slate-900 text-white border-black cursor-pointer shadow-xl'
+              }`}
+              title={
+                offeredFare <= 0 || !hasSelectedLocations
+                  ? 'Please select valid pickup and drop-off locations to calculate fare'
+                  : 'Find Captain'
+              }
             >
-              <Send className="w-4 h-4 text-black stroke-[2.5]" />
+              <Send
+                className={`w-4 h-4 stroke-[2.5] ${
+                  isBooking || offeredFare <= 0 || !hasSelectedLocations ? 'text-slate-400' : 'text-white'
+                }`}
+              />
               <span>
                 {isBooking
                   ? 'Broadcasting Offer...'
-                  : `Find Captain for ₹${offeredFare || estimatedFare || 75}`}
+                  : `Find Captain for ₹${offeredFare !== undefined ? offeredFare : 0}`}
               </span>
             </button>
           </div>
@@ -1738,7 +1811,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         <div className="fixed sm:absolute bottom-3 sm:bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 md:left-6 md:translate-x-0 z-[1000] w-[calc(100%-1.25rem)] sm:w-[460px] md:w-[420px] animate-in fade-in slide-in-from-bottom-3 duration-200">
           <div
             onClick={() => setIsCardMinimized(false)}
-            className="p-3 sm:p-3.5 rounded-3xl bg-slate-950/95 backdrop-blur-xl border border-slate-700/90 shadow-2xl flex items-center justify-between gap-3 hover:border-emerald-500/50 transition-all cursor-pointer ring-1 ring-white/10"
+            className="p-3 sm:p-3.5 rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl flex items-center justify-between gap-3 hover:border-slate-700 transition-all cursor-pointer"
           >
             <div className="flex items-center gap-3 min-w-0 pr-2 flex-1">
               <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-lg shadow-md shrink-0">

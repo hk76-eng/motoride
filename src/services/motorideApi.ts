@@ -380,6 +380,8 @@ export const motorideApi = {
     offerData: {
       captain_id: string;
       captain_name: string;
+      captain_avatar?: string;
+      avatar_url?: string;
       captain_phone?: string;
       vehicle_model?: string;
       plate_number?: string;
