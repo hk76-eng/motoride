@@ -19,6 +19,8 @@ import {
   getPassengerLocation,
   addRideMessage,
   getRideMessages,
+  accountsStore,
+  ServerRegisteredAccount,
 } from './motorideDb';
 import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain, Passenger } from '../src/types/motoride';
 import { backendHaversineDistanceKm } from './fareEngine';
@@ -108,9 +110,9 @@ motorideRouter.post('/rides/:id/messages', (req: Request, res: Response) => {
 motorideRouter.post('/rides', (req: Request, res: Response) => {
   try {
     const {
-      passenger_id = 'psg_demo_' + Math.floor(1000 + Math.random() * 9000),
-      passenger_name = 'Hemant Kashyap',
-      passenger_phone = '+91 97800 12345',
+      passenger_id = req.body.passenger_id || `psg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      passenger_name = req.body.passenger_name || 'Passenger',
+      passenger_phone = req.body.passenger_phone || '',
       pickup_address = 'Sector 70, Mohali Market',
       pickup_lat = 30.704649,
       pickup_lng = 76.717873,
@@ -178,57 +180,8 @@ motorideRouter.post('/rides', (req: Request, res: Response) => {
       created_at: now,
     });
 
-    // Simulate active Captain counter-offers for testing if not manually accepted
-    setTimeout(() => {
-      const current = ridesStore.get(rideId);
-      if (current && (current.status === 'requested' || current.status === 'captain_offered')) {
-        const offer1: RideOffer = {
-          id: `off_${Date.now()}_1`,
-          ride_id: rideId,
-          captain_id: 'cpt_vikram_01',
-          captain_name: 'Captain Vikram Singh',
-          captain_phone: '+91 98765 43210',
-          vehicle_model: 'Honda Activa 6G',
-          plate_number: 'PB65AA1257',
-          rating: 4.92,
-          counter_fare: Number(offered_fare),
-          status: 'pending',
-          created_at: new Date().toISOString(),
-        };
-        current.offers = [offer1];
-        current.status = 'captain_offered';
-        current.updated_at = new Date().toISOString();
-        ridesStore.set(rideId, current);
-        broadcastEvent('RIDE_OFFER_RECEIVED', { ride: current, offer: offer1 });
-        broadcastEvent('RIDE_UPDATED', current);
-      }
-    }, 2500);
-
-    setTimeout(() => {
-      const current = ridesStore.get(rideId);
-      if (current && (current.status === 'requested' || current.status === 'captain_offered')) {
-        const offer2: RideOffer = {
-          id: `off_${Date.now()}_2`,
-          ride_id: rideId,
-          captain_id: 'cpt_amit_02',
-          captain_name: 'Captain Amit Kumar',
-          captain_phone: '+91 98111 55667',
-          vehicle_model: 'Hero Splendor Plus',
-          plate_number: 'CH01AB4432',
-          rating: 4.88,
-          counter_fare: Math.max(30, Number(offered_fare) - 5),
-          status: 'pending',
-          created_at: new Date().toISOString(),
-        };
-        const existing = (current.offers || []).filter((o) => o.captain_id !== 'cpt_amit_02');
-        current.offers = [...existing, offer2];
-        current.status = 'captain_offered';
-        current.updated_at = new Date().toISOString();
-        ridesStore.set(rideId, current);
-        broadcastEvent('RIDE_OFFER_RECEIVED', { ride: current, offer: offer2 });
-        broadcastEvent('RIDE_UPDATED', current);
-      }
-    }, 5000);
+    // Broadcast to real-time SSE stream so real active online captains can receive the request
+    broadcastEvent('RIDE_CREATED', newRide);
 
     res.status(201).json({ success: true, ride: newRide });
   } catch (err: any) {
@@ -252,22 +205,26 @@ motorideRouter.post('/rides/:id/accept', (req: Request, res: Response) => {
   }
 
   const {
-    captain_id = 'cpt_vikram_01',
-    captain_name = 'Vikram Singh',
-    captain_phone = '+91 98765 43210',
-    vehicle_model = 'Mahindra Centuro PB65AA1257',
-    plate_number = 'PB65AA1257',
+    captain_id,
+    captain_name,
+    captain_phone,
+    vehicle_model,
+    plate_number,
     accepted_fare,
   } = req.body;
+
+  if (!captain_id || !captain_name) {
+    return res.status(400).json({ error: 'Registered captain identification is required to accept ride' });
+  }
 
   const finalFare = typeof accepted_fare === 'number' ? accepted_fare : ride.offered_fare;
 
   // Lock and update ride status atomically
   ride.captain_id = captain_id;
   ride.captain_name = captain_name;
-  ride.captain_phone = captain_phone;
-  ride.vehicle_model = vehicle_model;
-  ride.plate_number = plate_number;
+  ride.captain_phone = captain_phone || '';
+  ride.vehicle_model = vehicle_model || 'Bike';
+  ride.plate_number = plate_number || '';
   ride.final_fare = finalFare;
   ride.status = 'captain_accepted';
   ride.updated_at = new Date().toISOString();
@@ -306,14 +263,18 @@ motorideRouter.post('/rides/:id/offer', (req: Request, res: Response) => {
   }
 
   const {
-    captain_id = 'cpt_vikram_01',
-    captain_name = 'Vikram Singh',
-    captain_phone = '+91 98765 43210',
-    vehicle_model = 'Mahindra Centuro PB65AA1257',
-    plate_number = 'PB65AA1257',
+    captain_id,
+    captain_name,
+    captain_phone,
+    vehicle_model,
+    plate_number,
     rating = 4.9,
     counter_fare,
   } = req.body;
+
+  if (!captain_id || !captain_name) {
+    return res.status(400).json({ error: 'Valid captain identification is required to submit offer' });
+  }
 
   if (!counter_fare || isNaN(Number(counter_fare))) {
     return res.status(400).json({ error: 'Valid counter fare is required' });
@@ -829,6 +790,7 @@ motorideRouter.get('/captains', (req: Request, res: Response) => {
     ...cpt,
     today_earnings: calculateCaptainTodayEarnings(cpt.id),
     total_earnings: calculateCaptainTotalEarnings(cpt.id),
+    wallet_balance: (walletsStore.get(cpt.id) || { balance: 500 }).balance,
   }));
   res.json({ success: true, captains: list });
 });
@@ -943,7 +905,11 @@ motorideRouter.post('/captains/:id/status', (req: Request, res: Response) => {
 
 // 4. Passengers API
 motorideRouter.get('/passengers', (req: Request, res: Response) => {
-  res.json({ success: true, passengers: Array.from(passengersStore.values()) });
+  const list = Array.from(passengersStore.values()).map((psg) => ({
+    ...psg,
+    wallet_balance: (walletsStore.get(psg.id) || { balance: 200 }).balance,
+  }));
+  res.json({ success: true, passengers: list });
 });
 
 motorideRouter.post('/passengers', (req: Request, res: Response) => {
@@ -1023,4 +989,236 @@ motorideRouter.get('/stats', (req: Request, res: Response) => {
 
 motorideRouter.get('/notifications', (req: Request, res: Response) => {
   res.json({ success: true, notifications: notificationsStore.slice(0, 30) });
+});
+
+// 8. Server-Backed Real Account Authentication & Persistence
+motorideRouter.post('/auth/register', (req: Request, res: Response) => {
+  try {
+    const {
+      id,
+      email,
+      password,
+      name,
+      role = 'passenger',
+      phone,
+      vehicle_model,
+      plate_number,
+      vehicle_type = 'bike',
+    } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, error: 'A valid email address is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ success: false, error: 'Password is required' });
+    }
+    if (!name) {
+      return res.status(400).json({ success: false, error: 'Full name is required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanRole = (role === 'captain' || role === 'admin' ? role : 'passenger') as 'passenger' | 'captain' | 'admin';
+    const storeKey = `${cleanEmail}_${cleanRole}`;
+    const accountId = id || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const now = new Date().toISOString();
+
+    const account: ServerRegisteredAccount = {
+      id: accountId,
+      email: cleanEmail,
+      password_hash: String(password).trim(),
+      name: name.trim(),
+      role: cleanRole,
+      phone: phone?.trim() || '',
+      vehicle_model: vehicle_model?.trim() || '',
+      plate_number: plate_number?.trim().toUpperCase() || '',
+      vehicle_type: vehicle_type || 'bike',
+      wallet_balance: cleanRole === 'captain' ? 500 : 200,
+      member_since: now,
+      created_at: now,
+    };
+
+    accountsStore.set(storeKey, account);
+
+    // Keep wallets store in sync
+    if (!walletsStore.has(accountId)) {
+      walletsStore.set(accountId, {
+        balance: account.wallet_balance || 200,
+        currency: '₹',
+      });
+    }
+
+    // If Captain, register into captains catalog
+    if (cleanRole === 'captain') {
+      const cpt: Captain = {
+        id: accountId,
+        profile_id: `prof_${accountId}`,
+        full_name: account.name,
+        email: cleanEmail,
+        phone: account.phone || '',
+        is_online: true,
+        is_approved: true,
+        is_active: true,
+        current_lat: 30.7046 + (Math.random() - 0.5) * 0.05,
+        current_lng: 76.7178 + (Math.random() - 0.5) * 0.05,
+        rating: 4.95,
+        total_rides: 0,
+        vehicle: {
+          id: `veh_${accountId}`,
+          captain_id: accountId,
+          model: account.vehicle_model || 'Standard Bike',
+          plate_number: account.plate_number || `PB65XX${Math.floor(1000 + Math.random() * 9000)}`,
+          vehicle_type: account.vehicle_type || 'bike',
+          color: 'Black',
+          is_active: true,
+        },
+        created_at: now,
+      };
+      captainsStore.set(accountId, cpt);
+      broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
+    }
+
+    // If Passenger, register into passengers catalog
+    if (cleanRole === 'passenger') {
+      const psg: Passenger = {
+        id: accountId,
+        profile_id: `prof_${accountId}`,
+        full_name: account.name,
+        email: cleanEmail,
+        phone: account.phone || '',
+        total_rides: 0,
+        rating: 5.0,
+        wallet_balance: account.wallet_balance ?? 200,
+        created_at: now,
+      };
+      passengersStore.set(accountId, psg);
+      broadcastEvent('PASSENGERS_UPDATED', Array.from(passengersStore.values()));
+    }
+
+    res.status(201).json({
+      success: true,
+      account: {
+        id: account.id,
+        email: account.email,
+        name: account.name,
+        role: account.role,
+        phone: account.phone,
+        vehicle_model: account.vehicle_model,
+        plate_number: account.plate_number,
+        vehicle_type: account.vehicle_type,
+        wallet_balance: account.wallet_balance,
+        member_since: account.member_since,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || 'Registration failed' });
+  }
+});
+
+motorideRouter.post('/auth/login', (req: Request, res: Response) => {
+  try {
+    const { email, password, role = 'passenger' } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, error: 'A valid email address is required' });
+    }
+    if (!password) {
+      return res.status(400).json({ success: false, error: 'Password is required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanRole = (role === 'captain' || role === 'admin' ? role : 'passenger') as 'passenger' | 'captain' | 'admin';
+    const exactKey = `${cleanEmail}_${cleanRole}`;
+
+    // 1. Check exact match for role
+    let account = accountsStore.get(exactKey);
+
+    // 2. If not found for this role, search all accounts for this email across other roles
+    if (!account) {
+      let otherRoleAccount: ServerRegisteredAccount | undefined;
+      for (const acc of accountsStore.values()) {
+        if (acc.email.toLowerCase() === cleanEmail) {
+          otherRoleAccount = acc;
+          break;
+        }
+      }
+
+      if (otherRoleAccount) {
+        // Found account with same email under another role
+        const passwordMatches = otherRoleAccount.password_hash === String(password).trim();
+        if (passwordMatches) {
+          // Auto-adapt to the user's registered role!
+          return res.json({
+            success: true,
+            role_switched: true,
+            original_role: otherRoleAccount.role,
+            message: `Found your registered ${otherRoleAccount.role} account!`,
+            account: {
+              id: otherRoleAccount.id,
+              email: otherRoleAccount.email,
+              name: otherRoleAccount.name,
+              role: otherRoleAccount.role,
+              phone: otherRoleAccount.phone,
+              vehicle_model: otherRoleAccount.vehicle_model,
+              plate_number: otherRoleAccount.plate_number,
+              vehicle_type: otherRoleAccount.vehicle_type,
+              wallet_balance: otherRoleAccount.wallet_balance,
+              member_since: otherRoleAccount.member_since,
+            },
+          });
+        } else {
+          return res.status(401).json({
+            success: false,
+            error: 'Incorrect password. Please verify your credentials.',
+          });
+        }
+      }
+
+      return res.status(404).json({
+        success: false,
+        error: `No account found with email "${cleanEmail}". Please switch to "Create Account" tab to register.`,
+      });
+    }
+
+    // 3. Exact role match verification
+    if (account.password_hash !== String(password).trim()) {
+      return res.status(401).json({
+        success: false,
+        error: 'Incorrect password. Please verify your credentials.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      account: {
+        id: account.id,
+        email: account.email,
+        name: account.name,
+        role: account.role,
+        phone: account.phone,
+        vehicle_model: account.vehicle_model,
+        plate_number: account.plate_number,
+        vehicle_type: account.vehicle_type,
+        wallet_balance: account.wallet_balance,
+        member_since: account.member_since,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || 'Login failed' });
+  }
+});
+
+motorideRouter.get('/auth/accounts', (req: Request, res: Response) => {
+  const list = Array.from(accountsStore.values()).map((acc) => ({
+    id: acc.id,
+    email: acc.email,
+    name: acc.name,
+    role: acc.role,
+    phone: acc.phone,
+    vehicle_model: acc.vehicle_model,
+    plate_number: acc.plate_number,
+    vehicle_type: acc.vehicle_type,
+    wallet_balance: acc.wallet_balance,
+    member_since: acc.member_since,
+  }));
+  res.json({ success: true, accounts: list });
 });

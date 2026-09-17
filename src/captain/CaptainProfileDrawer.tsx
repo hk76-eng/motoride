@@ -53,13 +53,13 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   onSignOut,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(captain?.full_name || 'Captain Vikram Singh');
-  const [phone, setPhone] = useState(captain?.phone || '+91 98765 43210');
-  const [email, setEmail] = useState('vikram.singh.captain@motoride.in');
-  const [vehicleModel, setVehicleModel] = useState(captain?.vehicle?.model || 'Mahindra Centuro');
-  const [plateNumber, setPlateNumber] = useState(captain?.vehicle?.plate_number || 'PB65AA1257');
-  const [drivingLicense, setDrivingLicense] = useState('DL-0420180098765');
-  const [emergencyContact, setEmergencyContact] = useState('+91 98111 22334 (Spouse)');
+  const [name, setName] = useState(captain?.full_name || 'Captain');
+  const [phone, setPhone] = useState(captain?.phone || '');
+  const [email, setEmail] = useState(captain?.email || '');
+  const [vehicleModel, setVehicleModel] = useState(captain?.vehicle?.model || '');
+  const [plateNumber, setPlateNumber] = useState(captain?.vehicle?.plate_number || '');
+  const [drivingLicense, setDrivingLicense] = useState('');
+  const [emergencyContact, setEmergencyContact] = useState('');
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Captain profile saved successfully!');
   
@@ -168,6 +168,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
     if (captain) {
       if (captain.full_name) setName(captain.full_name);
       if (captain.phone) setPhone(captain.phone);
+      if (captain.email) setEmail(captain.email);
       if (captain.vehicle?.model) setVehicleModel(captain.vehicle.model);
       if (captain.vehicle?.plate_number) setPlateNumber(captain.vehicle.plate_number);
     }

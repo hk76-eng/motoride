@@ -93,7 +93,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     setIsLoading(true);
     try {
-      const { user, error } = await supabaseAuth.signIn({
+      const { user, error, roleSwitched } = await supabaseAuth.signIn({
         email: signInEmail.trim(),
         password: signInPassword,
         role: selectedRole,
@@ -102,7 +102,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       if (error) {
         setErrorMessage(error);
       } else if (user) {
-        onAuthenticated(user);
+        if (roleSwitched && user.role !== selectedRole) {
+          setSelectedRole(user.role);
+          setSuccessMessage(`Found your registered ${user.role} account! Entering workspace...`);
+          setTimeout(() => {
+            onAuthenticated(user);
+          }, 500);
+        } else {
+          onAuthenticated(user);
+        }
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to sign in. Please check credentials.');
@@ -151,6 +159,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     setIsLoading(true);
     try {
+      // Keep sign in email pre-populated with registered email
+      setSignInEmail(email);
+
       const { user, error } = await supabaseAuth.signUp({
         name,
         email,
@@ -165,10 +176,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       if (error) {
         setErrorMessage(error);
       } else if (user) {
-        setSuccessMessage('Account created successfully! Signing you in...');
+        setSuccessMessage(`Account created successfully for ${email}! Logging into your ${selectedRole} dashboard...`);
         setTimeout(() => {
           onAuthenticated(user);
-        }, 800);
+        }, 500);
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Registration failed.');
@@ -297,6 +308,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                     setAuthMode('signin');
                     setErrorMessage(null);
                     setSuccessMessage(null);
+                    if (!signInEmail) {
+                      const candidate = psgEmail || cptEmail || admEmail;
+                      if (candidate) setSignInEmail(candidate);
+                    }
                   }}
                   className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
                     authMode === 'signin'

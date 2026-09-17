@@ -82,54 +82,30 @@ export function updateQRSettings(newSettings: Partial<QRCodeSetting>): QRCodeSet
   return qrSettings;
 }
 
-// 3. Captains Catalog (Pre-seeded with demo active captain)
-export const captainsStore = new Map<string, Captain>([
-  [
-    'cpt_1',
-    {
-      id: 'cpt_1',
-      profile_id: 'prof_cpt_1',
-      full_name: 'Rohan Verma (Demo Captain)',
-      email: 'captain@motoride.com',
-      phone: '+919811122233',
-      is_online: true,
-      is_approved: true,
-      is_active: true,
-      current_lat: 30.7046,
-      current_lng: 76.7178,
-      rating: 4.9,
-      total_rides: 42,
-      vehicle: {
-        id: 'veh_1',
-        captain_id: 'cpt_1',
-        model: 'Honda Activa 6G',
-        plate_number: 'PB65AB1234',
-        vehicle_type: 'bike',
-        color: 'Matte Blue',
-        is_active: true,
-      },
-      created_at: new Date().toISOString(),
-    },
-  ],
-]);
+// 2b. Registered Accounts Store (Persists real registered passengers and captains across tabs & sessions)
+export interface ServerRegisteredAccount {
+  id: string;
+  email: string;
+  password_hash: string;
+  name: string;
+  role: 'passenger' | 'captain' | 'admin';
+  phone?: string;
+  avatar_url?: string;
+  vehicle_model?: string;
+  plate_number?: string;
+  vehicle_type?: 'bike' | 'auto' | 'car' | 'courier';
+  wallet_balance?: number;
+  member_since: string;
+  created_at: string;
+}
 
-// 4. Passengers Catalog (Pre-seeded with demo passenger)
-export const passengersStore = new Map<string, Passenger>([
-  [
-    'psg_1',
-    {
-      id: 'psg_1',
-      profile_id: 'prof_psg_1',
-      full_name: 'Hemant Kashyap (Demo Passenger)',
-      email: 'passenger@motoride.com',
-      phone: '+919780012345',
-      total_rides: 15,
-      rating: 5.0,
-      emergency_contact: '+919876543210',
-      created_at: new Date().toISOString(),
-    },
-  ],
-]);
+export const accountsStore = new Map<string, ServerRegisteredAccount>();
+
+// 3. Captains Catalog (Real registered captains only)
+export const captainsStore = new Map<string, Captain>();
+
+// 4. Passengers Catalog (Real registered passengers only)
+export const passengersStore = new Map<string, Passenger>();
 
 // 5. Wallets & Transactions (Starts empty for fresh accounts)
 export const walletsStore = new Map<string, { balance: number; currency: string }>();

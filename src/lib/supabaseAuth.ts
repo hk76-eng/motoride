@@ -181,16 +181,86 @@ export async function syncAllAccountsToSupabase(): Promise<{ synced: number; tot
   return { synced: count, total: accounts.length };
 }
 
+export function isDemoAccount(acc: any): boolean {
+  if (!acc) return false;
+  const id = String(acc.id || acc.profile_id || '').toLowerCase().trim();
+  const email = String(acc.email || '').toLowerCase().trim();
+  const name = String(acc.name || acc.full_name || '').toLowerCase().trim();
+
+  // Explicit legacy demo IDs only
+  if (
+    id === 'cpt_1' ||
+    id === 'psg_1' ||
+    id === 'cpt_vikram_01' ||
+    id === 'usr-admin-001' ||
+    id === 'usr_demo_100' ||
+    id === 'demo_user'
+  ) {
+    return true;
+  }
+
+  // Explicit legacy demo emails only
+  if (
+    email === 'captain@motoride.com' ||
+    email === 'passenger@motoride.com' ||
+    email === 'vikram.singh.captain@motoride.in' ||
+    email === 'demo@motoride.com' ||
+    email.startsWith('demo@')
+  ) {
+    return true;
+  }
+
+  // Explicit demo names only
+  if (
+    name === 'demo captain' ||
+    name === 'demo passenger' ||
+    name === '[demo]' ||
+    name === '(demo)'
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isDemoRide(ride: any): boolean {
+  if (!ride) return false;
+  const id = String(ride.id || '').toLowerCase();
+  const passId = String(ride.passenger_id || '').toLowerCase();
+  const captId = String(ride.captain_id || '').toLowerCase();
+  const passName = String(ride.passenger_name || '').toLowerCase();
+  const captName = String(ride.captain_name || '').toLowerCase();
+
+  if (
+    id.includes('demo') ||
+    passId === 'psg_1' ||
+    captId === 'cpt_1' ||
+    passId === 'usr_demo_100' ||
+    captId === 'cpt_vikram_01' ||
+    passName.includes('demo') ||
+    captName.includes('demo')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export const supabaseAuth = {
   /**
-   * Get all locally stored registered accounts
+   * Get all locally stored registered accounts (real accounts only)
    */
   getRegisteredAccounts(): StoredAccount[] {
     try {
       const raw = localStorage.getItem(STORAGE_ACCOUNTS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((a) => !isDemoAccount(a));
+          if (filtered.length !== parsed.length) {
+            localStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(filtered));
+          }
+          return filtered;
+        }
       }
     } catch (e) {
       console.warn('Failed to parse registered accounts:', e);
@@ -226,14 +296,7 @@ export const supabaseAuth = {
       const raw = localStorage.getItem(STORAGE_SESSION_KEY);
       if (raw) {
         const user = JSON.parse(raw);
-        // Clean out legacy demo sessions to ensure fresh account usage
-        if (
-          user &&
-          (user.id === 'psg_hemant_01' ||
-            user.id === 'cpt_vikram_01' ||
-            user.id === 'USR-ADMIN-001' ||
-            user.email === 'vikram.singh.captain@motoride.in')
-        ) {
+        if (user && isDemoAccount(user)) {
           localStorage.removeItem(STORAGE_SESSION_KEY);
           return null;
         }
@@ -258,56 +321,80 @@ export const supabaseAuth = {
   },
 
   /**
-   * Sign In via Supabase Auth or Registered Accounts
+   * Sign In via Server Auth, Supabase, or Registered Accounts
    */
   async signIn(params: {
     email: string;
     password?: string;
     role: UserRole;
-  }): Promise<{ user: AuthUser; error?: string }> {
-    const supabase = getSupabase();
+  }): Promise<{ user: AuthUser; error?: string; roleSwitched?: boolean }> {
     const cleanEmail = params.email.trim().toLowerCase();
+    const cleanPass = (params.password || '').trim();
 
-    // 1. Try real Supabase Auth if configured
-    if (supabase && isSupabaseConfigured() && params.password) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password: params.password,
-        });
-
-        if (error) {
-          console.warn('Supabase signin warning:', error.message);
-        } else if (data.user) {
-          const meta = data.user.user_metadata || {};
-          const authUser: AuthUser = {
-            id: data.user.id,
-            email: data.user.email || cleanEmail,
-            name: meta.full_name || meta.name || cleanEmail.split('@')[0],
-            role: (meta.role as UserRole) || params.role,
-            phone: meta.phone,
-            vehicleModel: meta.vehicle_model,
-            plateNumber: meta.plate_number,
-            vehicleType: meta.vehicle_type || 'bike',
-            walletBalance: meta.wallet_balance || (params.role === 'captain' ? 500 : 200),
-            memberSince: data.user.created_at,
-          };
-          this.setCurrentUser(authUser);
-          return { user: authUser };
-        }
-      } catch (err: any) {
-        console.warn('Supabase auth signIn error:', err);
-      }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { user: null as any, error: 'Please enter a valid email address.' };
+    }
+    if (!cleanPass) {
+      return { user: null as any, error: 'Password is required.' };
     }
 
-    // 2. Check locally registered accounts
+    // 1. Primary: Authenticate with Backend Database API
+    try {
+      const serverResp = await fetch('/api/motoride/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: cleanPass,
+          role: params.role,
+        }),
+      });
+      const serverData = await serverResp.json();
+      if (serverData.success && serverData.account) {
+        const authUser: AuthUser = {
+          id: serverData.account.id,
+          email: serverData.account.email,
+          name: serverData.account.name,
+          role: serverData.account.role,
+          phone: serverData.account.phone,
+          vehicleModel: serverData.account.vehicle_model,
+          plateNumber: serverData.account.plate_number,
+          vehicleType: serverData.account.vehicle_type,
+          walletBalance: serverData.account.wallet_balance,
+          memberSince: serverData.account.member_since,
+        };
+        this.saveAccount({ ...authUser, passwordHash: cleanPass });
+        this.setCurrentUser(authUser);
+        return { user: authUser, roleSwitched: Boolean(serverData.role_switched) };
+      } else if (serverData.error && serverData.error.toLowerCase().includes('password')) {
+        return { user: null as any, error: serverData.error };
+      }
+    } catch (err) {
+      console.warn('Backend login fetch failed, checking cached local accounts:', err);
+    }
+
+    // 2. Check locally registered accounts cache
     const accounts = this.getRegisteredAccounts();
-    const matchingAccount = accounts.find(
+    
+    // Check exact role match first
+    let matchingAccount = accounts.find(
       (a) => a.email.toLowerCase() === cleanEmail && a.role === params.role
     );
 
+    // If not found for current tab role, check if account exists for other role
+    let roleSwitched = false;
+    if (!matchingAccount) {
+      const anyRoleAccount = accounts.find(
+        (a) => a.email.toLowerCase() === cleanEmail
+      );
+      if (anyRoleAccount) {
+        matchingAccount = anyRoleAccount;
+        roleSwitched = true;
+      }
+    }
+
     if (matchingAccount) {
-      if (params.password && matchingAccount.passwordHash === params.password) {
+      if (cleanPass && matchingAccount.passwordHash === cleanPass) {
         const authUser: AuthUser = {
           id: matchingAccount.id,
           email: matchingAccount.email,
@@ -322,15 +409,15 @@ export const supabaseAuth = {
           memberSince: matchingAccount.memberSince,
         };
         this.setCurrentUser(authUser);
-        return { user: authUser };
+        return { user: authUser, roleSwitched };
       } else {
-        return { user: null as any, error: 'Incorrect password. Please try again.' };
+        return { user: null as any, error: 'Incorrect password. Please verify your password.' };
       }
     }
 
     return {
       user: null as any,
-      error: `No ${params.role} account found with email "${cleanEmail}". Please switch to "Create Account" tab to register.`,
+      error: `No account found with email "${cleanEmail}". Please switch to "Create Account" tab to register.`,
     };
   },
 
@@ -347,121 +434,80 @@ export const supabaseAuth = {
     plateNumber?: string;
     vehicleType?: 'bike' | 'auto' | 'car' | 'courier';
   }): Promise<{ user: AuthUser; error?: string }> {
-    const supabase = getSupabase();
     const cleanEmail = params.email.trim().toLowerCase();
+    const cleanRole = params.role;
+    const cleanPass = (params.password || '').trim();
+    const cleanName = params.name.trim();
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return { user: null as any, error: 'A valid email address is required.' };
+    }
+    if (!cleanPass) {
+      return { user: null as any, error: 'Password is required.' };
+    }
+    if (!cleanName) {
+      return { user: null as any, error: 'Full name is required.' };
+    }
+
     const userId = generateUUID();
 
-    // 1. Check if account already exists locally
-    const existingAccounts = this.getRegisteredAccounts();
-    const alreadyExists = existingAccounts.some(
-      (a) => a.email.toLowerCase() === cleanEmail && a.role === params.role
-    );
-    if (alreadyExists) {
-      return {
-        user: null as any,
-        error: `An account with this email already exists for ${params.role}. Please sign in.`,
-      };
-    }
-
-    // 2. Try Supabase Auth registration
-    if (supabase && isSupabaseConfigured() && params.password) {
-      try {
-        const { data, error } = await supabase.auth.signUp({
+    // 1. Register on backend server
+    try {
+      const serverResp = await fetch('/api/motoride/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: userId,
           email: cleanEmail,
-          password: params.password,
-          options: {
-            data: {
-              full_name: params.name.trim(),
-              phone: params.phone?.trim(),
-              role: params.role,
-              vehicle_model: params.vehicleModel?.trim(),
-              plate_number: params.plateNumber?.trim(),
-              vehicle_type: params.vehicleType || 'bike',
-            },
-          },
-        });
-
-        if (error) {
-          console.warn('Supabase signup notice:', error.message);
-        } else if (data.user) {
-          const authUser: AuthUser = {
-            id: data.user.id || userId,
-            email: cleanEmail,
-            name: params.name.trim(),
-            role: params.role,
-            phone: params.phone?.trim() || '+91 98765 00000',
-            vehicleModel: params.vehicleModel?.trim(),
-            plateNumber: params.plateNumber?.trim(),
-            vehicleType: params.vehicleType || 'bike',
-            walletBalance: params.role === 'captain' ? 500 : 200,
-            memberSince: new Date().toISOString(),
-          };
-
-          // Full sync to profiles, passengers/captains, vehicles, wallets
-          await syncUserToSupabase(authUser);
-
-          this.saveAccount({ ...authUser, passwordHash: params.password || '' });
-          this.setCurrentUser(authUser);
-          return { user: authUser };
-        }
-      } catch (err: any) {
-        console.warn('Supabase signUp error:', err);
+          password: cleanPass,
+          name: cleanName,
+          role: cleanRole,
+          phone: params.phone?.trim() || '',
+          vehicle_model: params.vehicleModel?.trim(),
+          plate_number: params.plateNumber?.trim(),
+          vehicle_type: params.vehicleType || 'bike',
+        }),
+      });
+      const serverData = await serverResp.json();
+      if (serverData.success && serverData.account) {
+        const authUser: AuthUser = {
+          id: serverData.account.id || userId,
+          email: serverData.account.email,
+          name: serverData.account.name,
+          role: serverData.account.role,
+          phone: serverData.account.phone,
+          vehicleModel: serverData.account.vehicle_model,
+          plateNumber: serverData.account.plate_number,
+          vehicleType: serverData.account.vehicle_type,
+          walletBalance: serverData.account.wallet_balance,
+          memberSince: serverData.account.member_since,
+        };
+        this.saveAccount({ ...authUser, passwordHash: cleanPass });
+        this.setCurrentUser(authUser);
+        return { user: authUser };
       }
+    } catch (err) {
+      console.warn('Backend register failed, falling back to local storage:', err);
     }
 
-    // 3. Register user locally and sync to Supabase database
+    // 2. Fallback / local registration:
     const authUser: AuthUser = {
       id: userId,
       email: cleanEmail,
-      name: params.name.trim(),
-      role: params.role,
-      phone: params.phone?.trim() || '+91 98765 00000',
+      name: cleanName,
+      role: cleanRole,
+      phone: params.phone?.trim() || '',
       vehicleModel: params.vehicleModel?.trim(),
       plateNumber: params.plateNumber?.trim(),
       vehicleType: params.vehicleType || 'bike',
-      walletBalance: params.role === 'captain' ? 500 : 200,
+      walletBalance: cleanRole === 'captain' ? 500 : 200,
       memberSince: new Date().toISOString(),
     };
 
-    // Ensure it's pushed to Supabase tables (profiles, passengers/captains, vehicles, wallets)
-    if (supabase && isSupabaseConfigured()) {
-      await syncUserToSupabase(authUser);
-    }
-
     this.saveAccount({
       ...authUser,
-      passwordHash: params.password || '',
+      passwordHash: cleanPass,
     });
-
-    // Notify backend if available
-    try {
-      if (params.role === 'captain') {
-        fetch('/api/motoride/captains', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: userId,
-            full_name: params.name.trim(),
-            phone: params.phone?.trim(),
-            vehicle_model: params.vehicleModel?.trim(),
-            plate_number: params.plateNumber?.trim(),
-            vehicle_type: params.vehicleType || 'bike',
-          }),
-        }).catch(() => {});
-      } else if (params.role === 'passenger') {
-        fetch('/api/motoride/passengers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: userId,
-            full_name: params.name.trim(),
-            phone: params.phone?.trim(),
-            email: cleanEmail,
-          }),
-        }).catch(() => {});
-      }
-    } catch {}
-
     this.setCurrentUser(authUser);
     return { user: authUser };
   },

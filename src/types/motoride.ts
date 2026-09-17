@@ -53,6 +53,7 @@ export interface Captain {
   total_rides: number;
   today_earnings?: number;
   total_earnings?: number;
+  wallet_balance?: number;
   vehicle_model?: string;
   plate_number?: string;
   vehicle_type?: RideTypeCode;
@@ -69,6 +70,7 @@ export interface Passenger {
   phone?: string;
   total_rides: number;
   rating: number;
+  wallet_balance?: number;
   emergency_contact?: string;
   created_at: string;
 }
