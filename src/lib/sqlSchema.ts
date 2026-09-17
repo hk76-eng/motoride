@@ -345,6 +345,13 @@ CREATE POLICY "Public Read Fare Settings" ON public.fare_settings FOR SELECT USI
 CREATE POLICY "Public Read QR Settings" ON public.qr_settings FOR SELECT USING (true);
 CREATE POLICY "Public Read Ride Types" ON public.ride_types FOR SELECT USING (true);
 
+-- Allow public read and write for Profiles, Passengers, Captains, Vehicles & Wallets
+CREATE POLICY "Allow All Profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow All Passengers" ON public.passengers FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow All Captains" ON public.captains FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow All Vehicles" ON public.vehicles FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow All Wallets" ON public.wallets FOR ALL USING (true) WITH CHECK (true);
+
 -- Allow authenticated users to manage rides
 CREATE POLICY "Allow All Read Rides" ON public.rides FOR SELECT USING (true);
 CREATE POLICY "Allow Insert Rides" ON public.rides FOR INSERT WITH CHECK (true);
@@ -369,6 +376,9 @@ FOR ALL USING (
 );
 
 -- Realtime Publication Setup
+ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.passengers;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.captains;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.rides;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.ride_offers;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.captain_locations;

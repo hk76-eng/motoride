@@ -41,6 +41,7 @@ export interface Captain {
   profile_id: string;
   full_name: string;
   name?: string;
+  email?: string;
   phone?: string;
   is_online: boolean;
   is_approved: boolean;
@@ -50,8 +51,8 @@ export interface Captain {
   current_heading?: number | null;
   rating: number;
   total_rides: number;
-  today_earnings: number;
-  total_earnings: number;
+  today_earnings?: number;
+  total_earnings?: number;
   vehicle_model?: string;
   plate_number?: string;
   vehicle_type?: RideTypeCode;
@@ -64,9 +65,11 @@ export interface Passenger {
   id: string;
   profile_id: string;
   full_name: string;
+  email?: string;
   phone?: string;
   total_rides: number;
   rating: number;
+  emergency_contact?: string;
   created_at: string;
 }
 

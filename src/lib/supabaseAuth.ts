@@ -22,6 +22,165 @@ export interface StoredAccount extends AuthUser {
 const STORAGE_SESSION_KEY = 'motoride_auth_session_user';
 const STORAGE_ACCOUNTS_KEY = 'motoride_registered_accounts';
 
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Ensures user is completely synced to Supabase (profiles, passengers, captains, vehicles, wallets)
+ */
+export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boolean; error?: string }> {
+  const supabase = getSupabase();
+  if (!supabase || !isSupabaseConfigured()) {
+    return { success: false, error: 'Supabase is not configured' };
+  }
+
+  try {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const validProfileId = uuidRegex.test(user.id) ? user.id : generateUUID();
+
+    // 1. Upsert into public.profiles
+    const { error: profileErr } = await supabase.from('profiles').upsert(
+      [
+        {
+          id: validProfileId,
+          email: user.email.toLowerCase().trim(),
+          full_name: user.name.trim(),
+          phone: user.phone?.trim() || null,
+          role: user.role,
+          wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
+          is_active: true,
+        },
+      ],
+      { onConflict: 'email' }
+    );
+
+    if (profileErr) {
+      console.warn('Supabase profile upsert warning:', profileErr.message);
+    }
+
+    // Get the effective profile id from Supabase
+    const { data: profileRow } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', user.email.toLowerCase().trim())
+      .maybeSingle();
+
+    const actualProfileId = profileRow?.id || validProfileId;
+
+    // 2. If passenger, upsert into public.passengers
+    if (user.role === 'passenger') {
+      const { error: passErr } = await supabase.from('passengers').upsert(
+        [
+          {
+            profile_id: actualProfileId,
+            total_rides: 0,
+            rating: 5.0,
+            emergency_contact: user.phone?.trim() || null,
+          },
+        ],
+        { onConflict: 'profile_id' }
+      );
+      if (passErr) {
+        console.warn('Supabase passenger upsert warning:', passErr.message);
+      }
+    }
+
+    // 3. If captain, upsert into public.captains and public.vehicles
+    if (user.role === 'captain') {
+      const captainId = generateUUID();
+      const { error: cptErr } = await supabase.from('captains').upsert(
+        [
+          {
+            id: captainId,
+            profile_id: actualProfileId,
+            is_online: true,
+            is_approved: true,
+            is_active: true,
+            current_lat: 30.7046,
+            current_lng: 76.7178,
+            rating: 4.9,
+            total_rides: 0,
+            today_earnings: 0,
+            total_earnings: 0,
+          },
+        ],
+        { onConflict: 'profile_id' }
+      );
+      if (cptErr) {
+        console.warn('Supabase captain upsert warning:', cptErr.message);
+      }
+
+      // Check captain record to get captainId
+      const { data: cptRow } = await supabase
+        .from('captains')
+        .select('id')
+        .eq('profile_id', actualProfileId)
+        .maybeSingle();
+      const actualCaptainId = cptRow?.id || captainId;
+
+      const plateNo =
+        user.plateNumber?.trim() ||
+        `PB${Math.floor(10 + Math.random() * 89)}AB${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const { error: vehErr } = await supabase.from('vehicles').upsert(
+        [
+          {
+            captain_id: actualCaptainId,
+            model: user.vehicleModel?.trim() || 'Honda Activa 6G',
+            plate_number: plateNo,
+            vehicle_type: user.vehicleType || 'bike',
+            color: 'Black',
+            is_active: true,
+          },
+        ],
+        { onConflict: 'plate_number' }
+      );
+      if (vehErr) {
+        console.warn('Supabase vehicle upsert warning:', vehErr.message);
+      }
+    }
+
+    // 4. Upsert into public.wallets
+    await supabase.from('wallets').upsert(
+      [
+        {
+          user_id: actualProfileId,
+          role: user.role,
+          balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
+          currency: '₹',
+        },
+      ],
+      { onConflict: 'user_id' }
+    );
+
+    return { success: true };
+  } catch (err: any) {
+    console.warn('Failed to sync user to Supabase:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Synchronize all registered accounts from local storage to Supabase
+ */
+export async function syncAllAccountsToSupabase(): Promise<{ synced: number; total: number; error?: string }> {
+  const accounts = supabaseAuth.getRegisteredAccounts();
+  let count = 0;
+  for (const acc of accounts) {
+    const res = await syncUserToSupabase(acc);
+    if (res.success) count++;
+  }
+  return { synced: count, total: accounts.length };
+}
+
 export const supabaseAuth = {
   /**
    * Get all locally stored registered accounts
@@ -190,7 +349,7 @@ export const supabaseAuth = {
   }): Promise<{ user: AuthUser; error?: string }> {
     const supabase = getSupabase();
     const cleanEmail = params.email.trim().toLowerCase();
-    const userId = `usr_${params.role}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
+    const userId = generateUUID();
 
     // 1. Check if account already exists locally
     const existingAccounts = this.getRegisteredAccounts();
@@ -223,7 +382,7 @@ export const supabaseAuth = {
         });
 
         if (error) {
-          console.warn('Supabase signup error:', error.message);
+          console.warn('Supabase signup notice:', error.message);
         } else if (data.user) {
           const authUser: AuthUser = {
             id: data.user.id || userId,
@@ -238,19 +397,8 @@ export const supabaseAuth = {
             memberSince: new Date().toISOString(),
           };
 
-          try {
-            await supabase.from('profiles').upsert([
-              {
-                id: authUser.id,
-                email: cleanEmail,
-                full_name: params.name.trim(),
-                phone: params.phone?.trim(),
-                role: params.role,
-                wallet_balance: authUser.walletBalance,
-                is_active: true,
-              },
-            ]);
-          } catch (e) {}
+          // Full sync to profiles, passengers/captains, vehicles, wallets
+          await syncUserToSupabase(authUser);
 
           this.saveAccount({ ...authUser, passwordHash: params.password || '' });
           this.setCurrentUser(authUser);
@@ -261,7 +409,7 @@ export const supabaseAuth = {
       }
     }
 
-    // 3. Register user locally
+    // 3. Register user locally and sync to Supabase database
     const authUser: AuthUser = {
       id: userId,
       email: cleanEmail,
@@ -274,6 +422,11 @@ export const supabaseAuth = {
       walletBalance: params.role === 'captain' ? 500 : 200,
       memberSince: new Date().toISOString(),
     };
+
+    // Ensure it's pushed to Supabase tables (profiles, passengers/captains, vehicles, wallets)
+    if (supabase && isSupabaseConfigured()) {
+      await syncUserToSupabase(authUser);
+    }
 
     this.saveAccount({
       ...authUser,

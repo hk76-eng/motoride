@@ -9,9 +9,9 @@ import {
 } from '../types/motoride';
 import { motorideApi } from '../services/motorideApi';
 import { SUPABASE_SQL_SCHEMA } from '../lib/sqlSchema';
-import { isSupabaseConfigured, SUPABASE_CONFIG_STATUS } from '../lib/supabase';
+import { isSupabaseConfigured, getSupabase, SUPABASE_CONFIG_STATUS } from '../lib/supabase';
 import { realtimeSync } from '../services/realtimeSync';
-import { AuthUser } from '../lib/supabaseAuth';
+import { AuthUser, supabaseAuth, syncAllAccountsToSupabase } from '../lib/supabaseAuth';
 import {
   Shield,
   Users,
@@ -33,6 +33,7 @@ import {
   Power,
   ChevronRight,
   LogOut,
+  UploadCloud,
 } from 'lucide-react';
 
 interface AdminWorkspaceProps {
@@ -93,6 +94,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const [qrSaveStatus, setQrSaveStatus] = useState<string | null>(null);
   const [rideFilter, setRideFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSyncingSupabase, setIsSyncingSupabase] = useState(false);
+  const [supabaseSyncMessage, setSupabaseSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadAllData();
@@ -137,9 +140,182 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
         motorideApi.getFareSettings(),
         motorideApi.getQRSettings(),
       ]);
+
+      let localCaptains: Captain[] = [];
+      let localPassengers: Passenger[] = [];
+
+      // 1. Load accounts from registered accounts storage
+      try {
+        const regAccounts = supabaseAuth.getRegisteredAccounts();
+        for (const a of regAccounts) {
+          if (a.role === 'captain') {
+            if (!c.some(existing => existing.email === a.email || existing.id === a.id) &&
+                !localCaptains.some(existing => existing.email === a.email || existing.id === a.id)) {
+              localCaptains.push({
+                id: a.id,
+                profile_id: a.id,
+                full_name: a.name,
+                email: a.email,
+                phone: a.phone || '',
+                is_online: true,
+                is_approved: true,
+                is_active: true,
+                current_lat: 30.7046,
+                current_lng: 76.7178,
+                rating: 4.9,
+                total_rides: 0,
+                vehicle: {
+                  id: `veh_${a.id}`,
+                  captain_id: a.id,
+                  model: a.vehicleModel || 'Honda Activa',
+                  plate_number: a.plateNumber || 'PB01AB1234',
+                  vehicle_type: a.vehicleType || 'bike',
+                  color: 'Black',
+                  is_active: true,
+                },
+                created_at: a.memberSince || new Date().toISOString(),
+              });
+            }
+          } else if (a.role === 'passenger') {
+            if (!p.some(existing => existing.email === a.email || existing.id === a.id) &&
+                !localPassengers.some(existing => existing.email === a.email || existing.id === a.id)) {
+              localPassengers.push({
+                id: a.id,
+                profile_id: a.id,
+                full_name: a.name,
+                email: a.email,
+                phone: a.phone || '',
+                total_rides: 0,
+                rating: 5.0,
+                emergency_contact: a.phone || '',
+                created_at: a.memberSince || new Date().toISOString(),
+              });
+            }
+          }
+        }
+      } catch {}
+
+      // 2. Load accounts from fallback localStorage users
+      try {
+        const rawUsers = localStorage.getItem('motoride_users');
+        if (rawUsers) {
+          const users = JSON.parse(rawUsers);
+          if (Array.isArray(users)) {
+            for (const u of users) {
+              const uId = u.id || `usr_${u.email}`;
+              const uName = u.name || u.fullName || 'User';
+              const uEmail = u.email || '';
+              const uPhone = u.phone || '';
+              if (u.role === 'captain') {
+                if (!c.some(existing => existing.id === uId || existing.email === uEmail) &&
+                    !localCaptains.some(existing => existing.email === uEmail || existing.id === uId)) {
+                  localCaptains.push({
+                    id: uId,
+                    profile_id: `prof_${uId}`,
+                    full_name: uName,
+                    email: uEmail,
+                    phone: uPhone,
+                    is_online: true,
+                    is_approved: true,
+                    is_active: true,
+                    current_lat: 30.7046,
+                    current_lng: 76.7178,
+                    rating: 4.9,
+                    total_rides: 0,
+                    vehicle: {
+                      id: `veh_${uId}`,
+                      captain_id: uId,
+                      model: u.vehicleModel || 'Honda Activa',
+                      plate_number: u.plateNumber || 'PB01AB1234',
+                      vehicle_type: u.vehicleType || 'bike',
+                      color: 'Black',
+                      is_active: true,
+                    },
+                    created_at: u.memberSince || new Date().toISOString(),
+                  });
+                }
+              } else if (u.role === 'passenger') {
+                if (!p.some(existing => existing.id === uId || existing.email === uEmail) &&
+                    !localPassengers.some(existing => existing.email === uEmail || existing.id === uId)) {
+                  localPassengers.push({
+                    id: uId,
+                    profile_id: `prof_${uId}`,
+                    full_name: uName,
+                    email: uEmail,
+                    phone: uPhone,
+                    total_rides: 0,
+                    rating: 5.0,
+                    emergency_contact: uPhone || '',
+                    created_at: u.memberSince || new Date().toISOString(),
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch {}
+
+      // 3. Load profiles directly from Supabase if configured
+      const supabase = getSupabase();
+      if (supabase && isSupabaseConfigured()) {
+        try {
+          const { data: supaProfiles } = await supabase.from('profiles').select('*');
+          if (supaProfiles && Array.isArray(supaProfiles)) {
+            for (const sp of supaProfiles) {
+              if (sp.role === 'captain') {
+                if (!c.some(existing => existing.email === sp.email || existing.id === sp.id) &&
+                    !localCaptains.some(existing => existing.email === sp.email || existing.id === sp.id)) {
+                  localCaptains.push({
+                    id: sp.id,
+                    profile_id: sp.id,
+                    full_name: sp.full_name || 'Captain',
+                    email: sp.email || '',
+                    phone: sp.phone || '',
+                    is_online: true,
+                    is_approved: true,
+                    is_active: true,
+                    current_lat: 30.7046,
+                    current_lng: 76.7178,
+                    rating: 4.9,
+                    total_rides: 0,
+                    vehicle: {
+                      id: `veh_${sp.id}`,
+                      captain_id: sp.id,
+                      model: 'Vehicle',
+                      plate_number: 'Verified',
+                      vehicle_type: 'bike',
+                      color: 'Black',
+                      is_active: true,
+                    },
+                    created_at: sp.created_at || new Date().toISOString(),
+                  });
+                }
+              } else if (sp.role === 'passenger') {
+                if (!p.some(existing => existing.email === sp.email || existing.id === sp.id) &&
+                    !localPassengers.some(existing => existing.email === sp.email || existing.id === sp.id)) {
+                  localPassengers.push({
+                    id: sp.id,
+                    profile_id: sp.id,
+                    full_name: sp.full_name || 'Passenger',
+                    email: sp.email || '',
+                    phone: sp.phone || '',
+                    total_rides: 0,
+                    rating: 5.0,
+                    emergency_contact: sp.phone || '',
+                    created_at: sp.created_at || new Date().toISOString(),
+                  });
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Could not fetch profiles from Supabase:', err);
+        }
+      }
+
       if (s) setStats(s);
-      if (c) setCaptains(c);
-      if (p) setPassengers(p);
+      if (c) setCaptains([...c, ...localCaptains]);
+      if (p) setPassengers([...p, ...localPassengers]);
       if (r) setRides(r);
       // Do not overwrite fareSettings if admin is actively viewing/editing the fare tab
       if (f && activeTab !== 'fare') {
@@ -150,6 +326,22 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       }
       if (q) setQrSettings(q);
     } catch {}
+  };
+
+  const handleSyncAllToSupabase = async () => {
+    setIsSyncingSupabase(true);
+    setSupabaseSyncMessage(null);
+    try {
+      const res = await syncAllAccountsToSupabase();
+      setSupabaseSyncMessage(
+        `✅ Synced ${res.synced} of ${res.total} profiles to Supabase database (profiles, passengers, captains, vehicles, wallets)!`
+      );
+      await loadAllData();
+    } catch (e: any) {
+      setSupabaseSyncMessage(`❌ Sync error: ${e?.message || 'Check database connection'}`);
+    } finally {
+      setIsSyncingSupabase(false);
+    }
   };
 
   const handleSaveFare = async () => {
@@ -798,15 +990,44 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleCopySql}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer"
-            >
-              {copiedSql ? <Check className="w-4 h-4 stroke-[3]" /> : <Copy className="w-4 h-4" />}
-              <span>{copiedSql ? 'Copied to Clipboard!' : 'Copy Supabase SQL'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSyncAllToSupabase}
+                disabled={isSyncingSupabase}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                {isSyncingSupabase ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <UploadCloud className="w-4 h-4 stroke-[2.5]" />
+                )}
+                <span>{isSyncingSupabase ? 'Pushing to Supabase...' : 'Push & Sync Profiles to Supabase'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopySql}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+              >
+                {copiedSql ? <Check className="w-4 h-4 stroke-[3]" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedSql ? 'Copied to Clipboard!' : 'Copy Supabase SQL'}</span>
+              </button>
+            </div>
           </div>
+
+          {supabaseSyncMessage && (
+            <div className="p-3 rounded-2xl bg-indigo-950/60 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center justify-between">
+              <span>{supabaseSyncMessage}</span>
+              <button
+                type="button"
+                onClick={() => setSupabaseSyncMessage(null)}
+                className="text-indigo-400 hover:text-white ml-2 text-xs font-bold"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
           {/* Connection status banner */}
           <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
@@ -817,14 +1038,25 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 }`}
               />
               <span className="font-semibold text-slate-200">
-                Supabase Environment Variables:
+                Supabase Environment:
               </span>
               <span className="text-slate-400">
                 {SUPABASE_CONFIG_STATUS.isReady
                   ? 'Connected and operational'
-                  : 'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY can be added in AI Studio Secrets'}
+                  : 'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY can be configured'}
               </span>
             </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs text-slate-300 flex flex-col gap-1">
+            <span className="font-bold text-amber-400">💡 Why might profiles or captains not show up in your Supabase project?</span>
+            <p className="text-slate-400 text-[11px] leading-relaxed">
+              1. <b>Row Level Security (RLS)</b>: If you enabled RLS without the permissive policies, Supabase rejects client-side inserts. Copy the SQL below and run it in the Supabase SQL Editor to apply the latest tables and RLS permissions.
+              <br />
+              2. <b>Foreign Key Tables</b>: Motoride stores users in <code className="text-emerald-400">public.profiles</code>, and respective details in <code className="text-emerald-400">public.passengers</code>, <code className="text-emerald-400">public.captains</code>, and <code className="text-emerald-400">public.vehicles</code>.
+              <br />
+              3. <b>Instant Sync</b>: Click the <b>"Push & Sync Profiles to Supabase"</b> button above at any time to push all accounts directly into all Supabase tables.
+            </p>
           </div>
 
           {/* Code Viewer */}

@@ -20,7 +20,7 @@ import {
   addRideMessage,
   getRideMessages,
 } from './motorideDb';
-import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain } from '../src/types/motoride';
+import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain, Passenger } from '../src/types/motoride';
 import { backendHaversineDistanceKm } from './fareEngine';
 
 export const motorideRouter = Router();
@@ -833,6 +833,38 @@ motorideRouter.get('/captains', (req: Request, res: Response) => {
   res.json({ success: true, captains: list });
 });
 
+motorideRouter.post('/captains', (req: Request, res: Response) => {
+  const { id, full_name, email, phone, vehicle_model, plate_number, vehicle_type } = req.body;
+  const cptId = id || `cpt_${Date.now()}`;
+  const newCpt: Captain = {
+    id: cptId,
+    profile_id: `prof_${cptId}`,
+    full_name: full_name || 'New Captain',
+    email: email || 'captain@example.com',
+    phone: phone || '',
+    is_online: true,
+    is_approved: true,
+    is_active: true,
+    current_lat: 30.7046 + (Math.random() - 0.5) * 0.05,
+    current_lng: 76.7178 + (Math.random() - 0.5) * 0.05,
+    rating: 4.9,
+    total_rides: 0,
+    vehicle: {
+      id: `veh_${cptId}`,
+      captain_id: cptId,
+      model: vehicle_model || 'Honda Activa',
+      plate_number: plate_number || `PB01XY${Math.floor(1000 + Math.random() * 9000)}`,
+      vehicle_type: vehicle_type || 'bike',
+      color: 'Black',
+      is_active: true,
+    },
+    created_at: new Date().toISOString(),
+  };
+  captainsStore.set(cptId, newCpt);
+  broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
+  res.status(201).json({ success: true, captain: newCpt });
+});
+
 motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
   const cpt = captainsStore.get(req.params.id);
   if (!cpt) {
@@ -912,6 +944,25 @@ motorideRouter.post('/captains/:id/status', (req: Request, res: Response) => {
 // 4. Passengers API
 motorideRouter.get('/passengers', (req: Request, res: Response) => {
   res.json({ success: true, passengers: Array.from(passengersStore.values()) });
+});
+
+motorideRouter.post('/passengers', (req: Request, res: Response) => {
+  const { id, full_name, email, phone } = req.body;
+  const psgId = id || `psg_${Date.now()}`;
+  const newPsg: Passenger = {
+    id: psgId,
+    profile_id: `prof_${psgId}`,
+    full_name: full_name || 'New Passenger',
+    email: email || 'passenger@example.com',
+    phone: phone || '',
+    total_rides: 0,
+    rating: 5.0,
+    emergency_contact: phone || '',
+    created_at: new Date().toISOString(),
+  };
+  passengersStore.set(psgId, newPsg);
+  broadcastEvent('PASSENGERS_UPDATED', Array.from(passengersStore.values()));
+  res.status(201).json({ success: true, passenger: newPsg });
 });
 
 // 5. Settings API
