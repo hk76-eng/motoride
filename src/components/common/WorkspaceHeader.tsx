@@ -107,7 +107,14 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                 </>
               ) : (
                 <>
-                  <Bike className="w-3.5 h-3.5 text-amber-400" />
+                  <div className="w-5 h-5 rounded-md bg-black border border-white/25 flex items-center justify-center p-0.5 shadow-xs shrink-0">
+                    <img
+                      src="/captain-bike-icon.svg"
+                      alt="Captain"
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
                   <span>Captain App</span>
                 </>
               )}

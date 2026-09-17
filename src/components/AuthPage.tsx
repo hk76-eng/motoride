@@ -186,38 +186,32 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden selection:bg-emerald-500 selection:text-slate-950">
-      {/* Background Ambient Glow & Grid Effects */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black pointer-events-none" />
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute top-1/3 -right-40 w-96 h-96 bg-amber-500/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none" />
+    <div className="min-h-screen bg-black text-white flex flex-col justify-between relative overflow-hidden selection:bg-neutral-800 selection:text-white">
+      {/* Background Subtle Noir Texture */}
+      <div className="absolute inset-0 bg-black pointer-events-none" />
 
       {/* Top Header Brand */}
-      <header className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between border-b border-slate-800/60 backdrop-blur-md">
+      <header className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between border-b border-white/20 bg-black">
         <div className="flex items-center gap-3">
           <img
             src="/motoride-logo.png"
             alt="Motoride"
             referrerPolicy="no-referrer"
-            className="w-12 h-12 rounded-2xl object-cover bg-black border border-white/20 shadow-lg shadow-black/60 shrink-0"
+            className="w-12 h-12 rounded-2xl object-cover bg-black border border-white/30 shadow-lg shadow-black/90 shrink-0"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = 'none';
             }}
           />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-black text-xl tracking-tight bg-gradient-to-r from-white via-slate-200 to-emerald-400 bg-clip-text text-transparent">
+              <span className="font-black text-xl tracking-tight text-white">
                 Motoride
               </span>
-              <span className="text-xs text-emerald-400 font-semibold hidden sm:inline">
+              <span className="text-xs text-white/80 font-semibold hidden sm:inline">
                 – Ride & Courier Booking
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-bold text-emerald-400 tracking-wide uppercase">
-                Enterprise
-              </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium">Real-Time Mobility, Parcel Delivery & Live Captain Bidding</p>
+            <p className="text-[11px] text-white/80 font-medium">Real-Time Mobility, Parcel Delivery & Live Captain Bidding</p>
           </div>
         </div>
 
@@ -231,62 +225,85 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           
           {/* Left Column: Brand Hero & Live Highlights */}
           <div className="lg:col-span-5 space-y-6 text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black border border-white/30 text-white text-xs font-bold shadow-sm">
+              <Sparkles className="w-3.5 h-3.5 text-white stroke-[2.5]" />
               <span>Next-Gen Urban Commute & Bidding</span>
             </div>
 
             <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-[1.15]">
               Ride Smarter. <br />
-              <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+              <span className="text-white">
                 Earn & Travel Faster.
               </span>
             </h1>
 
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+            <p className="text-sm sm:text-base text-white/90 leading-relaxed font-normal">
               Experience lightning-fast bike & cab dispatch, live Captain bidding wars, zero friction secure payments, and cross-device real-time GPS tracking.
             </p>
           </div>
 
-          {/* Right Column: Gorgeous Stylish Auth Card */}
+          {/* Right Column: Noir Black & White Auth Card */}
           <div className="lg:col-span-7">
-            <div className="bg-gradient-to-b from-slate-900/90 to-slate-950/95 border border-slate-800/80 rounded-[28px] p-6 sm:p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+            <div className="bg-black border border-white/20 rounded-[28px] p-6 sm:p-8 shadow-2xl shadow-black relative overflow-hidden">
               
-              {/* Top Accent Glow inside card */}
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500" />
+              {/* Top Border Accent */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-white/40" />
 
               {/* Single Tab Switcher for Passenger / Captain App */}
               <div className="mb-6">
                 <button
                   type="button"
                   onClick={() => handleRoleSelect(selectedRole === 'passenger' ? 'captain' : 'passenger')}
-                  className="w-full py-3.5 px-4 sm:px-5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-slate-700 text-xs font-black transition-all cursor-pointer flex items-center justify-between shadow-xl group relative overflow-hidden active:scale-[0.99]"
+                  className="w-full py-3.5 px-4 sm:px-5 rounded-2xl bg-black border border-white/25 hover:border-white/50 text-xs font-black transition-all cursor-pointer flex items-center justify-between shadow-xl group relative overflow-hidden active:scale-[0.99]"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`p-2.5 rounded-xl transition-all ${
-                      selectedRole === 'passenger'
-                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                        : 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    }`}>
-                      {selectedRole === 'passenger' ? <User className="w-5 h-5" /> : <Bike className="w-5 h-5" />}
+                    <div className="w-11 h-11 rounded-xl transition-all flex items-center justify-center shrink-0 bg-black text-white border border-white/30 shadow-md p-1.5">
+                      {selectedRole === 'passenger' ? (
+                        <div className="w-full h-full rounded-lg bg-black flex items-center justify-center">
+                          <User className="w-5 h-5 text-white stroke-[2.5]" />
+                        </div>
+                      ) : (
+                        <img
+                          src="/captain-bike-icon.svg"
+                          alt="Captain Bike"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain rounded-lg"
+                        />
+                      )}
                     </div>
                     <div className="text-left">
-                      <span className="block text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Active App Mode</span>
-                      <span className="text-sm font-extrabold text-white">
+                      <span className="block text-[10px] text-white/70 uppercase tracking-wider font-semibold">
+                        Active App Mode
+                      </span>
+                      <span className="text-sm font-extrabold text-white flex items-center gap-1.5">
                         {selectedRole === 'passenger' ? 'Passenger App' : 'Captain App'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold text-slate-300 group-hover:bg-slate-800 group-hover:text-white transition-all">
-                    <span>Switch to {selectedRole === 'passenger' ? 'Captain App' : 'Passenger App'}</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black border border-white/25 text-[11px] font-bold text-white group-hover:bg-neutral-900 transition-all">
+                    {selectedRole === 'passenger' ? (
+                      <div className="w-4 h-4 rounded-xs bg-black flex items-center justify-center shrink-0">
+                        <img
+                          src="/captain-bike-icon.svg"
+                          alt="Captain"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-4 h-4 rounded-xs bg-black flex items-center justify-center">
+                        <User className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+                      </div>
+                    )}
+                    <span className="text-white">Switch to {selectedRole === 'passenger' ? 'Captain App' : 'Passenger App'}</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
                   </div>
                 </button>
               </div>
 
               {/* 2. Sign In vs Sign Up Mode Switcher */}
-              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/80 rounded-2xl border border-slate-800/80 mb-6">
+              <div className="grid grid-cols-2 gap-2 p-1 bg-black rounded-2xl border border-white/25 mb-6">
                 <button
                   type="button"
                   onClick={() => {
@@ -296,12 +313,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   }}
                   className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
                     authMode === 'signin'
-                      ? 'bg-slate-800 text-white shadow-md border border-slate-700/80 font-black'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-black text-white shadow-md border border-white font-black'
+                      : 'text-white/60 hover:text-white bg-black hover:bg-neutral-950'
                   }`}
                 >
-                  <Key className="w-4 h-4 text-emerald-400" />
-                  <span>Sign In</span>
+                  <Key className="w-4 h-4 text-white stroke-[2.5]" />
+                  <span className="text-white">Sign In</span>
                 </button>
 
                 <button
@@ -313,28 +330,28 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   }}
                   className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
                     authMode === 'signup'
-                      ? 'bg-slate-800 text-white shadow-md border border-slate-700/80 font-black'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-black text-white shadow-md border border-white font-black'
+                      : 'text-white/60 hover:text-white bg-black hover:bg-neutral-950'
                   }`}
                 >
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span>Create Account</span>
+                  <ShieldCheck className="w-4 h-4 text-white stroke-[2.5]" />
+                  <span className="text-white">Create Account</span>
                 </button>
               </div>
 
               {/* Error Message */}
               {errorMessage && (
-                <div className="mb-5 p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-medium flex items-center gap-2.5 shadow-md">
-                  <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400" />
-                  <span>{errorMessage}</span>
+                <div className="mb-5 p-3.5 rounded-2xl bg-black border border-white/40 text-white text-xs font-medium flex items-center gap-2.5 shadow-md">
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-white stroke-[2.5]" />
+                  <span className="text-white">{errorMessage}</span>
                 </div>
               )}
 
               {/* Success Message */}
               {successMessage && (
-                <div className="mb-5 p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-center gap-2.5 shadow-md">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                  <span>{successMessage}</span>
+                <div className="mb-5 p-3.5 rounded-2xl bg-black border border-white/40 text-white text-xs font-medium flex items-center gap-2.5 shadow-md">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-white stroke-[2.5]" />
+                  <span className="text-white">{successMessage}</span>
                 </div>
               )}
 
@@ -344,68 +361,60 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               {authMode === 'signin' && (
                 <form onSubmit={handleSignInSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-white uppercase tracking-wider mb-2">
                       {selectedRole.toUpperCase()} Email Address
                     </label>
                     <div className="relative">
-                      <Mail className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                      <Mail className="w-4 h-4 text-white absolute left-4 top-1/2 -translate-y-1/2" />
                       <input
                         type="email"
                         required
                         value={signInEmail}
                         onChange={(e) => setSignInEmail(e.target.value)}
                         placeholder={DEMO_USERS[selectedRole].email}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3 pl-11 pr-4 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+                        className="w-full bg-black border border-white/30 rounded-2xl py-3 pl-11 pr-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-mono"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-white uppercase tracking-wider mb-2">
                       Password
                     </label>
                     <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-500 absolute left-4 top-1/2 -translate-y-1/2" />
+                      <Lock className="w-4 h-4 text-white absolute left-4 top-1/2 -translate-y-1/2" />
                       <input
                         type={showPassword ? 'text' : 'password'}
                         required
                         value={signInPassword}
                         onChange={(e) => setSignInPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-3 pl-11 pr-12 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+                        className="w-full bg-black border border-white/30 rounded-2xl py-3 pl-11 pr-12 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white cursor-pointer"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showPassword ? <EyeOff className="w-4 h-4 text-white" /> : <Eye className="w-4 h-4 text-white" />}
                       </button>
                     </div>
                   </div>
 
-
-
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className={`w-full py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm shadow-xl transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer disabled:opacity-50 ${
-                      selectedRole === 'passenger'
-                        ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                        : selectedRole === 'captain'
-                        ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
-                        : 'bg-indigo-500 hover:bg-indigo-400 text-white shadow-indigo-500/20'
-                    }`}
+                    className="w-full py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm shadow-xl transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer disabled:opacity-50 bg-black hover:bg-neutral-900 text-white border-2 border-white shadow-black/80 ring-1 ring-white/20"
                   >
                     {isLoading ? (
-                      <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                        <span>Authenticating...</span>
+                      <span className="flex items-center gap-2 text-white">
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        <span className="text-white">Authenticating...</span>
                       </span>
                     ) : (
                       <>
-                        <span>Sign In to {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Dashboard</span>
-                        <ArrowRight className="w-4 h-4" />
+                        <span className="text-white">Sign In to {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Dashboard</span>
+                        <ArrowRight className="w-4 h-4 text-white stroke-[2.5]" />
                       </>
                     )}
                   </button>
@@ -420,47 +429,47 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   {selectedRole === 'passenger' && (
                     <>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Full Name</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Full Name</label>
                         <input
                           type="text"
                           required
                           value={psgName}
                           onChange={(e) => setPsgName(e.target.value)}
                           placeholder="Hemant Kashyap"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Email Address</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Email Address</label>
                         <input
                           type="email"
                           required
                           value={psgEmail}
                           onChange={(e) => setPsgEmail(e.target.value)}
                           placeholder="passenger@motoride.com"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Phone Number</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Phone Number</label>
                         <input
                           type="tel"
                           required
                           value={psgPhone}
                           onChange={(e) => setPsgPhone(e.target.value)}
                           placeholder="+91 98765 43210"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Password</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Password</label>
                         <input
                           type="password"
                           required
                           value={psgPassword}
                           onChange={(e) => setPsgPassword(e.target.value)}
                           placeholder="Create password"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                     </>
@@ -469,60 +478,60 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   {selectedRole === 'captain' && (
                     <>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Captain Full Name</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Captain Full Name</label>
                         <input
                           type="text"
                           required
                           value={cptName}
                           onChange={(e) => setCptName(e.target.value)}
                           placeholder="Captain Vikram Singh"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Email Address</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Email Address</label>
                         <input
                           type="email"
                           required
                           value={cptEmail}
                           onChange={(e) => setCptEmail(e.target.value)}
                           placeholder="captain@motoride.com"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Vehicle Model</label>
+                          <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Vehicle Model</label>
                           <input
                             type="text"
                             required
                             value={cptVehicleModel}
                             onChange={(e) => setCptVehicleModel(e.target.value)}
                             placeholder="Honda Activa"
-                            className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs text-white focus:outline-none focus:border-amber-500"
+                            className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Plate Number</label>
+                          <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Plate Number</label>
                           <input
                             type="text"
                             required
                             value={cptPlateNumber}
                             onChange={(e) => setCptPlateNumber(e.target.value)}
                             placeholder="PB65AA1257"
-                            className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs text-white uppercase focus:outline-none focus:border-amber-500"
+                            className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs text-white placeholder-white/40 uppercase focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Password</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Password</label>
                         <input
                           type="password"
                           required
                           value={cptPassword}
                           onChange={(e) => setCptPassword(e.target.value)}
                           placeholder="Create password"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                     </>
@@ -531,36 +540,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   {selectedRole === 'admin' && (
                     <>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Admin Manager Name</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Admin Manager Name</label>
                         <input
                           type="text"
                           required
                           value={admName}
                           onChange={(e) => setAdmName(e.target.value)}
                           placeholder="Admin Manager"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Admin Email</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Admin Email</label>
                         <input
                           type="email"
                           required
                           value={admEmail}
                           onChange={(e) => setAdmEmail(e.target.value)}
                           placeholder="admin@motoride.com"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Password</label>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Password</label>
                         <input
                           type="password"
                           required
                           value={admPassword}
                           onChange={(e) => setAdmPassword(e.target.value)}
                           placeholder="Create password"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
                     </>
@@ -569,23 +578,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className={`w-full py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm shadow-xl transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer disabled:opacity-50 ${
-                      selectedRole === 'passenger'
-                        ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
-                        : selectedRole === 'captain'
-                        ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20'
-                        : 'bg-indigo-500 hover:bg-indigo-400 text-white shadow-indigo-500/20'
-                    }`}
+                    className="w-full py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm shadow-xl transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer disabled:opacity-50 bg-black hover:bg-neutral-900 text-white border-2 border-white shadow-black/80 ring-1 ring-white/20"
                   >
                     {isLoading ? (
-                      <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                        <span>Registering...</span>
+                      <span className="flex items-center gap-2 text-white">
+                        <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                        <span className="text-white">Registering...</span>
                       </span>
                     ) : (
                       <>
-                        <span>Create {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Account</span>
-                        <ArrowRight className="w-4 h-4" />
+                        <span className="text-white">Create {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Account</span>
+                        <ArrowRight className="w-4 h-4 text-white stroke-[2.5]" />
                       </>
                     )}
                   </button>
@@ -599,8 +602,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center border-t border-slate-800/60 text-xs text-slate-400">
-        MotoRide Enterprise Mobility Platform &copy; {new Date().getFullYear()} •{' '}
+      <footer className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center border-t border-white/20 text-xs text-white bg-black">
+        MotoRide Mobility Platform &copy; {new Date().getFullYear()} •{' '}
         <button
           type="button"
           onClick={() => {
@@ -608,7 +611,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             supabaseAuth.setCurrentUser(adminUser);
             onAuthenticated(adminUser);
           }}
-          className="text-indigo-400 hover:underline font-bold cursor-pointer"
+          className="text-white hover:underline font-bold cursor-pointer"
           title="Sign in as Admin Manager"
         >
           Secure Real-Time
