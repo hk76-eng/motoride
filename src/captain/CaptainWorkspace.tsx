@@ -1084,17 +1084,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Service Badge, Payment (Upi) & Trip Info */}
+          {/* Payment (Upi) & Trip Info */}
           <div className="mt-0.5 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2">
-              <span className={`px-2.5 py-1 rounded-lg border font-black flex items-center gap-1.5 shadow-2xs ${service.bg}`}>
-                <span className="text-sm leading-none">{service.icon}</span>
-                <span>{service.label}</span>
-              </span>
-              <span className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-black uppercase tracking-wider">
-                {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
-              </span>
-            </div>
+            <span className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-black uppercase tracking-wider">
+              {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
+            </span>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold flex items-center gap-1">
                 <span>Ride Distance:</span>
@@ -1258,20 +1252,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           {inspectedRide && !activeRide && !is100Full ? (
             <div className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white border-b border-slate-200 flex items-center justify-between select-none shadow-xs">
               {/* Left: Location A & B Route Indicator */}
-              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
                   Ride Details & Route Map (A & B)
                 </span>
-                {(() => {
-                  const svc = getServiceBadge(inspectedRide.ride_type);
-                  return (
-                    <span className={`text-[10px] sm:text-[11px] font-black px-2 py-0.5 rounded-md border flex items-center gap-1 shrink-0 ${svc.badgeBg}`}>
-                      <span>{svc.icon}</span>
-                      <span>{svc.label}</span>
-                    </span>
-                  );
-                })()}
                 <span className="text-[11px] font-mono-num font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hidden xs:inline">
                   {inspectedRide.ride_code}
                 </span>
