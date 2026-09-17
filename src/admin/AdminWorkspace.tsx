@@ -549,9 +549,20 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-800/80">
-                  <span className="text-slate-400">
-                    {r.distance_km} km • {r.duration_minutes} mins • Type: {r.ride_type.toUpperCase()}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-200 font-bold text-[11px] flex items-center gap-1">
+                      {r.ride_type === 'auto'
+                        ? '🛺 Auto Rickshaw'
+                        : r.ride_type === 'car'
+                        ? '🚗 AC Cab'
+                        : r.ride_type === 'courier'
+                        ? '📦 Courier Parcel'
+                        : '🏍️ Motobike'}
+                    </span>
+                    <span className="text-slate-400">
+                      {r.distance_km} km • {r.duration_minutes} mins
+                    </span>
+                  </div>
                   <div className="flex items-center gap-3">
                     <span className="text-slate-400">
                       Offered: <b className="text-slate-200">₹{r.offered_fare}</b>
