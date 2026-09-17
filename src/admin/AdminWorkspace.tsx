@@ -49,15 +49,15 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   >('overview');
 
   const [stats, setStats] = useState<AdminDashboardStats>({
-    totalPassengers: 2,
-    totalCaptains: 2,
-    onlineCaptains: 2,
+    totalPassengers: 0,
+    totalCaptains: 0,
+    onlineCaptains: 0,
     activeRides: 0,
-    completedRides: 1,
+    completedRides: 0,
     cancelledRides: 0,
-    todayRides: 1,
-    todayPlatformRevenue: 7.5,
-    totalVolume: 75,
+    todayRides: 0,
+    todayPlatformRevenue: 0,
+    totalVolume: 0,
   });
 
   const [captains, setCaptains] = useState<Captain[]>([]);

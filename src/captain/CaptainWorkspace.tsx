@@ -101,8 +101,8 @@ export function getServiceBadge(rideType?: string) {
 }
 
 export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
-  captainId = 'cpt_vikram_01',
-  captainName = 'Captain Vikram Singh',
+  captainId = '',
+  captainName = 'Captain',
   onOpenWallet,
   onSignOut,
   isOnline: propIsOnline,
@@ -119,7 +119,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [qrSettings, setQrSettings] = useState<QRCodeSetting | null>(null);
   const [fareSettings, setFareSettings] = useState<FareSettings | null>(null);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
-  const [walletBalance, setWalletBalance] = useState<number>(450);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
 

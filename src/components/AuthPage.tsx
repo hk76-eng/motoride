@@ -26,7 +26,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { UserRole, RideTypeCode } from '../types/motoride';
-import { supabaseAuth, AuthUser, DEMO_USERS } from '../lib/supabaseAuth';
+import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
 import { isSupabaseConfigured } from '../lib/supabase';
 
 interface AuthPageProps {
@@ -46,43 +46,35 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Sign In Form State
-  const [signInEmail, setSignInEmail] = useState(() => DEMO_USERS[defaultRole].email);
-  const [signInPassword, setSignInPassword] = useState('password123');
+  // Sign In Form State (Starts completely empty for fresh accounts)
+  const [signInEmail, setSignInEmail] = useState('');
+  const [signInPassword, setSignInPassword] = useState('');
 
   // Passenger Sign Up State
-  const [psgName, setPsgName] = useState('Hemant Kashyap');
+  const [psgName, setPsgName] = useState('');
   const [psgEmail, setPsgEmail] = useState('');
-  const [psgPhone, setPsgPhone] = useState('+91 98765 43210');
+  const [psgPhone, setPsgPhone] = useState('');
   const [psgPassword, setPsgPassword] = useState('');
 
   // Captain Sign Up State
-  const [cptName, setCptName] = useState('Captain Vikram Singh');
+  const [cptName, setCptName] = useState('');
   const [cptEmail, setCptEmail] = useState('');
-  const [cptPhone, setCptPhone] = useState('+91 98111 22334');
-  const [cptVehicleModel, setCptVehicleModel] = useState('Honda Activa 6G');
-  const [cptPlateNumber, setCptPlateNumber] = useState('PB65AA1257');
+  const [cptPhone, setCptPhone] = useState('');
+  const [cptVehicleModel, setCptVehicleModel] = useState('');
+  const [cptPlateNumber, setCptPlateNumber] = useState('');
   const [cptVehicleType, setCptVehicleType] = useState<RideTypeCode>('bike');
   const [cptPassword, setCptPassword] = useState('');
 
   // Admin Sign Up State
-  const [admName, setAdmName] = useState('Admin Manager');
-  const [admEmail, setAdmEmail] = useState('freelanceseoservices01@gmail.com');
-  const [admPhone, setAdmPhone] = useState('+91 98765 00001');
+  const [admName, setAdmName] = useState('');
+  const [admEmail, setAdmEmail] = useState('');
+  const [admPhone, setAdmPhone] = useState('');
   const [admPassword, setAdmPassword] = useState('');
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setSignInEmail(DEMO_USERS[role].email);
-    setSignInPassword('password123');
-  };
-
-  const handleQuickDemoLogin = (role: UserRole) => {
-    const demo = DEMO_USERS[role];
-    supabaseAuth.setCurrentUser(demo);
-    onAuthenticated(demo);
   };
 
   const handleSignInSubmit = async (e: React.FormEvent) => {
@@ -215,7 +207,32 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* 2-Role Quick Select Switcher (Passenger & Captain) */}
+        <div className="flex items-center gap-1.5 p-1 bg-black border border-white/25 rounded-2xl">
+          <button
+            type="button"
+            onClick={() => handleRoleSelect('passenger')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              selectedRole === 'passenger'
+                ? 'bg-white text-black font-black'
+                : 'text-white/70 hover:text-white'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Passenger</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleRoleSelect('captain')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              selectedRole === 'captain'
+                ? 'bg-white text-black font-black'
+                : 'text-white/70 hover:text-white'
+            }`}
+          >
+            <Bike className="w-3.5 h-3.5" />
+            <span>Captain</span>
+          </button>
         </div>
       </header>
 
@@ -238,7 +255,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             </h1>
 
             <p className="text-sm sm:text-base text-white/90 leading-relaxed font-normal">
-              Experience lightning-fast bike & cab dispatch, live Captain bidding wars, zero friction secure payments, and cross-device real-time GPS tracking.
+              Create a fresh account to experience real-time bike & cab dispatch, live Captain bidding wars, wallet transactions, and cross-device live GPS tracking.
             </p>
           </div>
 
@@ -249,57 +266,27 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               {/* Top Border Accent */}
               <div className="absolute top-0 left-0 right-0 h-1 bg-white/40" />
 
-              {/* Single Tab Switcher for Passenger / Captain App */}
-              <div className="mb-6">
-                <button
-                  type="button"
-                  onClick={() => handleRoleSelect(selectedRole === 'passenger' ? 'captain' : 'passenger')}
-                  className="w-full py-3.5 px-4 sm:px-5 rounded-2xl bg-black border border-white/25 hover:border-white/50 text-xs font-black transition-all cursor-pointer flex items-center justify-between shadow-xl group relative overflow-hidden active:scale-[0.99]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl transition-all flex items-center justify-center shrink-0 bg-black text-white border border-white/30 shadow-md p-1.5">
-                      {selectedRole === 'passenger' ? (
-                        <div className="w-full h-full rounded-lg bg-black flex items-center justify-center">
-                          <User className="w-5 h-5 text-white stroke-[2.5]" />
-                        </div>
-                      ) : (
-                        <img
-                          src="/captain-bike-icon.svg"
-                          alt="Captain Bike"
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain rounded-lg"
-                        />
-                      )}
-                    </div>
-                    <div className="text-left">
-                      <span className="block text-[10px] text-white/70 uppercase tracking-wider font-semibold">
-                        Active App Mode
-                      </span>
-                      <span className="text-sm font-extrabold text-white flex items-center gap-1.5">
-                        {selectedRole === 'passenger' ? 'Passenger App' : 'Captain App'}
-                      </span>
-                    </div>
+              {/* Active Role Indicator */}
+              <div className="mb-6 p-3.5 rounded-2xl bg-black border border-white/25 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-black text-white border border-white/30 flex items-center justify-center">
+                    {selectedRole === 'passenger' && <User className="w-5 h-5 text-white stroke-[2.5]" />}
+                    {selectedRole === 'captain' && <Bike className="w-5 h-5 text-white stroke-[2.5]" />}
+                    {selectedRole === 'admin' && <Shield className="w-5 h-5 text-white stroke-[2.5]" />}
                   </div>
+                  <div className="text-left">
+                    <span className="block text-[10px] text-white/70 uppercase tracking-wider font-semibold">
+                      Account Role
+                    </span>
+                    <span className="text-sm font-extrabold text-white capitalize">
+                      {selectedRole === 'passenger' ? 'Passenger App' : selectedRole === 'captain' ? 'Captain (Driver) App' : 'Admin Operations Manager'}
+                    </span>
+                  </div>
+                </div>
 
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black border border-white/25 text-[11px] font-bold text-white group-hover:bg-neutral-900 transition-all">
-                    {selectedRole === 'passenger' ? (
-                      <div className="w-4 h-4 rounded-xs bg-black flex items-center justify-center shrink-0">
-                        <img
-                          src="/captain-bike-icon.svg"
-                          alt="Captain"
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-4 h-4 rounded-xs bg-black flex items-center justify-center">
-                        <User className="w-3.5 h-3.5 text-white stroke-[2.5]" />
-                      </div>
-                    )}
-                    <span className="text-white">Switch to {selectedRole === 'passenger' ? 'Captain App' : 'Passenger App'}</span>
-                    <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
-                  </div>
-                </button>
+                <span className="text-[11px] font-semibold text-white/80">
+                  {authMode === 'signin' ? 'Sign In Mode' : 'New Account'}
+                </span>
               </div>
 
               {/* 2. Sign In vs Sign Up Mode Switcher */}
@@ -371,7 +358,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         required
                         value={signInEmail}
                         onChange={(e) => setSignInEmail(e.target.value)}
-                        placeholder={DEMO_USERS[selectedRole].email}
+                        placeholder="Enter your registered email"
                         className="w-full bg-black border border-white/30 rounded-2xl py-3 pl-11 pr-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-mono"
                       />
                     </div>
@@ -388,7 +375,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         required
                         value={signInPassword}
                         onChange={(e) => setSignInPassword(e.target.value)}
-                        placeholder="••••••••"
+                        placeholder="Enter your password"
                         className="w-full bg-black border border-white/30 rounded-2xl py-3 pl-11 pr-12 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all"
                       />
                       <button
@@ -435,7 +422,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           required
                           value={psgName}
                           onChange={(e) => setPsgName(e.target.value)}
-                          placeholder="Hemant Kashyap"
+                          placeholder="e.g. John Doe"
                           className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
@@ -446,7 +433,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           required
                           value={psgEmail}
                           onChange={(e) => setPsgEmail(e.target.value)}
-                          placeholder="passenger@motoride.com"
+                          placeholder="e.g. passenger@example.com"
                           className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
@@ -457,7 +444,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           required
                           value={psgPhone}
                           onChange={(e) => setPsgPhone(e.target.value)}
-                          placeholder="+91 98765 43210"
+                          placeholder="e.g. +91 98765 43210"
                           className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
@@ -484,7 +471,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           required
                           value={cptName}
                           onChange={(e) => setCptName(e.target.value)}
-                          placeholder="Captain Vikram Singh"
+                          placeholder="e.g. Alex Kumar"
                           className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
@@ -495,7 +482,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           required
                           value={cptEmail}
                           onChange={(e) => setCptEmail(e.target.value)}
-                          placeholder="captain@motoride.com"
+                          placeholder="e.g. captain@example.com"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Phone Number</label>
+                        <input
+                          type="tel"
+                          required
+                          value={cptPhone}
+                          onChange={(e) => setCptPhone(e.target.value)}
+                          placeholder="e.g. +91 98765 43210"
                           className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
@@ -507,7 +505,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                             required
                             value={cptVehicleModel}
                             onChange={(e) => setCptVehicleModel(e.target.value)}
-                            placeholder="Honda Activa"
+                            placeholder="e.g. Honda Activa 6G"
                             className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                           />
                         </div>
@@ -518,10 +516,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                             required
                             value={cptPlateNumber}
                             onChange={(e) => setCptPlateNumber(e.target.value)}
-                            placeholder="PB65AA1257"
+                            placeholder="e.g. DL01AB1234"
                             className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs text-white placeholder-white/40 uppercase focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                           />
                         </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Vehicle Type</label>
+                        <select
+                          value={cptVehicleType}
+                          onChange={(e) => setCptVehicleType(e.target.value as RideTypeCode)}
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs text-white focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
+                        >
+                          <option value="bike">Motobike (Bike / Scooter)</option>
+                          <option value="auto">Auto Rickshaw (3-Wheeler)</option>
+                          <option value="car">Car / Cab (AC Taxi)</option>
+                          <option value="courier">Courier / Parcel Delivery</option>
+                        </select>
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Password</label>
@@ -546,7 +557,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           required
                           value={admName}
                           onChange={(e) => setAdmName(e.target.value)}
-                          placeholder="Admin Manager"
+                          placeholder="e.g. Operations Admin"
                           className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
@@ -557,7 +568,17 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                           required
                           value={admEmail}
                           onChange={(e) => setAdmEmail(e.target.value)}
-                          placeholder="admin@motoride.com"
+                          placeholder="e.g. admin@motoride.com"
+                          className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-white uppercase tracking-wider mb-1.5">Phone Number</label>
+                        <input
+                          type="tel"
+                          value={admPhone}
+                          onChange={(e) => setAdmPhone(e.target.value)}
+                          placeholder="e.g. +91 98765 00001"
                           className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                         />
                       </div>
@@ -601,23 +622,23 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center border-t border-white/20 text-xs text-white bg-black">
+      {/* Footer with hyperlink to Admin Dashboard */}
+      <footer className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center border-t border-white/20 text-xs text-white/70 bg-black">
         MotoRide Mobility Platform &copy; {new Date().getFullYear()} •{' '}
         <button
           type="button"
           onClick={() => {
-            const adminUser = DEMO_USERS['admin'];
-            supabaseAuth.setCurrentUser(adminUser);
-            onAuthenticated(adminUser);
+            handleRoleSelect('admin');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
-          className="text-white hover:underline font-bold cursor-pointer"
-          title="Sign in as Admin Manager"
+          className="text-white hover:text-slate-200 underline underline-offset-4 font-bold cursor-pointer transition-colors"
+          title="Open Admin Dashboard Portal"
         >
-          Secure Real-Time
+          Real Time
         </button>{' '}
-        Dispatch
+        Urban Transportation Engine
       </footer>
     </div>
   );
 };
+

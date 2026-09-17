@@ -66,8 +66,8 @@ const PRESET_LOCATIONS = [
 ];
 
 export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
-  currentPassengerId = 'psg_hemant_01',
-  passengerName = 'Hemant Kashyap',
+  currentPassengerId = '',
+  passengerName = 'Passenger',
   onOpenWallet,
   onSignOut,
 }) => {
