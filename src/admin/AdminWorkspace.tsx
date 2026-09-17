@@ -63,14 +63,20 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const [captains, setCaptains] = useState<Captain[]>([]);
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [rides, setRides] = useState<MotorideRide[]>([]);
-  const [fareSettings, setFareSettings] = useState<FareSettings>({
-    base_fare: 25,
-    per_km_rate: 12,
-    minimum_fare: 30,
-    platform_commission_pct: 10,
-    min_offer_pct: 70,
-    max_offer_pct: 180,
-    currency_symbol: '₹',
+  const [fareSettings, setFareSettings] = useState<FareSettings>(() => {
+    try {
+      const saved = localStorage.getItem('motoride_admin_fare_settings');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      base_fare: 25,
+      per_km_rate: 12,
+      minimum_fare: 30,
+      platform_commission_pct: 10,
+      min_offer_pct: 70,
+      max_offer_pct: 180,
+      currency_symbol: '₹',
+    };
   });
   const [qrSettings, setQrSettings] = useState<QRCodeSetting>({
     qr_image_url:
@@ -119,7 +125,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       window.removeEventListener('focus', handleVisibility);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, []);
+  }, [activeTab]);
 
   const loadAllData = async () => {
     try {
@@ -135,17 +141,24 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       if (c) setCaptains(c);
       if (p) setPassengers(p);
       if (r) setRides(r);
-      if (f) setFareSettings(f);
+      // Do not overwrite fareSettings if admin is actively viewing/editing the fare tab
+      if (f && activeTab !== 'fare') {
+        const localSaved = localStorage.getItem('motoride_admin_fare_settings');
+        if (!localSaved) {
+          setFareSettings(f);
+        }
+      }
       if (q) setQrSettings(q);
     } catch {}
   };
 
   const handleSaveFare = async () => {
     try {
+      localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(fareSettings));
       const updated = await motorideApi.updateFareSettings(fareSettings);
-      setFareSettings(updated);
-      setFareSaveStatus('Fare settings saved & published to all workspaces!');
-      setTimeout(() => setFareSaveStatus(null), 3000);
+      if (updated) setFareSettings(updated);
+      setFareSaveStatus('Global Fare & Commission Rules saved! Values are locked to admin configuration and will not auto-fill or reset.');
+      setTimeout(() => setFareSaveStatus(null), 4000);
     } catch (err: any) {
       alert(err.message || 'Failed to save');
     }

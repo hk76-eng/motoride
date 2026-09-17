@@ -102,6 +102,23 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                 <Shield className="w-3.5 h-3.5 text-purple-400" />
                 <span>Admin Dashboard Account</span>
               </div>
+            ) : currentUser?.role === 'passenger' ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-300">
+                <User className="w-4 h-4 text-emerald-400" />
+                <span>Passenger App Account</span>
+              </div>
+            ) : currentUser?.role === 'captain' ? (
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/15 border border-amber-500/40 text-amber-300">
+                <div className="w-4 h-4 rounded bg-black/40 border border-white/20 flex items-center justify-center p-0.5 shrink-0">
+                  <img
+                    src="/captain-bike-icon.svg"
+                    alt="Captain"
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <span>Captain App Account</span>
+              </div>
             ) : (
               <button
                 type="button"

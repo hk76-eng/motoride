@@ -785,6 +785,12 @@ export const motorideApi = {
 
   // 4. Fare Settings
   async getFareSettings(): Promise<FareSettings> {
+    try {
+      const local = localStorage.getItem('motoride_admin_fare_settings');
+      if (local) {
+        return JSON.parse(local);
+      }
+    } catch {}
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -795,12 +801,12 @@ export const motorideApi = {
     const json = await safeFetchJson<{ settings: FareSettings }>(`${API_BASE}/fare-settings`, undefined, {
       settings: {
         id: 'default',
-        base_fare: 40,
+        base_fare: 25,
         per_km_rate: 12,
-        minimum_fare: 50,
-        platform_commission_pct: 15,
+        minimum_fare: 30,
+        platform_commission_pct: 10,
         min_offer_pct: 70,
-        max_offer_pct: 150,
+        max_offer_pct: 180,
         currency_symbol: '₹',
         updated_at: new Date().toISOString(),
       },
@@ -809,6 +815,9 @@ export const motorideApi = {
   },
 
   async updateFareSettings(settings: Partial<FareSettings>): Promise<FareSettings> {
+    try {
+      localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(settings));
+    } catch {}
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -820,7 +829,7 @@ export const motorideApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
-    return json.settings;
+    return json.settings || (settings as FareSettings);
   },
 
   // 5. QR Code Settings

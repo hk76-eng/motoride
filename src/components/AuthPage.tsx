@@ -255,7 +255,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             </h1>
 
             <p className="text-sm sm:text-base text-white/90 leading-relaxed font-normal">
-              Create a fresh account to experience real-time bike & cab dispatch, live Captain bidding wars, wallet transactions, and cross-device live GPS tracking.
+              Create a fresh account to experience real-time bike & cab dispatch, live Captain bidding wars, and cross-device live GPS tracking.
             </p>
           </div>
 

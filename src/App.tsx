@@ -38,10 +38,13 @@ export default function App() {
   const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
   const [showTestingGuide, setShowTestingGuide] = useState<boolean>(true);
 
-  // Keep active role synced in local storage
+  // Keep active role synced in local storage and locked to user role if authenticated
   useEffect(() => {
+    if (currentUser?.role && currentUser.role !== 'admin') {
+      setCurrentRole(currentUser.role);
+    }
     localStorage.setItem('motoride_active_role', currentRole);
-  }, [currentRole]);
+  }, [currentRole, currentUser]);
 
   // Handle Authentication Completion
   const handleAuthenticated = (user: AuthUser) => {
