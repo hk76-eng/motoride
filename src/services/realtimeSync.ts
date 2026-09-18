@@ -73,6 +73,32 @@ class RealtimeSyncManager {
                 this.emit('PASSENGER_LOCATION_UPDATED', payload.new);
               }
             )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'profiles' },
+              (payload: any) => {
+                this.emit('PROFILES_UPDATED', payload.new);
+                if (payload.new?.role === 'passenger') {
+                  this.emit('PASSENGERS_UPDATED', payload.new);
+                } else if (payload.new?.role === 'captain') {
+                  this.emit('CAPTAINS_UPDATED', payload.new);
+                }
+              }
+            )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'passengers' },
+              (payload: any) => {
+                this.emit('PASSENGERS_UPDATED', payload.new);
+              }
+            )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'captains' },
+              (payload: any) => {
+                this.emit('CAPTAINS_UPDATED', payload.new);
+              }
+            )
             .subscribe((status: string) => {
               if (status === 'SUBSCRIBED') {
                 this.isConnected = true;

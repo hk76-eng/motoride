@@ -1152,9 +1152,37 @@ motorideRouter.post('/captains/:id/status', (req: Request, res: Response) => {
 
 // 4. Passengers API
 motorideRouter.get('/passengers', (req: Request, res: Response) => {
+  // Sync all passenger accounts from accountsStore to passengersStore
+  for (const acc of accountsStore.values()) {
+    if (acc.role === 'passenger') {
+      const existing = passengersStore.get(acc.id);
+      if (!existing) {
+        passengersStore.set(acc.id, {
+          id: acc.id,
+          profile_id: `prof_${acc.id}`,
+          full_name: acc.name,
+          email: acc.email,
+          phone: acc.phone || '',
+          total_rides: 0,
+          rating: 5.0,
+          wallet_balance: acc.wallet_balance ?? 200,
+          emergency_contact: acc.phone || '',
+          created_at: acc.created_at || acc.member_since || new Date().toISOString(),
+        });
+      } else {
+        if (acc.name && (!existing.full_name || existing.full_name === 'Passenger')) {
+          existing.full_name = acc.name;
+        }
+        if (acc.phone && !existing.phone) {
+          existing.phone = acc.phone;
+        }
+      }
+    }
+  }
+
   const list = Array.from(passengersStore.values()).map((psg) => ({
     ...psg,
-    wallet_balance: (walletsStore.get(psg.id) || { balance: 200 }).balance,
+    wallet_balance: (walletsStore.get(psg.id) || { balance: psg.wallet_balance ?? 200 }).balance,
   }));
   res.json({ success: true, passengers: list });
 });

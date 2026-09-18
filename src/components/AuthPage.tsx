@@ -253,30 +253,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       </header>
 
       {/* Main Container */}
-      <main className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 flex-1 flex flex-col justify-center">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          
-          {/* Left Column: Brand Hero & Live Highlights */}
-          <div className="lg:col-span-5 space-y-6 text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black border border-white/30 text-white text-xs font-bold shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-white stroke-[2.5]" />
-              <span>Next-Gen Urban Commute & Bidding</span>
-            </div>
-
-            <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white leading-[1.15]">
-              Ride Smarter. <br />
-              <span className="text-white">
-                Earn & Travel Faster.
-              </span>
-            </h1>
-
-            <p className="text-sm sm:text-base text-white/90 leading-relaxed font-normal">
-              Create a fresh account to experience real-time bike & cab dispatch, live Captain bidding wars, and cross-device live GPS tracking.
-            </p>
-          </div>
-
-          {/* Right Column: Noir Black & White Auth Card */}
-          <div className="lg:col-span-7">
+      <main className="relative z-10 w-full max-w-md mx-auto px-4 sm:px-6 py-8 sm:py-12 flex-1 flex flex-col justify-center">
+        <div>
+          {/* Noir Black & White Auth Card */}
+          <div>
             <div className="bg-black border border-white/20 rounded-[28px] p-6 sm:p-8 shadow-2xl shadow-black relative overflow-hidden">
               
               {/* Top Border Accent */}

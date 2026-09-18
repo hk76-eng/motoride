@@ -244,12 +244,13 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     loadAllData();
 
     // Listen to real-time events to refresh admin metrics
-    const unsub = realtimeSync.on('RIDE_UPDATED', () => {
-      loadAllData();
-    });
-    const unsubCreate = realtimeSync.on('RIDE_CREATED', () => {
-      loadAllData();
-    });
+    const unsub = realtimeSync.on('RIDE_UPDATED', () => loadAllData());
+    const unsubCreate = realtimeSync.on('RIDE_CREATED', () => loadAllData());
+    const unsubPass = realtimeSync.on('PASSENGERS_UPDATED', () => loadAllData());
+    const unsubCapt = realtimeSync.on('CAPTAINS_UPDATED', () => loadAllData());
+    const unsubAcc = realtimeSync.on('ACCOUNTS_UPDATED', () => loadAllData());
+    const unsubStats = realtimeSync.on('STATS_UPDATED', () => loadAllData());
+    const unsubProf = realtimeSync.on('PROFILES_UPDATED', () => loadAllData());
 
     // 4-second poll to ensure admin view updates across devices
     const pollInterval = setInterval(() => {
@@ -267,6 +268,11 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     return () => {
       unsub();
       unsubCreate();
+      unsubPass();
+      unsubCapt();
+      unsubAcc();
+      unsubStats();
+      unsubProf();
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleVisibility);
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -338,8 +344,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               });
             }
           } else if (a.role === 'passenger') {
-            if (!p.some(existing => existing.email === a.email || existing.id === a.id) &&
-                !localPassengers.some(existing => existing.email === a.email || existing.id === a.id)) {
+            if (!p.some(existing => (existing.email && existing.email.toLowerCase() === a.email.toLowerCase()) || existing.id === a.id) &&
+                !localPassengers.some(existing => (existing.email && existing.email.toLowerCase() === a.email.toLowerCase()) || existing.id === a.id)) {
               localPassengers.push({
                 id: a.id,
                 profile_id: a.id,
@@ -401,8 +407,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   });
                 }
               } else if (u.role === 'passenger') {
-                if (!p.some(existing => existing.id === uId || existing.email === uEmail) &&
-                    !localPassengers.some(existing => existing.email === uEmail || existing.id === uId)) {
+                if (!p.some(existing => (existing.email && existing.email.toLowerCase() === uEmail.toLowerCase()) || existing.id === uId) &&
+                    !localPassengers.some(existing => (existing.email && existing.email.toLowerCase() === uEmail.toLowerCase()) || existing.id === uId)) {
                   localPassengers.push({
                     id: uId,
                     profile_id: `prof_${uId}`,
@@ -422,73 +428,77 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
         }
       } catch {}
 
-      // 3. Load profiles directly from Supabase if configured (real profiles only)
+      // 3. Load profiles and passengers directly from Supabase if configured (real profiles only)
       const supabase = getSupabase();
       if (supabase && isSupabaseConfigured()) {
         try {
-          const [profRes, vehRes, walRes] = await Promise.all([
+          const [profRes, passRes, cptRes, vehRes, walRes] = await Promise.all([
             supabase.from('profiles').select('*'),
+            supabase.from('passengers').select('*'),
+            supabase.from('captains').select('*'),
             supabase.from('vehicles').select('*'),
             supabase.from('wallets').select('*'),
           ]);
-          const supaProfiles = profRes.data;
+          const supaProfiles = profRes.data || [];
+          const supaPassengers = passRes.data || [];
+          const supaCaptains = cptRes.data || [];
           const supaVehicles = vehRes.data || [];
           const supaWallets = walRes.data || [];
 
-          if (supaProfiles && Array.isArray(supaProfiles)) {
-            for (const sp of supaProfiles) {
-              if (isDemoAccount(sp)) continue;
-              const matchingVeh = supaVehicles.find((v: any) => v.captain_id === sp.id || v.captain_id === sp.profile_id);
-              const matchingWal = supaWallets.find((w: any) => w.user_id === sp.id || w.user_id === sp.profile_id);
-              const balance = matchingWal ? matchingWal.balance : undefined;
+          for (const sp of supaProfiles) {
+            if (isDemoAccount(sp)) continue;
+            const matchingWal = supaWallets.find((w: any) => w.user_id === sp.id || w.user_id === sp.profile_id);
+            const balance = matchingWal ? matchingWal.balance : undefined;
 
-              if (sp.role === 'captain') {
-                if (!c.some(existing => existing.email === sp.email || existing.id === sp.id) &&
-                    !localCaptains.some(existing => existing.email === sp.email || existing.id === sp.id)) {
-                  localCaptains.push({
-                    id: sp.id,
-                    profile_id: sp.id,
-                    full_name: sp.full_name || 'Captain',
-                    email: sp.email || '',
-                    phone: sp.phone || '',
-                    is_online: true,
-                    is_approved: true,
+            if (sp.role === 'captain') {
+              const matchingCpt = supaCaptains.find((c: any) => c.profile_id === sp.id || c.id === sp.id);
+              const matchingVeh = supaVehicles.find((v: any) => v.captain_id === sp.id || (matchingCpt && v.captain_id === matchingCpt.id));
+              if (!c.some(existing => (existing.email && existing.email.toLowerCase() === sp.email?.toLowerCase()) || existing.id === sp.id) &&
+                  !localCaptains.some(existing => (existing.email && existing.email.toLowerCase() === sp.email?.toLowerCase()) || existing.id === sp.id)) {
+                localCaptains.push({
+                  id: sp.id,
+                  profile_id: sp.id,
+                  full_name: sp.full_name || 'Captain',
+                  email: sp.email || '',
+                  phone: sp.phone || '',
+                  is_online: matchingCpt?.is_online ?? true,
+                  is_approved: matchingCpt?.is_approved ?? true,
+                  is_active: true,
+                  current_lat: matchingCpt?.current_lat ?? 30.7046,
+                  current_lng: matchingCpt?.current_lng ?? 76.7178,
+                  rating: matchingCpt?.rating ?? 4.9,
+                  total_rides: matchingCpt?.total_rides ?? 0,
+                  today_earnings: matchingCpt?.today_earnings ?? 0,
+                  total_earnings: matchingCpt?.total_earnings ?? 0,
+                  wallet_balance: balance ?? sp.wallet_balance ?? 500,
+                  vehicle: {
+                    id: matchingVeh?.id || `veh_${sp.id}`,
+                    captain_id: sp.id,
+                    model: matchingVeh?.model || 'Honda Activa 6G',
+                    plate_number: matchingVeh?.plate_number || 'PB01AB1234',
+                    vehicle_type: matchingVeh?.vehicle_type || 'bike',
+                    color: matchingVeh?.color || 'Black',
                     is_active: true,
-                    current_lat: 30.7046,
-                    current_lng: 76.7178,
-                    rating: 4.9,
-                    total_rides: 0,
-                    today_earnings: 0,
-                    total_earnings: 0,
-                    wallet_balance: balance ?? 500,
-                    vehicle: {
-                      id: matchingVeh?.id || `veh_${sp.id}`,
-                      captain_id: sp.id,
-                      model: matchingVeh?.model || 'Honda Activa 6G',
-                      plate_number: matchingVeh?.plate_number || 'PB01AB1234',
-                      vehicle_type: matchingVeh?.vehicle_type || 'bike',
-                      color: matchingVeh?.color || 'Black',
-                      is_active: true,
-                    },
-                    created_at: sp.created_at || new Date().toISOString(),
-                  });
-                }
-              } else if (sp.role === 'passenger') {
-                if (!p.some(existing => existing.email === sp.email || existing.id === sp.id) &&
-                    !localPassengers.some(existing => existing.email === sp.email || existing.id === sp.id)) {
-                  localPassengers.push({
-                    id: sp.id,
-                    profile_id: sp.id,
-                    full_name: sp.full_name || 'Passenger',
-                    email: sp.email || '',
-                    phone: sp.phone || '',
-                    total_rides: 0,
-                    rating: 5.0,
-                    wallet_balance: balance ?? 200,
-                    emergency_contact: sp.phone || '',
-                    created_at: sp.created_at || new Date().toISOString(),
-                  });
-                }
+                  },
+                  created_at: sp.created_at || new Date().toISOString(),
+                });
+              }
+            } else if (sp.role === 'passenger') {
+              const matchingPsg = supaPassengers.find((p: any) => p.profile_id === sp.id || p.id === sp.id);
+              if (!p.some(existing => (existing.email && existing.email.toLowerCase() === sp.email?.toLowerCase()) || existing.id === sp.id) &&
+                  !localPassengers.some(existing => (existing.email && existing.email.toLowerCase() === sp.email?.toLowerCase()) || existing.id === sp.id)) {
+                localPassengers.push({
+                  id: sp.id,
+                  profile_id: sp.id,
+                  full_name: sp.full_name || 'Passenger',
+                  email: sp.email || '',
+                  phone: sp.phone || '',
+                  total_rides: matchingPsg?.total_rides ?? 0,
+                  rating: matchingPsg?.rating ?? 5.0,
+                  wallet_balance: balance ?? sp.wallet_balance ?? 200,
+                  emergency_contact: matchingPsg?.emergency_contact || sp.phone || '',
+                  created_at: sp.created_at || new Date().toISOString(),
+                });
               }
             }
           }

@@ -43,128 +43,191 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
   }
 
   try {
+    const cleanEmail = user.email.toLowerCase().trim();
+    const cleanName = (user.name || '').trim() || 'MotoRide User';
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const validProfileId = uuidRegex.test(user.id) ? user.id : generateUUID();
 
-    // 1. Upsert into public.profiles
-    const { error: profileErr } = await supabase.from('profiles').upsert(
-      [
-        {
-          id: validProfileId,
-          email: user.email.toLowerCase().trim(),
-          full_name: user.name.trim(),
-          phone: user.phone?.trim() || null,
-          role: user.role,
-          wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
-          is_active: true,
-        },
-      ],
-      { onConflict: 'email' }
-    );
-
-    if (profileErr) {
-      console.warn('Supabase profile upsert warning:', profileErr.message);
-    }
-
-    // Get the effective profile id from Supabase
-    const { data: profileRow } = await supabase
+    // 1. Check if profile already exists by email
+    const { data: existingProfile } = await supabase
       .from('profiles')
-      .select('id')
-      .eq('email', user.email.toLowerCase().trim())
+      .select('id, email, full_name, phone, role, wallet_balance')
+      .eq('email', cleanEmail)
       .maybeSingle();
 
-    const actualProfileId = profileRow?.id || validProfileId;
+    let actualProfileId = validProfileId;
 
-    // 2. If passenger, upsert into public.passengers
-    if (user.role === 'passenger') {
-      const { error: passErr } = await supabase.from('passengers').upsert(
-        [
+    if (existingProfile?.id) {
+      actualProfileId = existingProfile.id;
+      await supabase
+        .from('profiles')
+        .update({
+          full_name: cleanName,
+          phone: user.phone?.trim() || existingProfile.phone || null,
+          role: user.role,
+          wallet_balance: user.walletBalance ?? existingProfile.wallet_balance ?? (user.role === 'captain' ? 500 : 200),
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingProfile.id);
+    } else {
+      const { data: newProf, error: profErr } = await supabase
+        .from('profiles')
+        .insert([
           {
+            id: validProfileId,
+            email: cleanEmail,
+            full_name: cleanName,
+            phone: user.phone?.trim() || null,
+            role: user.role,
+            wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
+            is_active: true,
+            created_at: user.memberSince || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ])
+        .select('id')
+        .maybeSingle();
+
+      if (newProf?.id) {
+        actualProfileId = newProf.id;
+      } else if (profErr) {
+        console.warn('Supabase profile insert warning:', profErr.message);
+      }
+    }
+
+    // 2. If passenger, ensure row exists in public.passengers
+    if (user.role === 'passenger') {
+      const { data: existingPsg } = await supabase
+        .from('passengers')
+        .select('id, profile_id')
+        .eq('profile_id', actualProfileId)
+        .maybeSingle();
+
+      if (existingPsg) {
+        await supabase
+          .from('passengers')
+          .update({
+            emergency_contact: user.phone?.trim() || null,
+          })
+          .eq('id', existingPsg.id);
+      } else {
+        const { error: passErr } = await supabase.from('passengers').insert([
+          {
+            id: generateUUID(),
             profile_id: actualProfileId,
             total_rides: 0,
             rating: 5.0,
             emergency_contact: user.phone?.trim() || null,
+            created_at: new Date().toISOString(),
           },
-        ],
-        { onConflict: 'profile_id' }
-      );
-      if (passErr) {
-        console.warn('Supabase passenger upsert warning:', passErr.message);
+        ]);
+        if (passErr) {
+          console.warn('Supabase passenger insert warning:', passErr.message);
+        }
       }
     }
 
-    // 3. If captain, upsert into public.captains and public.vehicles
+    // 3. If captain, ensure row exists in public.captains and public.vehicles
     if (user.role === 'captain') {
-      const captainId = generateUUID();
-      const { error: cptErr } = await supabase.from('captains').upsert(
-        [
-          {
-            id: captainId,
-            profile_id: actualProfileId,
-            is_online: true,
-            is_approved: true,
-            is_active: true,
-            current_lat: 30.7046,
-            current_lng: 76.7178,
-            rating: 4.9,
-            total_rides: 0,
-            today_earnings: 0,
-            total_earnings: 0,
-          },
-        ],
-        { onConflict: 'profile_id' }
-      );
-      if (cptErr) {
-        console.warn('Supabase captain upsert warning:', cptErr.message);
-      }
-
-      // Check captain record to get captainId
-      const { data: cptRow } = await supabase
+      const { data: existingCpt } = await supabase
         .from('captains')
-        .select('id')
+        .select('id, profile_id')
         .eq('profile_id', actualProfileId)
         .maybeSingle();
-      const actualCaptainId = cptRow?.id || captainId;
 
-      const plateNo =
-        user.plateNumber?.trim() ||
-        `PB${Math.floor(10 + Math.random() * 89)}AB${Math.floor(1000 + Math.random() * 9000)}`;
+      let actualCaptainId = existingCpt?.id;
 
-      const { error: vehErr } = await supabase.from('vehicles').upsert(
-        [
-          {
-            captain_id: actualCaptainId,
-            model: user.vehicleModel?.trim() || 'Honda Activa 6G',
-            plate_number: plateNo,
-            vehicle_type: user.vehicleType || 'bike',
-            color: 'Black',
-            is_active: true,
-          },
-        ],
-        { onConflict: 'plate_number' }
-      );
-      if (vehErr) {
-        console.warn('Supabase vehicle upsert warning:', vehErr.message);
+      if (!existingCpt) {
+        const captainId = generateUUID();
+        const { data: newCpt, error: cptErr } = await supabase
+          .from('captains')
+          .insert([
+            {
+              id: captainId,
+              profile_id: actualProfileId,
+              is_online: true,
+              is_approved: true,
+              is_active: true,
+              current_lat: 30.7046,
+              current_lng: 76.7178,
+              rating: 4.9,
+              total_rides: 0,
+              today_earnings: 0,
+              total_earnings: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ])
+          .select('id')
+          .maybeSingle();
+
+        actualCaptainId = newCpt?.id || captainId;
+        if (cptErr) {
+          console.warn('Supabase captain insert warning:', cptErr.message);
+        }
+      }
+
+      if (actualCaptainId) {
+        const plateNo =
+          user.plateNumber?.trim() ||
+          `PB${Math.floor(10 + Math.random() * 89)}AB${Math.floor(1000 + Math.random() * 9000)}`;
+
+        const { data: existingVeh } = await supabase
+          .from('vehicles')
+          .select('id')
+          .eq('captain_id', actualCaptainId)
+          .maybeSingle();
+
+        if (existingVeh) {
+          await supabase
+            .from('vehicles')
+            .update({
+              model: user.vehicleModel?.trim() || 'Honda Activa 6G',
+              plate_number: plateNo,
+              vehicle_type: user.vehicleType || 'bike',
+            })
+            .eq('id', existingVeh.id);
+        } else {
+          await supabase.from('vehicles').insert([
+            {
+              id: generateUUID(),
+              captain_id: actualCaptainId,
+              model: user.vehicleModel?.trim() || 'Honda Activa 6G',
+              plate_number: plateNo,
+              vehicle_type: user.vehicleType || 'bike',
+              color: 'Black',
+              is_active: true,
+              created_at: new Date().toISOString(),
+            },
+          ]);
+        }
       }
     }
 
     // 4. Upsert into public.wallets
-    await supabase.from('wallets').upsert(
-      [
+    const { data: existingWal } = await supabase
+      .from('wallets')
+      .select('id')
+      .eq('user_id', actualProfileId)
+      .maybeSingle();
+
+    if (!existingWal) {
+      await supabase.from('wallets').insert([
         {
+          id: generateUUID(),
           user_id: actualProfileId,
           role: user.role,
           balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
           currency: '₹',
         },
-      ],
-      { onConflict: 'user_id' }
-    );
+      ]);
+    }
 
     return { success: true };
   } catch (err: any) {
-    console.warn('Failed to sync user to Supabase:', err);
-    return { success: false, error: err.message };
+    console.warn('Supabase sync error:', err);
+    return { success: false, error: err.message || 'Supabase sync failed' };
   }
 }
 
@@ -269,7 +332,7 @@ export const supabaseAuth = {
   },
 
   /**
-   * Save a newly registered account locally
+   * Save a newly registered account locally and ensure Supabase synchronization
    */
   saveAccount(account: StoredAccount) {
     try {
@@ -283,6 +346,25 @@ export const supabaseAuth = {
         accounts.push(account);
       }
       localStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(accounts));
+
+      // Also sync into motoride_users
+      try {
+        const rawUsers = localStorage.getItem('motoride_users');
+        const users = rawUsers ? JSON.parse(rawUsers) : [];
+        if (Array.isArray(users)) {
+          const uIdx = users.findIndex(
+            (u: any) => u.email?.toLowerCase() === account.email.toLowerCase() && u.role === account.role
+          );
+          if (uIdx >= 0) users[uIdx] = account;
+          else users.push(account);
+          localStorage.setItem('motoride_users', JSON.stringify(users));
+        }
+      } catch {}
+
+      // Asynchronously ensure synced into Supabase profiles/passengers/captains
+      syncUserToSupabase(account).catch((err) => {
+        console.warn('Background Supabase user sync notice:', err);
+      });
     } catch (e) {
       console.warn('Failed to save registered account:', e);
     }
@@ -505,6 +587,11 @@ export const supabaseAuth = {
         };
         this.saveAccount({ ...authUser, passwordHash: cleanPass });
         this.setCurrentUser(authUser);
+        try {
+          await syncUserToSupabase(authUser);
+        } catch (e) {
+          console.warn('Initial Supabase sync on registration error:', e);
+        }
         return { user: authUser };
       }
     } catch (err) {
@@ -530,6 +617,11 @@ export const supabaseAuth = {
       passwordHash: cleanPass,
     });
     this.setCurrentUser(authUser);
+    try {
+      await syncUserToSupabase(authUser);
+    } catch (e) {
+      console.warn('Fallback Supabase sync on registration error:', e);
+    }
     return { user: authUser };
   },
 

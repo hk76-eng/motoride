@@ -195,7 +195,23 @@ export function loadDbFromDisk() {
       const data = JSON.parse(raw);
       if (Array.isArray(data.accounts)) {
         for (const [k, v] of data.accounts) {
-          if (v && v.email) accountsStore.set(k, v);
+          if (v && v.email) {
+            accountsStore.set(k, v);
+            if (v.role === 'passenger' && !passengersStore.has(v.id)) {
+              passengersStore.set(v.id, {
+                id: v.id,
+                profile_id: `prof_${v.id}`,
+                full_name: v.name,
+                email: v.email,
+                phone: v.phone || '',
+                total_rides: 0,
+                rating: 5.0,
+                wallet_balance: v.wallet_balance ?? 200,
+                emergency_contact: v.phone || '',
+                created_at: v.created_at || v.member_since || new Date().toISOString(),
+              });
+            }
+          }
         }
       }
       if (Array.isArray(data.captains)) {
