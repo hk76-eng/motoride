@@ -29,10 +29,16 @@ import {
   Bike,
 } from 'lucide-react';
 
+import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
+import { motorideApi } from '../services/motorideApi';
+
 interface PassengerProfileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  currentUser?: AuthUser | null;
   passengerName?: string;
+  passengerEmail?: string;
+  passengerPhone?: string;
   onOpenWallet?: () => void;
   onSelectSavedLocation?: (loc: { name: string; lat: number; lng: number }) => void;
   onSignOut?: () => void;
@@ -41,15 +47,25 @@ interface PassengerProfileDrawerProps {
 export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   isOpen,
   onClose,
-  passengerName = 'Hemant Kashyap',
+  currentUser,
+  passengerName = 'Passenger',
+  passengerEmail = '',
+  passengerPhone = '',
   onOpenWallet,
   onSelectSavedLocation,
   onSignOut,
 }) => {
+  const authUser = currentUser || supabaseAuth.getCurrentUser();
+  const initialName = (passengerName && passengerName !== 'Passenger' && passengerName !== 'Hemant Kashyap')
+    ? passengerName
+    : (authUser?.name || passengerName || 'Passenger');
+  const initialEmail = passengerEmail || authUser?.email || '';
+  const initialPhone = passengerPhone || authUser?.phone || '+91 98765 43210';
+
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(passengerName);
-  const [phone, setPhone] = useState('+91 98765 43210');
-  const [email, setEmail] = useState('hemantkashyap76@gmail.com');
+  const [name, setName] = useState(initialName);
+  const [phone, setPhone] = useState(initialPhone);
+  const [email, setEmail] = useState(initialEmail);
   const [emergencyContact, setEmergencyContact] = useState('+91 98123 45678 (Brother)');
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Profile details saved successfully!');
@@ -59,7 +75,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   // Passenger Avatar Photo (Stored in state & localStorage)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
     try {
-      return localStorage.getItem('motoride_passenger_avatar') || null;
+      return authUser?.avatarUrl || localStorage.getItem('motoride_passenger_avatar') || null;
     } catch {
       return null;
     }
@@ -70,12 +86,27 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync prop changes
+  // Sync state whenever props or drawer open state changes
   useEffect(() => {
-    if (passengerName) {
+    const current = currentUser || supabaseAuth.getCurrentUser();
+    if (passengerName && passengerName !== 'Hemant Kashyap' && passengerName !== 'Passenger') {
       setName(passengerName);
+    } else if (current?.name) {
+      setName(current.name);
     }
-  }, [passengerName]);
+
+    if (passengerEmail) {
+      setEmail(passengerEmail);
+    } else if (current?.email) {
+      setEmail(current.email);
+    }
+
+    if (passengerPhone) {
+      setPhone(passengerPhone);
+    } else if (current?.phone) {
+      setPhone(current.phone);
+    }
+  }, [passengerName, passengerEmail, passengerPhone, currentUser, isOpen]);
 
   // Handle Photo Upload
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +186,31 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     setIsEditing(false);
+
+    try {
+      const user = supabaseAuth.getCurrentUser();
+      if (user) {
+        const updatedUser: AuthUser = {
+          ...user,
+          name: name.trim() || user.name,
+          email: email.trim() || user.email,
+          phone: phone.trim() || user.phone,
+        };
+        supabaseAuth.setCurrentUser(updatedUser);
+        supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
+
+        motorideApi.updatePassengerProfile(user.id, {
+          name: updatedUser.name,
+          full_name: updatedUser.name,
+          email: updatedUser.email,
+          phone: updatedUser.phone,
+          emergency_contact: emergencyContact,
+        }).catch((e) => console.warn('Failed to sync passenger profile to API:', e));
+      }
+    } catch (err) {
+      console.warn('Could not persist updated passenger profile:', err);
+    }
+
     setToastMessage('Profile details saved successfully!');
     setIsSavedToast(true);
     setTimeout(() => setIsSavedToast(false), 3000);

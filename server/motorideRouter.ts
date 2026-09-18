@@ -22,6 +22,11 @@ import {
   accountsStore,
   ServerRegisteredAccount,
   persistDbToDisk,
+  purgeAllDataFromDb,
+  clearAllRidesFromDb,
+  deleteCaptainFromDb,
+  deletePassengerFromDb,
+  deleteRideFromDb,
 } from './motorideDb';
 import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain, Passenger } from '../src/types/motoride';
 import { backendHaversineDistanceKm } from './fareEngine';
@@ -1169,8 +1174,50 @@ motorideRouter.post('/passengers', (req: Request, res: Response) => {
     created_at: new Date().toISOString(),
   };
   passengersStore.set(psgId, newPsg);
+  persistDbToDisk();
   broadcastEvent('PASSENGERS_UPDATED', Array.from(passengersStore.values()));
   res.status(201).json({ success: true, passenger: newPsg });
+});
+
+motorideRouter.get('/passengers/:id', (req: Request, res: Response) => {
+  const psg = passengersStore.get(req.params.id);
+  if (!psg) {
+    return res.status(404).json({ error: 'Passenger not found' });
+  }
+  res.json({ success: true, passenger: psg });
+});
+
+motorideRouter.post('/passengers/:id/profile', (req: Request, res: Response) => {
+  const psg = passengersStore.get(req.params.id);
+  const { full_name, name, phone, email, emergency_contact } = req.body;
+
+  if (psg) {
+    if (full_name || name) psg.full_name = full_name || name;
+    if (phone) psg.phone = phone;
+    if (email) psg.email = email;
+    if (emergency_contact) psg.emergency_contact = emergency_contact;
+    passengersStore.set(req.params.id, psg);
+    persistDbToDisk();
+    broadcastEvent('PASSENGERS_UPDATED', Array.from(passengersStore.values()));
+    return res.json({ success: true, passenger: psg });
+  }
+
+  // If not found in store, create and save
+  const newPsg: Passenger = {
+    id: req.params.id,
+    profile_id: `prof_${req.params.id}`,
+    full_name: full_name || name || 'Passenger',
+    email: email || '',
+    phone: phone || '',
+    total_rides: 0,
+    rating: 5.0,
+    emergency_contact: emergency_contact || phone || '',
+    created_at: new Date().toISOString(),
+  };
+  passengersStore.set(req.params.id, newPsg);
+  persistDbToDisk();
+  broadcastEvent('PASSENGERS_UPDATED', Array.from(passengersStore.values()));
+  res.json({ success: true, passenger: newPsg });
 });
 
 // 5. Settings API
@@ -1552,3 +1599,38 @@ motorideRouter.get('/auth/accounts', (req: Request, res: Response) => {
   }));
   res.json({ success: true, accounts: list });
 });
+
+// 9. Admin Purge & Delete Operations (Zero leftover mock or old test data)
+motorideRouter.delete('/captains/:id', (req: Request, res: Response) => {
+  const deleted = deleteCaptainFromDb(req.params.id);
+  broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
+  res.json({ success: true, deleted });
+});
+
+motorideRouter.delete('/passengers/:id', (req: Request, res: Response) => {
+  const deleted = deletePassengerFromDb(req.params.id);
+  broadcastEvent('PASSENGERS_UPDATED', Array.from(passengersStore.values()));
+  res.json({ success: true, deleted });
+});
+
+motorideRouter.delete('/rides/:id', (req: Request, res: Response) => {
+  const deleted = deleteRideFromDb(req.params.id);
+  broadcastEvent('RIDE_DELETED', { id: req.params.id });
+  broadcastEvent('ACTIVE_RIDES_SYNC_RECEIVED', Array.from(ridesStore.values()));
+  res.json({ success: true, deleted });
+});
+
+motorideRouter.post('/admin/clear-rides', (req: Request, res: Response) => {
+  clearAllRidesFromDb();
+  broadcastEvent('ACTIVE_RIDES_SYNC_RECEIVED', []);
+  res.json({ success: true, message: 'All rides cleared' });
+});
+
+motorideRouter.post('/admin/purge-all', (req: Request, res: Response) => {
+  purgeAllDataFromDb();
+  broadcastEvent('CAPTAINS_UPDATED', []);
+  broadcastEvent('PASSENGERS_UPDATED', []);
+  broadcastEvent('ACTIVE_RIDES_SYNC_RECEIVED', []);
+  res.json({ success: true, message: 'All data successfully purged. Clean slate established for new real data.' });
+});
+

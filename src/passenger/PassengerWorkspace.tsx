@@ -47,9 +47,12 @@ import {
   Loader2,
 } from 'lucide-react';
 
+import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
+
 interface PassengerWorkspaceProps {
   currentPassengerId?: string;
   passengerName?: string;
+  currentUser?: AuthUser | null;
   onOpenWallet?: () => void;
   onSignOut?: () => void;
 }
@@ -68,9 +71,14 @@ const PRESET_LOCATIONS = [
 export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   currentPassengerId = '',
   passengerName = 'Passenger',
+  currentUser,
   onOpenWallet,
   onSignOut,
 }) => {
+  const authUser = currentUser || supabaseAuth.getCurrentUser();
+  const effectivePassengerName = (passengerName && passengerName !== 'Passenger' && passengerName !== 'Hemant Kashyap')
+    ? passengerName
+    : (authUser?.name || passengerName || 'Passenger');
   // Active Ride State
   const [activeRide, setActiveRide] = useState<MotorideRide | null>(null);
   const [rideHistory, setRideHistory] = useState<MotorideRide[]>([]);
@@ -682,9 +690,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       const calcFare = offeredFare > 0 ? offeredFare : (estimatedFare > 0 ? estimatedFare : 75);
 
       const newRide = await motorideApi.createRide({
-        passenger_id: currentPassengerId,
-        passenger_name: passengerName,
-        passenger_phone: '+91 97800 12345',
+        passenger_id: currentPassengerId || authUser?.id || '',
+        passenger_name: effectivePassengerName,
+        passenger_phone: authUser?.phone || '+91 97800 12345',
         pickup_address: activePickup.name,
         pickup_lat: activePickup.lat,
         pickup_lng: activePickup.lng,
@@ -1797,7 +1805,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       <PassengerProfileDrawer
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
-        passengerName={passengerName}
+        currentUser={currentUser || authUser}
+        passengerName={effectivePassengerName}
+        passengerEmail={currentUser?.email || authUser?.email}
+        passengerPhone={currentUser?.phone || authUser?.phone}
         onOpenWallet={onOpenWallet}
         onSignOut={onSignOut}
         onSelectSavedLocation={(loc) => {

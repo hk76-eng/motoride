@@ -56,6 +56,13 @@ realtimeSync.on('RIDE_MESSAGE_RECEIVED', (msg: any) => {
   }
 });
 
+realtimeSync.on('RIDE_DELETED', (data: any) => {
+  if (data?.id) {
+    localRidesStore.delete(data.id);
+    saveLocalRides();
+  }
+});
+
 // Listen to incoming real-time broadcast and SSE events to keep local store in sync across all devices
 realtimeSync.on('RIDE_CREATED', (ride: MotorideRide) => {
   if (ride && ride.id) {
@@ -819,6 +826,18 @@ export const motorideApi = {
     return json.passengers || [];
   },
 
+  async updatePassengerProfile(
+    id: string,
+    profileData: { full_name?: string; name?: string; phone?: string; email?: string; emergency_contact?: string }
+  ): Promise<Passenger> {
+    const json = await safeFetchJson<{ passenger: Passenger }>(`${API_BASE}/passengers/${id}/profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profileData),
+    });
+    return json?.passenger || ({} as Passenger);
+  },
+
   // 4. Fare Settings
   async getFareSettings(): Promise<FareSettings> {
     try {
@@ -1018,5 +1037,56 @@ export const motorideApi = {
     ).catch(() => {});
 
     return newMsg;
+  },
+
+  // 9. Admin Purge and Individual Item Delete Operations
+  async deleteCaptain(id: string): Promise<boolean> {
+    const json = await safeFetchJson<{ success: boolean; deleted: boolean }>(`${API_BASE}/captains/${id}`, {
+      method: 'DELETE',
+    });
+    return Boolean(json?.success);
+  },
+
+  async deletePassenger(id: string): Promise<boolean> {
+    const json = await safeFetchJson<{ success: boolean; deleted: boolean }>(`${API_BASE}/passengers/${id}`, {
+      method: 'DELETE',
+    });
+    return Boolean(json?.success);
+  },
+
+  async deleteRide(id: string): Promise<boolean> {
+    localRidesStore.delete(id);
+    saveLocalRides();
+    const json = await safeFetchJson<{ success: boolean; deleted: boolean }>(`${API_BASE}/rides/${id}`, {
+      method: 'DELETE',
+    });
+    return Boolean(json?.success);
+  },
+
+  async clearAllRides(): Promise<boolean> {
+    localRidesStore.clear();
+    saveLocalRides();
+    const json = await safeFetchJson<{ success: boolean }>(`${API_BASE}/admin/clear-rides`, {
+      method: 'POST',
+    });
+    return Boolean(json?.success);
+  },
+
+  async purgeAllData(): Promise<boolean> {
+    localRidesStore.clear();
+    localMessagesStore.clear();
+    saveLocalRides();
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('motoride_active_rides_cache');
+        localStorage.removeItem('motoride_registered_accounts');
+        localStorage.removeItem('motoride_users');
+        localStorage.removeItem('motoride_captain_recent_trips');
+      } catch {}
+    }
+    const json = await safeFetchJson<{ success: boolean; message: string }>(`${API_BASE}/admin/purge-all`, {
+      method: 'POST',
+    });
+    return Boolean(json?.success);
   },
 };

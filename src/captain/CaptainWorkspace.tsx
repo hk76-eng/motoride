@@ -10,8 +10,7 @@ import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
-import { supabaseAuth } from '../lib/supabaseAuth';
-import { AuthUser } from '../types/auth';
+import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
 import { CaptainProfileDrawer } from './CaptainProfileDrawer';
 import {
   Bike,

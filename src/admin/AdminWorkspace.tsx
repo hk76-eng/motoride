@@ -46,6 +46,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Navigation,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface AdminWorkspaceProps {
@@ -114,6 +116,64 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const [captainFilter, setCaptainFilter] = useState<'all' | 'online' | 'approved' | 'suspended'>('all');
   const [passengerSearch, setPassengerSearch] = useState<string>('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'captain' | 'passenger' | 'ride' | 'all_rides';
+    id: string;
+    name: string;
+  } | null>(null);
+  const [actionToast, setActionToast] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setActionToast(msg);
+    setTimeout(() => setActionToast(null), 4000);
+  };
+
+  const handlePurgeAll = async () => {
+    setIsPurging(true);
+    try {
+      await motorideApi.purgeAllData();
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('motoride_users');
+          localStorage.removeItem('motoride_registered_accounts');
+          localStorage.removeItem('motoride_active_rides_cache');
+          localStorage.removeItem('motoride_captain_recent_trips');
+        } catch {}
+      }
+      setPurgeConfirmOpen(false);
+      showToast('All registered passengers, captains, rides, wallets, and test/mock data successfully removed! Clean slate ready.');
+      await loadAllData();
+    } catch (err: any) {
+      alert(err?.message || 'Purge failed');
+    } finally {
+      setIsPurging(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.type === 'captain') {
+        await motorideApi.deleteCaptain(deleteTarget.id);
+        showToast(`Captain "${deleteTarget.name}" permanently removed.`);
+      } else if (deleteTarget.type === 'passenger') {
+        await motorideApi.deletePassenger(deleteTarget.id);
+        showToast(`Passenger "${deleteTarget.name}" permanently removed.`);
+      } else if (deleteTarget.type === 'ride') {
+        await motorideApi.deleteRide(deleteTarget.id);
+        showToast(`Ride "${deleteTarget.name}" removed from database.`);
+      } else if (deleteTarget.type === 'all_rides') {
+        await motorideApi.clearAllRides();
+        showToast('All ride logs and audits cleared.');
+      }
+      setDeleteTarget(null);
+      await loadAllData();
+    } catch (err: any) {
+      alert(err?.message || 'Delete operation failed');
+    }
+  };
 
   const handleCopyId = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -560,14 +620,25 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={loadAllData}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 cursor-pointer"
-        >
-          <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Refresh Data</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPurgeConfirmOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-xs font-bold text-rose-300 hover:text-rose-100 transition-all cursor-pointer shadow-sm"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+            <span>Purge All Data (Clean Slate)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={loadAllData}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Refresh Data</span>
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -958,17 +1029,17 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                         <span>GPS: {cpt.current_lat ? cpt.current_lat.toFixed(3) : '30.704'}, {cpt.current_lng ? cpt.current_lng.toFixed(3) : '76.717'}</span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedCaptain(cpt);
                           }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-bold transition-all cursor-pointer"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-xs font-bold transition-all cursor-pointer"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span>View Full Profile</span>
+                          <span>View</span>
                         </button>
 
                         <button
@@ -977,13 +1048,29 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                             e.stopPropagation();
                             handleToggleCaptainStatus(cpt.id, cpt.is_approved);
                           }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                          className={`px-2.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
                             cpt.is_approved
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-rose-500/20 hover:text-rose-300'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-amber-500/20 hover:text-amber-300'
                               : 'bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-emerald-500/20 hover:text-emerald-300'
                           }`}
                         >
                           {cpt.is_approved ? 'Approved' : 'Suspended'}
+                        </button>
+
+                        <button
+                          type="button"
+                          title="Delete captain from database"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget({
+                              type: 'captain',
+                              id: cpt.id,
+                              name: cpt.full_name || cpt.email || cpt.id,
+                            });
+                          }}
+                          className="p-1.5 rounded-xl bg-rose-950/30 hover:bg-rose-900/60 border border-rose-500/30 text-rose-400 hover:text-rose-200 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -1152,7 +1239,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                         Total rides taken: <b className="text-white font-mono-num">{p.total_rides}</b>
                       </span>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1162,7 +1249,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                           }}
                           className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold cursor-pointer transition-colors"
                         >
-                          View Rides
+                          Rides
                         </button>
 
                         <button
@@ -1171,10 +1258,26 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                             e.stopPropagation();
                             setSelectedPassenger(p);
                           }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span>View Full Profile</span>
+                          <span>View</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          title="Delete passenger from database"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget({
+                              type: 'passenger',
+                              id: p.id,
+                              name: p.full_name || p.email || p.id,
+                            });
+                          }}
+                          className="p-1.5 rounded-xl bg-rose-950/30 hover:bg-rose-900/60 border border-rose-500/30 text-rose-400 hover:text-rose-200 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
@@ -1190,7 +1293,25 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       {activeTab === 'rides' && (
         <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-4 shadow-xl">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <h2 className="text-sm font-bold text-white">Full Ride Audits & Live Stream</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-bold text-white">Full Ride Audits & Live Stream</h2>
+              {rides.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDeleteTarget({
+                      type: 'all_rides',
+                      id: 'all',
+                      name: 'All Rides',
+                    })
+                  }
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-[11px] font-bold text-rose-300 hover:text-rose-100 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3 h-3 text-rose-400" />
+                  <span>Clear All Rides</span>
+                </button>
+              )}
+            </div>
 
             {/* Filters */}
             <div className="flex items-center gap-2">
@@ -1245,17 +1366,33 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                         </span>
                       )}
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        r.status === 'trip_completed'
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : r.status.includes('cancelled')
-                          ? 'bg-rose-500/20 text-rose-300'
-                          : 'bg-amber-500/20 text-amber-300'
-                      }`}
-                    >
-                      {r.status.replace(/_/g, ' ')}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          r.status === 'trip_completed'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : r.status.includes('cancelled')
+                            ? 'bg-rose-500/20 text-rose-300'
+                            : 'bg-amber-500/20 text-amber-300'
+                        }`}
+                      >
+                        {r.status.replace(/_/g, ' ')}
+                      </span>
+                      <button
+                        type="button"
+                        title="Delete ride record"
+                        onClick={() =>
+                          setDeleteTarget({
+                            type: 'ride',
+                            id: r.id,
+                            name: r.ride_code || r.id,
+                          })
+                        }
+                        className="p-1 rounded-lg bg-rose-950/30 hover:bg-rose-900/60 text-rose-400 hover:text-rose-200 border border-rose-500/30 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="text-xs text-slate-300 space-y-1">
@@ -2134,6 +2271,112 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 Close Dossier
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: PURGE ALL DATA CONFIRMATION */}
+      {purgeConfirmOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-rose-500/50 rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4 text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">Purge All Data (Clean Slate)</h3>
+                <p className="text-xs text-rose-300">Permanent database wipe for fresh start</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-950/30 border border-rose-500/20 text-xs text-slate-300 space-y-2">
+              <p className="font-semibold text-rose-200">
+                This will immediately remove:
+              </p>
+              <ul className="list-disc pl-5 space-y-1 text-slate-400">
+                <li>All registered passenger accounts and profiles</li>
+                <li>All registered captain profiles and vehicle data</li>
+                <li>All ride bookings, audit trails, and live records</li>
+                <li>All driver wallet balances and mock transactions</li>
+                <li>All cached demo/mock test data in local storage</li>
+              </ul>
+              <p className="text-[11px] text-amber-300/90 font-medium pt-1">
+                Your database will be left with 0 entries, allowing only new real passenger and captain registrations.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isPurging}
+                onClick={() => setPurgeConfirmOpen(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isPurging}
+                onClick={handlePurgeAll}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold transition-all shadow-lg shadow-rose-600/30 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{isPurging ? 'Purging Database...' : 'Yes, Purge Everything'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: SINGLE ITEM DELETION CONFIRMATION */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4 text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">
+                  Confirm Deletion
+                </h3>
+                <p className="text-xs text-slate-400 capitalize">
+                  Remove {deleteTarget.type.replace('_', ' ')}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              Are you sure you want to permanently delete{' '}
+              <span className="font-bold text-white">"{deleteTarget.name}"</span> from the database? This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+              >
+                Delete Record
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING ACTION SUCCESS TOAST */}
+      {actionToast && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom duration-200">
+          <div className="px-4 py-3 rounded-2xl bg-slate-900 border border-emerald-500/50 shadow-2xl text-xs text-emerald-300 font-semibold flex items-center gap-2.5 max-w-md">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{actionToast}</span>
           </div>
         </div>
       )}

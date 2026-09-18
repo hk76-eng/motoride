@@ -133,6 +133,7 @@ export default function App() {
           <PassengerWorkspace
             currentPassengerId={currentUser.id}
             passengerName={currentUser.name}
+            currentUser={currentUser}
             onOpenWallet={() => setIsWalletOpen(true)}
             onSignOut={handleSignOut}
           />

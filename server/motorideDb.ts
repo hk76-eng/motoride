@@ -135,6 +135,59 @@ export function persistDbToDisk() {
   }
 }
 
+export function purgeAllDataFromDb() {
+  accountsStore.clear();
+  captainsStore.clear();
+  passengersStore.clear();
+  walletsStore.clear();
+  ridesStore.clear();
+  walletTransactionsStore.length = 0;
+  notificationsStore.length = 0;
+  passengerLocationsStore.clear();
+  messagesStore.clear();
+  persistDbToDisk();
+}
+
+export function clearAllRidesFromDb() {
+  ridesStore.clear();
+  messagesStore.clear();
+  passengerLocationsStore.clear();
+  notificationsStore.length = 0;
+}
+
+export function deleteCaptainFromDb(id: string): boolean {
+  let found = captainsStore.delete(id);
+  walletsStore.delete(id);
+  for (const [key, acc] of accountsStore.entries()) {
+    if (acc.id === id || acc.email === id) {
+      accountsStore.delete(key);
+      found = true;
+    }
+  }
+  persistDbToDisk();
+  return found;
+}
+
+export function deletePassengerFromDb(id: string): boolean {
+  let found = passengersStore.delete(id);
+  walletsStore.delete(id);
+  for (const [key, acc] of accountsStore.entries()) {
+    if (acc.id === id || acc.email === id) {
+      accountsStore.delete(key);
+      found = true;
+    }
+  }
+  persistDbToDisk();
+  return found;
+}
+
+export function deleteRideFromDb(id: string): boolean {
+  const found = ridesStore.delete(id);
+  messagesStore.delete(id);
+  passengerLocationsStore.delete(`ride_${id}`);
+  return found;
+}
+
 export function loadDbFromDisk() {
   try {
     if (fs.existsSync(DB_FILE)) {

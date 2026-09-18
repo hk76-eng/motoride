@@ -43,6 +43,7 @@ export interface Captain {
   name?: string;
   email?: string;
   phone?: string;
+  avatar_url?: string;
   is_online: boolean;
   is_approved: boolean;
   is_active: boolean;
@@ -68,6 +69,7 @@ export interface Passenger {
   full_name: string;
   email?: string;
   phone?: string;
+  avatar_url?: string;
   total_rides: number;
   rating: number;
   wallet_balance?: number;
