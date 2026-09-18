@@ -36,6 +36,7 @@ import {
   Radio,
   TrendingUp,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 
 interface CaptainWorkspaceProps {
@@ -1437,8 +1438,18 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       </div>
 
       {showChatModal && activeRide && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md h-[500px]">
+        <div className="fixed inset-0 z-[2000] bg-slate-950 flex flex-col p-4 sm:p-6 md:p-8 animate-in fade-in duration-150">
+          <div className="w-full max-w-4xl mx-auto mb-4 flex items-center justify-between">
+            <button
+              onClick={() => setShowChatModal(false)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm border border-white/20 transition-all cursor-pointer shadow-lg active:scale-95"
+            >
+              <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
+              <span>Back to Ride Details</span>
+            </button>
+            <span className="text-xs text-white/70 font-mono font-semibold">Ride #{activeRide.ride_code}</span>
+          </div>
+          <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col overflow-hidden">
             <RideChatModal
               ride={activeRide}
               currentUserId={captainId}
