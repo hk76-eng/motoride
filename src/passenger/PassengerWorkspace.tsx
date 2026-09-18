@@ -76,9 +76,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   onSignOut,
 }) => {
   const authUser = currentUser || supabaseAuth.getCurrentUser();
-  const effectivePassengerName = (passengerName && passengerName !== 'Passenger' && passengerName !== 'Hemant Kashyap')
-    ? passengerName
-    : (authUser?.name || passengerName || 'Passenger');
+  const effectivePassengerName = currentUser?.name || (passengerName !== 'Passenger' ? passengerName : undefined) || authUser?.name || passengerName || 'Passenger';
   // Active Ride State
   const [activeRide, setActiveRide] = useState<MotorideRide | null>(null);
   const [rideHistory, setRideHistory] = useState<MotorideRide[]>([]);

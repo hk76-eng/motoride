@@ -421,17 +421,18 @@ export const supabaseAuth = {
 
     // 3. Fallback seamless provisioning: auto-register so user is never blocked
     const userId = generateUUID();
+    const existingNamed = accounts.find((a) => a.email.toLowerCase() === cleanEmail && a.name && a.name !== 'MotoRide User');
     const rawPrefix = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
-    const displayName = rawPrefix ? rawPrefix.charAt(0).toUpperCase() + rawPrefix.slice(1) : 'MotoRide User';
+    const displayName = existingNamed?.name || (rawPrefix ? rawPrefix.charAt(0).toUpperCase() + rawPrefix.slice(1) : 'MotoRide User');
     const authUser: AuthUser = {
       id: userId,
       email: cleanEmail,
       name: displayName,
       role: params.role,
-      phone: '',
-      vehicleModel: params.role === 'captain' ? 'Honda Activa 6G' : '',
-      plateNumber: params.role === 'captain' ? `PB65XX${Math.floor(1000 + Math.random() * 9000)}` : '',
-      vehicleType: 'bike',
+      phone: existingNamed?.phone || '',
+      vehicleModel: params.role === 'captain' ? (existingNamed?.vehicleModel || 'Honda Activa 6G') : '',
+      plateNumber: params.role === 'captain' ? (existingNamed?.plateNumber || `PB65XX${Math.floor(1000 + Math.random() * 9000)}`) : '',
+      vehicleType: existingNamed?.vehicleType || 'bike',
       walletBalance: params.role === 'captain' ? 500 : 200,
       memberSince: new Date().toISOString(),
     };
@@ -493,7 +494,7 @@ export const supabaseAuth = {
         const authUser: AuthUser = {
           id: serverData.account.id || userId,
           email: serverData.account.email,
-          name: serverData.account.name,
+          name: serverData.account.name || cleanName,
           role: serverData.account.role,
           phone: serverData.account.phone,
           vehicleModel: serverData.account.vehicle_model,

@@ -56,7 +56,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   onSignOut,
 }) => {
   const authUser = currentUser || supabaseAuth.getCurrentUser();
-  const initialName = (passengerName && passengerName !== 'Passenger' && passengerName !== 'Hemant Kashyap')
+  const initialName = (passengerName && passengerName !== 'Passenger')
     ? passengerName
     : (authUser?.name || passengerName || 'Passenger');
   const initialEmail = passengerEmail || authUser?.email || '';
@@ -89,7 +89,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   // Sync state whenever props or drawer open state changes
   useEffect(() => {
     const current = currentUser || supabaseAuth.getCurrentUser();
-    if (passengerName && passengerName !== 'Hemant Kashyap' && passengerName !== 'Passenger') {
+    if (passengerName && passengerName !== 'Passenger') {
       setName(passengerName);
     } else if (current?.name) {
       setName(current.name);

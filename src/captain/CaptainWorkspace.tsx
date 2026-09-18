@@ -112,9 +112,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   onToggleOnline: propToggleOnline,
 }) => {
   const authUser = currentUser || supabaseAuth.getCurrentUser();
-  const resolvedInitialName = (captainName && captainName !== 'Captain')
-    ? captainName
-    : (authUser?.name || 'Captain');
+  const resolvedInitialName = currentUser?.name || (captainName && captainName !== 'Captain' ? captainName : undefined) || authUser?.name || 'Captain';
 
   const [captain, setCaptain] = useState<Captain | null>(() => {
     if (authUser) {
@@ -514,9 +512,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         setCaptain((prev) => ({
           ...(prev || {}),
           ...cpt,
-          full_name: (cpt.full_name && cpt.full_name !== 'Vikram Singh' && cpt.full_name !== 'Captain')
-            ? cpt.full_name
-            : (resolvedInitialName !== 'Captain' ? resolvedInitialName : (cpt.full_name || 'Captain')),
+          full_name: cpt.full_name || currentUser?.name || resolvedInitialName || 'Captain',
         }));
         setInternalOnline(Boolean(cpt.is_online));
       }
