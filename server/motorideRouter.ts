@@ -53,12 +53,66 @@ motorideRouter.get('/realtime/stream', (req: Request, res: Response) => {
   });
 });
 
+// Helper to ensure ride and all its offers display genuine registered captain profile details
+export function enrichRideWithRegisteredCaptainData(ride: MotorideRide): MotorideRide {
+  if (!ride) return ride;
+
+  if (ride.captain_id) {
+    const cpt = captainsStore.get(ride.captain_id);
+    if (cpt && cpt.full_name && cpt.full_name !== 'Vikram Singh' && cpt.full_name !== 'Captain') {
+      ride.captain_name = cpt.full_name;
+      if (cpt.vehicle?.model) ride.vehicle_model = cpt.vehicle.model;
+      if (cpt.vehicle?.plate_number) ride.plate_number = cpt.vehicle.plate_number;
+      if (cpt.phone) ride.captain_phone = cpt.phone;
+    } else {
+      for (const acc of accountsStore.values()) {
+        if (acc.id === ride.captain_id && acc.name) {
+          ride.captain_name = acc.name;
+          if (acc.vehicle_model) ride.vehicle_model = acc.vehicle_model;
+          if (acc.plate_number) ride.plate_number = acc.plate_number;
+          if (acc.phone) ride.captain_phone = acc.phone;
+          break;
+        }
+      }
+    }
+  }
+
+  if (Array.isArray(ride.offers)) {
+    ride.offers.forEach((offer) => {
+      if (offer.captain_id) {
+        const cpt = captainsStore.get(offer.captain_id);
+        if (cpt && cpt.full_name && cpt.full_name !== 'Vikram Singh' && cpt.full_name !== 'Captain') {
+          offer.captain_name = cpt.full_name;
+          if (cpt.vehicle?.model) offer.vehicle_model = cpt.vehicle.model;
+          if (cpt.vehicle?.plate_number) offer.plate_number = cpt.vehicle.plate_number;
+          if (cpt.phone) offer.captain_phone = cpt.phone;
+          if (cpt.rating) offer.rating = cpt.rating;
+        } else {
+          for (const acc of accountsStore.values()) {
+            if (acc.id === offer.captain_id && acc.name) {
+              offer.captain_name = acc.name;
+              if (acc.vehicle_model) offer.vehicle_model = acc.vehicle_model;
+              if (acc.plate_number) offer.plate_number = acc.plate_number;
+              if (acc.phone) offer.captain_phone = acc.phone;
+              break;
+            }
+          }
+        }
+      }
+    });
+  }
+
+  return ride;
+}
+
 // 2. Rides Management
 motorideRouter.get('/rides', (req: Request, res: Response) => {
   const { status, passenger_id, captain_id, active_for_captain } = req.query;
-  let list = Array.from(ridesStore.values()).sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  let list = Array.from(ridesStore.values())
+    .map(enrichRideWithRegisteredCaptainData)
+    .sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
 
   if (active_for_captain === 'true') {
     // Return rides available for captain feed: 'requested' or 'captain_offered'
@@ -79,10 +133,11 @@ motorideRouter.get('/rides', (req: Request, res: Response) => {
 });
 
 motorideRouter.get('/rides/:id', (req: Request, res: Response) => {
-  const ride = ridesStore.get(req.params.id);
+  let ride = ridesStore.get(req.params.id);
   if (!ride) {
     return res.status(404).json({ error: 'Ride not found' });
   }
+  ride = enrichRideWithRegisteredCaptainData(ride);
   res.json({ success: true, ride });
 });
 
@@ -221,15 +276,61 @@ motorideRouter.post('/rides/:id/accept', (req: Request, res: Response) => {
   const finalFare = typeof accepted_fare === 'number' ? accepted_fare : ride.offered_fare;
 
   // Lock and update ride status atomically
+  let registeredCaptain = captainsStore.get(captain_id);
+  if (!registeredCaptain) {
+    for (const acc of accountsStore.values()) {
+      if (acc.id === captain_id) {
+        registeredCaptain = {
+          id: acc.id,
+          profile_id: `prof_${acc.id}`,
+          full_name: acc.name,
+          email: acc.email,
+          phone: acc.phone || '',
+          is_online: true,
+          is_approved: true,
+          is_active: true,
+          current_lat: 30.7046,
+          current_lng: 76.7178,
+          rating: 4.95,
+          total_rides: 0,
+          vehicle: {
+            id: `veh_${acc.id}`,
+            captain_id: acc.id,
+            model: acc.vehicle_model || 'Honda Activa 6G',
+            plate_number: acc.plate_number || 'PB65XX1000',
+            vehicle_type: acc.vehicle_type || 'bike',
+            color: 'Black',
+            is_active: true,
+          },
+          created_at: acc.created_at || new Date().toISOString(),
+        };
+        captainsStore.set(acc.id, registeredCaptain);
+        persistDbToDisk();
+        break;
+      }
+    }
+  }
+
+  const resolvedCaptainName = (registeredCaptain?.full_name && registeredCaptain.full_name !== 'Vikram Singh' && registeredCaptain.full_name !== 'Captain')
+    ? registeredCaptain.full_name
+    : (captain_name && captain_name !== 'Vikram Singh' && captain_name !== 'Captain')
+      ? captain_name
+      : (registeredCaptain?.full_name || captain_name || 'Captain');
+
+  const resolvedVehicleModel = registeredCaptain?.vehicle?.model || vehicle_model || 'Bike';
+  const resolvedPlateNumber = registeredCaptain?.vehicle?.plate_number || plate_number || '';
+  const resolvedCaptainPhone = registeredCaptain?.phone || captain_phone || '';
+
   ride.captain_id = captain_id;
-  ride.captain_name = captain_name;
-  ride.captain_phone = captain_phone || '';
-  ride.vehicle_model = vehicle_model || 'Bike';
-  ride.plate_number = plate_number || '';
+  ride.captain_name = resolvedCaptainName;
+  ride.captain_phone = resolvedCaptainPhone;
+  ride.vehicle_model = resolvedVehicleModel;
+  ride.plate_number = resolvedPlateNumber;
   ride.final_fare = finalFare;
   ride.status = 'captain_accepted';
   ride.updated_at = new Date().toISOString();
 
+  enrichRideWithRegisteredCaptainData(ride);
   ridesStore.set(ride.id, ride);
 
   // Broadcast to all connected devices immediately
@@ -242,7 +343,7 @@ motorideRouter.post('/rides/:id/accept', (req: Request, res: Response) => {
     user_id: ride.passenger_id,
     role_target: 'passenger',
     title: 'Captain Found!',
-    message: `${captain_name} accepted your ride (${vehicle_model} - ${plate_number}). Arriving soon.`,
+    message: `${resolvedCaptainName} accepted your ride (${resolvedVehicleModel} - ${resolvedPlateNumber}). Arriving soon.`,
     type: 'success',
     ride_id: ride.id,
     is_read: false,
@@ -281,15 +382,62 @@ motorideRouter.post('/rides/:id/offer', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Valid counter fare is required' });
   }
 
+  // Look up registered captain profile to guarantee true registered name is displayed
+  let registeredCaptain = captainsStore.get(captain_id);
+  if (!registeredCaptain) {
+    for (const acc of accountsStore.values()) {
+      if (acc.id === captain_id) {
+        registeredCaptain = {
+          id: acc.id,
+          profile_id: `prof_${acc.id}`,
+          full_name: acc.name,
+          email: acc.email,
+          phone: acc.phone || '',
+          is_online: true,
+          is_approved: true,
+          is_active: true,
+          current_lat: 30.7046,
+          current_lng: 76.7178,
+          rating: 4.95,
+          total_rides: 0,
+          vehicle: {
+            id: `veh_${acc.id}`,
+            captain_id: acc.id,
+            model: acc.vehicle_model || 'Honda Activa 6G',
+            plate_number: acc.plate_number || 'PB65XX1000',
+            vehicle_type: acc.vehicle_type || 'bike',
+            color: 'Black',
+            is_active: true,
+          },
+          created_at: acc.created_at || new Date().toISOString(),
+        };
+        captainsStore.set(acc.id, registeredCaptain);
+        persistDbToDisk();
+        break;
+      }
+    }
+  }
+
+  const resolvedCaptainName = (registeredCaptain?.full_name && registeredCaptain.full_name !== 'Vikram Singh' && registeredCaptain.full_name !== 'Captain')
+    ? registeredCaptain.full_name
+    : (captain_name && captain_name !== 'Vikram Singh' && captain_name !== 'Captain')
+      ? captain_name
+      : (registeredCaptain?.full_name || captain_name || 'Captain');
+
+  const resolvedVehicleModel = registeredCaptain?.vehicle?.model || vehicle_model || 'Honda Activa 6G';
+  const resolvedPlateNumber = registeredCaptain?.vehicle?.plate_number || plate_number || 'PB65XX1000';
+  const resolvedCaptainPhone = registeredCaptain?.phone || captain_phone || '';
+  const resolvedRating = registeredCaptain?.rating || Number(rating) || 4.95;
+
   const offer: RideOffer = {
     id: `off_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     ride_id: ride.id,
     captain_id,
-    captain_name,
-    captain_phone,
-    vehicle_model,
-    plate_number,
-    rating: Number(rating),
+    captain_name: resolvedCaptainName,
+    captain_phone: resolvedCaptainPhone,
+    vehicle_model: resolvedVehicleModel,
+    plate_number: resolvedPlateNumber,
+    rating: resolvedRating,
     counter_fare: Number(counter_fare),
     status: 'pending',
     created_at: new Date().toISOString(),
@@ -302,6 +450,7 @@ motorideRouter.post('/rides/:id/offer', (req: Request, res: Response) => {
   ride.status = 'captain_offered';
   ride.updated_at = new Date().toISOString();
 
+  enrichRideWithRegisteredCaptainData(ride);
   ridesStore.set(ride.id, ride);
 
   broadcastEvent('RIDE_OFFER_RECEIVED', { ride, offer });
@@ -337,6 +486,7 @@ motorideRouter.post('/rides/:id/accept-offer', (req: Request, res: Response) => 
     o.status = o.id === offer_id ? 'accepted' : 'rejected';
   });
 
+  enrichRideWithRegisteredCaptainData(ride);
   ridesStore.set(ride.id, ride);
 
   broadcastEvent('RIDE_ACCEPTED', ride);
@@ -829,7 +979,41 @@ motorideRouter.post('/captains', (req: Request, res: Response) => {
 });
 
 motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
-  const cpt = captainsStore.get(req.params.id);
+  let cpt = captainsStore.get(req.params.id);
+  if (!cpt) {
+    for (const acc of accountsStore.values()) {
+      if (acc.id === req.params.id) {
+        cpt = {
+          id: acc.id,
+          profile_id: `prof_${acc.id}`,
+          full_name: acc.name,
+          email: acc.email,
+          phone: acc.phone || '',
+          is_online: true,
+          is_approved: true,
+          is_active: true,
+          current_lat: 30.7046,
+          current_lng: 76.7178,
+          rating: 4.95,
+          total_rides: 0,
+          vehicle: {
+            id: `veh_${acc.id}`,
+            captain_id: acc.id,
+            model: acc.vehicle_model || 'Honda Activa 6G',
+            plate_number: acc.plate_number || 'PB65XX1000',
+            vehicle_type: acc.vehicle_type || 'bike',
+            color: 'Black',
+            is_active: true,
+          },
+          created_at: acc.created_at || new Date().toISOString(),
+        };
+        captainsStore.set(acc.id, cpt);
+        persistDbToDisk();
+        break;
+      }
+    }
+  }
+
   if (!cpt) {
     return res.status(404).json({ error: 'Captain not found' });
   }
@@ -842,6 +1026,63 @@ motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
   };
 
   res.json({ success: true, captain: enriched });
+});
+
+motorideRouter.post('/captains/:id/profile', (req: Request, res: Response) => {
+  let cpt = captainsStore.get(req.params.id);
+  const { full_name, phone, avatar_url } = req.body;
+  if (!cpt) {
+    for (const acc of accountsStore.values()) {
+      if (acc.id === req.params.id) {
+        cpt = {
+          id: acc.id,
+          profile_id: `prof_${acc.id}`,
+          full_name: full_name || acc.name,
+          email: acc.email,
+          phone: phone || acc.phone || '',
+          is_online: true,
+          is_approved: true,
+          is_active: true,
+          current_lat: 30.7046,
+          current_lng: 76.7178,
+          rating: 4.95,
+          total_rides: 0,
+          vehicle: {
+            id: `veh_${acc.id}`,
+            captain_id: acc.id,
+            model: acc.vehicle_model || 'Honda Activa 6G',
+            plate_number: acc.plate_number || 'PB65XX1000',
+            vehicle_type: acc.vehicle_type || 'bike',
+            color: 'Black',
+            is_active: true,
+          },
+          created_at: acc.created_at || new Date().toISOString(),
+        };
+        break;
+      }
+    }
+  }
+
+  if (cpt) {
+    if (full_name) cpt.full_name = full_name;
+    if (phone !== undefined) cpt.phone = phone;
+    if (avatar_url) cpt.avatar_url = avatar_url;
+    cpt.updated_at = new Date().toISOString();
+    captainsStore.set(cpt.id, cpt);
+
+    for (const [k, acc] of accountsStore.entries()) {
+      if (acc.id === cpt.id) {
+        if (full_name) acc.name = full_name;
+        if (phone !== undefined) acc.phone = phone;
+        accountsStore.set(k, acc);
+      }
+    }
+    persistDbToDisk();
+    broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
+    return res.json({ success: true, captain: cpt });
+  }
+
+  return res.status(404).json({ error: 'Captain not found' });
 });
 
 motorideRouter.post('/captains/:id/toggle-online', (req: Request, res: Response) => {

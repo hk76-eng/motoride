@@ -142,6 +142,7 @@ export default function App() {
           <CaptainWorkspace
             captainId={currentUser.id}
             captainName={currentUser.name}
+            currentUser={currentUser}
             onOpenWallet={() => setIsWalletOpen(true)}
             onSignOut={handleSignOut}
             isOnline={isCaptainOnline}

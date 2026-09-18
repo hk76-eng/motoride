@@ -10,6 +10,8 @@ import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
+import { supabaseAuth } from '../lib/supabaseAuth';
+import { AuthUser } from '../types/auth';
 import { CaptainProfileDrawer } from './CaptainProfileDrawer';
 import {
   Bike,
@@ -40,6 +42,7 @@ import {
 interface CaptainWorkspaceProps {
   captainId?: string;
   captainName?: string;
+  currentUser?: AuthUser | null;
   onOpenWallet?: () => void;
   onSignOut?: () => void;
   isOnline?: boolean;
@@ -103,12 +106,46 @@ export function getServiceBadge(rideType?: string) {
 export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   captainId = '',
   captainName = 'Captain',
+  currentUser,
   onOpenWallet,
   onSignOut,
   isOnline: propIsOnline,
   onToggleOnline: propToggleOnline,
 }) => {
-  const [captain, setCaptain] = useState<Captain | null>(null);
+  const authUser = currentUser || supabaseAuth.getCurrentUser();
+  const resolvedInitialName = (captainName && captainName !== 'Captain')
+    ? captainName
+    : (authUser?.name || 'Captain');
+
+  const [captain, setCaptain] = useState<Captain | null>(() => {
+    if (authUser) {
+      return {
+        id: authUser.id || captainId,
+        profile_id: `prof_${authUser.id || captainId}`,
+        full_name: resolvedInitialName,
+        email: authUser.email || '',
+        phone: authUser.phone || '',
+        is_online: true,
+        is_approved: true,
+        is_active: true,
+        current_lat: 30.704649,
+        current_lng: 76.717873,
+        rating: 4.95,
+        total_rides: 0,
+        vehicle: {
+          id: `veh_${authUser.id || captainId}`,
+          captain_id: authUser.id || captainId,
+          model: authUser.vehicleModel || 'Honda Activa 6G',
+          plate_number: authUser.plateNumber || 'PB65XX1000',
+          vehicle_type: (authUser.vehicleType as any) || 'bike',
+          color: 'Black',
+          is_active: true,
+        },
+        created_at: authUser.memberSince || new Date().toISOString(),
+      };
+    }
+    return null;
+  });
   const [internalOnline, setInternalOnline] = useState<boolean>(true);
   const isOnline = propIsOnline !== undefined ? propIsOnline : internalOnline;
   const [availableRides, setAvailableRides] = useState<MotorideRide[]>([]);
@@ -475,7 +512,13 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     try {
       const cpt = await motorideApi.getCaptainById(captainId);
       if (cpt) {
-        setCaptain(cpt);
+        setCaptain((prev) => ({
+          ...(prev || {}),
+          ...cpt,
+          full_name: (cpt.full_name && cpt.full_name !== 'Vikram Singh' && cpt.full_name !== 'Captain')
+            ? cpt.full_name
+            : (resolvedInitialName !== 'Captain' ? resolvedInitialName : (cpt.full_name || 'Captain')),
+        }));
         setInternalOnline(Boolean(cpt.is_online));
       }
       const w = await motorideApi.getWallet(captainId);
@@ -549,12 +592,19 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   // Accept Ride Immediately
   const handleAcceptRide = async (ride: MotorideRide) => {
     try {
+      const resolvedName = (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
+        ? captain.full_name
+        : (resolvedInitialName !== 'Captain' ? resolvedInitialName : (authUser?.name || 'Captain'));
+      const resolvedPhone = captain?.phone || authUser?.phone || '';
+      const resolvedModel = captain?.vehicle?.model || authUser?.vehicleModel || 'Honda Activa 6G';
+      const resolvedPlate = captain?.vehicle?.plate_number || authUser?.plateNumber || 'PB65XX1000';
+
       const updated = await motorideApi.acceptRide(ride.id, {
         captain_id: captain?.id || captainId,
-        captain_name: captain?.full_name || 'Vikram Singh',
-        captain_phone: captain?.phone || '+91 98765 43210',
-        vehicle_model: captain?.vehicle?.model || 'Mahindra Centuro PB65AA1257',
-        plate_number: captain?.vehicle?.plate_number || 'PB65AA1257',
+        captain_name: resolvedName,
+        captain_phone: resolvedPhone,
+        vehicle_model: resolvedModel,
+        plate_number: resolvedPlate,
         accepted_fare: ride.offered_fare,
       });
       setActiveRide(updated);
@@ -573,20 +623,64 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       return;
     }
     try {
+      const resolvedName = (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
+        ? captain.full_name
+        : (resolvedInitialName !== 'Captain' ? resolvedInitialName : (authUser?.name || 'Captain'));
+      const resolvedPhone = captain?.phone || authUser?.phone || '';
+      const resolvedModel = captain?.vehicle?.model || authUser?.vehicleModel || 'Honda Activa 6G';
+      const resolvedPlate = captain?.vehicle?.plate_number || authUser?.plateNumber || 'PB65XX1000';
+
       const captainSavedAvatar = localStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
       await motorideApi.sendCounterOffer(rideId, {
         captain_id: captain?.id || captainId,
-        captain_name: captain?.full_name || 'Vikram Singh',
+        captain_name: resolvedName,
         captain_avatar: captainSavedAvatar,
-        captain_phone: captain?.phone || '+91 98765 43210',
-        vehicle_model: captain?.vehicle?.model || 'Mahindra Centuro PB65AA1257',
-        plate_number: captain?.vehicle?.plate_number || 'PB65AA1257',
+        captain_phone: resolvedPhone,
+        vehicle_model: resolvedModel,
+        plate_number: resolvedPlate,
         counter_fare: proposedFare,
       });
       setShowCounterModal(null);
       alert(`Offer of ₹${proposedFare} submitted! The passenger will review it in real-time.`);
     } catch (err: any) {
       alert(err.message || 'Failed to submit offer');
+    }
+  };
+
+  const handleUpdateCaptainProfile = async (updated: Partial<Captain>) => {
+    setCaptain((prev) => (prev ? { ...prev, ...updated } : null));
+
+    try {
+      const user = supabaseAuth.getCurrentUser();
+      if (user) {
+        if (updated.full_name) user.name = updated.full_name;
+        if (updated.phone) user.phone = updated.phone;
+        if (updated.vehicle?.model) user.vehicleModel = updated.vehicle.model;
+        if (updated.vehicle?.plate_number) user.plateNumber = updated.vehicle.plate_number;
+        localStorage.setItem('motoride_auth_user', JSON.stringify(user));
+      }
+    } catch {}
+
+    try {
+      const idToUpdate = captain?.id || captainId;
+      if (idToUpdate) {
+        if (updated.full_name || updated.phone) {
+          await motorideApi.updateCaptainProfile(idToUpdate, {
+            full_name: updated.full_name,
+            phone: updated.phone,
+          });
+        }
+        if (updated.vehicle) {
+          await motorideApi.updateCaptainVehicle(idToUpdate, {
+            model: updated.vehicle.model,
+            plate_number: updated.vehicle.plate_number,
+            vehicle_type: updated.vehicle.vehicle_type,
+            color: updated.vehicle.color,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to sync captain profile to server:', e);
     }
   };
 
@@ -1208,9 +1302,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         captain={captain}
-        onUpdateCaptain={(updated) => {
-          setCaptain((prev) => (prev ? { ...prev, ...updated } : null));
-        }}
+        onUpdateCaptain={handleUpdateCaptainProfile}
         onOpenWallet={onOpenWallet}
         onSignOut={onSignOut}
       />

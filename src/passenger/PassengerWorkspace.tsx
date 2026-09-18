@@ -727,8 +727,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     if (!activeRide) return;
     try {
       const updated = await motorideApi.acceptRide(activeRide.id, {
-        captain_id: 'cpt_vikram_01',
-        captain_name: 'Captain Vikram Singh',
+        captain_id: 'cpt_instant_01',
+        captain_name: 'Captain Nearby',
         captain_phone: '+91 98765 43210',
         vehicle_model: 'Honda Activa 6G',
         plate_number: 'PB65AA1257',
@@ -1044,7 +1044,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="font-black text-black text-sm">
-                          {activeRide.captain_name || 'Vikram Singh'}
+                          {activeRide.captain_name || 'Assigned Captain'}
                         </span>
                         <span className="flex items-center text-[10px] text-black bg-slate-200 border border-black/30 px-1.5 py-0.5 rounded font-bold">
                           <Star className="w-3 h-3 fill-black text-black mr-0.5" /> 4.92

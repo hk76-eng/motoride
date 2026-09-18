@@ -406,14 +406,10 @@ export const motorideApi = {
     };
 
     const existingOffers = updatedRide.offers || [];
-    updatedRide.offers = [...existingOffers, newOffer];
+    updatedRide.offers = [...existingOffers.filter((o) => o.captain_id !== offerData.captain_id), newOffer];
 
     localRidesStore.set(rideId, updatedRide);
     saveLocalRides();
-
-    // Broadcast counter offer to passenger immediately across devices
-    realtimeSync.broadcast('RIDE_OFFER_RECEIVED', { ride: updatedRide, offer: newOffer });
-    realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
 
     const supabase = getSupabase();
     if (supabase) {
@@ -425,7 +421,7 @@ export const motorideApi = {
       }
     }
 
-    safeFetchJson<{ ride: MotorideRide; offer: RideOffer }>(
+    const serverResult = await safeFetchJson<{ ride: MotorideRide; offer: RideOffer }>(
       `${API_BASE}/rides/${rideId}/offer`,
       {
         method: 'POST',
@@ -433,17 +429,34 @@ export const motorideApi = {
         body: JSON.stringify(offerData),
       },
       { ride: updatedRide, offer: newOffer }
-    ).catch(() => {});
+    );
 
-    return { ride: updatedRide, offer: newOffer };
+    const finalRide = serverResult?.ride || updatedRide;
+    const finalOffer = serverResult?.offer || newOffer;
+
+    localRidesStore.set(rideId, finalRide);
+    saveLocalRides();
+
+    // Broadcast counter offer to passenger immediately across devices
+    realtimeSync.broadcast('RIDE_OFFER_RECEIVED', { ride: finalRide, offer: finalOffer });
+    realtimeSync.broadcast('RIDE_UPDATED', finalRide);
+
+    return { ride: finalRide, offer: finalOffer };
   },
 
   async acceptCounterOffer(rideId: string, offerId: string): Promise<MotorideRide> {
     const existing = localRidesStore.get(rideId) || ({ id: rideId } as MotorideRide);
+    const acceptedOffer = (existing.offers || []).find((o) => o.id === offerId);
     const updatedRide: MotorideRide = {
       ...existing,
       id: rideId,
       status: 'captain_accepted',
+      captain_id: acceptedOffer?.captain_id || existing.captain_id,
+      captain_name: acceptedOffer?.captain_name || existing.captain_name,
+      captain_phone: acceptedOffer?.captain_phone || existing.captain_phone,
+      vehicle_model: acceptedOffer?.vehicle_model || existing.vehicle_model,
+      plate_number: acceptedOffer?.plate_number || existing.plate_number,
+      final_fare: acceptedOffer?.counter_fare || existing.final_fare || existing.offered_fare,
       updated_at: new Date().toISOString(),
     };
 
@@ -456,14 +469,22 @@ export const motorideApi = {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('rides').update({ status: 'captain_accepted' }).eq('id', rideId);
+        await supabase.from('rides').update({
+          status: 'captain_accepted',
+          captain_id: updatedRide.captain_id,
+          captain_name: updatedRide.captain_name,
+          captain_phone: updatedRide.captain_phone,
+          vehicle_model: updatedRide.vehicle_model,
+          plate_number: updatedRide.plate_number,
+          final_fare: updatedRide.final_fare,
+        }).eq('id', rideId);
         await supabase.from('ride_offers').update({ status: 'accepted' }).eq('id', offerId);
       } catch (err) {
         console.warn('Supabase accept counter offer notice:', err);
       }
     }
 
-    safeFetchJson<{ ride: MotorideRide }>(
+    const serverRes = await safeFetchJson<{ ride: MotorideRide }>(
       `${API_BASE}/rides/${rideId}/accept-offer`,
       {
         method: 'POST',
@@ -471,9 +492,12 @@ export const motorideApi = {
         body: JSON.stringify({ offer_id: offerId }),
       },
       { ride: updatedRide }
-    ).catch(() => {});
+    );
 
-    return updatedRide;
+    const finalRide = serverRes?.ride || updatedRide;
+    localRidesStore.set(rideId, finalRide);
+    saveLocalRides();
+    return finalRide;
   },
 
   async updateRideStatus(
@@ -754,6 +778,18 @@ export const motorideApi = {
       body: JSON.stringify({ is_online }),
     });
     return json?.captain || ({ id, is_online: Boolean(is_online) } as any);
+  },
+
+  async updateCaptainProfile(
+    id: string,
+    profileData: { full_name?: string; phone?: string; avatar_url?: string }
+  ): Promise<Captain> {
+    const json = await safeFetchJson<{ captain: Captain }>(`${API_BASE}/captains/${id}/profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profileData),
+    });
+    return json.captain;
   },
 
   async updateCaptainVehicle(
