@@ -554,7 +554,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         );
         if (current) {
           setActiveRide(current);
-          setIs100Full(false);
         }
       }
     } catch {}
@@ -605,7 +604,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         accepted_fare: ride.offered_fare,
       });
       setActiveRide(updated);
-      setIs100Full(false);
       setAvailableRides((prev) => prev.filter((r) => r.id !== ride.id));
     } catch (err: any) {
       alert(err.message || 'Ride was already accepted by another captain.');
