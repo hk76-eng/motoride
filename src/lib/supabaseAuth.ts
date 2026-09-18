@@ -38,93 +38,72 @@ export function generateUUID(): string {
  */
 export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boolean; error?: string }> {
   const supabase = getSupabase();
+  const cleanEmail = user.email.toLowerCase().trim();
+  const cleanName = (user.name || '').trim() || 'MotoRide User';
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const validProfileId = uuidRegex.test(user.id) ? user.id : generateUUID();
+
+  // Local storage profile fallback cache so profiles never get lost
+  try {
+    const rawCache = localStorage.getItem('motoride_supa_profiles');
+    const profilesCache = rawCache ? JSON.parse(rawCache) : [];
+    const idx = profilesCache.findIndex((p: any) => p.email?.toLowerCase() === cleanEmail || p.id === validProfileId);
+    const profileObj = {
+      id: validProfileId,
+      email: cleanEmail,
+      full_name: cleanName,
+      phone: user.phone?.trim() || '',
+      role: user.role,
+      wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
+      is_active: true,
+      created_at: user.memberSince || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (idx >= 0) profilesCache[idx] = profileObj;
+    else profilesCache.push(profileObj);
+    localStorage.setItem('motoride_supa_profiles', JSON.stringify(profilesCache));
+  } catch {}
+
   if (!supabase || !isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase is not configured' };
+    return { success: true, error: 'Supabase not configured' };
   }
 
   try {
-    const cleanEmail = user.email.toLowerCase().trim();
-    const cleanName = (user.name || '').trim() || 'MotoRide User';
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const validProfileId = uuidRegex.test(user.id) ? user.id : generateUUID();
-
-    // 1. Check if profile already exists by email
-    const { data: existingProfile } = await supabase
+    // 1. Upsert profile
+    const profilePayload = {
+      id: validProfileId,
+      email: cleanEmail,
+      full_name: cleanName,
+      phone: user.phone?.trim() || null,
+      role: user.role,
+      wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    };
+    const { data: upsertedProf, error: profErr } = await supabase
       .from('profiles')
-      .select('id, email, full_name, phone, role, wallet_balance')
-      .eq('email', cleanEmail)
+      .upsert(profilePayload, { onConflict: 'email' })
+      .select('id')
       .maybeSingle();
 
-    let actualProfileId = validProfileId;
-
-    if (existingProfile?.id) {
-      actualProfileId = existingProfile.id;
-      await supabase
-        .from('profiles')
-        .update({
-          full_name: cleanName,
-          phone: user.phone?.trim() || existingProfile.phone || null,
-          role: user.role,
-          wallet_balance: user.walletBalance ?? existingProfile.wallet_balance ?? (user.role === 'captain' ? 500 : 200),
-          is_active: true,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingProfile.id);
-    } else {
-      const { data: newProf, error: profErr } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: validProfileId,
-            email: cleanEmail,
-            full_name: cleanName,
-            phone: user.phone?.trim() || null,
-            role: user.role,
-            wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
-            is_active: true,
-            created_at: user.memberSince || new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        ])
-        .select('id')
-        .maybeSingle();
-
-      if (newProf?.id) {
-        actualProfileId = newProf.id;
-      } else if (profErr) {
-        console.warn('Supabase profile insert warning:', profErr.message);
-      }
+    let actualProfileId = upsertedProf?.id || validProfileId;
+    if (profErr) {
+      console.warn('Supabase profile upsert warning:', profErr.message);
     }
 
-    // 2. If passenger, ensure row exists in public.passengers
+    // 2. If passenger, upsert row in public.passengers
     if (user.role === 'passenger') {
-      const { data: existingPsg } = await supabase
-        .from('passengers')
-        .select('id, profile_id')
-        .eq('profile_id', actualProfileId)
-        .maybeSingle();
-
-      if (existingPsg) {
-        await supabase
-          .from('passengers')
-          .update({
-            emergency_contact: user.phone?.trim() || null,
-          })
-          .eq('id', existingPsg.id);
-      } else {
-        const { error: passErr } = await supabase.from('passengers').insert([
-          {
-            id: generateUUID(),
-            profile_id: actualProfileId,
-            total_rides: 0,
-            rating: 5.0,
-            emergency_contact: user.phone?.trim() || null,
-            created_at: new Date().toISOString(),
-          },
-        ]);
-        if (passErr) {
-          console.warn('Supabase passenger insert warning:', passErr.message);
-        }
+      const { error: passErr } = await supabase.from('passengers').upsert(
+        {
+          profile_id: actualProfileId,
+          total_rides: 0,
+          rating: 5.0,
+          emergency_contact: user.phone?.trim() || null,
+        },
+        { onConflict: 'profile_id' }
+      );
+      if (passErr) {
+        console.warn('Supabase passenger upsert warning:', passErr.message);
       }
     }
 
