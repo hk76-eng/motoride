@@ -21,6 +21,7 @@ import {
   getRideMessages,
   accountsStore,
   ServerRegisteredAccount,
+  persistDbToDisk,
 } from './motorideDb';
 import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain, Passenger } from '../src/types/motoride';
 import { backendHaversineDistanceKm } from './fareEngine';
@@ -1094,6 +1095,8 @@ motorideRouter.post('/auth/register', (req: Request, res: Response) => {
       broadcastEvent('PASSENGERS_UPDATED', Array.from(passengersStore.values()));
     }
 
+    persistDbToDisk();
+
     res.status(201).json({
       success: true,
       account: {
@@ -1173,9 +1176,95 @@ motorideRouter.post('/auth/login', (req: Request, res: Response) => {
         }
       }
 
-      return res.status(404).json({
-        success: false,
-        error: `No account found with email "${cleanEmail}". Please switch to "Create Account" tab to register.`,
+      // 3. Seamless Auto-Registration on first sign in!
+      // Eliminates the "No account found... switch to Create Account tab" blocker
+      const accountId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const now = new Date().toISOString();
+      const rawPrefix = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
+      const displayName = rawPrefix ? rawPrefix.charAt(0).toUpperCase() + rawPrefix.slice(1) : 'MotoRide User';
+
+      const newAccount: ServerRegisteredAccount = {
+        id: accountId,
+        email: cleanEmail,
+        password_hash: String(password).trim(),
+        name: displayName,
+        role: cleanRole,
+        phone: '',
+        vehicle_model: cleanRole === 'captain' ? 'Honda Activa 6G' : '',
+        plate_number: cleanRole === 'captain' ? `PB65XX${Math.floor(1000 + Math.random() * 9000)}` : '',
+        vehicle_type: 'bike',
+        wallet_balance: cleanRole === 'captain' ? 500 : 200,
+        member_since: now,
+        created_at: now,
+      };
+
+      accountsStore.set(exactKey, newAccount);
+      walletsStore.set(accountId, {
+        balance: newAccount.wallet_balance || 200,
+        currency: '₹',
+      });
+
+      if (cleanRole === 'captain') {
+        const cpt: Captain = {
+          id: accountId,
+          profile_id: `prof_${accountId}`,
+          full_name: newAccount.name,
+          email: cleanEmail,
+          phone: '',
+          is_online: true,
+          is_approved: true,
+          is_active: true,
+          current_lat: 30.7046 + (Math.random() - 0.5) * 0.05,
+          current_lng: 76.7178 + (Math.random() - 0.5) * 0.05,
+          rating: 4.95,
+          total_rides: 0,
+          vehicle: {
+            id: `veh_${accountId}`,
+            captain_id: accountId,
+            model: 'Honda Activa 6G',
+            plate_number: newAccount.plate_number || 'PB65XX1000',
+            vehicle_type: 'bike',
+            color: 'Black',
+            is_active: true,
+          },
+          created_at: now,
+        };
+        captainsStore.set(accountId, cpt);
+        broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
+      } else if (cleanRole === 'passenger') {
+        const psg: Passenger = {
+          id: accountId,
+          profile_id: `prof_${accountId}`,
+          full_name: newAccount.name,
+          email: cleanEmail,
+          phone: '',
+          total_rides: 0,
+          rating: 5.0,
+          wallet_balance: 200,
+          created_at: now,
+        };
+        passengersStore.set(accountId, psg);
+        broadcastEvent('PASSENGERS_UPDATED', Array.from(passengersStore.values()));
+      }
+
+      persistDbToDisk();
+
+      return res.json({
+        success: true,
+        is_new_account: true,
+        message: `Welcome! Your ${cleanRole} account has been created and signed in.`,
+        account: {
+          id: newAccount.id,
+          email: newAccount.email,
+          name: newAccount.name,
+          role: newAccount.role,
+          phone: newAccount.phone,
+          vehicle_model: newAccount.vehicle_model,
+          plate_number: newAccount.plate_number,
+          vehicle_type: newAccount.vehicle_type,
+          wallet_balance: newAccount.wallet_balance,
+          member_since: newAccount.member_since,
+        },
       });
     }
 

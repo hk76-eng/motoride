@@ -93,7 +93,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     setIsLoading(true);
     try {
-      const { user, error, roleSwitched } = await supabaseAuth.signIn({
+      const { user, error, roleSwitched, isNewAccount } = await supabaseAuth.signIn({
         email: signInEmail.trim(),
         password: signInPassword,
         role: selectedRole,
@@ -102,7 +102,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       if (error) {
         setErrorMessage(error);
       } else if (user) {
-        if (roleSwitched && user.role !== selectedRole) {
+        if (isNewAccount) {
+          setSuccessMessage(`Welcome to MotoRide! Account created for ${user.email}. Opening dashboard...`);
+          setTimeout(() => {
+            onAuthenticated(user);
+          }, 600);
+        } else if (roleSwitched && user.role !== selectedRole) {
           setSelectedRole(user.role);
           setSuccessMessage(`Found your registered ${user.role} account! Entering workspace...`);
           setTimeout(() => {

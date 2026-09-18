@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
   MotorideRide,
   Captain,
@@ -111,6 +113,61 @@ export const passengersStore = new Map<string, Passenger>();
 export const walletsStore = new Map<string, { balance: number; currency: string }>();
 
 export const walletTransactionsStore: WalletTransaction[] = [];
+
+// Persistent Disk Storage helpers for server container reliability
+const DATA_DIR = path.join(process.cwd(), 'data');
+const DB_FILE = path.join(DATA_DIR, 'motoride_db.json');
+
+export function persistDbToDisk() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    const data = {
+      accounts: Array.from(accountsStore.entries()),
+      captains: Array.from(captainsStore.entries()),
+      passengers: Array.from(passengersStore.entries()),
+      wallets: Array.from(walletsStore.entries()),
+    };
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Failed to persist DB to disk:', err);
+  }
+}
+
+export function loadDbFromDisk() {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      if (Array.isArray(data.accounts)) {
+        for (const [k, v] of data.accounts) {
+          if (v && v.email) accountsStore.set(k, v);
+        }
+      }
+      if (Array.isArray(data.captains)) {
+        for (const [k, v] of data.captains) {
+          if (v && v.id) captainsStore.set(k, v);
+        }
+      }
+      if (Array.isArray(data.passengers)) {
+        for (const [k, v] of data.passengers) {
+          if (v && v.id) passengersStore.set(k, v);
+        }
+      }
+      if (Array.isArray(data.wallets)) {
+        for (const [k, v] of data.wallets) {
+          if (k && v) walletsStore.set(k, v);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load DB from disk:', err);
+  }
+}
+
+// Automatically load existing persisted records on module startup
+loadDbFromDisk();
 
 // 6. Motoride Rides Store (Starts empty for fresh rides)
 export const ridesStore = new Map<string, MotorideRide>();

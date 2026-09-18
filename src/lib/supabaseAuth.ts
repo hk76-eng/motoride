@@ -327,7 +327,7 @@ export const supabaseAuth = {
     email: string;
     password?: string;
     role: UserRole;
-  }): Promise<{ user: AuthUser; error?: string; roleSwitched?: boolean }> {
+  }): Promise<{ user: AuthUser; error?: string; roleSwitched?: boolean; isNewAccount?: boolean }> {
     const cleanEmail = params.email.trim().toLowerCase();
     const cleanPass = (params.password || '').trim();
 
@@ -365,7 +365,11 @@ export const supabaseAuth = {
         };
         this.saveAccount({ ...authUser, passwordHash: cleanPass });
         this.setCurrentUser(authUser);
-        return { user: authUser, roleSwitched: Boolean(serverData.role_switched) };
+        return {
+          user: authUser,
+          roleSwitched: Boolean(serverData.role_switched),
+          isNewAccount: Boolean(serverData.is_new_account),
+        };
       } else if (serverData.error && serverData.error.toLowerCase().includes('password')) {
         return { user: null as any, error: serverData.error };
       }
@@ -415,10 +419,26 @@ export const supabaseAuth = {
       }
     }
 
-    return {
-      user: null as any,
-      error: `No account found with email "${cleanEmail}". Please switch to "Create Account" tab to register.`,
+    // 3. Fallback seamless provisioning: auto-register so user is never blocked
+    const userId = generateUUID();
+    const rawPrefix = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
+    const displayName = rawPrefix ? rawPrefix.charAt(0).toUpperCase() + rawPrefix.slice(1) : 'MotoRide User';
+    const authUser: AuthUser = {
+      id: userId,
+      email: cleanEmail,
+      name: displayName,
+      role: params.role,
+      phone: '',
+      vehicleModel: params.role === 'captain' ? 'Honda Activa 6G' : '',
+      plateNumber: params.role === 'captain' ? `PB65XX${Math.floor(1000 + Math.random() * 9000)}` : '',
+      vehicleType: 'bike',
+      walletBalance: params.role === 'captain' ? 500 : 200,
+      memberSince: new Date().toISOString(),
     };
+
+    this.saveAccount({ ...authUser, passwordHash: cleanPass });
+    this.setCurrentUser(authUser);
+    return { user: authUser, isNewAccount: true };
   },
 
   /**
