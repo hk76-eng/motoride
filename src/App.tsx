@@ -104,29 +104,6 @@ export default function App() {
         onToggleCaptainOnline={handleToggleCaptainOnline}
       />
 
-      {/* Cross-Device Multi-User Real-Time Sync Banner (Hidden in Passenger & Captain Apps) */}
-      {showTestingGuide && currentRole !== 'captain' && currentRole !== 'passenger' && (
-        <div className="bg-gradient-to-r from-emerald-950/70 via-slate-900 to-indigo-950/70 border-b border-slate-800/80 px-3 sm:px-6 py-2">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-bold text-white">Cross-Device Real-Time Sync Active:</span>
-              <span className="text-slate-300 hidden sm:inline">
-                Signed in as <b className="text-white">{currentUser.name}</b> ({currentUser.role}). Open this app on another tab/phone as{' '}
-                <b>{currentUser.role === 'passenger' ? 'Captain' : 'Passenger'}</b> to test live rides and offers!
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowTestingGuide(false)}
-              className="text-slate-400 hover:text-white text-[11px] font-semibold cursor-pointer shrink-0"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Main Workspace Render (Gated - Accessible only after authentication) */}
       <main className="flex-1 w-full relative">
         {currentRole === 'passenger' && (

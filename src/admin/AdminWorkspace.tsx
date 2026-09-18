@@ -157,9 +157,67 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     try {
       if (deleteTarget.type === 'captain') {
         await motorideApi.deleteCaptain(deleteTarget.id);
+        if (typeof window !== 'undefined') {
+          try {
+            const rawAcc = localStorage.getItem('motoride_registered_accounts');
+            if (rawAcc) {
+              const parsed = JSON.parse(rawAcc);
+              const filtered = parsed.filter(
+                (a: any) =>
+                  a.id !== deleteTarget.id &&
+                  a.email !== deleteTarget.id &&
+                  a.email !== deleteTarget.name
+              );
+              localStorage.setItem('motoride_registered_accounts', JSON.stringify(filtered));
+            }
+            const rawUsers = localStorage.getItem('motoride_users');
+            if (rawUsers) {
+              const parsedU = JSON.parse(rawUsers);
+              const filteredU = parsedU.filter(
+                (u: any) =>
+                  u.id !== deleteTarget.id &&
+                  u.email !== deleteTarget.id &&
+                  u.email !== deleteTarget.name
+              );
+              localStorage.setItem('motoride_users', JSON.stringify(filteredU));
+            }
+          } catch {}
+        }
+        if (selectedCaptain && (selectedCaptain.id === deleteTarget.id || selectedCaptain.email === deleteTarget.id)) {
+          setSelectedCaptain(null);
+        }
         showToast(`Captain "${deleteTarget.name}" permanently removed.`);
       } else if (deleteTarget.type === 'passenger') {
         await motorideApi.deletePassenger(deleteTarget.id);
+        if (typeof window !== 'undefined') {
+          try {
+            const rawAcc = localStorage.getItem('motoride_registered_accounts');
+            if (rawAcc) {
+              const parsed = JSON.parse(rawAcc);
+              const filtered = parsed.filter(
+                (a: any) =>
+                  a.id !== deleteTarget.id &&
+                  a.email !== deleteTarget.id &&
+                  a.email !== deleteTarget.name
+              );
+              localStorage.setItem('motoride_registered_accounts', JSON.stringify(filtered));
+            }
+            const rawUsers = localStorage.getItem('motoride_users');
+            if (rawUsers) {
+              const parsedU = JSON.parse(rawUsers);
+              const filteredU = parsedU.filter(
+                (u: any) =>
+                  u.id !== deleteTarget.id &&
+                  u.email !== deleteTarget.id &&
+                  u.email !== deleteTarget.name
+              );
+              localStorage.setItem('motoride_users', JSON.stringify(filteredU));
+            }
+          } catch {}
+        }
+        if (selectedPassenger && (selectedPassenger.id === deleteTarget.id || selectedPassenger.email === deleteTarget.id)) {
+          setSelectedPassenger(null);
+        }
         showToast(`Passenger "${deleteTarget.name}" permanently removed.`);
       } else if (deleteTarget.type === 'ride') {
         await motorideApi.deleteRide(deleteTarget.id);
@@ -1999,23 +2057,40 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
             {/* Modal Footer */}
             <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  handleToggleCaptainStatus(selectedCaptain.id, selectedCaptain.is_approved);
-                  setSelectedCaptain({
-                    ...selectedCaptain,
-                    is_approved: !selectedCaptain.is_approved,
-                  });
-                }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
-                  selectedCaptain.is_approved
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30'
-                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
-                }`}
-              >
-                {selectedCaptain.is_approved ? 'Suspend Captain Access' : 'Approve Captain Credentials'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleToggleCaptainStatus(selectedCaptain.id, selectedCaptain.is_approved);
+                    setSelectedCaptain({
+                      ...selectedCaptain,
+                      is_approved: !selectedCaptain.is_approved,
+                    });
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                    selectedCaptain.is_approved
+                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30'
+                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                  }`}
+                >
+                  {selectedCaptain.is_approved ? 'Suspend Captain Access' : 'Approve Captain Credentials'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteTarget({
+                      type: 'captain',
+                      id: selectedCaptain.id,
+                      name: selectedCaptain.full_name || 'Captain',
+                    });
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900/30 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Captain</span>
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -2251,17 +2326,34 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
             {/* Modal Footer */}
             <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery(selectedPassenger.full_name);
-                  setActiveTab('rides');
-                  setSelectedPassenger(null);
-                }}
-                className="px-4 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer"
-              >
-                Filter in Live Rides Monitor
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery(selectedPassenger.full_name);
+                    setActiveTab('rides');
+                    setSelectedPassenger(null);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer"
+                >
+                  Filter in Live Rides Monitor
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteTarget({
+                      type: 'passenger',
+                      id: selectedPassenger.id || selectedPassenger.profile_id,
+                      name: selectedPassenger.full_name || 'Passenger',
+                    });
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-900/30 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Passenger</span>
+                </button>
+              </div>
 
               <button
                 type="button"
