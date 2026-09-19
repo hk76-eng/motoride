@@ -328,18 +328,21 @@ motorideRouter.post('/rides/:id/accept', (req: Request, res: Response) => {
     }
   }
 
-  const resolvedCaptainName = (registeredCaptain?.full_name && registeredCaptain.full_name !== 'Vikram Singh' && registeredCaptain.full_name !== 'Captain')
-    ? registeredCaptain.full_name
-    : (captain_name && captain_name !== 'Vikram Singh' && captain_name !== 'Captain')
-      ? captain_name
-      : (registeredCaptain?.full_name || captain_name || 'Captain');
+  const resolvedCaptainName = (captain_name && captain_name !== 'Vikram Singh' && captain_name !== 'Captain')
+    ? captain_name
+    : (registeredCaptain?.full_name && registeredCaptain.full_name !== 'Vikram Singh' && registeredCaptain.full_name !== 'Captain')
+      ? registeredCaptain.full_name
+      : (captain_name || registeredCaptain?.full_name || 'Captain');
 
-  const resolvedVehicleModel = registeredCaptain?.vehicle?.model || vehicle_model || 'Bike';
-  const resolvedPlateNumber = registeredCaptain?.vehicle?.plate_number || plate_number || '';
-  const resolvedCaptainPhone = registeredCaptain?.phone || captain_phone || '';
+  const resolvedCaptainAvatar = req.body.captain_avatar || registeredCaptain?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+
+  const resolvedVehicleModel = vehicle_model || registeredCaptain?.vehicle?.model || 'Bike';
+  const resolvedPlateNumber = plate_number || registeredCaptain?.vehicle?.plate_number || '';
+  const resolvedCaptainPhone = captain_phone || registeredCaptain?.phone || '';
 
   ride.captain_id = captain_id;
   ride.captain_name = resolvedCaptainName;
+  ride.captain_avatar = resolvedCaptainAvatar;
   ride.captain_phone = resolvedCaptainPhone;
   ride.vehicle_model = resolvedVehicleModel;
   ride.plate_number = resolvedPlateNumber;
