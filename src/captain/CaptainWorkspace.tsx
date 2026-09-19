@@ -944,32 +944,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const renderCaptainControls = () => (
     <div className="flex flex-col gap-3 pb-4">
-      {/* Today's Income Card: Dynamically calculated from completed rides database */}
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-slate-50 border border-amber-500/30 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-xs shrink-0">
-            <IndianRupee className="w-5 h-5 stroke-[2.5]" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-              Today's Income
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-slate-900 font-mono-num">
-              Today's Income: ₹{todayIncome.toLocaleString('en-IN')}
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold font-mono-num flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            {todayCompletedRidesCount} {todayCompletedRidesCount === 1 ? 'ride' : 'rides'} today
-          </span>
-          <span className="text-[10px] text-slate-400 mt-1 font-medium">
-            Resets daily at 12:00 AM
-          </span>
-        </div>
-      </div>
-
       {activeRide ? (
         /* Active Trip Execution Card */
         <div className="bg-white border border-slate-200 rounded-3xl p-5 flex flex-col gap-4 shadow-xl">
@@ -1605,28 +1579,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                     is100Full ? 'border-b border-slate-200' : 'cursor-pointer hover:bg-slate-50 transition-colors'
                   }`}
                 >
-                  {/* Left: Live Requests Count + Today's Income */}
+                  {/* Left: Live Requests Count */}
                   <div className="flex items-center gap-2 min-w-0 flex-wrap">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono-num">
                       <Bike className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <span>{availableRides.length} Live Requests</span>
                     </div>
-                    <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold font-mono-num">
-                      <IndianRupee className="w-3.5 h-3.5 text-emerald-600 shrink-0 stroke-[2.5]" />
-                      <span>Today's Income: ₹{todayIncome.toLocaleString('en-IN')}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsRideHistoryOpen(true);
-                      }}
-                      className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 text-xs font-bold transition-colors cursor-pointer"
-                      title="View all completed trip history & receipts"
-                    >
-                      <History className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                      <span className="hidden sm:inline">Trip History</span>
-                    </button>
                   </div>
 
                   {/* Right: 100% Full / Minimize Tab Button */}
@@ -1685,23 +1643,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       >
         <span className="w-5 h-0.5 bg-amber-400 rounded-full group-hover:w-5.5 transition-all" />
         <span className="w-3.5 h-0.5 bg-amber-400 rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
-      </button>
-
-      {/* Trip History Quick Access Button in Top Bar */}
-      <button
-        type="button"
-        onClick={() => setIsRideHistoryOpen(true)}
-        title="View Trip & Earnings History"
-        aria-label="View Trip & Earnings History"
-        className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-18 z-[1100] px-3 sm:px-3.5 h-11 rounded-2xl bg-black/85 hover:bg-black text-white border border-amber-500/40 shadow-2xl backdrop-blur-xl flex items-center gap-2 active:scale-95 transition-all cursor-pointer group ring-1 ring-amber-500/20"
-      >
-        <History className="w-4 h-4 text-amber-400 group-hover:rotate-[-20deg] transition-transform" />
-        <span className="text-xs font-bold hidden xs:inline">Trip History</span>
-        {((captain?.total_rides ?? 0) > 0 || todayCompletedRidesCount > 0) && (
-          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] flex items-center justify-center font-mono-num">
-            {captain?.total_rides ?? todayCompletedRidesCount}
-          </span>
-        )}
       </button>
 
       {/* Captain Profile Slide-in Drawer from Left to Right */}

@@ -2007,23 +2007,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         <span className="w-3.5 h-0.5 bg-white rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
       </button>
 
-      {/* Ride History Quick Access Button in Top Bar */}
-      <button
-        type="button"
-        onClick={() => setIsRideHistoryOpen(true)}
-        title="View Ride History & Receipts"
-        aria-label="View Ride History & Receipts"
-        className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-18 z-[900] px-3 sm:px-3.5 h-11 rounded-2xl bg-black/85 hover:bg-black text-white border border-white/20 shadow-2xl backdrop-blur-xl flex items-center gap-2 active:scale-95 transition-all cursor-pointer group"
-      >
-        <History className="w-4 h-4 text-emerald-400 group-hover:rotate-[-20deg] transition-transform" />
-        <span className="text-xs font-bold hidden xs:inline">Ride History</span>
-        {rideHistory.filter((r) => r.status === 'trip_completed' || r.status === 'completed').length > 0 && (
-          <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-black text-[10px] flex items-center justify-center font-mono-num">
-            {rideHistory.filter((r) => r.status === 'trip_completed' || r.status === 'completed').length}
-          </span>
-        )}
-      </button>
-
       {/* Passenger Profile Slide-in Drawer from Left to Right */}
       <PassengerProfileDrawer
         isOpen={isProfileOpen}
