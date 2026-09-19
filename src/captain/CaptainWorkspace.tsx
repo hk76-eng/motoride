@@ -1294,10 +1294,162 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   return (
     <div className="relative w-full h-[calc(100dvh-64px)] sm:h-[calc(100vh-68px)] overflow-hidden bg-slate-950">
-      {/* Background Street View Map filling 100% of the canvas */}
-      <div className="absolute inset-0 w-full h-full z-0">
-        {renderCaptainMap(true)}
-      </div>
+      {activeRide ? (
+        /* Active Ride Split View: Top Half Map (50%), Bottom Half Ride Details (50%) with 50% Half Drop Down Button */
+        <div className="absolute inset-0 w-full h-full flex flex-col z-0">
+          {/* Top Half Map (50% height) with A and B locations */}
+          <div className="w-full h-[50vh] relative z-0 border-b-2 border-black shrink-0">
+            {renderCaptainMap(true)}
+          </div>
+
+          {/* Bottom Half Active Ride Details (50% height) */}
+          <div className="w-full flex-1 bg-white border-t-2 border-black shadow-[0_-12px_45px_rgba(0,0,0,0.25)] flex flex-col overflow-hidden relative z-10">
+            {/* Header with 50% Half Drop Down / Toggle Button */}
+            <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between select-none shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-xs font-black text-slate-900 truncate">
+                  Active Trip • #{activeRide.ride_code} ({activeRide.status.replace(/_/g, ' ')})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIs100Full((prev) => !prev)}
+                className="px-3 py-1.5 rounded-xl bg-black text-white text-[11px] font-black flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer border border-slate-800"
+                title="Toggle 50% Half Screen View / 100% Full"
+              >
+                <span>{is100Full ? '50% Half Drop Down' : 'Expand 100%'}</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white">
+              {renderCaptainControls()}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Background Street View Map filling 100% of the canvas */}
+          <div className="absolute inset-0 w-full h-full z-0">
+            {renderCaptainMap(true)}
+          </div>
+
+          {/* Center Main Page: Captain Live Ride Requests Page (100% Full / Minimized to Bottom View / Inspected Ride Route Details) */}
+          <div
+            className={`fixed sm:absolute bottom-0 left-1/2 -translate-x-1/2 z-[1000] transition-all duration-300 ease-out flex flex-col ${
+              is100Full
+                ? 'inset-0 w-full h-full max-w-full'
+                : inspectedRide && !activeRide
+                ? 'h-auto max-h-[58dvh] sm:max-h-[52vh] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
+                : 'h-16 sm:h-[72px] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
+            }`}
+          >
+            <div
+              className={`w-full h-full bg-white border-t border-slate-200 shadow-[0_-12px_45px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden ring-1 ring-slate-200 ${
+                is100Full ? 'rounded-none border-x-0' : 'rounded-t-3xl sm:border-x sm:border-slate-200'
+              }`}
+            >
+              {/* Header Bar */}
+              {inspectedRide && !activeRide && !is100Full ? (
+                <div className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white border-b border-slate-200 flex items-center justify-between select-none shadow-xs">
+                  {/* Left: Location A & B Route Indicator */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                      Ride Details & Route Map (A & B)
+                    </span>
+                    <span className="text-[11px] font-mono-num font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hidden xs:inline">
+                      {inspectedRide.ride_code}
+                    </span>
+                  </div>
+
+                  {/* Right: Close & Maximize buttons */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setIs100Full(true)}
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300"
+                      title="View all requests list"
+                    >
+                      All Requests
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInspectedRide(null);
+                        setIs100Full(true);
+                      }}
+                      className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-300"
+                      title="Close inspected ride"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={(e) => {
+                    // If minimized and user clicks on empty bar area, maximize to 100%
+                    if (!is100Full && (e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
+                      setIs100Full(true);
+                    }
+                  }}
+                  className={`px-3.5 sm:px-5 py-2.5 sm:py-3 bg-white flex items-center justify-between relative select-none shadow-sm ${
+                    is100Full ? 'border-b border-slate-200' : 'cursor-pointer hover:bg-slate-50 transition-colors'
+                  }`}
+                >
+                  {/* Left: Live Requests Count */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono-num">
+                      <Bike className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>{availableRides.length} Live Requests</span>
+                    </div>
+                  </div>
+
+                  {/* Right: 100% Full / Minimize Tab Button */}
+                  <div className="flex items-center justify-end min-w-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIs100Full((prev) => !prev);
+                      }}
+                      className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer border shadow-sm ${
+                        is100Full
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-amber-500/20 hover:bg-amber-400'
+                          : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border-amber-300'
+                      }`}
+                      title={is100Full ? 'Click to Minimize to Bottom of Page' : 'Click to Maximize to 100% Full'}
+                    >
+                      {is100Full ? (
+                        <>
+                          <Minimize2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span className="hidden xs:inline font-mono-num">Minimize</span>
+                        </>
+                      ) : (
+                        <>
+                          <Maximize2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span className="font-mono-num">100% Full</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Main Interior Content */}
+              {inspectedRide && !activeRide && !is100Full ? (
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
+                  {renderInspectedRideDetails(inspectedRide)}
+                </div>
+              ) : is100Full ? (
+                <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 py-4 scrollbar-thin bg-white">
+                  {renderCaptainControls()}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Captain Profile 2-Lines Button in Left Top Corner of Main Page */}
       <button
@@ -1337,123 +1489,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           </button>
         </div>
       )}
-
-
-      {/* Center Main Page: Captain Live Ride Requests Page (100% Full / Minimized to Bottom View / Inspected Ride Route Details) */}
-      <div
-        className={`fixed sm:absolute bottom-0 left-1/2 -translate-x-1/2 z-[1000] transition-all duration-300 ease-out flex flex-col ${
-          is100Full
-            ? 'inset-0 w-full h-full max-w-full'
-            : inspectedRide && !activeRide
-            ? 'h-auto max-h-[58dvh] sm:max-h-[52vh] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
-            : 'h-16 sm:h-[72px] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
-        }`}
-      >
-        <div
-          className={`w-full h-full bg-white border-t border-slate-200 shadow-[0_-12px_45px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden ring-1 ring-slate-200 ${
-            is100Full ? 'rounded-none border-x-0' : 'rounded-t-3xl sm:border-x sm:border-slate-200'
-          }`}
-        >
-          {/* Header Bar */}
-          {inspectedRide && !activeRide && !is100Full ? (
-            <div className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white border-b border-slate-200 flex items-center justify-between select-none shadow-xs">
-              {/* Left: Location A & B Route Indicator */}
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
-                  Ride Details & Route Map (A & B)
-                </span>
-                <span className="text-[11px] font-mono-num font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hidden xs:inline">
-                  {inspectedRide.ride_code}
-                </span>
-              </div>
-
-              {/* Right: Close & Maximize buttons */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setIs100Full(true)}
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300"
-                  title="View all requests list"
-                >
-                  All Requests
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInspectedRide(null);
-                    setIs100Full(true);
-                  }}
-                  className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-300"
-                  title="Close inspected ride"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div
-              onClick={(e) => {
-                // If minimized and user clicks on empty bar area, maximize to 100%
-                if (!is100Full && (e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
-                  setIs100Full(true);
-                }
-              }}
-              className={`px-3.5 sm:px-5 py-2.5 sm:py-3 bg-white flex items-center justify-between relative select-none shadow-sm ${
-                is100Full ? 'border-b border-slate-200' : 'cursor-pointer hover:bg-slate-50 transition-colors'
-              }`}
-            >
-              {/* Left: Live Requests Count */}
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono-num">
-                  <Bike className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <span>{availableRides.length} Live Requests</span>
-                </div>
-              </div>
-
-              {/* Right: 100% Full / Minimize Tab Button */}
-              <div className="flex items-center justify-end min-w-0">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIs100Full((prev) => !prev);
-                  }}
-                  className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer border shadow-sm ${
-                    is100Full
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-amber-500/20 hover:bg-amber-400'
-                      : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border-amber-300'
-                  }`}
-                  title={is100Full ? 'Click to Minimize to Bottom of Page' : 'Click to Maximize to 100% Full'}
-                >
-                  {is100Full ? (
-                    <>
-                      <Minimize2 className="w-3.5 h-3.5 stroke-[2.5]" />
-                      <span className="hidden xs:inline font-mono-num">Minimize</span>
-                    </>
-                  ) : (
-                    <>
-                      <Maximize2 className="w-3.5 h-3.5 stroke-[2.5]" />
-                      <span className="font-mono-num">100% Full</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Main Interior Content */}
-          {inspectedRide && !activeRide && !is100Full ? (
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
-              {renderInspectedRideDetails(inspectedRide)}
-            </div>
-          ) : is100Full ? (
-            <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 py-4 scrollbar-thin bg-white">
-              {renderCaptainControls()}
-            </div>
-          ) : null}
-        </div>
-      </div>
 
       {showChatModal && activeRide && (
         <div className="fixed inset-0 z-[2000] bg-slate-950 flex flex-col p-4 sm:p-6 md:p-8 animate-in fade-in duration-150">
