@@ -1035,7 +1035,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="relative shrink-0">
                       <img
-                        src={getCaptainAvatarUrl(activeRide.captain_name || undefined)}
+                        src={getCaptainAvatarUrl(activeRide.captain_name || undefined, (activeRide as any).captain_avatar || (activeRide as any).avatar_url)}
                         alt={activeRide.captain_name || 'Captain'}
                         referrerPolicy="no-referrer"
                         className="w-12 h-12 rounded-full object-cover border-2 border-black bg-slate-200 shadow-xs"

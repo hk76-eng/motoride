@@ -320,6 +320,7 @@ export const motorideApi = {
     captainData: {
       captain_id: string;
       captain_name: string;
+      captain_avatar?: string;
       captain_phone?: string;
       vehicle_model?: string;
       plate_number?: string;
@@ -333,6 +334,7 @@ export const motorideApi = {
       status: 'captain_accepted',
       captain_id: captainData.captain_id,
       captain_name: captainData.captain_name,
+      captain_avatar: (captainData as any).captain_avatar || localStorage.getItem('motoride_captain_avatar') || undefined,
       captain_phone: captainData.captain_phone,
       vehicle_model: captainData.vehicle_model,
       plate_number: captainData.plate_number,

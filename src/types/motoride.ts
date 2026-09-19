@@ -85,6 +85,7 @@ export interface MotorideRide {
   passenger_phone?: string;
   captain_id?: string | null;
   captain_name?: string | null;
+  captain_avatar?: string | null;
   captain_phone?: string | null;
   vehicle_model?: string | null;
   plate_number?: string | null;

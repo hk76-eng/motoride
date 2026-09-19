@@ -64,18 +64,24 @@ export function enrichRideWithRegisteredCaptainData(ride: MotorideRide): Motorid
 
   if (ride.captain_id) {
     const cpt = captainsStore.get(ride.captain_id);
-    if (cpt && cpt.full_name && cpt.full_name !== 'Vikram Singh' && cpt.full_name !== 'Captain') {
-      ride.captain_name = cpt.full_name;
-      if (cpt.vehicle?.model) ride.vehicle_model = cpt.vehicle.model;
-      if (cpt.vehicle?.plate_number) ride.plate_number = cpt.vehicle.plate_number;
-      if (cpt.phone) ride.captain_phone = cpt.phone;
+    if (cpt) {
+      if (cpt.avatar_url) ride.captain_avatar = cpt.avatar_url;
+      if (cpt.full_name && cpt.full_name !== 'Vikram Singh' && cpt.full_name !== 'Captain' && (!ride.captain_name || ride.captain_name === 'Vikram Singh' || ride.captain_name === 'Captain')) {
+        ride.captain_name = cpt.full_name;
+      }
+      if (cpt.vehicle?.model && (!ride.vehicle_model || ride.vehicle_model === 'Bike')) ride.vehicle_model = cpt.vehicle.model;
+      if (cpt.vehicle?.plate_number && !ride.plate_number) ride.plate_number = cpt.vehicle.plate_number;
+      if (cpt.phone && !ride.captain_phone) ride.captain_phone = cpt.phone;
     } else {
       for (const acc of accountsStore.values()) {
-        if (acc.id === ride.captain_id && acc.name) {
-          ride.captain_name = acc.name;
-          if (acc.vehicle_model) ride.vehicle_model = acc.vehicle_model;
-          if (acc.plate_number) ride.plate_number = acc.plate_number;
-          if (acc.phone) ride.captain_phone = acc.phone;
+        if (acc.id === ride.captain_id) {
+          if (acc.avatar_url) ride.captain_avatar = acc.avatar_url;
+          if (acc.name && acc.name !== 'Vikram Singh' && acc.name !== 'Captain' && (!ride.captain_name || ride.captain_name === 'Vikram Singh' || ride.captain_name === 'Captain')) {
+            ride.captain_name = acc.name;
+          }
+          if (acc.vehicle_model && !ride.vehicle_model) ride.vehicle_model = acc.vehicle_model;
+          if (acc.plate_number && !ride.plate_number) ride.plate_number = acc.plate_number;
+          if (acc.phone && !ride.captain_phone) ride.captain_phone = acc.phone;
           break;
         }
       }
@@ -86,16 +92,22 @@ export function enrichRideWithRegisteredCaptainData(ride: MotorideRide): Motorid
     ride.offers.forEach((offer) => {
       if (offer.captain_id) {
         const cpt = captainsStore.get(offer.captain_id);
-        if (cpt && cpt.full_name && cpt.full_name !== 'Vikram Singh' && cpt.full_name !== 'Captain') {
-          offer.captain_name = cpt.full_name;
+        if (cpt) {
+          if (cpt.avatar_url) offer.captain_avatar = cpt.avatar_url;
+          if (cpt.full_name && cpt.full_name !== 'Vikram Singh' && cpt.full_name !== 'Captain' && (!offer.captain_name || offer.captain_name === 'Vikram Singh' || offer.captain_name === 'Captain')) {
+            offer.captain_name = cpt.full_name;
+          }
           if (cpt.vehicle?.model) offer.vehicle_model = cpt.vehicle.model;
           if (cpt.vehicle?.plate_number) offer.plate_number = cpt.vehicle.plate_number;
           if (cpt.phone) offer.captain_phone = cpt.phone;
           if (cpt.rating) offer.rating = cpt.rating;
         } else {
           for (const acc of accountsStore.values()) {
-            if (acc.id === offer.captain_id && acc.name) {
-              offer.captain_name = acc.name;
+            if (acc.id === offer.captain_id) {
+              if (acc.avatar_url) offer.captain_avatar = acc.avatar_url;
+              if (acc.name && acc.name !== 'Vikram Singh' && acc.name !== 'Captain' && (!offer.captain_name || offer.captain_name === 'Vikram Singh' || offer.captain_name === 'Captain')) {
+                offer.captain_name = acc.name;
+              }
               if (acc.vehicle_model) offer.vehicle_model = acc.vehicle_model;
               if (acc.plate_number) offer.plate_number = acc.plate_number;
               if (acc.phone) offer.captain_phone = acc.phone;
