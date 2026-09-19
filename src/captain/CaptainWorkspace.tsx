@@ -628,13 +628,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       return;
     }
     try {
-      const resolvedName = (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
+      const localName = localStorage.getItem('motoride_captain_name');
+      const resolvedName = (localName && localName !== 'Captain')
+        ? localName
+        : (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
         ? captain.full_name
         : (resolvedInitialName !== 'Captain' ? resolvedInitialName : (authUser?.name || 'Captain'));
-      const resolvedPhone = captain?.phone || authUser?.phone || '';
-      const resolvedModel = captain?.vehicle?.model || authUser?.vehicleModel || 'Honda Activa 6G';
-      const resolvedPlate = captain?.vehicle?.plate_number || authUser?.plateNumber || 'PB65XX1000';
 
+      const resolvedPhone = localStorage.getItem('motoride_captain_phone') || captain?.phone || authUser?.phone || '';
+      const resolvedModel = localStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || authUser?.vehicleModel || 'Honda Activa 6G';
+      const resolvedPlate = localStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || authUser?.plateNumber || 'PB65XX1000';
       const captainSavedAvatar = localStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
       await motorideApi.sendCounterOffer(rideId, {
         captain_id: captain?.id || captainId,

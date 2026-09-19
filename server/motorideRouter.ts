@@ -423,15 +423,17 @@ motorideRouter.post('/rides/:id/offer', (req: Request, res: Response) => {
     }
   }
 
-  const resolvedCaptainName = (registeredCaptain?.full_name && registeredCaptain.full_name !== 'Vikram Singh' && registeredCaptain.full_name !== 'Captain')
-    ? registeredCaptain.full_name
-    : (captain_name && captain_name !== 'Vikram Singh' && captain_name !== 'Captain')
-      ? captain_name
-      : (registeredCaptain?.full_name || captain_name || 'Captain');
+  const resolvedCaptainName = (captain_name && captain_name !== 'Vikram Singh' && captain_name !== 'Captain')
+    ? captain_name
+    : (registeredCaptain?.full_name && registeredCaptain.full_name !== 'Vikram Singh' && registeredCaptain.full_name !== 'Captain')
+      ? registeredCaptain.full_name
+      : (captain_name || registeredCaptain?.full_name || 'Captain');
 
-  const resolvedVehicleModel = registeredCaptain?.vehicle?.model || vehicle_model || 'Honda Activa 6G';
-  const resolvedPlateNumber = registeredCaptain?.vehicle?.plate_number || plate_number || 'PB65XX1000';
-  const resolvedCaptainPhone = registeredCaptain?.phone || captain_phone || '';
+  const resolvedCaptainAvatar = req.body.captain_avatar || registeredCaptain?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+
+  const resolvedVehicleModel = vehicle_model || registeredCaptain?.vehicle?.model || 'Honda Activa 6G';
+  const resolvedPlateNumber = plate_number || registeredCaptain?.vehicle?.plate_number || 'PB65XX1000';
+  const resolvedCaptainPhone = captain_phone || registeredCaptain?.phone || '';
   const resolvedRating = registeredCaptain?.rating || Number(rating) || 4.95;
 
   const offer: RideOffer = {
@@ -439,6 +441,7 @@ motorideRouter.post('/rides/:id/offer', (req: Request, res: Response) => {
     ride_id: ride.id,
     captain_id,
     captain_name: resolvedCaptainName,
+    captain_avatar: resolvedCaptainAvatar,
     captain_phone: resolvedCaptainPhone,
     vehicle_model: resolvedVehicleModel,
     plate_number: resolvedPlateNumber,
