@@ -1341,33 +1341,64 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   return (
     <div className="relative w-full h-[calc(100dvh-64px)] sm:h-[calc(100vh-68px)] overflow-hidden bg-slate-950">
       {activeRide ? (
-        /* Active Ride Split View: Top Half Map (50%), Bottom Half Ride Details (50%) with 50% Half Drop Down Button */
+        /* Active Ride Split View: Top Half Map (50%), Bottom Half Ride Details (50%) with 50% / 100% Toggle Switch */
         <div className="absolute inset-0 w-full h-full flex flex-col z-0">
-          {/* Top Half Map (50% height) with A and B locations */}
-          <div className="w-full h-[50vh] relative z-0 border-b-2 border-black shrink-0">
+          {/* Top Map: 50% height in 50% mode, hidden/0% in 100% details mode */}
+          <div
+            className={`w-full transition-all duration-300 ease-in-out relative z-0 border-b-2 border-black shrink-0 ${
+              is100Full ? 'h-0 overflow-hidden border-b-0 opacity-0 pointer-events-none' : 'h-[50dvh] sm:h-1/2 opacity-100'
+            }`}
+          >
             {renderCaptainMap(true)}
           </div>
 
-          {/* Bottom Half Active Ride Details (50% height) */}
-          <div className="w-full flex-1 bg-white border-t-2 border-black shadow-[0_-12px_45px_rgba(0,0,0,0.25)] flex flex-col overflow-hidden relative z-10">
-            {/* Header with 50% Half Drop Down / Toggle Button */}
-            <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between select-none shrink-0">
-              <div className="flex items-center gap-2">
+          {/* Bottom Active Ride Details: 50% in split mode, 100% in full mode */}
+          <div
+            className={`w-full flex-1 bg-white border-t-2 border-black shadow-[0_-12px_45px_rgba(0,0,0,0.25)] flex flex-col overflow-hidden relative z-10 transition-all duration-300 ease-in-out ${
+              is100Full ? 'h-full' : 'h-[50dvh] sm:h-1/2'
+            }`}
+          >
+            {/* Header with 50% / 100% Toggle Switch */}
+            <div className="px-3.5 sm:px-5 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between select-none shrink-0 shadow-xs">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span className="text-xs font-black text-slate-900 truncate">
+                <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
                   Active Trip • #{activeRide.ride_code} ({activeRide.status.replace(/_/g, ' ')})
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setIs100Full((prev) => !prev)}
-                className="px-3 py-1.5 rounded-xl bg-black text-white text-[11px] font-black flex items-center gap-1.5 shadow-md active:scale-95 cursor-pointer border border-slate-800"
-                title="Toggle 50% Half Screen View / 100% Full"
-              >
-                <span>{is100Full ? '50% Half Drop Down' : 'Expand 100%'}</span>
-              </button>
+
+              {/* 50% & 100% Toggle Switch Control */}
+              <div className="flex items-center bg-slate-200/90 p-1 rounded-xl border border-slate-300 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIs100Full(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                    !is100Full
+                      ? 'bg-black text-white shadow-sm'
+                      : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/70'
+                  }`}
+                  title="50% Half Screen View (Split Map & Details)"
+                >
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  <span>50%</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIs100Full(true)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                    is100Full
+                      ? 'bg-black text-white shadow-sm'
+                      : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/70'
+                  }`}
+                  title="100% Full Screen (Expand Trip Details)"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>100%</span>
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin bg-white">
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
               {renderCaptainControls()}
             </div>
           </div>
