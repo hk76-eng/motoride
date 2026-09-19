@@ -8,6 +8,7 @@ import {
 import { MotorideMap, AvailableCaptainItem } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
 import { PassengerProfileDrawer } from './PassengerProfileDrawer';
+import { DigitalWatchETA } from './DigitalWatchETA';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees } from '../utils/distanceCalculator';
@@ -1207,6 +1208,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               activeRide.status === 'captain_arrived' ||
               activeRide.status === 'trip_started') && (
               <div className="flex flex-col gap-4 text-black">
+                {/* Digital Watch on Top of Ride Details showing Captain Coming ETA to Location A */}
+                <DigitalWatchETA
+                  ride={activeRide}
+                  captainLat={animatedCaptainPos?.lat ?? activeRide.captain_current_lat}
+                  captainLng={animatedCaptainPos?.lng ?? activeRide.captain_current_lng}
+                  variant="card-header"
+                />
+
                 {/* Captain Details Box */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-black flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -1976,6 +1985,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         <span className="w-5 h-0.5 bg-white rounded-full group-hover:w-5.5 transition-all" />
         <span className="w-3.5 h-0.5 bg-white rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
       </button>
+
+      {/* Floating Top Digital Watch HUD on Passenger Screen showing Captain Coming ETA to Location A */}
+      {activeRide && (activeRide.status === 'captain_accepted' || activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started') && (
+        <div className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-20 z-[950] max-w-[calc(100vw-5rem)] sm:max-w-md">
+          <DigitalWatchETA
+            ride={activeRide}
+            captainLat={animatedCaptainPos?.lat ?? activeRide.captain_current_lat}
+            captainLng={animatedCaptainPos?.lng ?? activeRide.captain_current_lng}
+            variant="floating-top"
+            onExpandCard={() => setIsCardMinimized(false)}
+          />
+        </div>
+      )}
 
       {/* Passenger Profile Slide-in Drawer from Left to Right */}
       <PassengerProfileDrawer
