@@ -53,13 +53,13 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   onSignOut,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(() => captain?.full_name || localStorage.getItem('motoride_captain_name') || 'Captain');
-  const [phone, setPhone] = useState(() => captain?.phone || localStorage.getItem('motoride_captain_phone') || '');
-  const [email, setEmail] = useState(() => captain?.email || localStorage.getItem('motoride_captain_email') || '');
-  const [vehicleModel, setVehicleModel] = useState(() => captain?.vehicle?.model || localStorage.getItem('motoride_captain_vehicle_model') || 'Honda Activa 6G');
-  const [plateNumber, setPlateNumber] = useState(() => captain?.vehicle?.plate_number || localStorage.getItem('motoride_captain_plate') || 'PB65XX1000');
-  const [drivingLicense, setDrivingLicense] = useState(() => (captain as any)?.license_number || localStorage.getItem('motoride_captain_dl') || 'DL-0420180098765');
-  const [emergencyContact, setEmergencyContact] = useState(() => (captain as any)?.emergency_contact || localStorage.getItem('motoride_captain_sos') || '+91 98111 22334');
+  const [name, setName] = useState(() => localStorage.getItem('motoride_captain_name') || captain?.full_name || 'Captain');
+  const [phone, setPhone] = useState(() => localStorage.getItem('motoride_captain_phone') || captain?.phone || '');
+  const [email, setEmail] = useState(() => localStorage.getItem('motoride_captain_email') || captain?.email || '');
+  const [vehicleModel, setVehicleModel] = useState(() => localStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || 'Honda Activa 6G');
+  const [plateNumber, setPlateNumber] = useState(() => localStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || 'PB65XX1000');
+  const [drivingLicense, setDrivingLicense] = useState(() => localStorage.getItem('motoride_captain_dl') || (captain as any)?.license_number || 'DL-0420180098765');
+  const [emergencyContact, setEmergencyContact] = useState(() => localStorage.getItem('motoride_captain_sos') || (captain as any)?.emergency_contact || '+91 98111 22334');
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Captain profile saved successfully!');
   
@@ -163,14 +163,24 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync prop changes
+  // Sync prop changes without overwriting local storage edits
   useEffect(() => {
     if (captain) {
-      if (captain.full_name) setName(captain.full_name);
-      if (captain.phone) setPhone(captain.phone);
-      if (captain.email) setEmail(captain.email);
-      if (captain.vehicle?.model) setVehicleModel(captain.vehicle.model);
-      if (captain.vehicle?.plate_number) setPlateNumber(captain.vehicle.plate_number);
+      if (captain.full_name && captain.full_name !== 'Captain' && !localStorage.getItem('motoride_captain_name')) {
+        setName(captain.full_name);
+      }
+      if (captain.phone && !localStorage.getItem('motoride_captain_phone')) {
+        setPhone(captain.phone);
+      }
+      if (captain.email && !localStorage.getItem('motoride_captain_email')) {
+        setEmail(captain.email);
+      }
+      if (captain.vehicle?.model && !localStorage.getItem('motoride_captain_vehicle_model')) {
+        setVehicleModel(captain.vehicle.model);
+      }
+      if (captain.vehicle?.plate_number && !localStorage.getItem('motoride_captain_plate')) {
+        setPlateNumber(captain.vehicle.plate_number);
+      }
     }
   }, [captain]);
 
