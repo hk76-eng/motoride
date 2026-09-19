@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { UserRole } from '../../types/motoride';
 import {
   User,
@@ -6,8 +6,6 @@ import {
   ArrowLeftRight,
   Shield,
 } from 'lucide-react';
-import { realtimeSync } from '../../services/realtimeSync';
-import { isSupabaseConfigured } from '../../lib/supabase';
 import { AuthUser } from '../../lib/supabaseAuth';
 
 interface WorkspaceHeaderProps {
@@ -31,17 +29,6 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   isCaptainOnline = true,
   onToggleCaptainOnline,
 }) => {
-  const [isLiveConnected, setIsLiveConnected] = useState(true);
-  const [supabaseActive, setSupabaseActive] = useState(isSupabaseConfigured());
-
-  useEffect(() => {
-    const unsub = realtimeSync.on('CONNECTION_STATUS', (data) => {
-      setIsLiveConnected(data.connected);
-    });
-    setSupabaseActive(isSupabaseConfigured());
-    return () => unsub();
-  }, []);
-
   const handleToggleApp = () => {
     if (currentRole === 'passenger') {
       onRoleChange('captain');
@@ -65,30 +52,16 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                 (e.currentTarget as HTMLImageElement).style.display = 'none';
               }}
             />
-            <div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-extrabold tracking-tight text-white text-base">
-                  Motoride
-                </span>
-                <span className="text-[11px] text-emerald-400 font-semibold hidden xs:inline">
-                  – Ride & Courier Booking
-                </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">
-                  Live
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                <span className="flex items-center gap-1">
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      isLiveConnected ? 'bg-emerald-400 animate-pulse' : 'bg-rose-500'
-                    }`}
-                  />
-                  <span className="font-medium text-[10px] sm:text-[11px]">
-                    {supabaseActive ? 'Supabase Realtime Cloud' : 'Realtime Sync'}
-                  </span>
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-extrabold tracking-tight text-white text-base">
+                Motoride
+              </span>
+              <span className="text-[11px] text-emerald-400 font-semibold hidden xs:inline">
+                – Ride & Courier Booking
+              </span>
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-wide">
+                Live
+              </span>
             </div>
           </div>
         </div>

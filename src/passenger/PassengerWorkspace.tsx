@@ -1485,34 +1485,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => setRideType('auto')}
-                  className={`p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
-                    rideType === 'auto'
-                      ? 'scale-125 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)] bg-white ring-2 ring-black border border-black shadow-md'
-                      : 'opacity-60 hover:opacity-100'
-                  }`}
-                  title="Auto"
-                  aria-label="Auto"
-                >
-                  <span className="text-2xl leading-none">🛺</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRideType('car')}
-                  className={`p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
-                    rideType === 'car'
-                      ? 'text-black scale-125 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)] bg-white ring-2 ring-black border border-black shadow-md'
-                      : 'text-slate-600 hover:text-black'
-                  }`}
-                  title="Comfort AC Cab"
-                  aria-label="Comfort AC Cab"
-                >
-                  <Car className="w-6 h-6 stroke-[2.5]" />
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => setRideType('courier')}
                   className={`p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
                     rideType === 'courier'
