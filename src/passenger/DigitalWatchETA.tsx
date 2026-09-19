@@ -29,8 +29,12 @@ export const DigitalWatchETA: React.FC<DigitalWatchETAProps> = ({
   }, []);
 
   const isAccepted = ride.status === 'captain_accepted';
-  const isArrived = ride.status === 'captain_arrived';
   const isTripStarted = ride.status === 'trip_started';
+
+  // Do NOT show ETA or distance if captain has arrived, or if ride is completed/cancelled
+  if (ride.status === 'captain_arrived' || ride.status === 'completed' || ride.status === 'cancelled') {
+    return null;
+  }
 
   // Calculate real-time distance from captain to Target (Location A for pickup, Location B for dropoff)
   const targetLat = isTripStarted ? ride.dropoff_lat : ride.pickup_lat;
@@ -46,10 +50,6 @@ export const DigitalWatchETA: React.FC<DigitalWatchETAProps> = ({
 
   // Synchronize countdown seconds with live distance
   useEffect(() => {
-    if (isArrived) {
-      setCountdownSeconds(0);
-      return;
-    }
     const calculatedSec = Math.max(15, Math.round((distanceKm / 24) * 3600));
     setCountdownSeconds((prev) => {
       if (Math.abs(prev - calculatedSec) > 30) {
@@ -57,16 +57,15 @@ export const DigitalWatchETA: React.FC<DigitalWatchETAProps> = ({
       }
       return Math.max(5, prev);
     });
-  }, [distanceKm, isArrived]);
+  }, [distanceKm]);
 
   // Dynamic countdown timer
   useEffect(() => {
-    if (isArrived) return;
     const timer = setInterval(() => {
       setCountdownSeconds((prev) => (prev > 1 ? prev - 1 : 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [isArrived]);
+  }, []);
 
   // Format MM:SS
   const minutes = Math.floor(countdownSeconds / 60);
@@ -92,13 +91,9 @@ export const DigitalWatchETA: React.FC<DigitalWatchETAProps> = ({
           
           <div className="flex items-center gap-1.5 font-mono text-xs sm:text-sm font-bold tracking-wide">
             <span className="text-slate-400 font-sans text-xs uppercase font-semibold">ETA</span>
-            {isArrived ? (
-              <span className="text-emerald-400 font-bold">ARRIVED</span>
-            ) : (
-              <span className="text-emerald-400 font-bold">
-                {formattedMinutes}{colonBlink ? ':' : ' '}{formattedSeconds}
-              </span>
-            )}
+            <span className="text-emerald-400 font-bold">
+              {formattedMinutes}{colonBlink ? ':' : ' '}{formattedSeconds}
+            </span>
             <span className="font-sans text-xs text-slate-300 font-medium">minits</span>
             <span className="text-slate-400 font-mono text-xs font-semibold">{distanceFormatted} away</span>
           </div>
@@ -116,15 +111,11 @@ export const DigitalWatchETA: React.FC<DigitalWatchETAProps> = ({
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
         <div className="flex items-center gap-2 font-mono text-base sm:text-lg font-bold tracking-wide">
           <span className="text-slate-400 font-sans text-sm sm:text-base font-semibold">ETA</span>
-          {isArrived ? (
-            <span className="text-emerald-400 font-bold">ARRIVED</span>
-          ) : (
-            <span className="text-emerald-400 font-bold tracking-wider">
-              {formattedMinutes}
-              <span className={colonBlink ? 'opacity-100' : 'opacity-20'}>:</span>
-              {formattedSeconds}
-            </span>
-          )}
+          <span className="text-emerald-400 font-bold tracking-wider">
+            {formattedMinutes}
+            <span className={colonBlink ? 'opacity-100' : 'opacity-20'}>:</span>
+            {formattedSeconds}
+          </span>
           <span className="text-slate-300 font-sans font-medium text-xs sm:text-sm">
             minits
           </span>

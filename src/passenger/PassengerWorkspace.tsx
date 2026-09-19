@@ -1208,13 +1208,30 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               activeRide.status === 'captain_arrived' ||
               activeRide.status === 'trip_started') && (
               <div className="flex flex-col gap-4 text-black">
-                {/* Digital Watch on Top of Ride Details showing Captain Coming ETA to Location A */}
-                <DigitalWatchETA
-                  ride={activeRide}
-                  captainLat={animatedCaptainPos?.lat ?? activeRide.captain_current_lat}
-                  captainLng={animatedCaptainPos?.lng ?? activeRide.captain_current_lng}
-                  variant="card-header"
-                />
+                {/* Digital Watch on Top of Ride Details (Hidden when captain has arrived) */}
+                {activeRide.status !== 'captain_arrived' && (
+                  <DigitalWatchETA
+                    ride={activeRide}
+                    captainLat={animatedCaptainPos?.lat ?? activeRide.captain_current_lat}
+                    captainLng={animatedCaptainPos?.lng ?? activeRide.captain_current_lng}
+                    variant="card-header"
+                  />
+                )}
+
+                {/* When Captain has arrived, show clear arrival banner */}
+                {activeRide.status === 'captain_arrived' && (
+                  <div className="w-full rounded-2xl bg-emerald-500 text-slate-950 px-4 py-3 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3 h-3 rounded-full bg-slate-950 animate-ping shrink-0" />
+                      <span className="text-xs sm:text-sm font-black uppercase tracking-wide">
+                        Captain has arrived at pickup location!
+                      </span>
+                    </div>
+                    <span className="text-[11px] bg-slate-950 text-white px-2.5 py-1 rounded-xl font-bold shrink-0">
+                      Waiting for you
+                    </span>
+                  </div>
+                )}
 
                 {/* Captain Details Box */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-black flex items-center justify-between">
@@ -1987,7 +2004,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       </button>
 
       {/* Floating Top Digital Watch HUD on Passenger Screen showing Captain Coming ETA to Location A */}
-      {activeRide && (activeRide.status === 'captain_accepted' || activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started') && (
+      {activeRide && (activeRide.status === 'captain_accepted' || activeRide.status === 'trip_started') && (
         <div className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-20 z-[950] max-w-[calc(100vw-5rem)] sm:max-w-md">
           <DigitalWatchETA
             ride={activeRide}
