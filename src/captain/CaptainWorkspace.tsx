@@ -10,6 +10,7 @@ import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
+import { calculateBearingDegrees } from '../utils/distanceCalculator';
 import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
 import { CaptainProfileDrawer } from './CaptainProfileDrawer';
 import {
@@ -461,50 +462,60 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     }
   }, [inspectedRide]);
 
-  // Fallback simulator for active ride ONLY when GPS is denied, unavailable, or in sandboxed demo
+  // Active ride live movement simulator: moves captain to Location A during 'captain_accepted', and to Location B during 'trip_started'
   useEffect(() => {
-    if (!activeRide || gpsStatus === 'live') return;
+    if (!activeRide) return;
+
+    const isAccepted = activeRide.status === 'captain_accepted';
+    const isTripStarted = activeRide.status === 'trip_started';
+
+    if (!isAccepted && !isTripStarted) return;
 
     const interval = setInterval(() => {
-      const targetLat =
-        activeRide.status === 'captain_accepted'
-          ? activeRide.pickup_lat
-          : activeRide.dropoff_lat;
-      const targetLng =
-        activeRide.status === 'captain_accepted'
-          ? activeRide.pickup_lng
-          : activeRide.dropoff_lng;
+      const targetLat = isAccepted ? activeRide.pickup_lat : activeRide.dropoff_lat;
+      const targetLng = isAccepted ? activeRide.pickup_lng : activeRide.dropoff_lng;
 
       setCaptainGps((prev) => {
-        const stepLat = (targetLat - prev.lat) * 0.15;
-        const stepLng = (targetLng - prev.lng) * 0.15;
-        const newLat = prev.lat + (Math.abs(stepLat) < 0.0001 ? 0 : stepLat);
-        const newLng = prev.lng + (Math.abs(stepLng) < 0.0001 ? 0 : stepLng);
+        const dLat = targetLat - prev.lat;
+        const dLng = targetLng - prev.lng;
+        const dist = Math.hypot(dLat, dLng);
+
+        if (dist < 0.0001) {
+          return prev;
+        }
+
+        // Advance smoothly towards target
+        const fraction = Math.max(0.12, Math.min(0.25, 0.0004 / (dist || 1)));
+        const newLat = prev.lat + dLat * fraction;
+        const newLng = prev.lng + dLng * fraction;
         const fixedLat = Number(newLat.toFixed(6));
         const fixedLng = Number(newLng.toFixed(6));
+
+        const heading = calculateBearingDegrees(prev.lat, prev.lng, targetLat, targetLng);
+        const speed = isTripStarted ? 35 : 25;
 
         motorideApi.updateCaptainLiveLocation({
           captain_id: captainId,
           ride_id: activeRide.id,
           latitude: fixedLat,
           longitude: fixedLng,
-          heading: 45,
-          speed: 25,
+          heading,
+          speed,
         });
 
         return {
           ...prev,
           lat: fixedLat,
           lng: fixedLng,
-          heading: 45,
-          speed: 25,
+          heading,
+          speed,
           timestamp: Date.now(),
         };
       });
-    }, 3000);
+    }, 1800);
 
     return () => clearInterval(interval);
-  }, [activeRide, gpsStatus, captainId]);
+  }, [activeRide?.id, activeRide?.status, captainId]);
 
   const loadCaptainData = async () => {
     try {
@@ -718,6 +729,41 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         final_distance_km: activeRide.distance_km,
         final_fare: activeRide.final_fare || activeRide.offered_fare,
       });
+
+      if (nextStatus === 'captain_arrived') {
+        setCaptainGps((prev) => ({
+          ...prev,
+          lat: activeRide.pickup_lat,
+          lng: activeRide.pickup_lng,
+          timestamp: Date.now(),
+        }));
+        motorideApi.updateCaptainLiveLocation({
+          captain_id: captainId,
+          ride_id: activeRide.id,
+          latitude: activeRide.pickup_lat,
+          longitude: activeRide.pickup_lng,
+          heading: calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng),
+          speed: 0,
+        });
+      } else if (nextStatus === 'trip_started') {
+        const bearing = calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng);
+        setCaptainGps((prev) => ({
+          ...prev,
+          lat: activeRide.pickup_lat,
+          lng: activeRide.pickup_lng,
+          heading: bearing,
+          speed: 28,
+          timestamp: Date.now(),
+        }));
+        motorideApi.updateCaptainLiveLocation({
+          captain_id: captainId,
+          ride_id: activeRide.id,
+          latitude: activeRide.pickup_lat,
+          longitude: activeRide.pickup_lng,
+          heading: bearing,
+          speed: 28,
+        });
+      }
 
       if (nextStatus === 'trip_completed') {
         setActiveRide(null);

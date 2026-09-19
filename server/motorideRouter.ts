@@ -262,6 +262,17 @@ motorideRouter.post('/rides', (req: Request, res: Response) => {
   }
 });
 
+function computeBearingDegrees(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  if (lat1 === lat2 && lon1 === lon2) return 0;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const toDeg = (rad: number) => (rad * 180) / Math.PI;
+  const y = Math.sin(toRad(lon2 - lon1)) * Math.cos(toRad(lat2));
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2 - lon1));
+  return Math.round((toDeg(Math.atan2(y, x)) + 360) % 360);
+}
+
 // Atomic Ride Acceptance by Captain (with race condition prevention)
 motorideRouter.post('/rides/:id/accept', (req: Request, res: Response) => {
   const ride = ridesStore.get(req.params.id);
@@ -349,6 +360,13 @@ motorideRouter.post('/rides/:id/accept', (req: Request, res: Response) => {
   ride.final_fare = finalFare;
   ride.status = 'captain_accepted';
   ride.updated_at = new Date().toISOString();
+
+  // Initialize captain coordinates for live animated movement towards Location A (Pickup)
+  const initialCapLat = req.body.captain_lat || registeredCaptain?.current_lat || Number((ride.pickup_lat - 0.006).toFixed(6));
+  const initialCapLng = req.body.captain_lng || registeredCaptain?.current_lng || Number((ride.pickup_lng - 0.005).toFixed(6));
+  ride.captain_current_lat = initialCapLat;
+  ride.captain_current_lng = initialCapLng;
+  ride.captain_heading = computeBearingDegrees(initialCapLat, initialCapLng, ride.pickup_lat, ride.pickup_lng);
 
   enrichRideWithRegisteredCaptainData(ride);
   ridesStore.set(ride.id, ride);
@@ -504,6 +522,14 @@ motorideRouter.post('/rides/:id/accept-offer', (req: Request, res: Response) => 
   ride.status = 'captain_accepted';
   ride.updated_at = new Date().toISOString();
 
+  // Initialize captain coordinates for live animated movement towards Location A
+  const offerCaptain = captainsStore.get(offer.captain_id);
+  const initialCapLat = offerCaptain?.current_lat || Number((ride.pickup_lat - 0.006).toFixed(6));
+  const initialCapLng = offerCaptain?.current_lng || Number((ride.pickup_lng - 0.005).toFixed(6));
+  ride.captain_current_lat = initialCapLat;
+  ride.captain_current_lng = initialCapLng;
+  ride.captain_heading = computeBearingDegrees(initialCapLat, initialCapLng, ride.pickup_lat, ride.pickup_lng);
+
   // Mark this offer accepted and others rejected
   ride.offers?.forEach((o) => {
     o.status = o.id === offer_id ? 'accepted' : 'rejected';
@@ -570,12 +596,23 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
     ride.cancellation_reason = cancellation_reason;
   }
 
+  if (status === 'captain_arrived') {
+    ride.captain_current_lat = ride.pickup_lat;
+    ride.captain_current_lng = ride.pickup_lng;
+  }
+
   if (status === 'trip_started') {
     ride.trip_started_at = now;
+    // Trip started: captain starts at Location A heading towards Location B (Drop-off)
+    ride.captain_current_lat = ride.pickup_lat;
+    ride.captain_current_lng = ride.pickup_lng;
+    ride.captain_heading = computeBearingDegrees(ride.pickup_lat, ride.pickup_lng, ride.dropoff_lat, ride.dropoff_lng);
   }
 
   if (status === 'trip_completed') {
     ride.trip_completed_at = now;
+    ride.captain_current_lat = ride.dropoff_lat;
+    ride.captain_current_lng = ride.dropoff_lng;
     if (final_distance_km !== undefined) {
       ride.distance_km = Number(final_distance_km);
     }

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { Navigation, Crosshair, Compass, Mountain, Moon, LocateFixed } from 'lucide-react';
+import { calculateHaversineDistanceKm } from '../../utils/distanceCalculator';
 
 export type MapLayerType = 'google-street' | 'google-terrain' | 'voyager-dark';
 
@@ -96,6 +97,7 @@ interface MotorideMapProps {
   nearestCaptain?: AvailableCaptainItem | null;
   onSelectCaptain?: (captain: AvailableCaptainItem) => void;
   onFocusNearestCaptain?: () => void;
+  activeRideStatus?: string | null;
 }
 
 export const MotorideMap: React.FC<MotorideMapProps> = ({
@@ -135,6 +137,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   nearestCaptain = null,
   onSelectCaptain,
   onFocusNearestCaptain,
+  activeRideStatus = null,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -142,6 +145,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   const dropoffMarkerRef = useRef<L.Marker | null>(null);
   const captainMarkerRef = useRef<L.Marker | null>(null);
   const captainAccuracyCircleRef = useRef<L.Circle | null>(null);
+  const captainToTargetLineRef = useRef<L.Polyline | null>(null);
   const passengerMarkerRef = useRef<L.Marker | null>(null);
   const passengerAccuracyCircleRef = useRef<L.Circle | null>(null);
   const passengerToPickupLineRef = useRef<L.Polyline | null>(null);
@@ -254,46 +258,104 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     isSelf: boolean = true,
     isNearest: boolean = false,
     etaMinutes?: number,
-    distanceKm?: number
+    distanceKm?: number,
+    activeStatus?: string | null
   ) => {
-    const borderColor = isNearest ? '#10b981' : isSelf ? '#f59e0b' : '#38bdf8';
-    const pingColor = isNearest ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.22)';
-    const pingColorInner = isNearest ? 'rgba(16, 185, 129, 0.45)' : 'rgba(245, 158, 11, 0.30)';
-    const glowShadow = isNearest ? '0 4px 18px rgba(16, 185, 129, 0.65)' : '0 4px 18px rgba(245, 158, 11, 0.55)';
+    const isArrivingPickup = activeStatus === 'captain_accepted';
+    const isArrivedPickup = activeStatus === 'captain_arrived';
+    const isGoingDropoff = activeStatus === 'trip_started';
+    const isTripDone = activeStatus === 'trip_completed';
+
     const distText = distanceKm != null ? (distanceKm < 1 ? `${Math.round(distanceKm * 1000)}m` : `${distanceKm.toFixed(1)}km`) : '';
+
+    let borderColor = isNearest ? '#10b981' : isSelf ? '#f59e0b' : '#38bdf8';
+    let pingColor = isNearest ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.22)';
+    let pingColorInner = isNearest ? 'rgba(16, 185, 129, 0.45)' : 'rgba(245, 158, 11, 0.30)';
+    let glowShadow = isNearest ? '0 4px 18px rgba(16, 185, 129, 0.65)' : '0 4px 18px rgba(245, 158, 11, 0.55)';
+    let statusPillHtml = '';
+
+    if (isArrivingPickup) {
+      borderColor = '#10b981';
+      pingColor = 'rgba(16, 185, 129, 0.45)';
+      pingColorInner = 'rgba(16, 185, 129, 0.30)';
+      glowShadow = '0 4px 22px rgba(16, 185, 129, 0.85)';
+      statusPillHtml = `
+        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 9999px; background: #020617; border: 2px solid #10b981; box-shadow: 0 8px 24px rgba(0,0,0,0.85); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981;"></span>
+          <span style="color: #34d399; font-weight: 900; letter-spacing: 0.2px;">🏍️ Captain Arriving to (A)</span>
+          ${distText ? `<span style="background: #10b981; color: #020617; font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 4px;">${distText}</span>` : ''}
+        </div>
+      `;
+    } else if (isArrivedPickup) {
+      borderColor = '#10b981';
+      pingColor = 'rgba(16, 185, 129, 0.5)';
+      pingColorInner = 'rgba(16, 185, 129, 0.35)';
+      glowShadow = '0 4px 22px rgba(16, 185, 129, 0.85)';
+      statusPillHtml = `
+        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 9999px; background: #020617; border: 2px solid #10b981; box-shadow: 0 8px 24px rgba(0,0,0,0.85); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981;"></span>
+          <span style="color: #34d399; font-weight: 900; letter-spacing: 0.2px;">📍 Captain Arrived at (A)</span>
+        </div>
+      `;
+    } else if (isGoingDropoff) {
+      borderColor = '#38bdf8';
+      pingColor = 'rgba(56, 189, 248, 0.45)';
+      pingColorInner = 'rgba(56, 189, 248, 0.30)';
+      glowShadow = '0 4px 22px rgba(56, 189, 248, 0.85)';
+      statusPillHtml = `
+        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 9999px; background: #020617; border: 2px solid #38bdf8; box-shadow: 0 8px 24px rgba(0,0,0,0.85); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 10px #38bdf8;"></span>
+          <span style="color: #38bdf8; font-weight: 900; letter-spacing: 0.2px;">⚡ On Trip to Dropoff (B)</span>
+          ${distText ? `<span style="background: #0284c7; color: #ffffff; font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 4px;">${distText}</span>` : ''}
+        </div>
+      `;
+    } else if (isTripDone) {
+      borderColor = '#10b981';
+      statusPillHtml = `
+        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 9999px; background: #020617; border: 2px solid #10b981; box-shadow: 0 8px 24px rgba(0,0,0,0.85); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
+          <span>🏁 Trip Completed at (B)</span>
+        </div>
+      `;
+    } else {
+      statusPillHtml = `
+        <div style="display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 9999px; background: #000000; border: 1.5px solid ${borderColor}; box-shadow: 0 8px 24px rgba(0,0,0,0.7); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
+          <span style="display: flex; width: 6px; height: 6px; border-radius: 50%; background: ${isNearest ? '#10b981' : '#22c55e'}; box-shadow: 0 0 6px ${isNearest ? '#10b981' : '#22c55e'};"></span>
+          ${isNearest ? `<span style="color: #34d399; font-weight: 900; letter-spacing: 0.3px;">⭐ Nearest Captain</span>` : `<span style="color: #f1f5f9; font-weight: 800;">${name}</span>`}
+          ${distText ? `<span style="color: #ffffff; font-size: 10px; font-weight: 800; background: ${isNearest ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.18)'}; padding: 1px 5px; border-radius: 4px;">${distText}</span>` : ''}
+          ${accuracy ? `<span style="color: #94a3b8; font-size: 9px; font-family: monospace;">±${Math.round(accuracy)}m</span>` : ''}
+        </div>
+      `;
+    }
+
+    const boxWidth = isArrivingPickup || isGoingDropoff ? 200 : 150;
 
     return L.divIcon({
       className: isNearest ? 'nearest-captain-icon' : 'captain-car-icon',
       html: `
-        <div style="position: relative; width: 140px; height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; user-select: none; pointer-events: auto; cursor: pointer;">
+        <div style="position: relative; width: ${boxWidth}px; height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; user-select: none; pointer-events: auto; cursor: pointer;">
           <!-- Live Sonar / Radar Pulse Rings -->
-          <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: ${isNearest ? '76px' : '68px'}; height: ${isNearest ? '76px' : '68px'}; border-radius: 50%; background: ${pingColor}; animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
-          <div style="position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 48px; height: 48px; border-radius: 50%; background: ${pingColorInner}; pointer-events: none;"></div>
+          <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: ${isGoingDropoff || isArrivingPickup ? '82px' : isNearest ? '76px' : '68px'}; height: ${isGoingDropoff || isArrivingPickup ? '82px' : isNearest ? '76px' : '68px'}; border-radius: 50%; background: ${pingColor}; animation: radar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
+          <div style="position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; border-radius: 50%; background: ${pingColorInner}; pointer-events: none;"></div>
 
           <!-- Top Floating Pill Label -->
           <div style="position: absolute; top: 0px; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 20;">
-            <div style="display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 9999px; background: #000000; border: 1.5px solid ${borderColor}; box-shadow: 0 8px 24px rgba(0,0,0,0.7); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
-              <span style="display: flex; width: 6px; height: 6px; border-radius: 50%; background: ${isNearest ? '#10b981' : '#22c55e'}; box-shadow: 0 0 6px ${isNearest ? '#10b981' : '#22c55e'};"></span>
-              ${isNearest ? `<span style="color: #34d399; font-weight: 900; letter-spacing: 0.3px;">⭐ Nearest Captain</span>` : `<span style="color: #f1f5f9; font-weight: 800;">${name}</span>`}
-              ${distText ? `<span style="color: #ffffff; font-size: 10px; font-weight: 800; background: ${isNearest ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.18)'}; padding: 1px 5px; border-radius: 4px;">${distText}</span>` : ''}
-              ${accuracy ? `<span style="color: #94a3b8; font-size: 9px; font-family: monospace;">±${Math.round(accuracy)}m</span>` : ''}
-            </div>
+            ${statusPillHtml}
           </div>
 
-          <!-- Rotating Vehicle Marker -->
-          <div style="position: relative; width: 44px; height: 44px; margin-bottom: 6px; transform: rotate(${heading}deg); transition: transform 0.35s ease-out; display: flex; align-items: center; justify-content: center;">
+          <!-- Rotating Vehicle Marker with Directional Pointer -->
+          <div style="position: relative; width: 46px; height: 46px; margin-bottom: 6px; transform: rotate(${heading}deg); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; justify-content: center;">
             <!-- Heading notch pointer -->
-            <div style="position: absolute; top: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 9px solid ${borderColor}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));"></div>
+            <div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 10px solid ${borderColor}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));"></div>
             <!-- Circle core -->
-            <div style="width: 44px; height: 44px; border-radius: 50%; background: #000000; border: 3px solid ${borderColor}; color: #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: ${glowShadow}, 0 0 0 2px rgba(0,0,0,0.5); font-size: 20px;">
+            <div style="width: 46px; height: 46px; border-radius: 50%; background: #020617; border: 3px solid ${borderColor}; color: #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: ${glowShadow}, 0 0 0 2px rgba(0,0,0,0.6); font-size: 21px;">
               🏍️
             </div>
           </div>
         </div>
       `,
-      iconSize: [140, 96],
-      iconAnchor: [70, 72],
-      popupAnchor: [0, -72],
+      iconSize: [boxWidth, 100],
+      iconAnchor: [boxWidth / 2, 74],
+      popupAnchor: [0, -74],
     });
   };
 
@@ -506,8 +568,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       }
     }
 
-    // 2. Pickup Marker (Location A - Only shown when pickup location is selected AND not at passenger standing position to prevent duplicate pins, or always in Captain mode / AB mode)
-    if (hasPickup && pickupLat && pickupLng && (!isPickupAtPassenger || isCaptainMode || showLocationsABOnly)) {
+    // 2. Pickup Marker (Location A - Always shown when pickup location coordinates are available)
+    if (hasPickup && pickupLat && pickupLng) {
       bounds.push([pickupLat, pickupLng]);
       const aIcon = createPickupIcon(pickupDistanceText);
 
@@ -595,11 +657,23 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       if (!showLocationsABOnly) {
         bounds.push([captainLat, captainLng]);
       }
+
+      let activeDistKm: number | undefined = undefined;
+      if (activeRideStatus === 'captain_accepted' && pickupLat && pickupLng) {
+        activeDistKm = calculateHaversineDistanceKm(captainLat, captainLng, pickupLat, pickupLng);
+      } else if (activeRideStatus === 'trip_started' && dropoffLat && dropoffLng) {
+        activeDistKm = calculateHaversineDistanceKm(captainLat, captainLng, dropoffLat, dropoffLng);
+      }
+
       const cIcon = createCaptainIcon(
         captainHeading,
         captainName || (isCaptainMode ? 'You (Captain)' : 'Captain'),
         captainAccuracy,
-        isCaptainMode
+        isCaptainMode,
+        false,
+        undefined,
+        activeDistKm,
+        activeRideStatus
       );
 
       if (!captainMarkerRef.current || !map.hasLayer(captainMarkerRef.current)) {
@@ -616,7 +690,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           .bindPopup(`
             <div style="padding: 4px; font-size: 12px; color: #0f172a; font-weight: 600;">
               <div style="font-weight: 800; font-size: 13px; color: #d97706;">🏍️ ${captainName || 'Captain Live Location'}</div>
-              <div>Status: <b>Online & Live Tracking</b></div>
+              <div>Status: <b>${activeRideStatus === 'captain_accepted' ? 'Arriving to Pickup (A)' : activeRideStatus === 'trip_started' ? 'Going to Dropoff (B)' : 'Online & Live Tracking'}</b></div>
+              ${activeDistKm != null ? `<div>Remaining: <b>${activeDistKm < 1 ? `${Math.round(activeDistKm * 1000)}m` : `${activeDistKm.toFixed(1)}km`}</b></div>` : ''}
               ${captainAccuracy ? `<div>GPS Accuracy: ±${Math.round(captainAccuracy)}m</div>` : ''}
               <div style="font-size: 11px; color: #64748b; margin-top: 2px;">GPS: ${captainLat.toFixed(5)}, ${captainLng.toFixed(5)}</div>
             </div>
@@ -636,8 +711,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         }
         captainAccuracyCircleRef.current = L.circle([captainLat, captainLng], {
           radius: capRadius,
-          color: '#f59e0b',
-          fillColor: '#f59e0b',
+          color: activeRideStatus === 'trip_started' ? '#0284c7' : '#f59e0b',
+          fillColor: activeRideStatus === 'trip_started' ? '#38bdf8' : '#f59e0b',
           fillOpacity: 0.12,
           weight: 1.5,
           dashArray: '4, 4',
@@ -655,6 +730,62 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         map.removeLayer(captainAccuracyCircleRef.current);
         captainAccuracyCircleRef.current = null;
       }
+    }
+
+    // 4c. Active Ride Real-Time Guidance Line:
+    // If captain is arriving to pickup (A): animated line from Captain to Location A (Emerald)
+    // If trip started to dropoff (B): animated line from Captain to Location B (Cyan/Sky)
+    if (activeRideStatus === 'captain_accepted' && captainLat && captainLng && pickupLat && pickupLng) {
+      const activeGuideCoords: [number, number][] = [
+        [captainLat, captainLng],
+        [pickupLat, pickupLng],
+      ];
+      if (!captainToTargetLineRef.current || !map.hasLayer(captainToTargetLineRef.current)) {
+        if (captainToTargetLineRef.current) {
+          try {
+            map.removeLayer(captainToTargetLineRef.current);
+          } catch {}
+        }
+        captainToTargetLineRef.current = L.polyline(activeGuideCoords, {
+          color: '#10b981',
+          weight: 4.5,
+          opacity: 0.95,
+          dashArray: '10, 8',
+          className: 'stretch-polyline-dash',
+          lineCap: 'round',
+          lineJoin: 'round',
+        }).addTo(map);
+      } else {
+        captainToTargetLineRef.current.setLatLngs(activeGuideCoords);
+        captainToTargetLineRef.current.setStyle({ color: '#10b981' });
+      }
+    } else if (activeRideStatus === 'trip_started' && captainLat && captainLng && dropoffLat && dropoffLng) {
+      const activeGuideCoords: [number, number][] = [
+        [captainLat, captainLng],
+        [dropoffLat, dropoffLng],
+      ];
+      if (!captainToTargetLineRef.current || !map.hasLayer(captainToTargetLineRef.current)) {
+        if (captainToTargetLineRef.current) {
+          try {
+            map.removeLayer(captainToTargetLineRef.current);
+          } catch {}
+        }
+        captainToTargetLineRef.current = L.polyline(activeGuideCoords, {
+          color: '#0284c7',
+          weight: 4.5,
+          opacity: 0.95,
+          dashArray: '10, 8',
+          className: 'stretch-polyline-dash',
+          lineCap: 'round',
+          lineJoin: 'round',
+        }).addTo(map);
+      } else {
+        captainToTargetLineRef.current.setLatLngs(activeGuideCoords);
+        captainToTargetLineRef.current.setStyle({ color: '#0284c7' });
+      }
+    } else if (captainToTargetLineRef.current) {
+      map.removeLayer(captainToTargetLineRef.current);
+      captainToTargetLineRef.current = null;
     }
 
     // 4b. Nearby Available Captains (Always displayed on passenger map with nearest captain icon)
@@ -835,21 +966,26 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         }
       }
     } else if (hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
-      const currentRouteKey = `${pickupLat.toFixed(4)}_${pickupLng.toFixed(4)}_${dropoffLat.toFixed(4)}_${dropoffLng.toFixed(4)}_${shouldShowPassengerStanding}`;
+      const currentRouteKey = `${pickupLat.toFixed(4)}_${pickupLng.toFixed(4)}_${dropoffLat.toFixed(4)}_${dropoffLng.toFixed(4)}_${activeRideStatus || ''}`;
       if (lastFittedRouteKeyRef.current !== currentRouteKey) {
         lastFittedRouteKeyRef.current = currentRouteKey;
         const routeBounds = L.latLngBounds([
           [pickupLat, pickupLng],
           [dropoffLat, dropoffLng],
         ]);
+        if (captainLat && captainLng) {
+          routeBounds.extend([captainLat, captainLng]);
+        }
         if (shouldShowPassengerStanding && passengerLat && passengerLng) {
           routeBounds.extend([passengerLat, passengerLng]);
         }
         map.invalidateSize();
+        const bottomPad = bottomSheetPadding || 180;
         map.fitBounds(routeBounds, {
-          padding: [80, 80],
+          paddingTopLeft: [70, 40],
+          paddingBottomRight: [40, bottomPad],
           maxZoom: 16,
-          animate: false,
+          animate: true,
         });
       }
     } else if (!hasPickup && passengerLat && passengerLng && isFollowingPassenger) {
@@ -889,6 +1025,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     nearbyCaptains,
     nearestCaptain,
     onSelectCaptain,
+    activeRideStatus,
   ]);
 
   // Center on Passenger or Captain Live Location with Navigator

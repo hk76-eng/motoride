@@ -10,6 +10,7 @@ import { RideChatModal } from '../components/common/RideChatModal';
 import { PassengerProfileDrawer } from './PassengerProfileDrawer';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
+import { calculateBearingDegrees } from '../utils/distanceCalculator';
 import {
   MapPin,
   Navigation,
@@ -107,6 +108,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   // Available Captains & Nearest Captain State for Passenger Map
   const [nearbyCaptains, setNearbyCaptains] = useState<AvailableCaptainItem[]>([]);
   const [nearestCaptain, setNearestCaptain] = useState<AvailableCaptainItem | null>(null);
+
+  // Animated Captain Progression for Active Ride on Passenger Map
+  const [animatedCaptainPos, setAnimatedCaptainPos] = useState<{
+    lat: number;
+    lng: number;
+    heading: number;
+  } | null>(null);
 
   // Real-Time Passenger GPS Location State (matching user icon)
   const [passengerGps, setPassengerGps] = useState<{
@@ -517,15 +525,24 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
     const unsubLocation = realtimeSync.on('CAPTAIN_LOCATION_UPDATED', (payload) => {
       setActiveRide((prev) => {
-        if (prev && prev.id === payload.ride_id) {
+        if (prev && (prev.id === payload.ride_id || prev.captain_id === payload.captain_id)) {
           return {
             ...prev,
             captain_current_lat: payload.lat,
             captain_current_lng: payload.lng,
+            captain_heading: payload.heading ?? prev.captain_heading,
           };
         }
         return prev;
       });
+
+      if (payload.lat && payload.lng) {
+        setAnimatedCaptainPos((prev) => ({
+          lat: payload.lat,
+          lng: payload.lng,
+          heading: payload.heading ?? prev?.heading ?? 45,
+        }));
+      }
 
       // Also update coordinates in nearby captains list
       if (payload.captain_id && payload.lat && payload.lng) {
@@ -579,6 +596,119 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [currentPassengerId]);
+
+  // Animated Captain Progression for Active Ride on Passenger Map:
+  // When 'captain_accepted': smoothly animate captain arriving to Pickup Location A
+  // When 'captain_arrived': captain arrives and stays at Pickup Location A
+  // When 'trip_started': smoothly animate captain traveling to Drop-off Location B
+  useEffect(() => {
+    if (!activeRide || !activeRide.captain_id) {
+      setAnimatedCaptainPos(null);
+      return;
+    }
+
+    const { status, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, captain_current_lat, captain_current_lng, captain_heading } = activeRide;
+
+    // Initialize or re-anchor starting coordinates
+    setAnimatedCaptainPos((prev) => {
+      if (prev) return prev;
+      if (captain_current_lat && captain_current_lng) {
+        return {
+          lat: captain_current_lat,
+          lng: captain_current_lng,
+          heading: captain_heading || 45,
+        };
+      }
+      if (status === 'captain_accepted') {
+        const initLat = Number((pickup_lat - 0.0055).toFixed(6));
+        const initLng = Number((pickup_lng - 0.0045).toFixed(6));
+        return {
+          lat: initLat,
+          lng: initLng,
+          heading: calculateBearingDegrees(initLat, initLng, pickup_lat, pickup_lng),
+        };
+      }
+      if (status === 'trip_started') {
+        return {
+          lat: pickup_lat,
+          lng: pickup_lng,
+          heading: calculateBearingDegrees(pickup_lat, pickup_lng, dropoff_lat, dropoff_lng),
+        };
+      }
+      return {
+        lat: pickup_lat,
+        lng: pickup_lng,
+        heading: 45,
+      };
+    });
+
+    if (status === 'captain_arrived') {
+      setAnimatedCaptainPos({
+        lat: pickup_lat,
+        lng: pickup_lng,
+        heading: calculateBearingDegrees(pickup_lat, pickup_lng, dropoff_lat, dropoff_lng),
+      });
+      return;
+    }
+
+    if (status === 'trip_completed') {
+      setAnimatedCaptainPos({
+        lat: dropoff_lat,
+        lng: dropoff_lng,
+        heading: 0,
+      });
+      return;
+    }
+
+    const isAccepted = status === 'captain_accepted';
+    const isTripStarted = status === 'trip_started';
+
+    if (!isAccepted && !isTripStarted) return;
+
+    const targetLat = isAccepted ? pickup_lat : dropoff_lat;
+    const targetLng = isAccepted ? pickup_lng : dropoff_lng;
+
+    const interval = setInterval(() => {
+      setAnimatedCaptainPos((prev) => {
+        if (!prev) {
+          const startLat = isAccepted ? pickup_lat - 0.0055 : pickup_lat;
+          const startLng = isAccepted ? pickup_lng - 0.0045 : pickup_lng;
+          return {
+            lat: startLat,
+            lng: startLng,
+            heading: calculateBearingDegrees(startLat, startLng, targetLat, targetLng),
+          };
+        }
+
+        const dLat = targetLat - prev.lat;
+        const dLng = targetLng - prev.lng;
+        const dist = Math.hypot(dLat, dLng);
+
+        if (dist < 0.0001) {
+          return {
+            ...prev,
+            lat: targetLat,
+            lng: targetLng,
+          };
+        }
+
+        // Smooth incremental advance towards destination
+        const step = Math.min(0.00035, dist * 0.16);
+        const ratio = dist > 0 ? step / dist : 0;
+        const newLat = prev.lat + dLat * ratio;
+        const newLng = prev.lng + dLng * ratio;
+        const bearing = calculateBearingDegrees(prev.lat, prev.lng, targetLat, targetLng);
+
+        return {
+          lat: Number(newLat.toFixed(6)),
+          lng: Number(newLng.toFixed(6)),
+          heading: bearing,
+        };
+      });
+    }, 1400);
+
+    return () => clearInterval(interval);
+  }, [activeRide?.id, activeRide?.status, activeRide?.pickup_lat, activeRide?.pickup_lng, activeRide?.dropoff_lat, activeRide?.dropoff_lng]);
 
   // Continuously fetch and update available captains & nearest captain on passenger map
   useEffect(() => {
@@ -800,49 +930,72 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     }, 1500);
   };
 
-  const renderMap = (isFullBackground: boolean) => (
-    <MotorideMap
-      passengerLat={passengerGps.lat}
-      passengerLng={passengerGps.lng}
-      passengerAccuracy={passengerGps.accuracy}
-      passengerHeading={passengerGps.heading}
-      passengerName="Standing Here"
-      showPassengerOnly={false}
-      nearbyCaptains={nearbyCaptains}
-      nearestCaptain={nearestCaptain}
-      showLocationsABOnly={false}
-      isLiveGpsActive={gpsStatus === 'live'}
-      onLocateMe={requestLiveLocation}
-      pickupLat={pickup.name ? pickup.lat : null}
-      pickupLng={pickup.name ? pickup.lng : null}
-      pickupAddress={pickup.name}
-      dropoffLat={dropoff.name ? dropoff.lat : null}
-      dropoffLng={dropoff.name ? dropoff.lng : null}
-      dropoffAddress={dropoff.name}
-      captainLat={activeRide?.captain_id ? activeRide.captain_current_lat : null}
-      captainLng={activeRide?.captain_id ? activeRide.captain_current_lng : null}
-      captainHeading={activeRide?.captain_heading || 45}
-      interactive={!activeRide}
-      onSetPickupToPassengerLocation={(lat, lng) => handleSetPickupFromPassengerPosition(lat, lng)}
-      onMapClick={(lat, lng) => {
-        // If clicking map during booking, update pickup if empty, otherwise dropoff
-        if (!pickup.name) {
-          setPickup({
-            name: `Pinned Pickup (${lat.toFixed(3)}, ${lng.toFixed(3)})`,
-            lat,
-            lng,
-          });
-        } else {
-          setDropoff({
-            name: `Pinned Destination (${lat.toFixed(3)}, ${lng.toFixed(3)})`,
-            lat,
-            lng,
-          });
-        }
-      }}
-      className={`w-full h-full ${isFullBackground ? 'rounded-none border-0' : 'shadow-2xl border border-slate-800'}`}
-    />
-  );
+  const renderMap = (isFullBackground: boolean) => {
+    // When active ride is present, ensure Location A and Location B are taken from active ride
+    const currentPickupLat = activeRide ? activeRide.pickup_lat : (pickup.name ? pickup.lat : null);
+    const currentPickupLng = activeRide ? activeRide.pickup_lng : (pickup.name ? pickup.lng : null);
+    const currentPickupAddress = activeRide ? activeRide.pickup_address : pickup.name;
+
+    const currentDropoffLat = activeRide ? activeRide.dropoff_lat : (dropoff.name ? dropoff.lat : null);
+    const currentDropoffLng = activeRide ? activeRide.dropoff_lng : (dropoff.name ? dropoff.lng : null);
+    const currentDropoffAddress = activeRide ? activeRide.dropoff_address : dropoff.name;
+
+    const currentCaptainLat = activeRide?.captain_id
+      ? (animatedCaptainPos?.lat ?? activeRide.captain_current_lat ?? null)
+      : null;
+    const currentCaptainLng = activeRide?.captain_id
+      ? (animatedCaptainPos?.lng ?? activeRide.captain_current_lng ?? null)
+      : null;
+    const currentCaptainHeading = animatedCaptainPos?.heading ?? activeRide?.captain_heading ?? 45;
+
+    return (
+      <MotorideMap
+        passengerLat={passengerGps.lat}
+        passengerLng={passengerGps.lng}
+        passengerAccuracy={passengerGps.accuracy}
+        passengerHeading={passengerGps.heading}
+        passengerName="Standing Here"
+        showPassengerOnly={false}
+        nearbyCaptains={activeRide ? [] : nearbyCaptains}
+        nearestCaptain={activeRide ? null : nearestCaptain}
+        showLocationsABOnly={false}
+        isLiveGpsActive={gpsStatus === 'live'}
+        onLocateMe={requestLiveLocation}
+        pickupLat={currentPickupLat}
+        pickupLng={currentPickupLng}
+        pickupAddress={currentPickupAddress}
+        dropoffLat={currentDropoffLat}
+        dropoffLng={currentDropoffLng}
+        dropoffAddress={currentDropoffAddress}
+        captainLat={currentCaptainLat}
+        captainLng={currentCaptainLng}
+        captainHeading={currentCaptainHeading}
+        captainName={activeRide?.captain_name || 'Captain'}
+        activeRideStatus={activeRide?.status}
+        bottomSheetPadding={activeRide ? (isCardMinimized ? 90 : 380) : 180}
+        interactive={!activeRide}
+        onSetPickupToPassengerLocation={(lat, lng) => handleSetPickupFromPassengerPosition(lat, lng)}
+        onMapClick={(lat, lng) => {
+          if (activeRide) return;
+          // If clicking map during booking, update pickup if empty, otherwise dropoff
+          if (!pickup.name) {
+            setPickup({
+              name: `Pinned Pickup (${lat.toFixed(3)}, ${lng.toFixed(3)})`,
+              lat,
+              lng,
+            });
+          } else {
+            setDropoff({
+              name: `Pinned Destination (${lat.toFixed(3)}, ${lng.toFixed(3)})`,
+              lat,
+              lng,
+            });
+          }
+        }}
+        className={`w-full h-full ${isFullBackground ? 'rounded-none border-0' : 'shadow-2xl border border-slate-800'}`}
+      />
+    );
+  };
 
   // Helper to get reliable captain avatar picture
   const getCaptainAvatarUrl = (name?: string, avatar?: string) => {
