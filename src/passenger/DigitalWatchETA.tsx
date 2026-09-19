@@ -28,20 +28,18 @@ export const DigitalWatchETA: React.FC<DigitalWatchETAProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  const isAccepted = ride.status === 'captain_accepted';
-  const isTripStarted = ride.status === 'trip_started';
-
-  // Do NOT show ETA or distance if captain has arrived, or if ride is completed/cancelled
-  if (ride.status === 'captain_arrived' || ride.status === 'completed' || ride.status === 'cancelled') {
+  // Strictly ONLY show ETA and distance when captain is on the way to pickup ('captain_accepted')
+  // Do NOT show when arrived ('captain_arrived'), when trip started ('trip_started'), completed, or cancelled
+  if (ride.status !== 'captain_accepted') {
     return null;
   }
 
-  // Calculate real-time distance from captain to Target (Location A for pickup, Location B for dropoff)
-  const targetLat = isTripStarted ? ride.dropoff_lat : ride.pickup_lat;
-  const targetLng = isTripStarted ? ride.dropoff_lng : ride.pickup_lng;
+  // Calculate real-time distance from captain to Target (Location A for pickup)
+  const targetLat = ride.pickup_lat;
+  const targetLng = ride.pickup_lng;
 
-  const currentCapLat = captainLat ?? ride.captain_current_lat ?? (isAccepted ? ride.pickup_lat - 0.005 : ride.pickup_lat);
-  const currentCapLng = captainLng ?? ride.captain_current_lng ?? (isAccepted ? ride.pickup_lng - 0.004 : ride.pickup_lng);
+  const currentCapLat = captainLat ?? ride.captain_current_lat ?? (ride.pickup_lat - 0.005);
+  const currentCapLng = captainLng ?? ride.captain_current_lng ?? (ride.pickup_lng - 0.004);
 
   const distanceKm = useMemo(() => {
     if (!currentCapLat || !currentCapLng || !targetLat || !targetLng) return 1.4;

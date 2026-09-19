@@ -1208,8 +1208,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               activeRide.status === 'captain_arrived' ||
               activeRide.status === 'trip_started') && (
               <div className="flex flex-col gap-4 text-black">
-                {/* Digital Watch on Top of Ride Details (Hidden when captain has arrived) */}
-                {activeRide.status !== 'captain_arrived' && (
+                {/* Digital Watch on Top of Ride Details (Shown ONLY when captain is on the way to pickup) */}
+                {activeRide.status === 'captain_accepted' && (
                   <DigitalWatchETA
                     ride={activeRide}
                     captainLat={animatedCaptainPos?.lat ?? activeRide.captain_current_lat}
@@ -1218,7 +1218,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   />
                 )}
 
-                {/* When Captain has arrived, show clear arrival banner */}
+                {/* When Captain has arrived, show arrival banner */}
                 {activeRide.status === 'captain_arrived' && (
                   <div className="w-full rounded-2xl bg-emerald-500 text-slate-950 px-4 py-3 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
                     <div className="flex items-center gap-2.5">
@@ -1229,6 +1229,26 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     </div>
                     <span className="text-[11px] bg-slate-950 text-white px-2.5 py-1 rounded-xl font-bold shrink-0">
                       Waiting for you
+                    </span>
+                  </div>
+                )}
+
+                {/* When Trip has started, show on-trip banner */}
+                {activeRide.status === 'trip_started' && (
+                  <div className="w-full rounded-2xl bg-slate-950 text-white px-4 py-3 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                      <div>
+                        <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white block">
+                          Trip in Progress
+                        </span>
+                        <span className="text-[11px] text-slate-300 font-normal block truncate max-w-[220px] sm:max-w-xs">
+                          En route to: {activeRide.dropoff_address || 'Destination (Location B)'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[11px] bg-emerald-500 text-slate-950 px-2.5 py-1 rounded-xl font-bold shrink-0">
+                      On Trip
                     </span>
                   </div>
                 )}
@@ -2004,7 +2024,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       </button>
 
       {/* Floating Top Digital Watch HUD on Passenger Screen showing Captain Coming ETA to Location A */}
-      {activeRide && (activeRide.status === 'captain_accepted' || activeRide.status === 'trip_started') && (
+      {activeRide && activeRide.status === 'captain_accepted' && (
         <div className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-20 z-[950] max-w-[calc(100vw-5rem)] sm:max-w-md">
           <DigitalWatchETA
             ride={activeRide}
