@@ -41,7 +41,9 @@ import {
   X,
   ArrowLeft,
   IndianRupee,
+  History,
 } from 'lucide-react';
+import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
 
 interface CaptainWorkspaceProps {
   captainId?: string;
@@ -162,6 +164,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [todayIncome, setTodayIncome] = useState<number>(0);
   const [todayCompletedRidesCount, setTodayCompletedRidesCount] = useState<number>(0);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  const [isRideHistoryOpen, setIsRideHistoryOpen] = useState<boolean>(false);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
   const [showPassengerRatingModal, setShowPassengerRatingModal] = useState<boolean>(false);
   const [completedRideForRating, setCompletedRideForRating] = useState<MotorideRide | null>(null);
@@ -1612,6 +1615,18 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       <IndianRupee className="w-3.5 h-3.5 text-emerald-600 shrink-0 stroke-[2.5]" />
                       <span>Today's Income: ₹{todayIncome.toLocaleString('en-IN')}</span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsRideHistoryOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 text-xs font-bold transition-colors cursor-pointer"
+                      title="View all completed trip history & receipts"
+                    >
+                      <History className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                      <span className="hidden sm:inline">Trip History</span>
+                    </button>
                   </div>
 
                   {/* Right: 100% Full / Minimize Tab Button */}
@@ -1672,6 +1687,23 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         <span className="w-3.5 h-0.5 bg-amber-400 rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
       </button>
 
+      {/* Trip History Quick Access Button in Top Bar */}
+      <button
+        type="button"
+        onClick={() => setIsRideHistoryOpen(true)}
+        title="View Trip & Earnings History"
+        aria-label="View Trip & Earnings History"
+        className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-18 z-[1100] px-3 sm:px-3.5 h-11 rounded-2xl bg-black/85 hover:bg-black text-white border border-amber-500/40 shadow-2xl backdrop-blur-xl flex items-center gap-2 active:scale-95 transition-all cursor-pointer group ring-1 ring-amber-500/20"
+      >
+        <History className="w-4 h-4 text-amber-400 group-hover:rotate-[-20deg] transition-transform" />
+        <span className="text-xs font-bold hidden xs:inline">Trip History</span>
+        {((captain?.total_rides ?? 0) > 0 || todayCompletedRidesCount > 0) && (
+          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] flex items-center justify-center font-mono-num">
+            {captain?.total_rides ?? todayCompletedRidesCount}
+          </span>
+        )}
+      </button>
+
       {/* Captain Profile Slide-in Drawer from Left to Right */}
       <CaptainProfileDrawer
         isOpen={isProfileOpen}
@@ -1680,7 +1712,18 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         todayIncome={todayIncome}
         onUpdateCaptain={handleUpdateCaptainProfile}
         onOpenWallet={onOpenWallet}
+        onOpenRideHistory={() => setIsRideHistoryOpen(true)}
         onSignOut={onSignOut}
+      />
+
+      {/* Trip History Modal for Captain */}
+      <MotorideRideHistoryModal
+        isOpen={isRideHistoryOpen}
+        onClose={() => setIsRideHistoryOpen(false)}
+        role="captain"
+        userId={captainId || captain?.id || captain?.profile_id || ''}
+        userName={captain?.full_name || captainName || 'Captain'}
+        todayIncome={todayIncome}
       />
 
       {/* Floating GPS Status Banner when permission is blocked */}

@@ -33,6 +33,7 @@ import {
   Volume2,
   Sun,
   IndianRupee,
+  History,
 } from 'lucide-react';
 import { Captain } from '../types/motoride';
 import { safeStorage } from '../lib/safeStorage';
@@ -44,6 +45,7 @@ interface CaptainProfileDrawerProps {
   todayIncome?: number;
   onUpdateCaptain?: (updated: Partial<Captain>) => void;
   onOpenWallet?: () => void;
+  onOpenRideHistory?: () => void;
   onSignOut?: () => void;
 }
 
@@ -54,6 +56,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   todayIncome = 0,
   onUpdateCaptain,
   onOpenWallet,
+  onOpenRideHistory,
   onSignOut,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -466,13 +469,25 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                 </div>
               </div>
 
-              {/* Rides Taken Card */}
-              <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm">
+              {/* Rides Taken Card - Clickable to open Trip History */}
+              <div
+                onClick={() => {
+                  if (onOpenRideHistory) {
+                    onClose();
+                    onOpenRideHistory();
+                  }
+                }}
+                className="p-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 flex items-center gap-2.5 cursor-pointer transition-all active:scale-95 group"
+                title="View Trip History"
+              >
+                <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                   <TrendingUp className="w-4 h-4 stroke-[2.5]" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-emerald-300/80 font-bold uppercase tracking-wider">Total Rides</span>
+                  <span className="text-[10px] text-emerald-300/80 font-bold uppercase tracking-wider group-hover:text-emerald-300 transition-colors flex items-center gap-0.5">
+                    <span>Total Rides</span>
+                    <ChevronRight className="w-3 h-3 text-emerald-400" />
+                  </span>
                   <div className="flex items-baseline gap-1">
                     <span className="font-black text-sm text-emerald-400 font-mono-num">
                       {captain?.total_rides ?? 0}
@@ -482,6 +497,35 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                 </div>
               </div>
 
+            </div>
+
+            {/* Dedicated Trip & Earnings History Quick Button */}
+            <div className="pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenRideHistory) {
+                    onClose();
+                    onOpenRideHistory();
+                  }
+                }}
+                className="w-full p-3 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 flex items-center justify-between text-left cursor-pointer transition-all active:scale-95 group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm">
+                    <History className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-white group-hover:text-amber-300 transition-colors">
+                      Trip & Earnings History
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {captain?.total_rides ?? 0} total trips • View route logs & fare records
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+              </button>
             </div>
 
           </div>

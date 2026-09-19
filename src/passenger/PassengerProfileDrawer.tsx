@@ -27,6 +27,7 @@ import {
   Upload,
   Trash2,
   Bike,
+  History,
 } from 'lucide-react';
 
 import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
@@ -42,6 +43,7 @@ interface PassengerProfileDrawerProps {
   passengerPhone?: string;
   totalRides?: number;
   onOpenWallet?: () => void;
+  onOpenRideHistory?: () => void;
   onSelectSavedLocation?: (loc: { name: string; lat: number; lng: number }) => void;
   onSignOut?: () => void;
 }
@@ -55,6 +57,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   passengerPhone = '',
   totalRides = 0,
   onOpenWallet,
+  onOpenRideHistory,
   onSelectSavedLocation,
   onSignOut,
 }) => {
@@ -393,17 +396,58 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
                 </div>
               </div>
 
-              {/* Rides Taken Box */}
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+              {/* Rides Taken Box - Clickable to open Ride History */}
+              <div
+                onClick={() => {
+                  if (onOpenRideHistory) {
+                    onClose();
+                    onOpenRideHistory();
+                  }
+                }}
+                className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-emerald-500/40 flex items-center gap-3 cursor-pointer transition-all active:scale-95 group"
+                title="View Ride History"
+              >
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-slate-950 flex items-center justify-center shrink-0 transition-colors">
                   <Bike className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-base font-black text-white font-mono-num">{ridesTaken}</span>
-                  <span className="text-[11px] text-slate-400 font-semibold">Rides Taken</span>
+                  <span className="text-[11px] text-slate-400 font-semibold group-hover:text-emerald-300 transition-colors flex items-center gap-0.5">
+                    <span>Rides Taken</span>
+                    <ChevronRight className="w-3 h-3 text-emerald-400" />
+                  </span>
                 </div>
               </div>
 
+            </div>
+
+            {/* Dedicated Ride History Quick Button */}
+            <div className="pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onOpenRideHistory) {
+                    onClose();
+                    onOpenRideHistory();
+                  }
+                }}
+                className="w-full p-3 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 flex items-center justify-between text-left cursor-pointer transition-all active:scale-95 group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm">
+                    <History className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-white group-hover:text-emerald-300 transition-colors">
+                      My Ride History & Receipts
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {ridesTaken} recorded trip{ridesTaken !== 1 ? 's' : ''} • View billing & invoices
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
+              </button>
             </div>
 
           </div>
