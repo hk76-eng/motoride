@@ -959,7 +959,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         showPassengerOnly={false}
         nearbyCaptains={activeRide ? [] : nearbyCaptains}
         nearestCaptain={activeRide ? null : nearestCaptain}
-        showLocationsABOnly={false}
+        showLocationsABOnly={Boolean(activeRide)}
         isLiveGpsActive={gpsStatus === 'live'}
         onLocateMe={requestLiveLocation}
         pickupLat={currentPickupLat}
@@ -2022,19 +2022,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         <span className="w-5 h-0.5 bg-white rounded-full group-hover:w-5.5 transition-all" />
         <span className="w-3.5 h-0.5 bg-white rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
       </button>
-
-      {/* Floating Top Digital Watch HUD on Passenger Screen showing Captain Coming ETA to Location A */}
-      {activeRide && activeRide.status === 'captain_accepted' && (
-        <div className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-20 z-[950] max-w-[calc(100vw-5rem)] sm:max-w-md">
-          <DigitalWatchETA
-            ride={activeRide}
-            captainLat={animatedCaptainPos?.lat ?? activeRide.captain_current_lat}
-            captainLng={animatedCaptainPos?.lng ?? activeRide.captain_current_lng}
-            variant="floating-top"
-            onExpandCard={() => setIsCardMinimized(false)}
-          />
-        </div>
-      )}
 
       {/* Passenger Profile Slide-in Drawer from Left to Right */}
       <PassengerProfileDrawer

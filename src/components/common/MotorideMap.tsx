@@ -478,11 +478,15 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       distToPickupMeters = Math.round(6371000 * 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal)));
     }
 
-    // Always show passenger standing marker with icon whenever passenger coordinates are available and not suppressed
+    // Check if ride is currently active / booked
+    const isRideBooked = Boolean(activeRideStatus);
+
+    // Show passenger standing marker with "(Tap for A)" ONLY before booking ride in passenger app
     const shouldShowPassengerStanding = Boolean(
       passengerLat &&
       passengerLng &&
-      !showLocationsABOnly
+      !showLocationsABOnly &&
+      !isRideBooked
     );
 
     // Check if pickup is currently set to the passenger's exact position
@@ -495,7 +499,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       (distToPickupMeters !== null ? distToPickupMeters < 12 : false)
     );
 
-    // 1. Passenger Standing Location Marker (Always displayed on map with custom passenger hailing silhouette icon)
+    // 1. Passenger Standing Location Marker (Displayed ONLY before ride booking with custom passenger hailing silhouette icon)
     if (shouldShowPassengerStanding && passengerLat && passengerLng) {
       bounds.push([passengerLat, passengerLng]);
       const labelText = isPickupAtPassenger
@@ -604,8 +608,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       pickupMarkerRef.current = null;
     }
 
-    // Walking guide dashed line connecting Passenger Standing Location to Pickup Location A (only when standing separately)
-    if (hasPickup && !isPickupAtPassenger && distToPickupMeters !== null && distToPickupMeters >= 4 && distToPickupMeters <= 1500 && passengerLat && passengerLng && pickupLat && pickupLng) {
+    // Walking guide dashed line connecting Passenger Standing Location to Pickup Location A (only before ride booking when standing separately)
+    if (!isRideBooked && hasPickup && !isPickupAtPassenger && distToPickupMeters !== null && distToPickupMeters >= 4 && distToPickupMeters <= 1500 && passengerLat && passengerLng && pickupLat && pickupLng) {
       if (!passengerToPickupLineRef.current || !map.hasLayer(passengerToPickupLineRef.current)) {
         if (passengerToPickupLineRef.current) {
           try {
