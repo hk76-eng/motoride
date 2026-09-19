@@ -867,6 +867,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       {activeRide ? (
           /* Active Ride Cards - White Background with Black Text, Icons and Dark Black Outlines */
           <div className="bg-white border-2 border-black rounded-3xl p-5 flex flex-col gap-4 shadow-2xl text-black">
+            {/* Top Pull Down / Drop Down Handle Bar */}
+            <div
+              onClick={() => setIsCardMinimized(true)}
+              className="w-full -mt-2 -mb-1 py-1 flex flex-col items-center justify-center cursor-pointer group select-none"
+              title="Drop down active ride to see full map"
+            >
+              <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-black transition-colors" />
+            </div>
+
             {/* Status Header */}
             <div className="flex items-center justify-between pb-3 border-b border-black/20">
               <div>
@@ -877,8 +886,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   {activeRide.status.replace(/_/g, ' ')}
                 </h2>
               </div>
-              <div className="w-9 h-9 rounded-2xl bg-slate-100 border border-black flex items-center justify-center">
-                <Bike className="w-5 h-5 text-black stroke-[2.5]" />
+
+              <div className="flex items-center gap-2">
+                {/* Drop Down Button in Active Ride */}
+                <button
+                  type="button"
+                  onClick={() => setIsCardMinimized(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-black text-xs font-black transition-all active:scale-95 cursor-pointer group shadow-xs"
+                  title="Drop down active ride details to view full map"
+                  aria-label="Drop down active ride details"
+                >
+                  <span>Drop Down</span>
+                  <ChevronDown className="w-4 h-4 text-black group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
+                </button>
+
+                <div className="w-9 h-9 rounded-2xl bg-slate-100 border border-black flex items-center justify-center shrink-0">
+                  <Bike className="w-5 h-5 text-black stroke-[2.5]" />
+                </div>
               </div>
             </div>
 
@@ -1824,9 +1848,26 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             className="p-3 sm:p-3.5 rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl flex items-center justify-between gap-3 hover:border-slate-700 transition-all cursor-pointer"
           >
             <div className="flex items-center gap-3 min-w-0 pr-2 flex-1">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-lg shadow-md shrink-0">
-                🏍️
-              </div>
+              {activeRide?.captain_name ? (
+                <div className="relative shrink-0">
+                  <img
+                    src={getCaptainAvatarUrl(activeRide.captain_name || undefined, (activeRide as any).captain_avatar || (activeRide as any).avatar_url)}
+                    alt={activeRide.captain_name}
+                    className="w-10 h-10 rounded-2xl object-cover border-2 border-emerald-400 bg-slate-200 shadow-md"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src =
+                        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                    }}
+                  />
+                  <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border border-slate-950 flex items-center justify-center text-[8px] text-black font-black">
+                    ✓
+                  </span>
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                  🏍️
+                </div>
+              )}
               <div className="min-w-0 flex flex-col">
                 <span className="text-xs font-bold text-white truncate">
                   {activeRide
@@ -1835,7 +1876,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 </span>
                 <span className="text-[11px] text-emerald-400 font-mono-num font-semibold truncate">
                   {activeRide
-                    ? `Fare: ₹${activeRide.final_fare || activeRide.offered_fare} • Active Trip`
+                    ? activeRide.captain_name
+                      ? `${activeRide.captain_name} (${activeRide.vehicle_model || 'Bike'}) • ₹${activeRide.final_fare || activeRide.offered_fare}`
+                      : `Fare: ₹${activeRide.final_fare || activeRide.offered_fare} • Searching Captains...`
                     : `₹${offeredFare} • ${rideType.toUpperCase()} (Tap to expand booking)`}
                 </span>
               </div>
@@ -1849,9 +1892,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 setIsCardMinimized(false);
               }}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer transition-all shrink-0"
-              title="Open booking form"
+              title={activeRide ? 'Expand Active Ride Details' : 'Open booking form'}
             >
-              <span>{activeRide ? 'View Ride' : 'Book Ride'}</span>
+              <span>{activeRide ? 'Expand Ride' : 'Book Ride'}</span>
               <ChevronUp className="w-4 h-4 stroke-[3]" />
             </button>
           </div>
