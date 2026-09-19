@@ -572,6 +572,33 @@ export const motorideApi = {
     return updatedRide;
   },
 
+  async submitRideRating(payload: {
+    ride_id: string;
+    rater_role: 'captain' | 'passenger';
+    captain_id: string;
+    passenger_id: string;
+    score: number;
+    review?: string;
+    tags?: string[];
+  }): Promise<boolean> {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('ratings').insert([{
+          ride_id: payload.ride_id,
+          passenger_id: payload.passenger_id,
+          captain_id: payload.captain_id,
+          score: payload.score,
+          review: payload.review || (payload.tags && payload.tags.length > 0 ? payload.tags.join(', ') : ''),
+          created_at: new Date().toISOString(),
+        }]);
+      } catch (err) {
+        console.warn('Supabase rating save notice:', err);
+      }
+    }
+    return true;
+  },
+
   async updateCaptainLocation(rideId: string, lat: number, lng: number): Promise<void> {
     realtimeSync.broadcast('CAPTAIN_LOCATION_UPDATED', { ride_id: rideId, lat, lng });
     fetch(`${API_BASE}/rides/${rideId}/location`, {

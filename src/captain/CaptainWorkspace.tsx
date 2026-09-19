@@ -8,6 +8,7 @@ import {
 } from '../types/motoride';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
+import { CaptainPassengerRatingModal } from './CaptainPassengerRatingModal';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees } from '../utils/distanceCalculator';
@@ -158,6 +159,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
+  const [showPassengerRatingModal, setShowPassengerRatingModal] = useState<boolean>(false);
+  const [completedRideForRating, setCompletedRideForRating] = useState<MotorideRide | null>(null);
+  const [isFinishingRide, setIsFinishingRide] = useState<boolean>(false);
 
   // Default to false so the map and Captain live GPS position are immediately 100% visible
   const [is100Full, setIs100Full] = useState<boolean>(false);
@@ -766,13 +770,64 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       }
 
       if (nextStatus === 'trip_completed') {
-        setActiveRide(null);
-        loadCaptainData();
+        // Prompt Captain to rate passenger before finishing the ride
+        setCompletedRideForRating(activeRide);
+        setShowPassengerRatingModal(true);
+        return;
       } else {
         setActiveRide(updated);
       }
     } catch (err: any) {
       alert(err.message || 'Failed to update status');
+    }
+  };
+
+  const handleFinishRideWithRating = async (
+    score: number,
+    review: string,
+    tags: string[],
+    skipRating: boolean = false
+  ) => {
+    const rideToFinish = completedRideForRating || activeRide;
+    if (!rideToFinish) return;
+
+    setIsFinishingRide(true);
+    try {
+      const finalFare = rideToFinish.final_fare || rideToFinish.estimated_fare;
+      const finalDist = rideToFinish.distance_km;
+
+      // 1. Mark ride completed in Supabase / Local storage
+      await motorideApi.updateRideStatus(rideToFinish.id, 'trip_completed', {
+        final_fare: finalFare,
+        final_distance_km: finalDist,
+      });
+
+      // 2. Submit Captain's rating for passenger
+      if (!skipRating && rideToFinish.passenger_id) {
+        await motorideApi.submitRideRating({
+          ride_id: rideToFinish.id,
+          rater_role: 'captain',
+          captain_id: captainId,
+          passenger_id: rideToFinish.passenger_id,
+          score: score || 5,
+          review: review,
+          tags: tags,
+        });
+      }
+
+      // 3. Clear active ride and refresh earnings/history
+      setActiveRide(null);
+      setCompletedRideForRating(null);
+      setShowPassengerRatingModal(false);
+      await loadCaptainData();
+    } catch (err: any) {
+      console.warn('Finish ride notice:', err);
+      setActiveRide(null);
+      setCompletedRideForRating(null);
+      setShowPassengerRatingModal(false);
+      loadCaptainData();
+    } finally {
+      setIsFinishingRide(false);
     }
   };
 
@@ -1589,6 +1644,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             />
           </div>
         </div>
+      )}
+
+      {/* Captain Rates Passenger Modal at the End of Trip */}
+      {showPassengerRatingModal && completedRideForRating && (
+        <CaptainPassengerRatingModal
+          ride={completedRideForRating}
+          captainName={captain?.full_name || 'Captain'}
+          isSubmitting={isFinishingRide}
+          onSubmit={(score, review, tags) => handleFinishRideWithRating(score, review, tags, false)}
+          onSkip={() => handleFinishRideWithRating(5, '', [], true)}
+        />
       )}
     </div>
   );
