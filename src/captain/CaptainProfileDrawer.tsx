@@ -32,6 +32,7 @@ import {
   Power,
   Volume2,
   Sun,
+  IndianRupee,
 } from 'lucide-react';
 import { Captain } from '../types/motoride';
 import { safeStorage } from '../lib/safeStorage';
@@ -40,6 +41,7 @@ interface CaptainProfileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   captain: Captain | null;
+  todayIncome?: number;
   onUpdateCaptain?: (updated: Partial<Captain>) => void;
   onOpenWallet?: () => void;
   onSignOut?: () => void;
@@ -49,6 +51,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   isOpen,
   onClose,
   captain,
+  todayIncome = 0,
   onUpdateCaptain,
   onOpenWallet,
   onSignOut,
@@ -419,6 +422,28 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                     <span>Remove Photo</span>
                   </button>
                 )}
+              </div>
+            </div>
+
+            {/* Middle Row inside Overview Card: Today's Income */}
+            <div className="pt-3 border-t border-white/10">
+              <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm">
+                    <IndianRupee className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider">
+                      Today's Income
+                    </span>
+                    <span className="font-black text-base text-amber-400 font-mono-num">
+                      ₹{todayIncome.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-slate-400 font-medium bg-black/30 px-2 py-1 rounded-lg border border-white/10">
+                  Resets at 12 AM
+                </span>
               </div>
             </div>
 

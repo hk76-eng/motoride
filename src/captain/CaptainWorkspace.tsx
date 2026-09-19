@@ -40,6 +40,7 @@ import {
   TrendingUp,
   X,
   ArrowLeft,
+  IndianRupee,
 } from 'lucide-react';
 
 interface CaptainWorkspaceProps {
@@ -158,6 +159,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [fareSettings, setFareSettings] = useState<FareSettings | null>(null);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [todayIncome, setTodayIncome] = useState<number>(0);
+  const [todayCompletedRidesCount, setTodayCompletedRidesCount] = useState<number>(0);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
   const [showPassengerRatingModal, setShowPassengerRatingModal] = useState<boolean>(false);
@@ -428,7 +431,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     const unsubRideUpdated = realtimeSync.on('RIDE_UPDATED', (updatedRide: MotorideRide) => {
       if (updatedRide.captain_id === captainId) {
-        if (updatedRide.status === 'trip_completed' || updatedRide.status.includes('cancelled')) {
+        if (updatedRide.status === 'trip_completed' || updatedRide.status === 'completed' || updatedRide.status.includes('cancelled')) {
           setActiveRide(null);
           loadCaptainData();
         } else {
@@ -444,6 +447,22 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       });
     });
 
+    // Real-time synchronization when rides are completed and earnings update
+    const unsubEarningsUpdated = realtimeSync.on('EARNINGS_UPDATED', () => {
+      loadCaptainData();
+    });
+
+    // Automatic daily reset: check if the calendar date changed in the local business timezone (Asia/Kolkata)
+    // When midnight passes, Today's Income automatically resets to ₹0 without requiring manual actions.
+    let lastCheckedDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+    const rolloverInterval = setInterval(() => {
+      const currentDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+      if (currentDate !== lastCheckedDate) {
+        lastCheckedDate = currentDate;
+        loadCaptainData();
+      }
+    }, 10000);
+
     // Continuous 2.5-second polling to ensure cross-browser/mobile sync even if SSE sleeps on mobile
     const pollInterval = setInterval(() => {
       loadAvailableRides();
@@ -455,6 +474,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (document.visibilityState === 'visible') {
         loadAvailableRides();
         loadActiveRide();
+        loadCaptainData();
       }
     };
     window.addEventListener('focus', handleVisibility);
@@ -463,6 +483,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     return () => {
       unsubRideCreated();
       unsubRideUpdated();
+      unsubEarningsUpdated();
+      clearInterval(rolloverInterval);
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleVisibility);
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -557,6 +579,18 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (w && w.wallet) {
         setWalletBalance(w.wallet.balance || 0);
         setWalletTransactions(w.transactions || []);
+      }
+
+      // Fetch Today's Income calculated dynamically from the database
+      // Only includes rides completed today with status = 'completed' or 'trip_completed'
+      try {
+        const incomeRes = await motorideApi.getCaptainTodayIncome(captainId);
+        if (incomeRes) {
+          setTodayIncome(incomeRes.today_income);
+          setTodayCompletedRidesCount(incomeRes.completed_rides_today);
+        }
+      } catch (incomeErr) {
+        console.warn('Today income fetch notice:', incomeErr);
       }
     } catch {}
   };
@@ -907,6 +941,32 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const renderCaptainControls = () => (
     <div className="flex flex-col gap-3 pb-4">
+      {/* Today's Income Card: Dynamically calculated from completed rides database */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-slate-50 border border-amber-500/30 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-xs shrink-0">
+            <IndianRupee className="w-5 h-5 stroke-[2.5]" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Today's Income
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-slate-900 font-mono-num">
+              Today's Income: ₹{todayIncome.toLocaleString('en-IN')}
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold font-mono-num flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            {todayCompletedRidesCount} {todayCompletedRidesCount === 1 ? 'ride' : 'rides'} today
+          </span>
+          <span className="text-[10px] text-slate-400 mt-1 font-medium">
+            Resets daily at 12:00 AM
+          </span>
+        </div>
+      </div>
+
       {activeRide ? (
         /* Active Trip Execution Card */
         <div className="bg-white border border-slate-200 rounded-3xl p-5 flex flex-col gap-4 shadow-xl">
@@ -1542,11 +1602,15 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                     is100Full ? 'border-b border-slate-200' : 'cursor-pointer hover:bg-slate-50 transition-colors'
                   }`}
                 >
-                  {/* Left: Live Requests Count */}
-                  <div className="flex items-center gap-2 min-w-0">
+                  {/* Left: Live Requests Count + Today's Income */}
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono-num">
                       <Bike className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <span>{availableRides.length} Live Requests</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold font-mono-num">
+                      <IndianRupee className="w-3.5 h-3.5 text-emerald-600 shrink-0 stroke-[2.5]" />
+                      <span>Today's Income: ₹{todayIncome.toLocaleString('en-IN')}</span>
                     </div>
                   </div>
 
@@ -1613,6 +1677,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         captain={captain}
+        todayIncome={todayIncome}
         onUpdateCaptain={handleUpdateCaptainProfile}
         onOpenWallet={onOpenWallet}
         onSignOut={onSignOut}

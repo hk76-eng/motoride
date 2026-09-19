@@ -7,6 +7,7 @@ export type MotorideRideStatus =
   | 'captain_arrived'
   | 'trip_started'
   | 'trip_completed'
+  | 'completed'
   | 'cancelled_by_passenger'
   | 'cancelled_by_captain';
 
@@ -53,6 +54,8 @@ export interface Captain {
   rating: number;
   total_rides: number;
   today_earnings?: number;
+  today_income?: number;
+  completed_rides_today?: number;
   total_earnings?: number;
   wallet_balance?: number;
   vehicle_model?: string;
@@ -100,6 +103,7 @@ export interface MotorideRide {
   estimated_fare: number;
   offered_fare: number;
   final_fare: number;
+  fare_amount?: number;
   ride_type: RideTypeCode;
   status: MotorideRideStatus;
   payment_method: 'cash' | 'wallet' | 'upi';
@@ -109,6 +113,7 @@ export interface MotorideRide {
   cancellation_reason?: string | null;
   trip_started_at?: string | null;
   trip_completed_at?: string | null;
+  completed_at?: string | null;
   captain_current_lat?: number | null;
   captain_current_lng?: number | null;
   captain_heading?: number | null;

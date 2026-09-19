@@ -244,29 +244,93 @@ export const ridesStore = new Map<string, MotorideRide>();
 // 7. Notifications Store
 export const notificationsStore: MotorideNotification[] = [];
 
-// Helper: Calculate Today's Earnings for a captain dynamically from completed rides
+// Helper: Calculate Today's Income for a captain dynamically from completed rides
 // The user prompt mandates:
-// "Today's earnings must be calculated from completed rides for the current local calendar date.
-// At the beginning of the next day, today's earnings must automatically show ₹0 and begin counting the new day's completed rides.
-// Do not permanently store yesterday's total as today's total."
-export function calculateCaptainTodayEarnings(captainId: string): number {
+// 1. "Today's Income must include ONLY rides that were successfully completed today."
+// 2. "Calculate it from the rides database using the ride's completed_at timestamp and the captain's ID."
+// 3. "Do NOT use yesterday's total as today's starting balance."
+// 4. "When the calendar date changes to a new day, Today's Income must automatically become ₹0 if no rides have been completed on the new day."
+// 5. "SUM(fare_amount) for rides where captain_id = currentCaptainId AND status = 'completed' AND completed_at >= startOfToday AND completed_at < startOfTomorrow"
+export function calculateCaptainTodayIncome(
+  captainId: string,
+  timezone: string = 'Asia/Kolkata'
+): {
+  today_income: number;
+  completed_rides_today: number;
+  today_date: string;
+} {
   const now = new Date();
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
+  let todayDateStr: string;
+  try {
+    todayDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
+  } catch {
+    todayDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+  }
+
+  let totalIncome = 0;
+  let count = 0;
+
+  for (const ride of ridesStore.values()) {
+    // Only completed rides
+    const isCompleted = ride.status === 'completed' || ride.status === 'trip_completed';
+    if (ride.captain_id === captainId && isCompleted) {
+      const completionTimestamp = ride.completed_at || ride.trip_completed_at;
+      if (completionTimestamp) {
+        const rideDate = new Date(completionTimestamp);
+        if (!isNaN(rideDate.getTime())) {
+          let rideDateStr: string;
+          try {
+            rideDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(rideDate);
+          } catch {
+            rideDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(rideDate);
+          }
+          if (rideDateStr === todayDateStr) {
+            // SUM(fare_amount)
+            const fare = Number(ride.fare_amount ?? ride.final_fare ?? ride.offered_fare ?? 0);
+            totalIncome += fare;
+            count++;
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    today_income: Number(totalIncome.toFixed(2)),
+    completed_rides_today: count,
+    today_date: todayDateStr,
+  };
+}
+
+export function calculateCaptainTodayEarnings(captainId: string, timezone: string = 'Asia/Kolkata'): number {
+  const now = new Date();
+  let todayDateStr: string;
+  try {
+    todayDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
+  } catch {
+    todayDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+  }
 
   let todayTotal = 0;
   for (const ride of ridesStore.values()) {
-    if (
-      ride.captain_id === captainId &&
-      ride.status === 'trip_completed' &&
-      ride.trip_completed_at
-    ) {
-      const completedTime = new Date(ride.trip_completed_at).getTime();
-      if (completedTime >= startOfDay && completedTime < endOfDay) {
-        // Net earning after platform commission
-        const gross = Number(ride.final_fare || ride.offered_fare || 0);
-        const commission = (gross * fareSettings.platform_commission_pct) / 100;
-        todayTotal += gross - commission;
+    const isCompleted = ride.status === 'completed' || ride.status === 'trip_completed';
+    if (ride.captain_id === captainId && isCompleted) {
+      const completionTimestamp = ride.completed_at || ride.trip_completed_at;
+      if (completionTimestamp) {
+        const rideDate = new Date(completionTimestamp);
+        if (!isNaN(rideDate.getTime())) {
+          let rideDateStr: string;
+          try {
+            rideDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(rideDate);
+          } catch {
+            rideDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(rideDate);
+          }
+          if (rideDateStr === todayDateStr) {
+            const gross = Number(ride.fare_amount ?? ride.final_fare ?? ride.offered_fare ?? 0);
+            const commission = (gross * fareSettings.platform_commission_pct) / 100;
+            todayTotal += gross - commission;
+          }
+        }
       }
     }
   }
@@ -276,12 +340,9 @@ export function calculateCaptainTodayEarnings(captainId: string): number {
 export function calculateCaptainTotalEarnings(captainId: string): number {
   let total = 0;
   for (const ride of ridesStore.values()) {
-    if (
-      ride.captain_id === captainId &&
-      ride.status === 'trip_completed' &&
-      ride.trip_completed_at
-    ) {
-      const gross = Number(ride.final_fare || ride.offered_fare || 0);
+    const isCompleted = ride.status === 'completed' || ride.status === 'trip_completed';
+    if (ride.captain_id === captainId && isCompleted) {
+      const gross = Number(ride.fare_amount ?? ride.final_fare ?? ride.offered_fare ?? 0);
       const commission = (gross * fareSettings.platform_commission_pct) / 100;
       total += gross - commission;
     }

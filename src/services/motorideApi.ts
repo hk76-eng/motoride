@@ -524,9 +524,17 @@ export const motorideApi = {
       updated_at: new Date().toISOString(),
     };
     if (status === 'trip_started') updatedRide.trip_started_at = new Date().toISOString();
-    if (status === 'trip_completed') {
-      updatedRide.trip_completed_at = new Date().toISOString();
+    if (status === 'trip_completed' || status === 'completed') {
+      const nowIso = new Date().toISOString();
+      updatedRide.trip_completed_at = nowIso;
+      (updatedRide as any).completed_at = nowIso;
       updatedRide.payment_status = 'paid';
+      if (extra?.final_fare !== undefined) {
+        updatedRide.final_fare = extra.final_fare;
+        (updatedRide as any).fare_amount = extra.final_fare;
+      } else {
+        (updatedRide as any).fare_amount = updatedRide.final_fare || updatedRide.offered_fare || 0;
+      }
     }
 
     localRidesStore.set(rideId, updatedRide);
@@ -534,6 +542,9 @@ export const motorideApi = {
 
     realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
     realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status });
+    if (status === 'trip_completed' || status === 'completed' || status.includes('cancelled')) {
+      realtimeSync.broadcast('EARNINGS_UPDATED', { captain_id: updatedRide.captain_id, ride: updatedRide });
+    }
 
     const supabase = getSupabase();
     if (supabase) {
@@ -546,9 +557,15 @@ export const motorideApi = {
         if (extra?.final_distance_km) updatePayload.distance_km = extra.final_distance_km;
         if (extra?.final_fare) updatePayload.final_fare = extra.final_fare;
         if (status === 'trip_started') updatePayload.trip_started_at = new Date().toISOString();
-        if (status === 'trip_completed') {
-          updatePayload.trip_completed_at = new Date().toISOString();
+        if (status === 'trip_completed' || status === 'completed') {
+          const nowIso = new Date().toISOString();
+          updatePayload.trip_completed_at = nowIso;
+          updatePayload.completed_at = nowIso;
           updatePayload.payment_status = 'paid';
+          if (extra?.final_fare !== undefined) {
+            updatePayload.final_fare = extra.final_fare;
+            updatePayload.fare_amount = extra.final_fare;
+          }
         }
         await supabase.from('rides').update(updatePayload).eq('id', rideId);
       } catch (err) {
@@ -802,6 +819,115 @@ export const motorideApi = {
   async getCaptainById(id: string): Promise<Captain | null> {
     const json = await safeFetchJson<{ captain?: Captain }>(`${API_BASE}/captains/${id}`, undefined, {});
     return json?.captain || null;
+  },
+
+  // Today's Income Calculation Engine
+  // Strictly calculates SUM(fare_amount) for rides where:
+  // captain_id = :captainId AND status = 'completed' (or 'trip_completed')
+  // AND completed_at >= startOfToday AND completed_at < startOfTomorrow
+  // Automatically resets to ₹0 when the calendar day rolls over.
+  async getCaptainTodayIncome(
+    captainId: string,
+    timezone: string = 'Asia/Kolkata'
+  ): Promise<{ today_income: number; completed_rides_today: number; today_date: string }> {
+    const now = new Date();
+    let todayDateStr: string;
+    try {
+      todayDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
+    } catch {
+      todayDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+    }
+
+    let todayIncome = 0;
+    let completedCount = 0;
+    let loadedFromDb = false;
+
+    // 1. Query Supabase PostgreSQL rides table if configured
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('rides')
+          .select('id, captain_id, status, final_fare, fare_amount, offered_fare, trip_completed_at, completed_at')
+          .eq('captain_id', captainId)
+          .in('status', ['completed', 'trip_completed']);
+
+        if (!error && Array.isArray(data)) {
+          let sum = 0;
+          let count = 0;
+          data.forEach((r: any) => {
+            const ts = r.completed_at || r.trip_completed_at;
+            if (ts) {
+              const rideDate = new Date(ts);
+              if (!isNaN(rideDate.getTime())) {
+                const rDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(rideDate);
+                if (rDateStr === todayDateStr) {
+                  const fare = Number(r.fare_amount ?? r.final_fare ?? r.offered_fare ?? 0);
+                  sum += fare;
+                  count++;
+                }
+              }
+            }
+          });
+          todayIncome = sum;
+          completedCount = count;
+          loadedFromDb = true;
+        }
+      } catch (err) {
+        console.warn('Supabase today-income query notice:', err);
+      }
+    }
+
+    // 2. Query Server API endpoint /api/captains/:id/today-income
+    try {
+      const json = await safeFetchJson<{
+        success: boolean;
+        today_income: number;
+        completed_rides_today: number;
+        today_date: string;
+      }>(`${API_BASE}/captains/${captainId}/today-income?tz=${encodeURIComponent(timezone)}`);
+
+      if (json && typeof json.today_income === 'number') {
+        if (!loadedFromDb || json.today_income > todayIncome || (todayIncome === 0 && json.today_income > 0)) {
+          todayIncome = json.today_income;
+          completedCount = json.completed_rides_today;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    // 3. Check memory/local storage fallback store
+    let localSum = 0;
+    let localCount = 0;
+    for (const r of localRidesStore.values()) {
+      const isCompleted = r.status === 'completed' || r.status === 'trip_completed';
+      if (r.captain_id === captainId && isCompleted) {
+        const ts = (r as any).completed_at || r.trip_completed_at;
+        if (ts) {
+          const rideDate = new Date(ts);
+          if (!isNaN(rideDate.getTime())) {
+            const rDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(rideDate);
+            if (rDateStr === todayDateStr) {
+              const fare = Number((r as any).fare_amount ?? r.final_fare ?? r.offered_fare ?? 0);
+              localSum += fare;
+              localCount++;
+            }
+          }
+        }
+      }
+    }
+
+    if (localSum > todayIncome || (completedCount === 0 && localCount > 0)) {
+      todayIncome = localSum;
+      completedCount = localCount;
+    }
+
+    return {
+      today_income: Number(todayIncome.toFixed(2)),
+      completed_rides_today: completedCount,
+      today_date: todayDateStr,
+    };
   },
 
   async toggleCaptainOnline(id: string, is_online?: boolean): Promise<Captain> {

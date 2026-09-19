@@ -12,6 +12,7 @@ import {
   notificationsStore,
   broadcastEvent,
   subscribeSSE,
+  calculateCaptainTodayIncome,
   calculateCaptainTodayEarnings,
   calculateCaptainTotalEarnings,
   getAdminStats,
@@ -609,8 +610,9 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
     ride.captain_heading = computeBearingDegrees(ride.pickup_lat, ride.pickup_lng, ride.dropoff_lat, ride.dropoff_lng);
   }
 
-  if (status === 'trip_completed') {
+  if (status === 'trip_completed' || status === 'completed') {
     ride.trip_completed_at = now;
+    ride.completed_at = now;
     ride.captain_current_lat = ride.dropoff_lat;
     ride.captain_current_lng = ride.dropoff_lng;
     if (final_distance_km !== undefined) {
@@ -618,6 +620,9 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
     }
     if (final_fare !== undefined) {
       ride.final_fare = Number(final_fare);
+      ride.fare_amount = Number(final_fare);
+    } else {
+      ride.fare_amount = Number(ride.final_fare || ride.offered_fare || 0);
     }
     ride.payment_status = 'paid';
 
@@ -647,6 +652,9 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
       const cpt = captainsStore.get(ride.captain_id);
       if (cpt) {
         cpt.total_rides = (cpt.total_rides || 0) + 1;
+        const todayIncomeInfo = calculateCaptainTodayIncome(cpt.id);
+        cpt.today_income = todayIncomeInfo.today_income;
+        cpt.completed_rides_today = todayIncomeInfo.completed_rides_today;
         cpt.today_earnings = calculateCaptainTodayEarnings(cpt.id);
         cpt.total_earnings = calculateCaptainTotalEarnings(cpt.id);
       }
@@ -1078,14 +1086,35 @@ motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Captain not found' });
   }
 
+  const tz = (req.query.tz as string) || 'Asia/Kolkata';
+  const todayIncomeData = calculateCaptainTodayIncome(cpt.id, tz);
+
   const enriched = {
     ...cpt,
-    today_earnings: calculateCaptainTodayEarnings(cpt.id),
+    today_income: todayIncomeData.today_income,
+    completed_rides_today: todayIncomeData.completed_rides_today,
+    today_earnings: calculateCaptainTodayEarnings(cpt.id, tz),
     total_earnings: calculateCaptainTotalEarnings(cpt.id),
     wallet_balance: (walletsStore.get(cpt.id) || { balance: 0 }).balance,
   };
 
   res.json({ success: true, captain: enriched });
+});
+
+// Dedicated Daily Income Endpoint for Captain
+// Calculates SUM(fare_amount) for rides where captain_id = :id AND status = 'completed' AND completed_at >= startOfToday AND completed_at < startOfTomorrow
+motorideRouter.get('/captains/:id/today-income', (req: Request, res: Response) => {
+  const captainId = req.params.id;
+  const tz = (req.query.tz as string) || 'Asia/Kolkata';
+  const result = calculateCaptainTodayIncome(captainId, tz);
+  res.json({
+    success: true,
+    captain_id: captainId,
+    today_income: result.today_income,
+    completed_rides_today: result.completed_rides_today,
+    today_date: result.today_date,
+    timezone: tz,
+  });
 });
 
 motorideRouter.post('/captains/:id/profile', (req: Request, res: Response) => {

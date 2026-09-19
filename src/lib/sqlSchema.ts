@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS public.rides (
         'captain_arrived',
         'trip_started',
         'trip_completed',
+        'completed',
         'cancelled_by_passenger',
         'cancelled_by_captain'
     )),
@@ -128,6 +129,8 @@ CREATE TABLE IF NOT EXISTS public.rides (
     cancellation_reason TEXT,
     trip_started_at TIMESTAMPTZ,
     trip_completed_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    fare_amount NUMERIC(10, 2),
     captain_current_lat DOUBLE PRECISION,
     captain_current_lng DOUBLE PRECISION,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()),
@@ -138,6 +141,8 @@ CREATE TABLE IF NOT EXISTS public.rides (
 CREATE INDEX IF NOT EXISTS idx_rides_status ON public.rides(status);
 CREATE INDEX IF NOT EXISTS idx_rides_passenger ON public.rides(passenger_id);
 CREATE INDEX IF NOT EXISTS idx_rides_captain ON public.rides(captain_id);
+CREATE INDEX IF NOT EXISTS idx_rides_completed_at ON public.rides(completed_at);
+CREATE INDEX IF NOT EXISTS idx_rides_trip_completed_at ON public.rides(trip_completed_at);
 CREATE INDEX IF NOT EXISTS idx_rides_created ON public.rides(created_at DESC);
 
 -- 9. Ride Offers Table (inDrive style counter-offers)
