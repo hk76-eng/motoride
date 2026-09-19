@@ -331,7 +331,7 @@ export const motorideApi = {
       status: 'captain_accepted',
       captain_id: captainData.captain_id,
       captain_name: captainData.captain_name,
-      captain_avatar: (captainData as any).captain_avatar || localStorage.getItem('motoride_captain_avatar') || undefined,
+      captain_avatar: (captainData as any).captain_avatar || safeStorage.getItem('motoride_captain_avatar') || undefined,
       captain_phone: captainData.captain_phone,
       vehicle_model: captainData.vehicle_model,
       plate_number: captainData.plate_number,
@@ -867,7 +867,7 @@ export const motorideApi = {
   // 4. Fare Settings
   async getFareSettings(): Promise<FareSettings> {
     try {
-      const local = localStorage.getItem('motoride_admin_fare_settings');
+      const local = safeStorage.getItem('motoride_admin_fare_settings');
       if (local) {
         return JSON.parse(local);
       }
@@ -897,7 +897,7 @@ export const motorideApi = {
 
   async updateFareSettings(settings: Partial<FareSettings>): Promise<FareSettings> {
     try {
-      localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(settings));
+      safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(settings));
     } catch {}
     const supabase = getSupabase();
     if (supabase) {
@@ -1104,10 +1104,10 @@ export const motorideApi = {
     saveLocalRides();
     if (typeof window !== 'undefined') {
       try {
-        localStorage.removeItem('motoride_active_rides_cache');
-        localStorage.removeItem('motoride_registered_accounts');
-        localStorage.removeItem('motoride_users');
-        localStorage.removeItem('motoride_captain_recent_trips');
+        safeStorage.removeItem('motoride_active_rides_cache');
+        safeStorage.removeItem('motoride_registered_accounts');
+        safeStorage.removeItem('motoride_users');
+        safeStorage.removeItem('motoride_captain_recent_trips');
       } catch {}
     }
     const json = await safeFetchJson<{ success: boolean; message: string }>(`${API_BASE}/admin/purge-all`, {

@@ -57,10 +57,10 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   const [name, setName] = useState(() => safeStorage.getItem('motoride_captain_name') || captain?.full_name || 'Captain');
   const [phone, setPhone] = useState(() => safeStorage.getItem('motoride_captain_phone') || captain?.phone || '');
   const [email, setEmail] = useState(() => safeStorage.getItem('motoride_captain_email') || captain?.email || '');
-  const [vehicleModel, setVehicleModel] = useState(() => safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || 'Honda Activa 6G');
-  const [plateNumber, setPlateNumber] = useState(() => safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || 'PB65XX1000');
-  const [drivingLicense, setDrivingLicense] = useState(() => safeStorage.getItem('motoride_captain_dl') || (captain as any)?.license_number || 'DL-0420180098765');
-  const [emergencyContact, setEmergencyContact] = useState(() => safeStorage.getItem('motoride_captain_sos') || (captain as any)?.emergency_contact || '+91 98111 22334');
+  const [vehicleModel, setVehicleModel] = useState(() => safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || 'Motorcycle');
+  const [plateNumber, setPlateNumber] = useState(() => safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || '');
+  const [drivingLicense, setDrivingLicense] = useState(() => safeStorage.getItem('motoride_captain_dl') || (captain as any)?.license_number || '');
+  const [emergencyContact, setEmergencyContact] = useState(() => safeStorage.getItem('motoride_captain_sos') || (captain as any)?.emergency_contact || captain?.phone || '');
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Captain profile saved successfully!');
   
@@ -434,7 +434,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                   <span className="text-[10px] text-amber-300/80 font-bold uppercase tracking-wider">Rating</span>
                   <div className="flex items-baseline gap-1">
                     <span className="font-black text-sm text-amber-400 font-mono-num">
-                      {captain?.rating || 4.92}
+                      {captain?.rating !== undefined && captain?.rating !== null ? captain.rating : 5.0}
                     </span>
                     <span className="text-[10px] text-slate-400">/ 5.0</span>
                   </div>
@@ -450,7 +450,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                   <span className="text-[10px] text-emerald-300/80 font-bold uppercase tracking-wider">Total Rides</span>
                   <div className="flex items-baseline gap-1">
                     <span className="font-black text-sm text-emerald-400 font-mono-num">
-                      {captain?.total_rides || 48}
+                      {captain?.total_rides ?? 0}
                     </span>
                     <span className="text-[10px] text-slate-400">trips</span>
                   </div>

@@ -40,6 +40,7 @@ interface PassengerProfileDrawerProps {
   passengerName?: string;
   passengerEmail?: string;
   passengerPhone?: string;
+  totalRides?: number;
   onOpenWallet?: () => void;
   onSelectSavedLocation?: (loc: { name: string; lat: number; lng: number }) => void;
   onSignOut?: () => void;
@@ -52,6 +53,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   passengerName = 'Passenger',
   passengerEmail = '',
   passengerPhone = '',
+  totalRides = 0,
   onOpenWallet,
   onSelectSavedLocation,
   onSignOut,
@@ -61,13 +63,13 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     ? passengerName
     : (authUser?.name || passengerName || 'Passenger');
   const initialEmail = passengerEmail || authUser?.email || '';
-  const initialPhone = passengerPhone || authUser?.phone || '+91 98765 43210';
+  const initialPhone = passengerPhone || authUser?.phone || '';
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
   const [email, setEmail] = useState(initialEmail);
-  const [emergencyContact, setEmergencyContact] = useState('+91 98123 45678 (Brother)');
+  const [emergencyContact, setEmergencyContact] = useState(() => authUser?.phone || '');
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Profile details saved successfully!');
   const [shareTripWithContact, setShareTripWithContact] = useState(true);
@@ -82,8 +84,8 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     }
   });
 
-  const rating = 4.9;
-  const ridesTaken = 42;
+  const ridesTaken = totalRides ?? 0;
+  const rating = 5.0;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 

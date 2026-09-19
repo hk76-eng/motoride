@@ -2012,6 +2012,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         passengerName={effectivePassengerName}
         passengerEmail={currentUser?.email || authUser?.email}
         passengerPhone={currentUser?.phone || authUser?.phone}
+        totalRides={rideHistory.filter((r) => r.status === 'trip_completed').length}
         onOpenWallet={onOpenWallet}
         onSignOut={onSignOut}
         onSelectSavedLocation={(loc) => {
