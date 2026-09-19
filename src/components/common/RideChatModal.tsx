@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageSquare, X, ShieldCheck, User } from 'lucide-react';
+import { Send, MessageSquare, X, ShieldCheck, CornerDownLeft, Sparkles, CheckCheck } from 'lucide-react';
 import { MotorideRide, RideMessage } from '../../types/motoride';
 import { motorideApi } from '../../services/motorideApi';
 import { realtimeSync } from '../../services/realtimeSync';
@@ -23,6 +23,28 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isCaptain = currentUserRole === 'captain';
+  const otherPartyName = isCaptain ? (ride.passenger_name || 'Passenger') : (ride.captain_name || 'Captain');
+
+  const quickReplies = isCaptain
+    ? [
+        'I have arrived at Location A',
+        'Where are you waiting?',
+        'On my way! 🏍️',
+        'Heavy traffic, reaching in 2 mins',
+        'Please come to the pickup spot',
+        'Please be ready with OTP',
+      ]
+    : [
+        'I am standing at the main gate',
+        'Coming outside in 1 minute',
+        'Where are you now?',
+        'Wearing black jacket / helmet',
+        'Ok, got it! 👍',
+        'Please wait 2 mins',
+      ];
 
   const fetchMessages = async () => {
     try {
@@ -35,7 +57,7 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 4000);
+    const interval = setInterval(fetchMessages, 3000);
 
     const unsub = realtimeSync.on('RIDE_MESSAGE_RECEIVED', (payload: RideMessage) => {
       if (payload && payload.ride_id === ride.id) {
@@ -56,11 +78,15 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || isSending) return;
+  // Focus input on load
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
-    const text = inputText.trim();
+  const sendMessage = async (textToSend: string) => {
+    const text = textToSend.trim();
+    if (!text || isSending) return;
+
     setInputText('');
     setIsSending(true);
 
@@ -76,65 +102,90 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
       }
     } catch (err) {
       console.warn('Failed to send message:', err);
-      setInputText(text); // restore on error
+      setInputText(text); // restore on failure
     } finally {
       setIsSending(false);
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        inputRef.current?.focus();
+      }, 50);
     }
   };
 
-  const otherPartyName = currentUserRole === 'captain' ? (ride.passenger_name || 'Passenger') : (ride.captain_name || 'Captain');
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage(inputText);
+  };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950/95 backdrop-blur-2xl border border-white/20 rounded-3xl overflow-hidden shadow-2xl">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white/5 border-b border-white/10 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
+    <div className="flex flex-col w-full h-full min-h-0 bg-slate-950 border border-white/20 rounded-3xl overflow-hidden shadow-2xl relative">
+      
+      {/* Top Header (Pinned at Top) */}
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-slate-900/90 border-b border-white/10 shrink-0 select-none z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
             <MessageSquare className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-black text-white uppercase tracking-wider">
-              Chat with {otherPartyName}
-            </h4>
-            <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-black text-white tracking-wide">
+                Chat with {otherPartyName}
+              </h4>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold border border-emerald-500/30">
+                {isCaptain ? 'Passenger' : 'Captain'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 flex items-center gap-1 font-medium mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Secure In-Ride Connection ({ride.ride_code})
-            </span>
+              <span>Live In-Ride Channel • #{ride.ride_code}</span>
+            </p>
           </div>
         </div>
+
         {onClose && (
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Close Chat"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         )}
       </div>
 
-      {/* Messages List */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-[220px] max-h-[340px]">
+      {/* Messages Scroll Area (Fills entire middle space) */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 flex flex-col gap-3 bg-gradient-to-b from-slate-950 via-slate-900/60 to-slate-950 scrollbar-thin">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-6 text-slate-400 text-xs">
-            <ShieldCheck className="w-8 h-8 text-emerald-400/60 mb-2 stroke-[1.5]" />
-            <p className="font-semibold text-slate-300">No messages yet</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-12 text-slate-400">
+            <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-3">
+              <ShieldCheck className="w-6 h-6 text-emerald-400 stroke-[1.5]" />
+            </div>
+            <p className="font-bold text-white text-sm">Direct & Secure In-Ride Chat</p>
+            <p className="text-xs text-slate-400 max-w-xs mt-1">
+              Communicate pickup location, delays, or directions with {otherPartyName}.
+            </p>
           </div>
         ) : (
           messages.map((m, index) => {
             const isMe = m.sender_id === currentUserId || m.sender_role === currentUserRole;
+            const timeStr = new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
             return (
               <div
-                key={`${m.id}-${index}`}
-                className={`flex flex-col max-w-[82%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
+                key={`${m.id || index}-${m.created_at}`}
+                className={`flex flex-col max-w-[85%] sm:max-w-[70%] ${isMe ? 'self-end items-end' : 'self-start items-start'} animate-in fade-in slide-in-from-bottom-1 duration-150`}
               >
-                <span className="text-[9px] text-slate-400 px-1 mb-0.5">
-                  {m.sender_name} • {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                <div className="flex items-center gap-1.5 px-1 mb-1 text-[10px] text-slate-400">
+                  <span className="font-semibold">{isMe ? 'You' : m.sender_name}</span>
+                  <span>•</span>
+                  <span>{timeStr}</span>
+                </div>
                 <div
-                  className={`px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${
+                  className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm leading-relaxed ${
                     isMe
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-medium rounded-tr-none shadow-md'
-                      : 'bg-white/10 text-white border border-white/15 rounded-tl-none'
+                      ? 'bg-emerald-500 text-slate-950 font-semibold rounded-tr-none shadow-md shadow-emerald-500/10'
+                      : 'bg-slate-800/90 text-white border border-slate-700/80 rounded-tl-none shadow-sm'
                   }`}
                 >
                   {m.message}
@@ -143,27 +194,52 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
             );
           })
         )}
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} className="h-1" />
       </div>
 
-      {/* Input Form */}
-      <form onSubmit={handleSend} className="p-3 bg-white/5 border-t border-white/10 flex items-center gap-2 shrink-0">
+      {/* Quick Reply Suggestion Chips (Docked above the bottom input bar) */}
+      <div className="px-3 sm:px-4 py-2 bg-slate-900/90 border-t border-white/10 shrink-0 overflow-x-auto scrollbar-none flex items-center gap-1.5 z-10">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1 flex items-center gap-1">
+          <Sparkles className="w-3 h-3 text-emerald-400" />
+          Quick:
+        </span>
+        {quickReplies.map((reply, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => sendMessage(reply)}
+            disabled={isSending}
+            className="shrink-0 px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-emerald-500 hover:text-slate-950 text-slate-200 text-[11px] font-medium border border-slate-700 hover:border-emerald-400 transition-all cursor-pointer whitespace-nowrap active:scale-95 disabled:opacity-50"
+          >
+            {reply}
+          </button>
+        ))}
+      </div>
+
+      {/* Message Typing Input Form (Pinned at the VERY LAST BOTTOM OF THE BOX) */}
+      <form
+        onSubmit={handleSend}
+        className="p-3 sm:p-4 bg-slate-900 border-t border-white/10 flex items-center gap-2 sm:gap-3 shrink-0 z-10"
+      >
         <input
+          ref={inputRef}
           type="text"
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder={`Message ${otherPartyName}...`}
-          className="flex-1 bg-black/50 border border-white/20 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-colors"
+          placeholder={`Type a message for ${otherPartyName}...`}
+          className="flex-1 bg-black/80 border-2 border-slate-700 focus:border-emerald-400 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none transition-all shadow-inner"
         />
         <button
           type="submit"
           disabled={!inputText.trim() || isSending}
-          className="p-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 font-bold transition-all shrink-0 cursor-pointer shadow-md"
+          className="px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black transition-all shrink-0 cursor-pointer shadow-lg shadow-emerald-500/20 flex items-center gap-2"
           title="Send message"
         >
+          <span className="hidden sm:inline text-xs uppercase tracking-wider font-extrabold">Send</span>
           <Send className="w-4 h-4 stroke-[2.5]" />
         </button>
       </form>
+
     </div>
   );
 };
