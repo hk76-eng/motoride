@@ -34,6 +34,7 @@ import {
   Sun,
 } from 'lucide-react';
 import { Captain } from '../types/motoride';
+import { safeStorage } from '../lib/safeStorage';
 
 interface CaptainProfileDrawerProps {
   isOpen: boolean;
@@ -53,13 +54,13 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   onSignOut,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(() => localStorage.getItem('motoride_captain_name') || captain?.full_name || 'Captain');
-  const [phone, setPhone] = useState(() => localStorage.getItem('motoride_captain_phone') || captain?.phone || '');
-  const [email, setEmail] = useState(() => localStorage.getItem('motoride_captain_email') || captain?.email || '');
-  const [vehicleModel, setVehicleModel] = useState(() => localStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || 'Honda Activa 6G');
-  const [plateNumber, setPlateNumber] = useState(() => localStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || 'PB65XX1000');
-  const [drivingLicense, setDrivingLicense] = useState(() => localStorage.getItem('motoride_captain_dl') || (captain as any)?.license_number || 'DL-0420180098765');
-  const [emergencyContact, setEmergencyContact] = useState(() => localStorage.getItem('motoride_captain_sos') || (captain as any)?.emergency_contact || '+91 98111 22334');
+  const [name, setName] = useState(() => safeStorage.getItem('motoride_captain_name') || captain?.full_name || 'Captain');
+  const [phone, setPhone] = useState(() => safeStorage.getItem('motoride_captain_phone') || captain?.phone || '');
+  const [email, setEmail] = useState(() => safeStorage.getItem('motoride_captain_email') || captain?.email || '');
+  const [vehicleModel, setVehicleModel] = useState(() => safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || 'Honda Activa 6G');
+  const [plateNumber, setPlateNumber] = useState(() => safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || 'PB65XX1000');
+  const [drivingLicense, setDrivingLicense] = useState(() => safeStorage.getItem('motoride_captain_dl') || (captain as any)?.license_number || 'DL-0420180098765');
+  const [emergencyContact, setEmergencyContact] = useState(() => safeStorage.getItem('motoride_captain_sos') || (captain as any)?.emergency_contact || '+91 98111 22334');
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Captain profile saved successfully!');
   
@@ -69,7 +70,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   const [audioAlerts, setAudioAlerts] = useState(true);
   const [doNotScreenOff, setDoNotScreenOff] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem('motoride_captain_do_not_screen_off');
+      const saved = safeStorage.getItem('motoride_captain_do_not_screen_off');
       return saved !== null ? saved === 'true' : true;
     } catch {
       return true;
@@ -152,10 +153,10 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
     setTimeout(() => setIsSavedToast(false), 2500);
   };
 
-  // Captain Avatar Photo (Stored in state & localStorage)
+  // Captain Avatar Photo (Stored in state & safeStorage)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
     try {
-      return localStorage.getItem('motoride_captain_avatar') || null;
+      return safeStorage.getItem('motoride_captain_avatar') || null;
     } catch {
       return null;
     }
@@ -166,19 +167,19 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   // Sync prop changes without overwriting local storage edits
   useEffect(() => {
     if (captain) {
-      if (captain.full_name && captain.full_name !== 'Captain' && !localStorage.getItem('motoride_captain_name')) {
+      if (captain.full_name && captain.full_name !== 'Captain' && !safeStorage.getItem('motoride_captain_name')) {
         setName(captain.full_name);
       }
-      if (captain.phone && !localStorage.getItem('motoride_captain_phone')) {
+      if (captain.phone && !safeStorage.getItem('motoride_captain_phone')) {
         setPhone(captain.phone);
       }
-      if (captain.email && !localStorage.getItem('motoride_captain_email')) {
+      if (captain.email && !safeStorage.getItem('motoride_captain_email')) {
         setEmail(captain.email);
       }
-      if (captain.vehicle?.model && !localStorage.getItem('motoride_captain_vehicle_model')) {
+      if (captain.vehicle?.model && !safeStorage.getItem('motoride_captain_vehicle_model')) {
         setVehicleModel(captain.vehicle.model);
       }
-      if (captain.vehicle?.plate_number && !localStorage.getItem('motoride_captain_plate')) {
+      if (captain.vehicle?.plate_number && !safeStorage.getItem('motoride_captain_plate')) {
         setPlateNumber(captain.vehicle.plate_number);
       }
     }
@@ -204,9 +205,9 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
       const result = event.target?.result as string;
       setAvatarUrl(result);
       try {
-        localStorage.setItem('motoride_captain_avatar', result);
+        safeStorage.setItem('motoride_captain_avatar', result);
       } catch (err) {
-        console.warn('Could not persist captain avatar to localStorage:', err);
+        console.warn('Could not persist captain avatar to safeStorage:', err);
       }
       setToastMessage('Captain profile photo updated!');
       setIsSavedToast(true);
@@ -219,7 +220,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
     e.stopPropagation();
     setAvatarUrl(null);
     try {
-      localStorage.removeItem('motoride_captain_avatar');
+      safeStorage.removeItem('motoride_captain_avatar');
     } catch (err) {
       console.warn(err);
     }
@@ -238,13 +239,13 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
       return;
     }
     try {
-      localStorage.setItem('motoride_captain_name', name);
-      localStorage.setItem('motoride_captain_phone', phone);
-      localStorage.setItem('motoride_captain_email', email);
-      localStorage.setItem('motoride_captain_vehicle_model', vehicleModel);
-      localStorage.setItem('motoride_captain_plate', plateNumber);
-      localStorage.setItem('motoride_captain_dl', drivingLicense);
-      localStorage.setItem('motoride_captain_sos', emergencyContact);
+      safeStorage.setItem('motoride_captain_name', name);
+      safeStorage.setItem('motoride_captain_phone', phone);
+      safeStorage.setItem('motoride_captain_email', email);
+      safeStorage.setItem('motoride_captain_vehicle_model', vehicleModel);
+      safeStorage.setItem('motoride_captain_plate', plateNumber);
+      safeStorage.setItem('motoride_captain_dl', drivingLicense);
+      safeStorage.setItem('motoride_captain_sos', emergencyContact);
     } catch (err) {
       console.warn(err);
     }
@@ -384,7 +385,9 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                   <h3 className="font-black text-lg text-white truncate leading-tight">
                     {name}
                   </h3>
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" title="Government & Police Verified Captain" />
+                  <span title="Government & Police Verified Captain" className="inline-flex">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  </span>
                 </div>
                 
                 {/* Vehicle Badge */}

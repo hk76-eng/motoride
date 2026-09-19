@@ -9,6 +9,7 @@ import { NotificationsModal } from './components/common/NotificationsModal';
 import { AuthPage } from './components/AuthPage';
 import { supabaseAuth, AuthUser } from './lib/supabaseAuth';
 import { isSupabaseConfigured } from './lib/supabase';
+import { safeStorage } from './lib/safeStorage';
 import { motorideApi } from './services/motorideApi';
 import { ArrowLeftRight, User, Bike } from 'lucide-react';
 
@@ -22,7 +23,7 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     const savedUser = supabaseAuth.getCurrentUser();
     if (savedUser?.role) return savedUser.role;
-    const saved = localStorage.getItem('motoride_active_role');
+    const saved = safeStorage.getItem('motoride_active_role');
     if (saved === 'captain' || saved === 'passenger') {
       return saved;
     }
@@ -38,12 +39,12 @@ export default function App() {
   const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
   const [showTestingGuide, setShowTestingGuide] = useState<boolean>(true);
 
-  // Keep active role synced in local storage and locked to user role if authenticated
+  // Keep active role synced in safe storage and locked to user role if authenticated
   useEffect(() => {
     if (currentUser?.role && currentUser.role !== 'admin') {
       setCurrentRole(currentUser.role);
     }
-    localStorage.setItem('motoride_active_role', currentRole);
+    safeStorage.setItem('motoride_active_role', currentRole);
   }, [currentRole, currentUser]);
 
   // Handle Authentication Completion

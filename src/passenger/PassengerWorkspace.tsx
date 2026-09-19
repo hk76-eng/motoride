@@ -12,6 +12,7 @@ import { DigitalWatchETA } from './DigitalWatchETA';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees } from '../utils/distanceCalculator';
+import { safeStorage } from '../lib/safeStorage';
 import {
   MapPin,
   Navigation,
@@ -127,7 +128,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     timestamp: number;
   }>(() => {
     try {
-      const saved = localStorage.getItem('motoride_last_passenger_gps');
+      const saved = safeStorage.getItem('motoride_last_passenger_gps');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.lat && parsed.lng) {
@@ -364,7 +365,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
     // Persist latest passenger location for instant display on next app opening
     try {
-      localStorage.setItem(
+      safeStorage.setItem(
         'motoride_last_passenger_gps',
         JSON.stringify({ lat: latitude, lng: longitude, accuracy })
       );
@@ -432,7 +433,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   const startWatchingLocation = () => {
     if (watchIdRef.current !== null && 'geolocation' in navigator) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+      try {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      } catch {}
       watchIdRef.current = null;
     }
 
@@ -446,21 +449,27 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     setGpsErrorMessage(null);
 
     // 1. Initial immediate request with high accuracy, falling back to standard WiFi/IP accuracy if GPS times out
-    navigator.geolocation.getCurrentPosition(
-      (pos) => handlePositionSuccess(pos),
-      (err) => {
-        if (err.code === 2 || err.code === 3) {
-          navigator.geolocation.getCurrentPosition(
-            (fallbackPos) => handlePositionSuccess(fallbackPos),
-            (fallbackErr) => handlePositionError(fallbackErr),
-            { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
-          );
-        } else {
-          handlePositionError(err);
-        }
-      },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
-    );
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => handlePositionSuccess(pos),
+        (err) => {
+          if (err.code === 2 || err.code === 3) {
+            try {
+              navigator.geolocation.getCurrentPosition(
+                (fallbackPos) => handlePositionSuccess(fallbackPos),
+                (fallbackErr) => handlePositionError(fallbackErr),
+                { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
+              );
+            } catch {}
+          } else {
+            handlePositionError(err);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 10000 }
+      );
+    } catch (e) {
+      console.warn('Initial geolocation attempt caught:', e);
+    }
 
     // 2. Continuous watchPosition for live-location streaming
     try {
@@ -1001,7 +1010,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   // Helper to get reliable captain avatar picture
   const getCaptainAvatarUrl = (name?: string, avatar?: string) => {
     if (avatar && avatar.trim()) return avatar;
-    const localCaptainAvatar = localStorage.getItem('motoride_captain_avatar');
+    const localCaptainAvatar = safeStorage.getItem('motoride_captain_avatar');
     if (localCaptainAvatar) return localCaptainAvatar;
     const sampleAvatars = [
       'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',

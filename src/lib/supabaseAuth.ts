@@ -1,4 +1,5 @@
 import { getSupabase, isSupabaseConfigured } from './supabase';
+import { safeStorage } from './safeStorage';
 import { UserRole } from '../types/motoride';
 
 export interface AuthUser {
@@ -45,7 +46,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
 
   // Local storage profile fallback cache so profiles never get lost
   try {
-    const rawCache = localStorage.getItem('motoride_supa_profiles');
+    const rawCache = safeStorage.getItem('motoride_supa_profiles');
     const profilesCache = rawCache ? JSON.parse(rawCache) : [];
     const idx = profilesCache.findIndex((p: any) => p.email?.toLowerCase() === cleanEmail || p.id === validProfileId);
     const profileObj = {
@@ -61,7 +62,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
     };
     if (idx >= 0) profilesCache[idx] = profileObj;
     else profilesCache.push(profileObj);
-    localStorage.setItem('motoride_supa_profiles', JSON.stringify(profilesCache));
+    safeStorage.setItem('motoride_supa_profiles', JSON.stringify(profilesCache));
   } catch {}
 
   if (!supabase || !isSupabaseConfigured()) {
@@ -293,13 +294,13 @@ export const supabaseAuth = {
    */
   getRegisteredAccounts(): StoredAccount[] {
     try {
-      const raw = localStorage.getItem(STORAGE_ACCOUNTS_KEY);
+      const raw = safeStorage.getItem(STORAGE_ACCOUNTS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           const filtered = parsed.filter((a) => !isDemoAccount(a));
           if (filtered.length !== parsed.length) {
-            localStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(filtered));
+            safeStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(filtered));
           }
           return filtered;
         }
@@ -324,11 +325,11 @@ export const supabaseAuth = {
       } else {
         accounts.push(account);
       }
-      localStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(accounts));
+      safeStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(accounts));
 
       // Also sync into motoride_users
       try {
-        const rawUsers = localStorage.getItem('motoride_users');
+        const rawUsers = safeStorage.getItem('motoride_users');
         const users = rawUsers ? JSON.parse(rawUsers) : [];
         if (Array.isArray(users)) {
           const uIdx = users.findIndex(
@@ -336,7 +337,7 @@ export const supabaseAuth = {
           );
           if (uIdx >= 0) users[uIdx] = account;
           else users.push(account);
-          localStorage.setItem('motoride_users', JSON.stringify(users));
+          safeStorage.setItem('motoride_users', JSON.stringify(users));
         }
       } catch {}
 
@@ -354,11 +355,11 @@ export const supabaseAuth = {
    */
   getCurrentUser(): AuthUser | null {
     try {
-      const raw = localStorage.getItem(STORAGE_SESSION_KEY);
+      const raw = safeStorage.getItem(STORAGE_SESSION_KEY);
       if (raw) {
         const user = JSON.parse(raw);
         if (user && isDemoAccount(user)) {
-          localStorage.removeItem(STORAGE_SESSION_KEY);
+          safeStorage.removeItem(STORAGE_SESSION_KEY);
           return null;
         }
         return user;
@@ -374,10 +375,10 @@ export const supabaseAuth = {
    */
   setCurrentUser(user: AuthUser | null) {
     if (user) {
-      localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(user));
-      localStorage.setItem('motoride_active_role', user.role);
+      safeStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(user));
+      safeStorage.setItem('motoride_active_role', user.role);
     } else {
-      localStorage.removeItem(STORAGE_SESSION_KEY);
+      safeStorage.removeItem(STORAGE_SESSION_KEY);
     }
   },
 

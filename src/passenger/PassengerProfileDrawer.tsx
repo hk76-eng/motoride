@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 
 import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
+import { safeStorage } from '../lib/safeStorage';
 import { motorideApi } from '../services/motorideApi';
 
 interface PassengerProfileDrawerProps {
@@ -72,10 +73,10 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   const [shareTripWithContact, setShareTripWithContact] = useState(true);
   const [requireRidePin, setRequireRidePin] = useState(true);
 
-  // Passenger Avatar Photo (Stored in state & localStorage)
+  // Passenger Avatar Photo (Stored in state & safeStorage)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
     try {
-      return authUser?.avatarUrl || localStorage.getItem('motoride_passenger_avatar') || null;
+      return authUser?.avatarUrl || safeStorage.getItem('motoride_passenger_avatar') || null;
     } catch {
       return null;
     }
@@ -128,9 +129,9 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
       const result = event.target?.result as string;
       setAvatarUrl(result);
       try {
-        localStorage.setItem('motoride_passenger_avatar', result);
+        safeStorage.setItem('motoride_passenger_avatar', result);
       } catch (err) {
-        console.warn('Could not persist avatar to localStorage:', err);
+        console.warn('Could not persist avatar to safeStorage:', err);
       }
       setToastMessage('Profile photo updated successfully!');
       setIsSavedToast(true);
@@ -143,7 +144,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     e.stopPropagation();
     setAvatarUrl(null);
     try {
-      localStorage.removeItem('motoride_passenger_avatar');
+      safeStorage.removeItem('motoride_passenger_avatar');
     } catch (err) {
       console.warn(err);
     }
@@ -346,7 +347,9 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
               <div className="min-w-0 flex-1 flex flex-col gap-1">
                 <div className="flex items-center gap-1.5">
                   <h3 className="font-black text-lg text-white truncate">{name}</h3>
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" title="Verified Passenger" />
+                  <span title="Verified Passenger" className="inline-flex">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  </span>
                 </div>
                 
                 {/* Upload action prompt */}

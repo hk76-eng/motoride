@@ -13,6 +13,7 @@ import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees } from '../utils/distanceCalculator';
 import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
+import { safeStorage } from '../lib/safeStorage';
 import { CaptainProfileDrawer } from './CaptainProfileDrawer';
 import {
   Bike,
@@ -309,18 +310,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     setGpsErrorMessage(null);
 
     // Immediate one-off get for instant position acquisition
-    navigator.geolocation.getCurrentPosition(
-      (pos) => handlePositionSuccess(pos),
-      (err) => {
-        // Fallback to low accuracy if high accuracy fails
-        navigator.geolocation.getCurrentPosition(
-          (pos) => handlePositionSuccess(pos),
-          (finalErr) => handlePositionError(finalErr),
-          { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
-        );
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
-    );
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => handlePositionSuccess(pos),
+        (err) => {
+          // Fallback to low accuracy if high accuracy fails
+          try {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => handlePositionSuccess(pos),
+              (finalErr) => handlePositionError(finalErr),
+              { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
+            );
+          } catch {}
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+      );
+    } catch (e) {
+      console.warn('Initial captain geolocation attempt caught:', e);
+    }
 
     // Continuous watch
     try {
@@ -347,7 +354,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     startWatchingLocation();
     return () => {
       if (watchIdRef.current !== null && 'geolocation' in navigator) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
+        try {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+        } catch {}
         watchIdRef.current = null;
       }
     };
@@ -526,18 +535,21 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const cpt = await motorideApi.getCaptainById(captainId);
       if (cpt) {
         setCaptain((prev) => ({
-          ...(prev || {}),
+          ...(prev || ({} as Captain)),
           ...cpt,
-          full_name: cpt.full_name || localStorage.getItem('motoride_captain_name') || currentUser?.name || resolvedInitialName || 'Captain',
-          phone: cpt.phone || localStorage.getItem('motoride_captain_phone') || '',
+          full_name: cpt.full_name || safeStorage.getItem('motoride_captain_name') || currentUser?.name || resolvedInitialName || 'Captain',
+          phone: cpt.phone || safeStorage.getItem('motoride_captain_phone') || '',
           vehicle: {
-            model: cpt.vehicle?.model || localStorage.getItem('motoride_captain_vehicle_model') || 'Honda Activa 6G',
-            plate_number: cpt.vehicle?.plate_number || localStorage.getItem('motoride_captain_plate') || 'PB65XX1000',
+            id: cpt.vehicle?.id || (prev?.vehicle?.id ?? 'veh_1'),
+            captain_id: captainId,
+            is_active: true,
+            model: cpt.vehicle?.model || safeStorage.getItem('motoride_captain_vehicle_model') || 'Honda Activa 6G',
+            plate_number: cpt.vehicle?.plate_number || safeStorage.getItem('motoride_captain_plate') || 'PB65XX1000',
             vehicle_type: cpt.vehicle?.vehicle_type || 'bike',
             color: cpt.vehicle?.color || 'Black',
           },
-          license_number: (cpt as any).license_number || localStorage.getItem('motoride_captain_dl') || 'DL-0420180098765',
-          emergency_contact: (cpt as any).emergency_contact || localStorage.getItem('motoride_captain_sos') || '+91 98111 22334',
+          license_number: (cpt as any).license_number || safeStorage.getItem('motoride_captain_dl') || 'DL-0420180098765',
+          emergency_contact: (cpt as any).emergency_contact || safeStorage.getItem('motoride_captain_sos') || '+91 98111 22334',
         }));
         setInternalOnline(Boolean(cpt.is_online));
       }
@@ -643,17 +655,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       return;
     }
     try {
-      const localName = localStorage.getItem('motoride_captain_name');
+      const localName = safeStorage.getItem('motoride_captain_name');
       const resolvedName = (localName && localName !== 'Captain')
         ? localName
         : (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
         ? captain.full_name
         : (resolvedInitialName !== 'Captain' ? resolvedInitialName : (authUser?.name || 'Captain'));
 
-      const resolvedPhone = localStorage.getItem('motoride_captain_phone') || captain?.phone || authUser?.phone || '';
-      const resolvedModel = localStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || authUser?.vehicleModel || 'Honda Activa 6G';
-      const resolvedPlate = localStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || authUser?.plateNumber || 'PB65XX1000';
-      const captainSavedAvatar = localStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+      const resolvedPhone = safeStorage.getItem('motoride_captain_phone') || captain?.phone || authUser?.phone || '';
+      const resolvedModel = safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || authUser?.vehicleModel || 'Honda Activa 6G';
+      const resolvedPlate = safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || authUser?.plateNumber || 'PB65XX1000';
+      const captainSavedAvatar = safeStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
       await motorideApi.sendCounterOffer(rideId, {
         captain_id: captain?.id || captainId,
         captain_name: resolvedName,
@@ -680,14 +692,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         if (updated.phone) user.phone = updated.phone;
         if (updated.vehicle?.model) user.vehicleModel = updated.vehicle.model;
         if (updated.vehicle?.plate_number) user.plateNumber = updated.vehicle.plate_number;
-        localStorage.setItem('motoride_auth_user', JSON.stringify(user));
+        safeStorage.setItem('motoride_auth_user', JSON.stringify(user));
       }
-      if (updated.full_name) localStorage.setItem('motoride_captain_name', updated.full_name);
-      if (updated.phone) localStorage.setItem('motoride_captain_phone', updated.phone);
-      if (updated.vehicle?.model) localStorage.setItem('motoride_captain_vehicle_model', updated.vehicle.model);
-      if (updated.vehicle?.plate_number) localStorage.setItem('motoride_captain_plate', updated.vehicle.plate_number);
-      if ((updated as any).license_number) localStorage.setItem('motoride_captain_dl', (updated as any).license_number);
-      if ((updated as any).emergency_contact) localStorage.setItem('motoride_captain_sos', (updated as any).emergency_contact);
+      if (updated.full_name) safeStorage.setItem('motoride_captain_name', updated.full_name);
+      if (updated.phone) safeStorage.setItem('motoride_captain_phone', updated.phone);
+      if (updated.vehicle?.model) safeStorage.setItem('motoride_captain_vehicle_model', updated.vehicle.model);
+      if (updated.vehicle?.plate_number) safeStorage.setItem('motoride_captain_plate', updated.vehicle.plate_number);
+      if ((updated as any).license_number) safeStorage.setItem('motoride_captain_dl', (updated as any).license_number);
+      if ((updated as any).emergency_contact) safeStorage.setItem('motoride_captain_sos', (updated as any).emergency_contact);
     } catch {}
 
     try {

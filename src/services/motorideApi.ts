@@ -12,6 +12,7 @@ import {
   PassengerLiveLocation,
 } from '../types/motoride';
 import { getSupabase } from '../lib/supabase';
+import { safeStorage } from '../lib/safeStorage';
 import { realtimeSync } from './realtimeSync';
 
 const API_BASE = '/api/motoride';
@@ -20,30 +21,26 @@ const API_BASE = '/api/motoride';
 const localRidesStore: Map<string, MotorideRide> = new Map();
 const localMessagesStore: Map<string, any[]> = new Map();
 
-// Initialize from localStorage if available in browser
-if (typeof window !== 'undefined') {
-  try {
-    const saved = localStorage.getItem('motoride_active_rides_cache');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((r: MotorideRide) => {
-          if (r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100') {
-            localRidesStore.set(r.id, r);
-          }
-        });
-      }
+// Initialize from safeStorage if available
+try {
+  const saved = safeStorage.getItem('motoride_active_rides_cache');
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed)) {
+      parsed.forEach((r: MotorideRide) => {
+        if (r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100') {
+          localRidesStore.set(r.id, r);
+        }
+      });
     }
-  } catch {}
-}
+  }
+} catch {}
 
 const saveLocalRides = () => {
-  if (typeof window !== 'undefined') {
-    try {
-      const arr = Array.from(localRidesStore.values()).slice(0, 30);
-      localStorage.setItem('motoride_active_rides_cache', JSON.stringify(arr));
-    } catch {}
-  }
+  try {
+    const arr = Array.from(localRidesStore.values()).slice(0, 30);
+    safeStorage.setItem('motoride_active_rides_cache', JSON.stringify(arr));
+  } catch {}
 };
 
 realtimeSync.on('RIDE_MESSAGE_RECEIVED', (msg: any) => {
