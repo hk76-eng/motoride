@@ -53,13 +53,13 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   onSignOut,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(captain?.full_name || 'Captain');
-  const [phone, setPhone] = useState(captain?.phone || '');
-  const [email, setEmail] = useState(captain?.email || '');
-  const [vehicleModel, setVehicleModel] = useState(captain?.vehicle?.model || '');
-  const [plateNumber, setPlateNumber] = useState(captain?.vehicle?.plate_number || '');
-  const [drivingLicense, setDrivingLicense] = useState('');
-  const [emergencyContact, setEmergencyContact] = useState('');
+  const [name, setName] = useState(() => captain?.full_name || localStorage.getItem('motoride_captain_name') || 'Captain');
+  const [phone, setPhone] = useState(() => captain?.phone || localStorage.getItem('motoride_captain_phone') || '');
+  const [email, setEmail] = useState(() => captain?.email || localStorage.getItem('motoride_captain_email') || '');
+  const [vehicleModel, setVehicleModel] = useState(() => captain?.vehicle?.model || localStorage.getItem('motoride_captain_vehicle_model') || 'Honda Activa 6G');
+  const [plateNumber, setPlateNumber] = useState(() => captain?.vehicle?.plate_number || localStorage.getItem('motoride_captain_plate') || 'PB65XX1000');
+  const [drivingLicense, setDrivingLicense] = useState(() => (captain as any)?.license_number || localStorage.getItem('motoride_captain_dl') || 'DL-0420180098765');
+  const [emergencyContact, setEmergencyContact] = useState(() => (captain as any)?.emergency_contact || localStorage.getItem('motoride_captain_sos') || '+91 98111 22334');
   const [isSavedToast, setIsSavedToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('Captain profile saved successfully!');
   
@@ -227,11 +227,32 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
       alert('Name cannot be empty.');
       return;
     }
+    try {
+      localStorage.setItem('motoride_captain_name', name);
+      localStorage.setItem('motoride_captain_phone', phone);
+      localStorage.setItem('motoride_captain_email', email);
+      localStorage.setItem('motoride_captain_vehicle_model', vehicleModel);
+      localStorage.setItem('motoride_captain_plate', plateNumber);
+      localStorage.setItem('motoride_captain_dl', drivingLicense);
+      localStorage.setItem('motoride_captain_sos', emergencyContact);
+    } catch (err) {
+      console.warn(err);
+    }
+
     if (onUpdateCaptain) {
       onUpdateCaptain({
         full_name: name,
         phone,
-      });
+        email,
+        vehicle: {
+          model: vehicleModel,
+          plate_number: plateNumber,
+          vehicle_type: captain?.vehicle?.vehicle_type || 'bike',
+          color: captain?.vehicle?.color || 'Black',
+        },
+        license_number: drivingLicense,
+        emergency_contact: emergencyContact,
+      } as any);
     }
     setIsEditing(false);
     setToastMessage('Captain details updated successfully!');

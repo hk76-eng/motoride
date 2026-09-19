@@ -513,7 +513,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         setCaptain((prev) => ({
           ...(prev || {}),
           ...cpt,
-          full_name: cpt.full_name || currentUser?.name || resolvedInitialName || 'Captain',
+          full_name: cpt.full_name || localStorage.getItem('motoride_captain_name') || currentUser?.name || resolvedInitialName || 'Captain',
+          phone: cpt.phone || localStorage.getItem('motoride_captain_phone') || '',
+          vehicle: {
+            model: cpt.vehicle?.model || localStorage.getItem('motoride_captain_vehicle_model') || 'Honda Activa 6G',
+            plate_number: cpt.vehicle?.plate_number || localStorage.getItem('motoride_captain_plate') || 'PB65XX1000',
+            vehicle_type: cpt.vehicle?.vehicle_type || 'bike',
+            color: cpt.vehicle?.color || 'Black',
+          },
+          license_number: (cpt as any).license_number || localStorage.getItem('motoride_captain_dl') || 'DL-0420180098765',
+          emergency_contact: (cpt as any).emergency_contact || localStorage.getItem('motoride_captain_sos') || '+91 98111 22334',
         }));
         setInternalOnline(Boolean(cpt.is_online));
       }
@@ -655,17 +664,23 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         if (updated.vehicle?.plate_number) user.plateNumber = updated.vehicle.plate_number;
         localStorage.setItem('motoride_auth_user', JSON.stringify(user));
       }
+      if (updated.full_name) localStorage.setItem('motoride_captain_name', updated.full_name);
+      if (updated.phone) localStorage.setItem('motoride_captain_phone', updated.phone);
+      if (updated.vehicle?.model) localStorage.setItem('motoride_captain_vehicle_model', updated.vehicle.model);
+      if (updated.vehicle?.plate_number) localStorage.setItem('motoride_captain_plate', updated.vehicle.plate_number);
+      if ((updated as any).license_number) localStorage.setItem('motoride_captain_dl', (updated as any).license_number);
+      if ((updated as any).emergency_contact) localStorage.setItem('motoride_captain_sos', (updated as any).emergency_contact);
     } catch {}
 
     try {
       const idToUpdate = captain?.id || captainId;
       if (idToUpdate) {
-        if (updated.full_name || updated.phone) {
-          await motorideApi.updateCaptainProfile(idToUpdate, {
-            full_name: updated.full_name,
-            phone: updated.phone,
-          });
-        }
+        await motorideApi.updateCaptainProfile(idToUpdate, {
+          full_name: updated.full_name,
+          phone: updated.phone,
+          ...((updated as any).license_number ? { license_number: (updated as any).license_number } : {}),
+          ...((updated as any).emergency_contact ? { emergency_contact: (updated as any).emergency_contact } : {}),
+        } as any);
         if (updated.vehicle) {
           await motorideApi.updateCaptainVehicle(idToUpdate, {
             model: updated.vehicle.model,
