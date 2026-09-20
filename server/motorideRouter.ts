@@ -1752,6 +1752,10 @@ motorideRouter.post('/admin/purge-all', (req: Request, res: Response) => {
 
 // 12. Android APK Release Endpoints
 motorideRouter.get('/apk-release', (req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
   res.json({
     ...serverApkRelease,
     downloadUrl: '/api/motoride/download/apk',
@@ -1770,11 +1774,45 @@ motorideRouter.post('/admin/apk-release', (req: Request, res: Response) => {
   res.json({ success: true, release: updated });
 });
 
+// High-speed direct raw binary upload (bypasses base64 overhead)
+motorideRouter.post('/admin/upload-apk-binary', (req: Request, res: Response) => {
+  try {
+    const buffer = Buffer.isBuffer(req.body) ? req.body : null;
+    let fileName = 'motoride-release.apk';
+    let version = serverApkRelease.version;
+    let customFileSize: string | undefined = undefined;
+
+    const headerFilename = req.headers['x-filename'] as string;
+    if (headerFilename) fileName = decodeURIComponent(headerFilename);
+
+    const headerVersion = req.headers['x-version'] as string;
+    if (headerVersion) version = decodeURIComponent(headerVersion);
+
+    const headerFilesize = req.headers['x-filesize'] as string;
+    if (headerFilesize) customFileSize = decodeURIComponent(headerFilesize);
+
+    if (!buffer || buffer.length === 0) {
+      return res.status(400).json({ error: 'No binary APK data received' });
+    }
+
+    const saved = saveServerApkBinary(buffer, fileName, version, customFileSize);
+    res.json({
+      success: true,
+      message: `APK uploaded successfully (${saved.fileSize})`,
+      release: saved,
+    });
+  } catch (err: any) {
+    console.error('Error in /admin/upload-apk-binary:', err);
+    res.status(500).json({ error: err.message || 'Failed to process APK binary upload' });
+  }
+});
+
 motorideRouter.post('/admin/upload-apk', (req: Request, res: Response) => {
   try {
     let buffer: Buffer | null = null;
     let fileName = 'motoride-release.apk';
     let version = serverApkRelease.version;
+    let customFileSize: string | undefined = undefined;
 
     if (req.body && req.body.fileBase64) {
       // Base64 JSON payload
@@ -1782,6 +1820,7 @@ motorideRouter.post('/admin/upload-apk', (req: Request, res: Response) => {
       buffer = Buffer.from(base64Str, 'base64');
       if (req.body.fileName) fileName = req.body.fileName;
       if (req.body.version) version = req.body.version;
+      if (req.body.fileSize) customFileSize = req.body.fileSize;
     } else if (Buffer.isBuffer(req.body)) {
       // Raw binary payload
       buffer = req.body;
@@ -1789,13 +1828,15 @@ motorideRouter.post('/admin/upload-apk', (req: Request, res: Response) => {
       if (headerFilename) fileName = decodeURIComponent(headerFilename);
       const headerVersion = req.headers['x-version'] as string;
       if (headerVersion) version = decodeURIComponent(headerVersion);
+      const headerFilesize = req.headers['x-filesize'] as string;
+      if (headerFilesize) customFileSize = decodeURIComponent(headerFilesize);
     }
 
     if (!buffer || buffer.length === 0) {
       return res.status(400).json({ error: 'No APK file data received' });
     }
 
-    const saved = saveServerApkBinary(buffer, fileName, version);
+    const saved = saveServerApkBinary(buffer, fileName, version, customFileSize);
     res.json({
       success: true,
       message: `APK uploaded successfully (${saved.fileSize})`,

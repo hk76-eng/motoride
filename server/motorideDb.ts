@@ -499,9 +499,9 @@ const APK_META_FILE = path.join(DATA_DIR, 'apk_release.json');
 const APK_BINARY_FILE = path.join(DATA_DIR, 'motoride-release.apk');
 
 export let serverApkRelease: ServerApkRelease = {
-  version: '2.4.0',
-  fileName: 'motoride-v2.4.0-release.apk',
-  fileSize: '13.3 MB',
+  version: '2.4.1',
+  fileName: 'motoride-v2.4.1.apk',
+  fileSize: '24.8 MB',
   releaseNotes: 'Stable Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
   uploadedAt: new Date().toISOString().split('T')[0],
   downloadsCount: 148,
@@ -543,13 +543,18 @@ export function saveServerApkRelease(updated: Partial<ServerApkRelease>): Server
   return serverApkRelease;
 }
 
-export function saveServerApkBinary(buffer: Buffer, fileName?: string, version?: string): ServerApkRelease {
+export function saveServerApkBinary(
+  buffer: Buffer,
+  fileName?: string,
+  version?: string,
+  customFileSize?: string
+): ServerApkRelease {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(APK_BINARY_FILE, buffer);
-    const sizeMb = (buffer.length / (1024 * 1024)).toFixed(1) + ' MB';
+    const sizeMb = customFileSize || (buffer.length / (1024 * 1024)).toFixed(1) + ' MB';
     serverApkRelease = {
       ...serverApkRelease,
       fileName: fileName || serverApkRelease.fileName,

@@ -2526,7 +2526,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left 2 Cols: Edit APK Release Details & Upload */}
               <div className="lg:col-span-2 flex flex-col gap-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-300">App Version Number</label>
                     <input
@@ -2545,6 +2545,19 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                       onChange={(e) => setApkInfo({ ...apkInfo, fileName: e.target.value })}
                       placeholder="motoride-v2.4.0.apk"
                       className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono-num focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                      <span>APK File Size</span>
+                      <span className="text-[10px] text-emerald-400 font-semibold">Live on mobile &amp; web</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={apkInfo.fileSize}
+                      onChange={(e) => setApkInfo({ ...apkInfo, fileSize: e.target.value })}
+                      placeholder="e.g. 24.5 MB"
+                      className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 font-bold text-xs font-mono-num focus:outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
@@ -2573,10 +2586,10 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                           const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
                           setApkSaveStatus(`Uploading APK file: ${file.name} (${sizeMB})...`);
                           try {
-                            const updated = await motorideApi.uploadApkBinary(file, file.name, apkInfo.version);
+                            const updated = await motorideApi.uploadApkBinary(file, file.name, apkInfo.version, sizeMB);
                             setApkInfo(updated);
-                            setApkSaveStatus(`✅ Successfully uploaded APK file: ${file.name} (${sizeMB})! Now active & visible on Home Page.`);
-                            setTimeout(() => setApkSaveStatus(null), 5000);
+                            setApkSaveStatus(`✅ Successfully uploaded APK: ${file.name} (${sizeMB})! Now active & synchronized with mobile browsers.`);
+                            setTimeout(() => setApkSaveStatus(null), 6000);
                           } catch (err: any) {
                             setApkSaveStatus(`Upload failed: ${err.message || 'Unknown error'}`);
                           }
@@ -2595,10 +2608,16 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 <div className="flex items-center gap-3 pt-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      motorideApi.saveApkRelease(apkInfo);
-                      setApkSaveStatus(`✅ APK release configuration saved! Live size: ${apkInfo.fileSize} on Home Page.`);
-                      setTimeout(() => setApkSaveStatus(null), 4000);
+                    onClick={async () => {
+                      setApkSaveStatus('Publishing APK release to server and mobile clients...');
+                      try {
+                        const saved = await motorideApi.saveApkRelease(apkInfo);
+                        setApkInfo(saved);
+                        setApkSaveStatus(`✅ Live APK release published! Version: ${saved.version} | Size: ${saved.fileSize} instantly active on mobile browser.`);
+                        setTimeout(() => setApkSaveStatus(null), 5000);
+                      } catch (err: any) {
+                        setApkSaveStatus(`Failed to publish: ${err.message || 'Error saving'}`);
+                      }
                     }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-indigo-600/30 active:scale-95"
                   >

@@ -21,9 +21,11 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Support high-speed direct binary streaming for Android APK packages up to 250MB
+  app.use('/api/motoride/admin/upload-apk-binary', express.raw({ type: () => true, limit: '250mb' }));
   app.use(express.json({ limit: '150mb' }));
   app.use(express.urlencoded({ extended: true, limit: '150mb' }));
-  app.use(express.raw({ type: 'application/vnd.android.package-archive', limit: '150mb' }));
+  app.use(express.raw({ type: 'application/vnd.android.package-archive', limit: '250mb' }));
 
   // Mount Motoride Endpoints
   app.use('/api/motoride', motorideRouter);
