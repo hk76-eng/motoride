@@ -39,7 +39,8 @@ import {
 } from 'lucide-react';
 import { Captain } from '../types/motoride';
 import { safeStorage } from '../lib/safeStorage';
-import { uploadMediaToSupabase } from '../lib/supabaseStorage';
+import { uploadMediaToSupabase, compressImageToDataUrl } from '../lib/supabaseStorage';
+import { supabaseAuth } from '../lib/supabaseAuth';
 
 interface CaptainProfileDrawerProps {
   isOpen: boolean;
@@ -208,46 +209,57 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size exceeds 5MB limit. Please choose a smaller photo.');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image size exceeds 10MB limit. Please choose a smaller photo.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const result = event.target?.result as string;
-      setAvatarUrl(result);
-      try {
-        safeStorage.setItem('motoride_captain_avatar', result);
-      } catch (err) {
-        console.warn('Could not persist captain avatar to safeStorage:', err);
+    try {
+      // 1. Compress image to clean, lightweight 400x400 data URL for instant rendering & local storage
+      const compressedDataUrl = await compressImageToDataUrl(file, 400, 400, 0.88);
+      if (!compressedDataUrl) {
+        alert('Failed to process uploaded image.');
+        return;
       }
 
-      // Upload to Supabase 'motoride-media' bucket
-      const uploadedUrl = await uploadMediaToSupabase(file, file.name, 'avatars');
-      const finalAvatar = uploadedUrl || result;
-      setAvatarUrl(finalAvatar);
-      try {
-        safeStorage.setItem('motoride_captain_avatar', finalAvatar);
-      } catch {}
+      setAvatarUrl(compressedDataUrl);
+      safeStorage.setItem('motoride_captain_avatar', compressedDataUrl);
 
       // Update auth session & captain state
       const user = supabaseAuth.getCurrentUser();
       if (user) {
-        const updatedUser = { ...user, avatarUrl: finalAvatar };
+        const updatedUser = { ...user, avatarUrl: compressedDataUrl };
         supabaseAuth.setCurrentUser(updatedUser);
         supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
       }
 
       if (onUpdateCaptain) {
-        onUpdateCaptain({ avatar_url: finalAvatar });
+        onUpdateCaptain({ avatar_url: compressedDataUrl });
       }
 
-      setToastMessage('Captain profile photo updated & saved to Supabase Storage!');
+      // 2. Background upload to Supabase 'motoride-media' bucket
+      uploadMediaToSupabase(file, file.name, 'avatars').then((uploadedUrl) => {
+        if (uploadedUrl) {
+          setAvatarUrl(uploadedUrl);
+          safeStorage.setItem('motoride_captain_avatar', uploadedUrl);
+          const currUser = supabaseAuth.getCurrentUser();
+          if (currUser) {
+            const uUser = { ...currUser, avatarUrl: uploadedUrl };
+            supabaseAuth.setCurrentUser(uUser);
+            supabaseAuth.saveAccount({ ...uUser, passwordHash: '' });
+          }
+          if (onUpdateCaptain) {
+            onUpdateCaptain({ avatar_url: uploadedUrl });
+          }
+        }
+      }).catch((err) => console.warn('Supabase captain avatar background upload notice:', err));
+
+      setToastMessage('Captain profile photo updated & saved successfully!');
       setIsSavedToast(true);
       setTimeout(() => setIsSavedToast(false), 3000);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Error handling captain photo upload:', err);
+    }
   };
 
   const handleRemovePhoto = (e: React.MouseEvent) => {
@@ -412,6 +424,14 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                       alt={name}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
+                      onError={() => {
+                        const local = safeStorage.getItem('motoride_captain_avatar');
+                        if (local && local !== avatarUrl) {
+                          setAvatarUrl(local);
+                        } else {
+                          setAvatarUrl(null);
+                        }
+                      }}
                     />
                   ) : (
                     <span>{getInitials(name)}</span>

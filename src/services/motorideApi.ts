@@ -220,8 +220,18 @@ export const motorideApi = {
         if (!error && data && Array.isArray(data)) {
           (data as MotorideRide[]).forEach((r) => {
             if (r && r.id) {
-              map.set(r.id, r);
-              localRidesStore.set(r.id, r);
+              const existing = localRidesStore.get(r.id) || map.get(r.id) || ({} as MotorideRide);
+              const merged: MotorideRide = {
+                ...existing,
+                ...r,
+                captain_name: r.captain_name || existing.captain_name,
+                captain_phone: r.captain_phone || existing.captain_phone,
+                vehicle_model: r.vehicle_model || existing.vehicle_model,
+                plate_number: r.plate_number || existing.plate_number,
+                captain_avatar: (r as any).captain_avatar || (existing as any).captain_avatar,
+              };
+              map.set(r.id, merged);
+              localRidesStore.set(r.id, merged);
             }
           });
           saveLocalRides();
@@ -380,7 +390,18 @@ export const motorideApi = {
           p_accepted_fare: captainData.accepted_fare || 0,
         });
         if (!error && data?.success && data.ride) {
-          return data.ride as MotorideRide;
+          const mergedRide = {
+            ...updatedRide,
+            ...(data.ride as MotorideRide),
+            captain_name: data.ride.captain_name || updatedRide.captain_name,
+            captain_phone: data.ride.captain_phone || updatedRide.captain_phone,
+            vehicle_model: data.ride.vehicle_model || updatedRide.vehicle_model,
+            plate_number: data.ride.plate_number || updatedRide.plate_number,
+            captain_avatar: (data.ride as any).captain_avatar || (updatedRide as any).captain_avatar,
+          };
+          localRidesStore.set(rideId, mergedRide);
+          saveLocalRides();
+          return mergedRide;
         } else {
           await supabase.from('rides').update(updatedRide).eq('id', rideId);
         }
@@ -480,6 +501,7 @@ export const motorideApi = {
       status: 'captain_accepted',
       captain_id: acceptedOffer?.captain_id || existing.captain_id,
       captain_name: acceptedOffer?.captain_name || existing.captain_name,
+      captain_avatar: acceptedOffer?.captain_avatar || (acceptedOffer as any)?.avatar_url || (existing as any)?.captain_avatar || (existing as any)?.avatar_url,
       captain_phone: acceptedOffer?.captain_phone || existing.captain_phone,
       vehicle_model: acceptedOffer?.vehicle_model || existing.vehicle_model,
       plate_number: acceptedOffer?.plate_number || existing.plate_number,
@@ -500,6 +522,7 @@ export const motorideApi = {
           status: 'captain_accepted',
           captain_id: updatedRide.captain_id,
           captain_name: updatedRide.captain_name,
+          captain_avatar: (updatedRide as any).captain_avatar,
           captain_phone: updatedRide.captain_phone,
           vehicle_model: updatedRide.vehicle_model,
           plate_number: updatedRide.plate_number,

@@ -534,7 +534,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         if (ride.status.includes('cancelled')) {
           setActiveRide(null);
         } else {
-          setActiveRide(ride);
+          setActiveRide((prev) => {
+            if (!prev || prev.id !== ride.id) return ride;
+            return {
+              ...prev,
+              ...ride,
+              captain_name: ride.captain_name || prev.captain_name,
+              captain_phone: ride.captain_phone || prev.captain_phone,
+              vehicle_model: ride.vehicle_model || prev.vehicle_model,
+              plate_number: ride.plate_number || prev.plate_number,
+              captain_avatar: (ride as any).captain_avatar || (ride as any).avatar_url || (prev as any).captain_avatar || (prev as any).avatar_url,
+            };
+          });
         }
         loadRideHistory();
       }
@@ -545,7 +556,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         if (ride.status.includes('cancelled')) {
           setActiveRide(null);
         } else {
-          setActiveRide(ride);
+          setActiveRide((prev) => {
+            if (!prev || prev.id !== ride.id) return ride;
+            return {
+              ...prev,
+              ...ride,
+              captain_name: ride.captain_name || prev.captain_name,
+              captain_phone: ride.captain_phone || prev.captain_phone,
+              vehicle_model: ride.vehicle_model || prev.vehicle_model,
+              plate_number: ride.plate_number || prev.plate_number,
+              captain_avatar: (ride as any).captain_avatar || (ride as any).avatar_url || (prev as any).captain_avatar || (prev as any).avatar_url,
+            };
+          });
         }
       }
     });
@@ -819,7 +841,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           r.status === 'trip_started'
       );
       if (active) {
-        setActiveRide(active);
+        setActiveRide((prev) => {
+          if (!prev || prev.id !== active.id) return active;
+          return {
+            ...prev,
+            ...active,
+            captain_name: active.captain_name || prev.captain_name,
+            captain_phone: active.captain_phone || prev.captain_phone,
+            vehicle_model: active.vehicle_model || prev.vehicle_model,
+            plate_number: active.plate_number || prev.plate_number,
+            captain_avatar: (active as any).captain_avatar || (active as any).avatar_url || (prev as any).captain_avatar || (prev as any).avatar_url,
+          };
+        });
       }
     } catch {}
   };
@@ -1300,16 +1333,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="font-black text-black text-sm">
-                          {activeRide.captain_name || 'Assigned Captain'}
+                          {activeRide.captain_name && activeRide.captain_name !== 'Captain'
+                            ? activeRide.captain_name
+                            : (safeStorage.getItem('motoride_captain_name') || 'Assigned Captain')}
                         </span>
                         <span className="flex items-center text-[10px] text-black bg-slate-200 border border-black/30 px-1.5 py-0.5 rounded font-bold">
                           <Star className="w-3 h-3 fill-black text-black mr-0.5" /> 4.92
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 font-mono-num mt-0.5 font-medium">
-                        {activeRide.vehicle_model || 'Mahindra Centuro'} •{' '}
+                        {(activeRide.vehicle_model && activeRide.vehicle_model !== 'Mahindra Centuro'
+                          ? activeRide.vehicle_model
+                          : (safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle'))}{' '}
+                        •{' '}
                         <span className="text-black font-black">
-                          {activeRide.plate_number || 'PB65AA1257'}
+                          {(activeRide.plate_number && activeRide.plate_number !== 'PB65AA1257'
+                            ? activeRide.plate_number
+                            : (safeStorage.getItem('motoride_captain_plate') || 'Verified'))}
                         </span>
                       </p>
                     </div>
@@ -1324,13 +1364,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     >
                       <MessageSquare className="w-4 h-4 stroke-[2.5]" />
                     </button>
-                    <a
-                      href={`tel:${activeRide.captain_phone || '+919876543210'}`}
-                      className="p-3 rounded-2xl bg-black hover:bg-slate-800 text-white font-bold shadow-sm transition-all active:scale-95 border border-black"
-                      title="Call Captain"
-                    >
-                      <Phone className="w-4 h-4 stroke-[2.5]" />
-                    </a>
+                    {(activeRide.captain_phone || safeStorage.getItem('motoride_captain_phone')) && (
+                      <a
+                        href={`tel:${activeRide.captain_phone || safeStorage.getItem('motoride_captain_phone')}`}
+                        className="p-3 rounded-2xl bg-black hover:bg-slate-800 text-white font-bold shadow-sm transition-all active:scale-95 border border-black"
+                        title="Call Captain"
+                      >
+                        <Phone className="w-4 h-4 stroke-[2.5]" />
+                      </a>
+                    )}
                   </div>
                 </div>
 

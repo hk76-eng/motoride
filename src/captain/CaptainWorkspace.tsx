@@ -727,13 +727,22 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   // Accept Ride Immediately
   const handleAcceptRide = async (ride: MotorideRide) => {
     try {
-      const resolvedName = (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
+      const savedName = safeStorage.getItem('motoride_captain_name');
+      const savedPhone = safeStorage.getItem('motoride_captain_phone');
+      const savedModel = safeStorage.getItem('motoride_captain_vehicle_model');
+      const savedPlate = safeStorage.getItem('motoride_captain_plate');
+      const savedAvatar = safeStorage.getItem('motoride_captain_avatar');
+
+      const resolvedName = (savedName && savedName.trim() && savedName !== 'Captain' && savedName !== 'Vikram Singh')
+        ? savedName
+        : (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
         ? captain.full_name
-        : (resolvedInitialName !== 'Captain' ? resolvedInitialName : (authUser?.name || 'Captain'));
-      const resolvedPhone = captain?.phone || authUser?.phone || '';
-      const resolvedModel = captain?.vehicle?.model || authUser?.vehicleModel || 'Honda Activa 6G';
-      const resolvedPlate = captain?.vehicle?.plate_number || authUser?.plateNumber || 'PB65XX1000';
-      const captainSavedAvatar = safeStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || authUser?.avatarUrl || undefined;
+        : (authUser?.name && authUser.name !== 'Captain' ? authUser.name : (resolvedInitialName !== 'Captain' ? resolvedInitialName : 'Captain'));
+
+      const resolvedPhone = savedPhone || captain?.phone || authUser?.phone || '';
+      const resolvedModel = savedModel || captain?.vehicle?.model || authUser?.vehicleModel || 'Motorcycle';
+      const resolvedPlate = savedPlate || captain?.vehicle?.plate_number || authUser?.plateNumber || '';
+      const captainSavedAvatar = savedAvatar || captain?.avatar_url || authUser?.avatarUrl || undefined;
 
       const updated = await motorideApi.acceptRide(ride.id, {
         captain_id: captain?.id || captainId,
@@ -760,17 +769,23 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       return;
     }
     try {
-      const localName = safeStorage.getItem('motoride_captain_name');
-      const resolvedName = (localName && localName !== 'Captain')
-        ? localName
+      const savedName = safeStorage.getItem('motoride_captain_name');
+      const savedPhone = safeStorage.getItem('motoride_captain_phone');
+      const savedModel = safeStorage.getItem('motoride_captain_vehicle_model');
+      const savedPlate = safeStorage.getItem('motoride_captain_plate');
+      const savedAvatar = safeStorage.getItem('motoride_captain_avatar');
+
+      const resolvedName = (savedName && savedName.trim() && savedName !== 'Captain' && savedName !== 'Vikram Singh')
+        ? savedName
         : (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
         ? captain.full_name
-        : (resolvedInitialName !== 'Captain' ? resolvedInitialName : (authUser?.name || 'Captain'));
+        : (authUser?.name && authUser.name !== 'Captain' ? authUser.name : (resolvedInitialName !== 'Captain' ? resolvedInitialName : 'Captain'));
 
-      const resolvedPhone = safeStorage.getItem('motoride_captain_phone') || captain?.phone || authUser?.phone || '';
-      const resolvedModel = safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || authUser?.vehicleModel || 'Honda Activa 6G';
-      const resolvedPlate = safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || authUser?.plateNumber || 'PB65XX1000';
-      const captainSavedAvatar = safeStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+      const resolvedPhone = savedPhone || captain?.phone || authUser?.phone || '';
+      const resolvedModel = savedModel || captain?.vehicle?.model || authUser?.vehicleModel || 'Motorcycle';
+      const resolvedPlate = savedPlate || captain?.vehicle?.plate_number || authUser?.plateNumber || '';
+      const captainSavedAvatar = savedAvatar || captain?.avatar_url || authUser?.avatarUrl || undefined;
+
       await motorideApi.sendCounterOffer(rideId, {
         captain_id: captain?.id || captainId,
         captain_name: resolvedName,
