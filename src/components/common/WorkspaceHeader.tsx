@@ -5,6 +5,7 @@ import {
   LogOut,
   ArrowLeftRight,
   Shield,
+  Download,
 } from 'lucide-react';
 import { AuthUser } from '../../lib/supabaseAuth';
 
@@ -136,6 +137,17 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                 )}
               </button>
             )}
+
+            <a
+              href="https://web2apkpro.com/download/E95FB02/Motoride"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 text-white hover:text-white/80 bg-black border border-white/25 hover:border-white/50 shrink-0"
+              title="Download Motoride Android App"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Motoride App</span>
+            </a>
 
             {/* Captain Online/Offline Pill (Visible when Captain App is Active) */}
             {currentRole === 'captain' && onToggleCaptainOnline && (
