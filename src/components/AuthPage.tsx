@@ -277,13 +277,19 @@ export const AuthPage: React.FC<AuthPageProps> = ({
               setApkRelease({ ...apkRelease, downloadsCount: (apkRelease.downloadsCount || 0) + 1 });
             }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
-            title={`Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`}
+            title={
+              apkRelease.hasBinary && apkRelease.fileSize
+                ? `Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`
+                : `Download Android APK v${apkRelease.version}`
+            }
           >
             <Smartphone className="w-3.5 h-3.5 shrink-0" />
             <span>Download APK</span>
-            <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.5 rounded text-[10px] font-mono-num font-bold">
-              {apkRelease.fileSize}
-            </span>
+            {apkRelease.hasBinary && apkRelease.fileSize && (
+              <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.5 rounded text-[10px] font-mono-num font-bold">
+                {apkRelease.fileSize}
+              </span>
+            )}
           </button>
 
           {/* 2-Role Quick Select Switcher (Passenger & Captain) */}
@@ -318,42 +324,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
       {/* Main Container */}
       <main className="relative z-10 w-full max-w-md mx-auto px-4 sm:px-6 py-6 sm:py-10 flex-1 flex flex-col justify-center">
-        {/* Prominent Android APK Download Banner (Mobile & Desktop) */}
-        <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-slate-950 via-zinc-900 to-slate-950 border border-emerald-500/40 shadow-xl flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-slate-950 flex items-center justify-center font-black shadow-md shadow-emerald-500/30 shrink-0">
-              <Smartphone className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-black text-white tracking-tight">MotoRide Android App</span>
-                <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-mono-num font-extrabold">
-                  v{apkRelease.version}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 truncate">
-                Direct APK • File Size: <span className="text-emerald-400 font-bold font-mono-num">{apkRelease.fileSize}</span>
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={async () => {
-              await motorideApi.downloadApk(apkRelease);
-              setApkRelease({ ...apkRelease, downloadsCount: (apkRelease.downloadsCount || 0) + 1 });
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black shadow-lg shadow-emerald-500/25 active:scale-95 transition-all cursor-pointer shrink-0 whitespace-nowrap"
-            title={`Download MotoRide Android APK (${apkRelease.fileSize})`}
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Download</span>
-            <span className="bg-slate-950/20 px-1.5 py-0.5 rounded text-[10px] font-mono-num font-bold">
-              {apkRelease.fileSize}
-            </span>
-          </button>
-        </div>
-
         <div>
           {/* Noir Black & White Auth Card */}
           <div>

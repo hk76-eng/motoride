@@ -147,6 +147,26 @@ async function safeFetchJson<T = any>(url: string, options?: RequestInit, fallba
   }
 }
 
+export function formatRealFileSize(bytes?: number | null): string {
+  if (!bytes || bytes <= 0 || isNaN(bytes)) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+export interface ApkReleaseInfo {
+  version: string;
+  fileName: string;
+  fileSize: string;
+  fileSizeBytes?: number;
+  releaseNotes: string;
+  uploadedAt: string;
+  downloadUrl: string;
+  downloadsCount: number;
+  isDeleted?: boolean;
+  hasBinary?: boolean;
+}
+
 export const motorideApi = {
   // 1. Rides
   async getRides(params?: {
@@ -1248,17 +1268,26 @@ export const motorideApi = {
     const defaultApk: ApkReleaseInfo = {
       version: '2.4.1',
       fileName: 'motoride-v2.4.1.apk',
-      fileSize: '24.8 MB',
-      releaseNotes: 'Stable Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
+      fileSize: '',
+      fileSizeBytes: 0,
+      releaseNotes: 'Official Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
       uploadedAt: new Date().toISOString().split('T')[0],
       downloadUrl: '/api/motoride/download/apk',
       downloadsCount: 148,
       isDeleted: false,
+      hasBinary: false,
     };
     try {
       const saved = safeStorage.getItem('motoride_apk_release');
       if (saved) {
-        return { ...defaultApk, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        // Clear any old fake file sizes (e.g. 24.8 MB or 13.3 MB) if hasBinary is false or file is unverified
+        if (!parsed.hasBinary) {
+          parsed.fileSize = '';
+          parsed.fileSizeBytes = 0;
+          parsed.hasBinary = false;
+        }
+        return { ...defaultApk, ...parsed };
       }
     } catch {}
     return defaultApk;
@@ -1277,12 +1306,17 @@ export const motorideApi = {
           },
         }
       );
-      if (res && res.version && res.fileSize) {
+      if (res && res.version !== undefined) {
         const merged: ApkReleaseInfo = {
           ...current,
           ...res,
           downloadUrl: res.downloadUrl || '/api/motoride/download/apk',
         };
+        if (!res.hasBinary) {
+          merged.fileSize = '';
+          merged.fileSizeBytes = 0;
+          merged.hasBinary = false;
+        }
         safeStorage.setItem('motoride_apk_release', JSON.stringify(merged));
         realtimeSync.broadcast('APK_RELEASE_UPDATED', merged);
         return merged;
@@ -1325,16 +1359,18 @@ export const motorideApi = {
   async uploadApkBinary(
     file: File | Blob,
     fileName?: string,
-    version?: string,
-    customFileSize?: string
+    version?: string
   ): Promise<ApkReleaseInfo> {
+    const rawBytes = file.size;
+    const realSize = formatRealFileSize(rawBytes);
     const name = fileName || (file as File).name || 'motoride-release.apk';
-    const sizeMB = customFileSize || (file.size ? (file.size / (1024 * 1024)).toFixed(1) + ' MB' : '13.3 MB');
     const current = this.getApkRelease();
     const updated: ApkReleaseInfo = {
       ...current,
       fileName: name,
-      fileSize: sizeMB,
+      fileSize: realSize,
+      fileSizeBytes: rawBytes,
+      hasBinary: true,
       version: version || current.version,
       uploadedAt: new Date().toISOString().split('T')[0],
       downloadUrl: '/api/motoride/download/apk',
@@ -1362,7 +1398,6 @@ export const motorideApi = {
           'Content-Type': 'application/octet-stream',
           'x-filename': encodeURIComponent(name),
           'x-version': encodeURIComponent(updated.version),
-          'x-filesize': encodeURIComponent(sizeMB),
         },
         body: file,
       });
@@ -1370,43 +1405,46 @@ export const motorideApi = {
       if (uploadRes.ok) {
         const json = await uploadRes.json();
         if (json?.release) {
-          const finalRelease = { ...updated, ...json.release, fileSize: sizeMB };
+          const finalRelease = {
+            ...updated,
+            ...json.release,
+            fileSize: realSize,
+            fileSizeBytes: rawBytes,
+            hasBinary: true,
+          };
           safeStorage.setItem('motoride_apk_release', JSON.stringify(finalRelease));
           realtimeSync.broadcast('APK_RELEASE_UPDATED', finalRelease);
           return finalRelease;
         }
-      } else {
-        await this.saveApkRelease(updated);
       }
     } catch (err) {
-      console.warn('Direct binary upload error, updating server metadata:', err);
-      await this.saveApkRelease(updated);
+      console.warn('Direct binary upload error:', err);
     }
 
     return updated;
   },
 
-  deleteApkRelease(): ApkReleaseInfo {
+  async deleteApkRelease(): Promise<ApkReleaseInfo> {
     const deletedApk: ApkReleaseInfo = {
-      version: '2.4.0',
-      fileName: 'motoride-v2.4.0-release.apk',
-      fileSize: '13.3 MB',
+      version: '2.4.1',
+      fileName: 'motoride-release.apk',
+      fileSize: '',
+      fileSizeBytes: 0,
       releaseNotes: '',
       uploadedAt: new Date().toISOString().split('T')[0],
       downloadUrl: '',
       downloadsCount: 0,
       isDeleted: true,
+      hasBinary: false,
     };
     safeStorage.setItem('motoride_apk_release', JSON.stringify(deletedApk));
     cachedApkBlob = null;
     deleteApkBlobFromIndexedDb().catch(() => {});
     realtimeSync.broadcast('APK_RELEASE_UPDATED', deletedApk);
 
-    safeFetchJson(`${API_BASE}/admin/apk-release`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(deletedApk),
-    }).catch(() => {});
+    try {
+      await fetch(`${API_BASE}/admin/apk-binary`, { method: 'DELETE' });
+    } catch {}
 
     return deletedApk;
   },
@@ -1417,13 +1455,13 @@ export const motorideApi = {
   },
 
   async getApkBlobAsync(apkInfo: ApkReleaseInfo): Promise<Blob> {
-    if (cachedApkBlob) {
+    if (cachedApkBlob && cachedApkBlob.size > 0) {
       return cachedApkBlob;
     }
     // Try IndexedDB
     try {
       const stored = await getApkBlobFromIndexedDb();
-      if (stored) {
+      if (stored && stored.size > 0) {
         cachedApkBlob = stored;
         return stored;
       }
@@ -1442,35 +1480,7 @@ export const motorideApi = {
       }
     } catch {}
 
-    // Fallback: Generate dummy buffer matching the EXACT requested fileSize
-    return this.getApkBlob(apkInfo);
-  },
-
-  getApkBlob(apkInfo: ApkReleaseInfo): Blob {
-    if (cachedApkBlob) {
-      return cachedApkBlob;
-    }
-    // Parse fileSize string (e.g. "24.5 MB" or "13.3 MB") into exact bytes
-    let totalBytes = 13.3 * 1024 * 1024;
-    try {
-      const parts = (apkInfo.fileSize || '13.3 MB').trim().split(' ');
-      const num = parseFloat(parts[0]);
-      const unit = (parts[1] || 'MB').toUpperCase();
-      if (!isNaN(num)) {
-        if (unit.startsWith('KB')) totalBytes = num * 1024;
-        else if (unit.startsWith('GB')) totalBytes = num * 1024 * 1024 * 1024;
-        else totalBytes = num * 1024 * 1024;
-      }
-    } catch {}
-
-    // Generate valid binary APK buffer of exact size
-    const buffer = new Uint8Array(Math.round(totalBytes));
-    // ZIP magic bytes: PK\x03\x04
-    buffer[0] = 0x50; // P
-    buffer[1] = 0x4b; // K
-    buffer[2] = 0x03;
-    buffer[3] = 0x04;
-    return new Blob([buffer], { type: 'application/vnd.android.package-archive' });
+    throw new Error('NO_APK_FILE_UPLOADED');
   },
 
   async downloadApk(apkInfo: ApkReleaseInfo): Promise<void> {
@@ -1480,29 +1490,22 @@ export const motorideApi = {
       const a = document.createElement('a');
       a.href = url;
       a.download = apkInfo.fileName || 'motoride-release.apk';
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
       const updated = { ...apkInfo, downloadsCount: (apkInfo.downloadsCount || 0) + 1 };
       this.saveApkRelease(updated);
-    } catch (e) {
-      console.error('Error downloading APK:', e);
-      // Fallback
-      window.location.href = `${API_BASE}/download/apk`;
+    } catch (e: any) {
+      if (e?.message === 'NO_APK_FILE_UPLOADED') {
+        alert('No APK package has been uploaded yet by the administrator. Please upload the real .apk file in the Admin Workspace.');
+      } else {
+        window.location.href = `${API_BASE}/download/apk`;
+      }
     }
   },
 };
 
 let cachedApkBlob: Blob | null = null;
-
-export interface ApkReleaseInfo {
-  version: string;
-  fileName: string;
-  fileSize: string;
-  releaseNotes: string;
-  uploadedAt: string;
-  downloadUrl: string;
-  downloadsCount: number;
-  isDeleted?: boolean;
-}
 

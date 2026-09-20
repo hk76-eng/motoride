@@ -488,11 +488,19 @@ export interface ServerApkRelease {
   version: string;
   fileName: string;
   fileSize: string;
+  fileSizeBytes?: number;
   releaseNotes: string;
   uploadedAt: string;
   downloadsCount: number;
   isDeleted: boolean;
   hasBinary: boolean;
+}
+
+export function formatRealFileSize(bytes?: number | null): string {
+  if (!bytes || bytes <= 0 || isNaN(bytes)) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 const APK_META_FILE = path.join(DATA_DIR, 'apk_release.json');
@@ -501,8 +509,9 @@ const APK_BINARY_FILE = path.join(DATA_DIR, 'motoride-release.apk');
 export let serverApkRelease: ServerApkRelease = {
   version: '2.4.1',
   fileName: 'motoride-v2.4.1.apk',
-  fileSize: '24.8 MB',
-  releaseNotes: 'Stable Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
+  fileSize: '',
+  fileSizeBytes: 0,
+  releaseNotes: 'Official Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
   uploadedAt: new Date().toISOString().split('T')[0],
   downloadsCount: 148,
   isDeleted: false,
@@ -519,17 +528,39 @@ try {
   if (fs.existsSync(APK_BINARY_FILE)) {
     serverApkRelease.hasBinary = true;
     const stats = fs.statSync(APK_BINARY_FILE);
-    const sizeMb = (stats.size / (1024 * 1024)).toFixed(1) + ' MB';
-    serverApkRelease.fileSize = sizeMb;
+    serverApkRelease.fileSizeBytes = stats.size;
+    serverApkRelease.fileSize = formatRealFileSize(stats.size);
+  } else {
+    // If no binary file exists on disk, never show a fake file size
+    serverApkRelease.hasBinary = false;
+    serverApkRelease.fileSizeBytes = 0;
+    serverApkRelease.fileSize = '';
   }
 } catch (e) {
   console.warn('Could not load APK metadata on startup:', e);
 }
 
 export function saveServerApkRelease(updated: Partial<ServerApkRelease>): ServerApkRelease {
+  // If binary is present on disk, ensure fileSize is accurately synced with disk stat
+  let realSize = serverApkRelease.fileSize;
+  let hasBin = serverApkRelease.hasBinary;
+  let bytes = serverApkRelease.fileSizeBytes || 0;
+
+  if (fs.existsSync(APK_BINARY_FILE)) {
+    hasBin = true;
+    bytes = fs.statSync(APK_BINARY_FILE).size;
+    realSize = formatRealFileSize(bytes);
+  } else if (!hasBin) {
+    realSize = '';
+    bytes = 0;
+  }
+
   serverApkRelease = {
     ...serverApkRelease,
     ...updated,
+    fileSize: realSize,
+    fileSizeBytes: bytes,
+    hasBinary: hasBin,
   };
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -546,19 +577,20 @@ export function saveServerApkRelease(updated: Partial<ServerApkRelease>): Server
 export function saveServerApkBinary(
   buffer: Buffer,
   fileName?: string,
-  version?: string,
-  customFileSize?: string
+  version?: string
 ): ServerApkRelease {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(APK_BINARY_FILE, buffer);
-    const sizeMb = customFileSize || (buffer.length / (1024 * 1024)).toFixed(1) + ' MB';
+    const realBytes = buffer.length;
+    const realSize = formatRealFileSize(realBytes);
     serverApkRelease = {
       ...serverApkRelease,
-      fileName: fileName || serverApkRelease.fileName,
-      fileSize: sizeMb,
+      fileName: fileName || serverApkRelease.fileName || 'motoride-release.apk',
+      fileSize: realSize,
+      fileSizeBytes: realBytes,
       version: version || serverApkRelease.version,
       uploadedAt: new Date().toISOString().split('T')[0],
       hasBinary: true,
@@ -569,6 +601,28 @@ export function saveServerApkBinary(
   } catch (err) {
     console.warn('Failed to save APK binary to disk:', err);
   }
+  return serverApkRelease;
+}
+
+export function deleteServerApkBinary(): ServerApkRelease {
+  try {
+    if (fs.existsSync(APK_BINARY_FILE)) {
+      fs.unlinkSync(APK_BINARY_FILE);
+    }
+  } catch (err) {
+    console.warn('Error deleting APK binary file:', err);
+  }
+  serverApkRelease = {
+    ...serverApkRelease,
+    hasBinary: false,
+    fileSize: '',
+    fileSizeBytes: 0,
+    isDeleted: true,
+  };
+  try {
+    fs.writeFileSync(APK_META_FILE, JSON.stringify(serverApkRelease, null, 2), 'utf-8');
+  } catch {}
+  broadcastEvent('APK_RELEASE_UPDATED', serverApkRelease);
   return serverApkRelease;
 }
 

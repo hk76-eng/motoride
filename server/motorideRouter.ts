@@ -32,6 +32,7 @@ import {
   saveServerApkRelease,
   saveServerApkBinary,
   getServerApkBinary,
+  deleteServerApkBinary,
 } from './motorideDb';
 import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain, Passenger } from '../src/types/motoride';
 import { backendHaversineDistanceKm } from './fareEngine';
@@ -1763,24 +1764,22 @@ motorideRouter.get('/apk-release', (req: Request, res: Response) => {
 });
 
 motorideRouter.post('/admin/apk-release', (req: Request, res: Response) => {
-  const { version, fileName, fileSize, releaseNotes, isDeleted } = req.body || {};
+  const { version, fileName, releaseNotes, isDeleted } = req.body || {};
   const updated = saveServerApkRelease({
     version: version ?? serverApkRelease.version,
     fileName: fileName ?? serverApkRelease.fileName,
-    fileSize: fileSize ?? serverApkRelease.fileSize,
     releaseNotes: releaseNotes ?? serverApkRelease.releaseNotes,
     isDeleted: isDeleted !== undefined ? Boolean(isDeleted) : false,
   });
   res.json({ success: true, release: updated });
 });
 
-// High-speed direct raw binary upload (bypasses base64 overhead)
+// High-speed direct raw binary upload (computes exact real file size from buffer)
 motorideRouter.post('/admin/upload-apk-binary', (req: Request, res: Response) => {
   try {
     const buffer = Buffer.isBuffer(req.body) ? req.body : null;
     let fileName = 'motoride-release.apk';
     let version = serverApkRelease.version;
-    let customFileSize: string | undefined = undefined;
 
     const headerFilename = req.headers['x-filename'] as string;
     if (headerFilename) fileName = decodeURIComponent(headerFilename);
@@ -1788,17 +1787,14 @@ motorideRouter.post('/admin/upload-apk-binary', (req: Request, res: Response) =>
     const headerVersion = req.headers['x-version'] as string;
     if (headerVersion) version = decodeURIComponent(headerVersion);
 
-    const headerFilesize = req.headers['x-filesize'] as string;
-    if (headerFilesize) customFileSize = decodeURIComponent(headerFilesize);
-
     if (!buffer || buffer.length === 0) {
       return res.status(400).json({ error: 'No binary APK data received' });
     }
 
-    const saved = saveServerApkBinary(buffer, fileName, version, customFileSize);
+    const saved = saveServerApkBinary(buffer, fileName, version);
     res.json({
       success: true,
-      message: `APK uploaded successfully (${saved.fileSize})`,
+      message: `Real APK uploaded successfully (${saved.fileSize})`,
       release: saved,
     });
   } catch (err: any) {
@@ -1812,7 +1808,6 @@ motorideRouter.post('/admin/upload-apk', (req: Request, res: Response) => {
     let buffer: Buffer | null = null;
     let fileName = 'motoride-release.apk';
     let version = serverApkRelease.version;
-    let customFileSize: string | undefined = undefined;
 
     if (req.body && req.body.fileBase64) {
       // Base64 JSON payload
@@ -1820,7 +1815,6 @@ motorideRouter.post('/admin/upload-apk', (req: Request, res: Response) => {
       buffer = Buffer.from(base64Str, 'base64');
       if (req.body.fileName) fileName = req.body.fileName;
       if (req.body.version) version = req.body.version;
-      if (req.body.fileSize) customFileSize = req.body.fileSize;
     } else if (Buffer.isBuffer(req.body)) {
       // Raw binary payload
       buffer = req.body;
@@ -1828,18 +1822,16 @@ motorideRouter.post('/admin/upload-apk', (req: Request, res: Response) => {
       if (headerFilename) fileName = decodeURIComponent(headerFilename);
       const headerVersion = req.headers['x-version'] as string;
       if (headerVersion) version = decodeURIComponent(headerVersion);
-      const headerFilesize = req.headers['x-filesize'] as string;
-      if (headerFilesize) customFileSize = decodeURIComponent(headerFilesize);
     }
 
     if (!buffer || buffer.length === 0) {
       return res.status(400).json({ error: 'No APK file data received' });
     }
 
-    const saved = saveServerApkBinary(buffer, fileName, version, customFileSize);
+    const saved = saveServerApkBinary(buffer, fileName, version);
     res.json({
       success: true,
-      message: `APK uploaded successfully (${saved.fileSize})`,
+      message: `Real APK uploaded successfully (${saved.fileSize})`,
       release: saved,
     });
   } catch (err: any) {
@@ -1848,44 +1840,32 @@ motorideRouter.post('/admin/upload-apk', (req: Request, res: Response) => {
   }
 });
 
-motorideRouter.get('/download/apk', (req: Request, res: Response) => {
-  // Increment download count
-  saveServerApkRelease({ downloadsCount: (serverApkRelease.downloadsCount || 0) + 1 });
+motorideRouter.delete('/admin/apk-binary', (req: Request, res: Response) => {
+  try {
+    const cleared = deleteServerApkBinary();
+    res.json({ success: true, message: 'APK package binary deleted', release: cleared });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to delete APK binary' });
+  }
+});
 
+motorideRouter.get('/download/apk', (req: Request, res: Response) => {
   const apkData = getServerApkBinary();
   const fileName = serverApkRelease.fileName || 'motoride-release.apk';
 
-  if (apkData && apkData.buffer) {
+  if (apkData && apkData.buffer && apkData.buffer.length > 0) {
+    saveServerApkRelease({ downloadsCount: (serverApkRelease.downloadsCount || 0) + 1 });
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
     res.setHeader('Content-Length', apkData.buffer.length);
     return res.send(apkData.buffer);
   }
 
-  // Fallback: Generate accurate buffer matching the EXACT declared fileSize
-  let totalBytes = 13.3 * 1024 * 1024;
-  try {
-    const parts = (serverApkRelease.fileSize || '13.3 MB').trim().split(' ');
-    const num = parseFloat(parts[0]);
-    const unit = (parts[1] || 'MB').toUpperCase();
-    if (!isNaN(num)) {
-      if (unit.startsWith('KB')) totalBytes = num * 1024;
-      else if (unit.startsWith('GB')) totalBytes = num * 1024 * 1024 * 1024;
-      else totalBytes = num * 1024 * 1024;
-    }
-  } catch {}
-
-  const dummy = Buffer.alloc(Math.round(totalBytes));
-  // ZIP header magic: PK\x03\x04
-  dummy[0] = 0x50;
-  dummy[1] = 0x4b;
-  dummy[2] = 0x03;
-  dummy[3] = 0x04;
-
-  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
-  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-  res.setHeader('Content-Length', dummy.length);
-  res.send(dummy);
+  // Do NOT generate fake file buffers. If no APK binary is uploaded, return 404
+  res.status(404).json({
+    error: 'No APK package has been uploaded yet. Please upload the real .apk file in the Admin Workspace.',
+    hasBinary: false,
+  });
 });
 
 

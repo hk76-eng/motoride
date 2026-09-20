@@ -122,13 +122,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               setApkRelease({ ...apkRelease, downloadsCount: (apkRelease.downloadsCount || 0) + 1 });
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
-            title={`Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`}
+            title={
+              apkRelease.hasBinary && apkRelease.fileSize
+                ? `Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`
+                : `Download Android APK v${apkRelease.version}`
+            }
           >
             <Smartphone className="w-3.5 h-3.5" />
             <span>Download APK</span>
-            <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.5 rounded text-[10px] font-mono-num font-bold">
-              {apkRelease.fileSize}
-            </span>
+            {apkRelease.hasBinary && apkRelease.fileSize && (
+              <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.5 rounded text-[10px] font-mono-num font-bold">
+                {apkRelease.fileSize}
+              </span>
+            )}
           </button>
 
           {/* GPS Quality Pill */}

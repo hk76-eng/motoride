@@ -7,7 +7,7 @@ import {
   FareSettings,
   QRCodeSetting,
 } from '../types/motoride';
-import { motorideApi, ApkReleaseInfo } from '../services/motorideApi';
+import { motorideApi, ApkReleaseInfo, formatRealFileSize } from '../services/motorideApi';
 import { SUPABASE_SQL_SCHEMA } from '../lib/sqlSchema';
 import { isSupabaseConfigured, getSupabase, SUPABASE_CONFIG_STATUS } from '../lib/supabase';
 import { realtimeSync } from '../services/realtimeSync';
@@ -2549,16 +2549,21 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                      <span>APK File Size</span>
-                      <span className="text-[10px] text-emerald-400 font-semibold">Live on mobile &amp; web</span>
+                      <span>Real APK File Size</span>
+                      <span className="text-[10px] text-emerald-400 font-semibold">
+                        {apkInfo.hasBinary && apkInfo.fileSize ? 'Verified from file' : 'Auto-measured'}
+                      </span>
                     </label>
-                    <input
-                      type="text"
-                      value={apkInfo.fileSize}
-                      onChange={(e) => setApkInfo({ ...apkInfo, fileSize: e.target.value })}
-                      placeholder="e.g. 24.5 MB"
-                      className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 font-bold text-xs font-mono-num focus:outline-none focus:border-indigo-500"
-                    />
+                    <div className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-num flex items-center justify-between">
+                      <span className={apkInfo.hasBinary && apkInfo.fileSize ? 'text-emerald-400 font-bold' : 'text-slate-500 italic'}>
+                        {apkInfo.hasBinary && apkInfo.fileSize ? apkInfo.fileSize : 'No APK uploaded yet'}
+                      </span>
+                      {apkInfo.hasBinary && apkInfo.fileSize && (
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
+                          Verified File
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -2575,7 +2580,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
                 {/* File Upload Box */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold text-slate-300">Upload APK File (.apk)</label>
+                  <label className="text-xs font-bold text-slate-300">Upload Real APK File (.apk)</label>
                   <div className="relative border-2 border-dashed border-slate-800 hover:border-indigo-500/50 rounded-2xl p-6 text-center bg-slate-950/60 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer group">
                     <input
                       type="file"
@@ -2583,12 +2588,12 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-                          setApkSaveStatus(`Uploading APK file: ${file.name} (${sizeMB})...`);
+                          const realFormatted = formatRealFileSize(file.size);
+                          setApkSaveStatus(`Uploading real APK file: ${file.name} (${realFormatted} - ${file.size.toLocaleString()} bytes)...`);
                           try {
-                            const updated = await motorideApi.uploadApkBinary(file, file.name, apkInfo.version, sizeMB);
+                            const updated = await motorideApi.uploadApkBinary(file, file.name, apkInfo.version);
                             setApkInfo(updated);
-                            setApkSaveStatus(`✅ Successfully uploaded APK: ${file.name} (${sizeMB})! Now active & synchronized with mobile browsers.`);
+                            setApkSaveStatus(`✅ Successfully uploaded real APK: ${file.name} (${updated.fileSize})! Real file size active.`);
                             setTimeout(() => setApkSaveStatus(null), 6000);
                           } catch (err: any) {
                             setApkSaveStatus(`Upload failed: ${err.message || 'Unknown error'}`);
@@ -2601,7 +2606,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                       <UploadCloud className="w-6 h-6" />
                     </div>
                     <div className="text-xs font-bold text-white">Click or drag &amp; drop your Android APK file here</div>
-                    <div className="text-[11px] text-slate-400">Supports .apk packages for Passenger &amp; Captain Android app</div>
+                    <div className="text-[11px] text-slate-400">Calculates and verifies exact byte size instantly on upload</div>
                   </div>
                 </div>
 
@@ -2613,7 +2618,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                       try {
                         const saved = await motorideApi.saveApkRelease(apkInfo);
                         setApkInfo(saved);
-                        setApkSaveStatus(`✅ Live APK release published! Version: ${saved.version} | Size: ${saved.fileSize} instantly active on mobile browser.`);
+                        setApkSaveStatus(`✅ Live APK release published! Version: ${saved.version}${saved.fileSize ? ` | Real size: ${saved.fileSize}` : ''} instantly active on mobile browser.`);
                         setTimeout(() => setApkSaveStatus(null), 5000);
                       } catch (err: any) {
                         setApkSaveStatus(`Failed to publish: ${err.message || 'Error saving'}`);
@@ -2635,16 +2640,16 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
                   >
                     <Download className="w-4 h-4 text-emerald-400" />
-                    <span>Download Test APK ({apkInfo.fileSize})</span>
+                    <span>Download Test APK {apkInfo.hasBinary && apkInfo.fileSize ? `(${apkInfo.fileSize})` : ''}</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to delete this APK release and reset to default?')) {
-                        const reset = motorideApi.deleteApkRelease();
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to delete this APK release package?')) {
+                        const reset = await motorideApi.deleteApkRelease();
                         setApkInfo(reset);
-                        setApkSaveStatus('APK release package successfully deleted and reset to default.');
+                        setApkSaveStatus('APK release package successfully deleted.');
                         setTimeout(() => setApkSaveStatus(null), 4000);
                       }
                     }}
@@ -2673,8 +2678,10 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                       <span className="text-white font-mono">{apkInfo.fileName}</span>
                     </div>
                     <div className="flex justify-between text-slate-400">
-                      <span>File Size:</span>
-                      <span className="text-emerald-400 font-mono">{apkInfo.fileSize}</span>
+                      <span>Real File Size:</span>
+                      <span className="text-emerald-400 font-mono">
+                        {apkInfo.hasBinary && apkInfo.fileSize ? apkInfo.fileSize : 'No APK uploaded yet'}
+                      </span>
                     </div>
                     <div className="flex justify-between text-slate-400">
                       <span>Published Date:</span>
