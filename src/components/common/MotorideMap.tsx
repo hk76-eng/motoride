@@ -342,13 +342,18 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
             ${statusPillHtml}
           </div>
 
-          <!-- Rotating Vehicle Marker with Directional Pointer -->
-          <div style="position: relative; width: 46px; height: 46px; margin-bottom: 6px; transform: rotate(${heading}deg); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; justify-content: center;">
+          <!-- Rotating Navigation Arrowhead Marker (Uploaded Navigation Icon) -->
+          <div style="position: relative; width: 48px; height: 48px; margin-bottom: 6px; transform: rotate(${heading}deg); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; justify-content: center;">
             <!-- Heading notch pointer -->
-            <div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 10px solid ${borderColor}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));"></div>
-            <!-- Circle core -->
-            <div style="width: 46px; height: 46px; border-radius: 50%; background: #020617; border: 3px solid ${borderColor}; color: #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: ${glowShadow}, 0 0 0 2px rgba(0,0,0,0.6); font-size: 21px;">
-              🏍️
+            <div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 10px solid ${borderColor}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)); z-index: 10;"></div>
+            <!-- Circle core with Navigation Arrowhead -->
+            <div style="width: 46px; height: 46px; border-radius: 50%; background: #ffffff; border: 3.5px solid ${borderColor}; display: flex; align-items: center; justify-content: center; box-shadow: ${glowShadow}, 0 0 0 2px rgba(0,0,0,0.7); overflow: hidden;">
+              <svg viewBox="0 0 100 100" width="36" height="36" style="display: block;">
+                <!-- Outer Black Ring -->
+                <circle cx="50" cy="50" r="41" fill="#ffffff" stroke="#000000" stroke-width="11"/>
+                <!-- Inner Navigation Arrowhead -->
+                <path d="M 50,18 L 76,74 L 50,60 L 24,74 Z" fill="#000000" stroke="#000000" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+              </svg>
             </div>
           </div>
         </div>
