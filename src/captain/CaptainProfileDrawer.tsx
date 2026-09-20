@@ -666,7 +666,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                     value={vehicleModel}
                     onChange={(e) => setVehicleModel(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/20 text-white text-xs font-medium focus:outline-none focus:border-amber-400"
-                    placeholder="e.g. Mahindra Centuro"
+                    placeholder="Enter your vehicle model"
                   />
                 </div>
 
@@ -678,7 +678,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                     value={plateNumber}
                     onChange={(e) => setPlateNumber(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/20 text-white text-xs font-medium font-mono-num uppercase focus:outline-none focus:border-amber-400"
-                    placeholder="e.g. PB65AA1257"
+                    placeholder="Enter vehicle plate number"
                   />
                 </div>
 

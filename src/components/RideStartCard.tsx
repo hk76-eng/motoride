@@ -23,22 +23,10 @@ export const RideStartCard: React.FC<RideStartCardProps> = ({
   onStartRide,
   isStarting,
 }) => {
-  const defaultBikes: BikeInfo[] = [
-    {
-      id: 'PB65AA1257',
-      name: 'Mahindra Centuro PB65AA1257',
-      type: 'Motorcycle',
-      battery_level: 100,
-      location_name: 'Origin Base Station',
-      latitude: 12.971598,
-      longitude: 77.594562,
-      is_available: true,
-      qr_code: 'PB65AA1257',
-    },
-  ];
-
-  const availableBikes = bikes && bikes.length > 0 ? bikes : defaultBikes;
+  const availableBikes = bikes && bikes.length > 0 ? bikes : [];
   const selectedBike = availableBikes.find((b) => b.id === selectedBikeId) || availableBikes[0];
+  const bikeName = selectedBike?.name || selectedBike?.model || 'Motorcycle';
+  const bikeReg = selectedBike?.qr_code || selectedBike?.plate_number || selectedBike?.id || 'GPS-Enabled';
 
   return (
     <div
@@ -81,10 +69,10 @@ export const RideStartCard: React.FC<RideStartCardProps> = ({
           <div>
             <div className="text-[10px] uppercase font-bold text-slate-400">Vehicle</div>
             <div className="text-sm font-bold text-white flex items-center gap-2">
-              <span>Mahindra Centuro PB65AA1257</span>
+              <span>{bikeName}</span>
             </div>
             <div className="text-xs text-slate-400 mt-0.5">
-              Registration: <span className="font-mono text-emerald-400 font-semibold">PB65AA1257</span>
+              Registration: <span className="font-mono text-emerald-400 font-semibold">{bikeReg}</span>
             </div>
           </div>
         </div>

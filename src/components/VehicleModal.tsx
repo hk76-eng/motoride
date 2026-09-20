@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bike, X, ShieldCheck, Radio, CheckCircle, Navigation, Sparkles } from 'lucide-react';
+import { Bike, X, ShieldCheck, Radio, CheckCircle } from 'lucide-react';
 import { BikeInfo, PricingSettings } from '../types';
 import { formatCurrency } from '../utils/distanceCalculator';
+import { safeStorage } from '../lib/safeStorage';
 
 interface VehicleModalProps {
   vehicle?: BikeInfo;
@@ -12,22 +13,18 @@ interface VehicleModalProps {
 }
 
 export const VehicleModal: React.FC<VehicleModalProps> = ({
-  vehicle = {
-    id: 'PB65AA1257',
-    name: 'Mahindra Centuro PB65AA1257',
-    type: 'Motorcycle',
-    battery_level: 100,
-    location_name: 'Origin Base Station',
-    latitude: 12.971598,
-    longitude: 77.594562,
-    is_available: true,
-    qr_code: 'PB65AA1257',
-  },
+  vehicle,
   pricingSettings,
   isOpen,
   onClose,
 }) => {
   if (!isOpen) return null;
+
+  const savedModel = safeStorage.getItem('motoride_captain_vehicle_model');
+  const savedPlate = safeStorage.getItem('motoride_captain_plate');
+
+  const modelName = vehicle?.name || vehicle?.model || (savedModel && savedModel.trim() ? savedModel : 'Motorcycle');
+  const regNumber = vehicle?.id || vehicle?.qr_code || vehicle?.plate_number || (savedPlate && savedPlate.trim() ? savedPlate : 'N/A');
 
   return (
     <AnimatePresence>
@@ -70,10 +67,10 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
                     Active Vehicle
                   </span>
                   <h4 className="text-base sm:text-lg font-black text-white mt-1.5">
-                    Mahindra Centuro PB65AA1257
+                    {modelName} {regNumber !== 'N/A' ? `(${regNumber})` : ''}
                   </h4>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Model: <span className="text-slate-200 font-semibold">Mahindra Centuro</span>
+                    Model: <span className="text-slate-200 font-semibold">{modelName}</span>
                   </p>
                 </div>
 
@@ -88,14 +85,14 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
                 <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800/60">
                   <div className="text-[10px] text-slate-400 uppercase font-bold">Registration No.</div>
                   <div className="text-sm font-black text-emerald-400 font-mono mt-0.5">
-                    PB65AA1257
+                    {regNumber}
                   </div>
                 </div>
 
                 <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800/60">
                   <div className="text-[10px] text-slate-400 uppercase font-bold">Vehicle Type</div>
                   <div className="text-sm font-bold text-white mt-0.5">
-                    Motorcycle
+                    {vehicle?.type || 'Motorcycle'}
                   </div>
                 </div>
 
@@ -120,7 +117,7 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
             <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400 flex items-center gap-3">
               <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0" />
               <span>
-                All trips on <strong className="text-slate-200">Mahindra Centuro PB65AA1257</strong> are measured using high-precision GPS distance calculation with real-time tamper protection.
+                All trips on <strong className="text-slate-200">{modelName}</strong> are measured using high-precision GPS distance calculation with real-time tamper protection.
               </span>
             </div>
           </div>

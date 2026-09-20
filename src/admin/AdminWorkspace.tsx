@@ -358,8 +358,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 vehicle: {
                   id: `veh_${a.id}`,
                   captain_id: a.id,
-                  model: a.vehicleModel || 'Honda Activa 6G',
-                  plate_number: a.plateNumber || 'PB01AB1234',
+                  model: a.vehicleModel || '',
+                  plate_number: a.plateNumber || '',
                   vehicle_type: a.vehicleType || 'bike',
                   color: 'Black',
                   is_active: true,
@@ -421,8 +421,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                     vehicle: {
                       id: `veh_${uId}`,
                       captain_id: uId,
-                      model: u.vehicleModel || 'Honda Activa 6G',
-                      plate_number: u.plateNumber || 'PB01AB1234',
+                      model: u.vehicleModel || '',
+                      plate_number: u.plateNumber || '',
                       vehicle_type: u.vehicleType || 'bike',
                       color: 'Black',
                       is_active: true,
@@ -498,8 +498,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   vehicle: {
                     id: matchingVeh?.id || `veh_${sp.id}`,
                     captain_id: sp.id,
-                    model: matchingVeh?.model || 'Honda Activa 6G',
-                    plate_number: matchingVeh?.plate_number || 'PB01AB1234',
+                    model: matchingVeh?.model || '',
+                    plate_number: matchingVeh?.plate_number || '',
                     vehicle_type: matchingVeh?.vehicle_type || 'bike',
                     color: matchingVeh?.color || 'Black',
                     is_active: true,
@@ -1131,7 +1131,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                             VEHICLE FLEET
                           </span>
                           <div className="font-bold text-white text-xs">
-                            {cpt.vehicle?.model || cpt.vehicle_model || 'Honda Activa 6G'}
+                            {cpt.vehicle?.model || cpt.vehicle_model || 'Motorcycle'}
                           </div>
                         </div>
                       </div>
@@ -1141,7 +1141,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                           {cpt.vehicle?.vehicle_type || cpt.vehicle_type || 'BIKE'}
                         </span>
                         <div className="px-2.5 py-1 rounded bg-amber-400/10 border border-amber-500/40 text-amber-300 font-mono font-black text-xs tracking-wider">
-                          {cpt.vehicle?.plate_number || cpt.plate_number || 'PB01AB1234'}
+                          {cpt.vehicle?.plate_number || cpt.plate_number || 'Not registered'}
                         </div>
                       </div>
                     </div>
@@ -2418,13 +2418,13 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   <div>
                     <span className="text-[10px] text-slate-500 block">Vehicle Model</span>
                     <span className="font-bold text-white text-xs">
-                      {selectedCaptain.vehicle?.model || selectedCaptain.vehicle_model || 'Honda Activa 6G'}
+                      {selectedCaptain.vehicle?.model || selectedCaptain.vehicle_model || 'Motorcycle'}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-500 block">License Plate Number</span>
                     <div className="inline-block mt-0.5 px-2.5 py-0.5 rounded bg-amber-400/10 border border-amber-500/40 text-amber-300 font-mono font-black text-xs tracking-wider">
-                      {selectedCaptain.vehicle?.plate_number || selectedCaptain.plate_number || 'PB01AB1234'}
+                      {selectedCaptain.vehicle?.plate_number || selectedCaptain.plate_number || 'Not registered'}
                     </div>
                   </div>
                   <div>

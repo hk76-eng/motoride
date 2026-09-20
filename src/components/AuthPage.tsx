@@ -532,7 +532,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                             required
                             value={cptVehicleModel}
                             onChange={(e) => setCptVehicleModel(e.target.value)}
-                            placeholder="e.g. Honda Activa 6G"
+                            placeholder="Enter vehicle model"
                             className="w-full bg-black border border-white/30 rounded-2xl py-2.5 px-4 text-xs text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white"
                           />
                         </div>

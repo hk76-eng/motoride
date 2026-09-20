@@ -171,7 +171,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
           await supabase
             .from('vehicles')
             .update({
-              model: user.vehicleModel?.trim() || 'Honda Activa 6G',
+              model: user.vehicleModel?.trim() || '',
               plate_number: plateNo,
               vehicle_type: user.vehicleType || 'bike',
             })
@@ -181,7 +181,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
             {
               id: generateUUID(),
               captain_id: actualCaptainId,
-              model: user.vehicleModel?.trim() || 'Honda Activa 6G',
+              model: user.vehicleModel?.trim() || '',
               plate_number: plateNo,
               vehicle_type: user.vehicleType || 'bike',
               color: 'Black',
@@ -533,8 +533,8 @@ export const supabaseAuth = {
       name: displayName,
       role: params.role,
       phone: existingNamed?.phone || '',
-      vehicleModel: params.role === 'captain' ? (existingNamed?.vehicleModel || 'Honda Activa 6G') : '',
-      plateNumber: params.role === 'captain' ? (existingNamed?.plateNumber || `PB65XX${Math.floor(1000 + Math.random() * 9000)}`) : '',
+      vehicleModel: params.role === 'captain' ? (existingNamed?.vehicleModel || '') : '',
+      plateNumber: params.role === 'captain' ? (existingNamed?.plateNumber || '') : '',
       vehicleType: existingNamed?.vehicleType || 'bike',
       walletBalance: params.role === 'captain' ? 500 : 200,
       memberSince: new Date().toISOString(),

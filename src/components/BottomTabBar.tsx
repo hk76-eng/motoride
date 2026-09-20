@@ -263,12 +263,12 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
                   <div className="text-left">
                     <div className="font-semibold text-white">Vehicle Details Window</div>
                     <div className="text-[10px] text-slate-400">
-                      Mahindra Centuro (PB65AA1257) specs & documents
+                      Vehicle specs & documents
                     </div>
                   </div>
                 </div>
                 <span className="text-[10px] text-emerald-400 font-bold px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30">
-                  PB65AA1257
+                  Specs
                 </span>
               </button>
 
@@ -423,7 +423,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
               type="button"
               onClick={onOpenVehicle}
               className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800/70 transition-all shrink-0 cursor-pointer"
-              title="Vehicle Specs & Documents (Mahindra Centuro PB65AA1257)"
+              title="Vehicle Specs & Documents"
             >
               <Bike className="w-3.5 h-3.5 text-emerald-400" />
               <span className="hidden sm:inline">Vehicle</span>

@@ -733,9 +733,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const savedPlate = safeStorage.getItem('motoride_captain_plate');
       const savedAvatar = safeStorage.getItem('motoride_captain_avatar');
 
-      const resolvedName = (savedName && savedName.trim() && savedName !== 'Captain' && savedName !== 'Vikram Singh')
+      const resolvedName = (savedName && savedName.trim() && savedName !== 'Captain')
         ? savedName
-        : (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
+        : (captain?.full_name && captain.full_name !== 'Captain')
         ? captain.full_name
         : (authUser?.name && authUser.name !== 'Captain' ? authUser.name : (resolvedInitialName !== 'Captain' ? resolvedInitialName : 'Captain'));
 
@@ -775,9 +775,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const savedPlate = safeStorage.getItem('motoride_captain_plate');
       const savedAvatar = safeStorage.getItem('motoride_captain_avatar');
 
-      const resolvedName = (savedName && savedName.trim() && savedName !== 'Captain' && savedName !== 'Vikram Singh')
+      const resolvedName = (savedName && savedName.trim() && savedName !== 'Captain')
         ? savedName
-        : (captain?.full_name && captain.full_name !== 'Vikram Singh' && captain.full_name !== 'Captain')
+        : (captain?.full_name && captain.full_name !== 'Captain')
         ? captain.full_name
         : (authUser?.name && authUser.name !== 'Captain' ? authUser.name : (resolvedInitialName !== 'Captain' ? resolvedInitialName : 'Captain'));
 

@@ -923,12 +923,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const handleSimulateInstantAccept = async () => {
     if (!activeRide) return;
     try {
+      const realName = safeStorage.getItem('motoride_captain_name') || 'Captain Nearby';
+      const realPhone = safeStorage.getItem('motoride_captain_phone') || '';
+      const realModel = safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle';
+      const realPlate = safeStorage.getItem('motoride_captain_plate') || '';
+      const realAvatar = safeStorage.getItem('motoride_captain_avatar') || undefined;
+
       const updated = await motorideApi.acceptRide(activeRide.id, {
         captain_id: 'cpt_instant_01',
-        captain_name: 'Captain Nearby',
-        captain_phone: '+91 98765 43210',
-        vehicle_model: 'Honda Activa 6G',
-        plate_number: 'PB65AA1257',
+        captain_name: realName,
+        captain_phone: realPhone,
+        captain_avatar: realAvatar,
+        vehicle_model: realModel,
+        plate_number: realPlate,
         accepted_fare: activeRide.offered_fare || 75,
       });
       setActiveRide(updated);
@@ -1061,18 +1068,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const getCaptainAvatarUrl = (name?: string, avatar?: string) => {
     if (avatar && avatar.trim()) return avatar;
     const localCaptainAvatar = safeStorage.getItem('motoride_captain_avatar');
-    if (localCaptainAvatar) return localCaptainAvatar;
-    const sampleAvatars = [
-      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1628157582853-a796fa650a6a?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
-    ];
-    const hash = (name || 'captain')
-      .split('')
-      .reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return sampleAvatars[hash % sampleAvatars.length];
+    if (localCaptainAvatar && localCaptainAvatar.trim()) return localCaptainAvatar;
+    const cleanName = (name && name !== 'Captain' && name.trim()) ? name : 'Captain';
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=0284c7&color=fff&bold=true`;
   };
 
   const renderControlPanel = () => (
@@ -1200,7 +1198,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                               className="w-11 h-11 rounded-full object-cover border-2 border-black bg-slate-200 shadow-xs"
                               onError={(e) => {
                                 (e.currentTarget as HTMLImageElement).src =
-                                  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(offer.captain_name || 'Captain')}&background=0284c7&color=fff&bold=true`;
                               }}
                             />
                             <span
@@ -1323,7 +1321,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         className="w-12 h-12 rounded-full object-cover border-2 border-black bg-slate-200 shadow-xs"
                         onError={(e) => {
                           (e.currentTarget as HTMLImageElement).src =
-                            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRide.captain_name || 'Captain')}&background=0284c7&color=fff&bold=true`;
                         }}
                       />
                       <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-black border border-white">
@@ -1342,14 +1340,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 font-mono-num mt-0.5 font-medium">
-                        {(activeRide.vehicle_model && activeRide.vehicle_model !== 'Mahindra Centuro'
-                          ? activeRide.vehicle_model
-                          : (safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle'))}{' '}
+                        {(activeRide.vehicle_model || safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle')}{' '}
                         •{' '}
                         <span className="text-black font-black">
-                          {(activeRide.plate_number && activeRide.plate_number !== 'PB65AA1257'
-                            ? activeRide.plate_number
-                            : (safeStorage.getItem('motoride_captain_plate') || 'Verified'))}
+                          {(activeRide.plate_number || safeStorage.getItem('motoride_captain_plate') || 'Verified')}
                         </span>
                       </p>
                     </div>
@@ -1460,7 +1454,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                 {/* 1-5 Star Rating */}
                 <div className="w-full mt-2 p-4 rounded-2xl bg-slate-50 border border-black flex flex-col items-center gap-3">
-                  <span className="text-xs font-black text-black">Rate Captain Vikram</span>
+                  <span className="text-xs font-black text-black">
+                    Rate {activeRide.captain_name && activeRide.captain_name !== 'Captain' ? activeRide.captain_name : 'Captain'}
+                  </span>
                   <div className="flex items-center gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
@@ -2106,7 +2102,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     className="w-10 h-10 rounded-2xl object-cover border-2 border-emerald-400 bg-slate-200 shadow-md"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRide.captain_name || 'Captain')}&background=0284c7&color=fff&bold=true`;
                     }}
                   />
                   <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border border-slate-950 flex items-center justify-center text-[8px] text-black font-black">
