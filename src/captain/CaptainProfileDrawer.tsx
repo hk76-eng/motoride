@@ -39,8 +39,6 @@ import {
 } from 'lucide-react';
 import { Captain } from '../types/motoride';
 import { safeStorage } from '../lib/safeStorage';
-import { motorideApi, ApkReleaseInfo } from '../services/motorideApi';
-import { realtimeSync } from '../services/realtimeSync';
 
 interface CaptainProfileDrawerProps {
   isOpen: boolean;
@@ -78,16 +76,6 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   const [autoAccept, setAutoAccept] = useState(false);
   const [highAccuracyGps, setHighAccuracyGps] = useState(true);
   const [audioAlerts, setAudioAlerts] = useState(true);
-  const [apkRelease, setApkRelease] = useState(() => motorideApi.getApkRelease());
-
-  useEffect(() => {
-    const unsub = realtimeSync.on('APK_RELEASE_UPDATED', (updated: ApkReleaseInfo) => {
-      setApkRelease(updated);
-    });
-    return () => {
-      unsub();
-    };
-  }, []);
   const [doNotScreenOff, setDoNotScreenOff] = useState<boolean>(() => {
     try {
       const saved = safeStorage.getItem('motoride_captain_do_not_screen_off');

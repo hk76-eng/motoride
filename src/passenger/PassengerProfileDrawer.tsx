@@ -34,8 +34,7 @@ import {
 
 import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
 import { safeStorage } from '../lib/safeStorage';
-import { motorideApi, ApkReleaseInfo } from '../services/motorideApi';
-import { realtimeSync } from '../services/realtimeSync';
+import { motorideApi } from '../services/motorideApi';
 
 interface PassengerProfileDrawerProps {
   isOpen: boolean;
@@ -92,16 +91,6 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
 
   const ridesTaken = totalRides ?? 0;
   const rating = 5.0;
-  const [apkRelease, setApkRelease] = useState(() => motorideApi.getApkRelease());
-
-  useEffect(() => {
-    const unsub = realtimeSync.on('APK_RELEASE_UPDATED', (updated: ApkReleaseInfo) => {
-      setApkRelease(updated);
-    });
-    return () => {
-      unsub();
-    };
-  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 

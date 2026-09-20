@@ -7,7 +7,7 @@ import {
   FareSettings,
   QRCodeSetting,
 } from '../types/motoride';
-import { motorideApi } from '../services/motorideApi';
+import { motorideApi, ApkReleaseInfo } from '../services/motorideApi';
 import { SUPABASE_SQL_SCHEMA } from '../lib/sqlSchema';
 import { isSupabaseConfigured, getSupabase, SUPABASE_CONFIG_STATUS } from '../lib/supabase';
 import { realtimeSync } from '../services/realtimeSync';
@@ -67,6 +67,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
   const [apkInfo, setApkInfo] = useState(() => motorideApi.getApkRelease());
   const [apkSaveStatus, setApkSaveStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    motorideApi.fetchApkReleaseFromServer().then((rel) => {
+      if (rel) setApkInfo(rel);
+    });
+    const unsub = realtimeSync.on('APK_RELEASE_UPDATED', (updated: ApkReleaseInfo) => {
+      setApkInfo(updated);
+    });
+    return () => {
+      unsub();
+    };
+  }, []);
 
   const [stats, setStats] = useState<AdminDashboardStats>({
     totalPassengers: 0,
@@ -2555,19 +2567,19 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                     <input
                       type="file"
                       accept=".apk,application/vnd.android.package-archive"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
                           const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-                          motorideApi.cacheApkBlob(file);
-                          setApkInfo({
-                            ...apkInfo,
-                            fileName: file.name,
-                            fileSize: sizeMB,
-                            downloadUrl: 'blob',
-                            uploadedAt: new Date().toISOString().split('T')[0],
-                          });
-                          setApkSaveStatus(`Successfully loaded APK file: ${file.name} (${sizeMB})`);
+                          setApkSaveStatus(`Uploading APK file: ${file.name} (${sizeMB})...`);
+                          try {
+                            const updated = await motorideApi.uploadApkBinary(file, file.name, apkInfo.version);
+                            setApkInfo(updated);
+                            setApkSaveStatus(`✅ Successfully uploaded APK file: ${file.name} (${sizeMB})! Now active & visible on Home Page.`);
+                            setTimeout(() => setApkSaveStatus(null), 5000);
+                          } catch (err: any) {
+                            setApkSaveStatus(`Upload failed: ${err.message || 'Unknown error'}`);
+                          }
                         }
                       }}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -2585,7 +2597,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                     type="button"
                     onClick={() => {
                       motorideApi.saveApkRelease(apkInfo);
-                      setApkSaveStatus('APK release configuration updated and published successfully! Passengers and Captains can now download it instantly from their portals.');
+                      setApkSaveStatus(`✅ APK release configuration saved! Live size: ${apkInfo.fileSize} on Home Page.`);
                       setTimeout(() => setApkSaveStatus(null), 4000);
                     }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-indigo-600/30 active:scale-95"
@@ -2594,27 +2606,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                     <span>Publish APK Release</span>
                   </button>
 
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      const blob = motorideApi.getApkBlob(apkInfo);
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = apkInfo.fileName || 'motoride-release.apk';
-                      a.click();
-                      URL.revokeObjectURL(url);
-                      const updated = { ...apkInfo, downloadsCount: apkInfo.downloadsCount + 1 };
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await motorideApi.downloadApk(apkInfo);
+                      const updated = { ...apkInfo, downloadsCount: (apkInfo.downloadsCount || 0) + 1 };
                       setApkInfo(updated);
-                      motorideApi.saveApkRelease(updated);
                     }}
-                    download={apkInfo.fileName}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
                   >
                     <Download className="w-4 h-4 text-emerald-400" />
                     <span>Download Test APK ({apkInfo.fileSize})</span>
-                  </a>
+                  </button>
 
                   <button
                     type="button"

@@ -47,6 +47,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   const [apkRelease, setApkRelease] = useState(() => motorideApi.getApkRelease());
 
   useEffect(() => {
+    motorideApi.fetchApkReleaseFromServer().then((rel) => {
+      if (rel) setApkRelease(rel);
+    });
     const unsub = realtimeSync.on('APK_RELEASE_UPDATED', (updated: ApkReleaseInfo) => {
       setApkRelease(updated);
     });
@@ -242,24 +245,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           {/* Android APK Download Button */}
           <button
             type="button"
-            onClick={() => {
-              const blob = motorideApi.getApkBlob(apkRelease);
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = apkRelease.fileName || 'motoride-release.apk';
-              a.click();
-              URL.revokeObjectURL(url);
-              const updated = { ...apkRelease, downloadsCount: apkRelease.downloadsCount + 1 };
-              setApkRelease(updated);
-              motorideApi.saveApkRelease(updated);
+            onClick={async () => {
+              await motorideApi.downloadApk(apkRelease);
+              setApkRelease({ ...apkRelease, downloadsCount: (apkRelease.downloadsCount || 0) + 1 });
             }}
             className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
             title={`Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`}
           >
             <Smartphone className="w-3.5 h-3.5" />
             <span>Download APK</span>
-            <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.2 rounded text-[10px] font-mono-num hidden md:inline">
+            <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.5 rounded text-[10px] font-mono-num font-bold">
               {apkRelease.fileSize}
             </span>
           </button>

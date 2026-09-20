@@ -482,3 +482,104 @@ export function addRideMessage(data: {
 export function getRideMessages(rideId: string): RideMessage[] {
   return messagesStore.get(rideId) || [];
 }
+
+// 11. APK Release Management & Disk Storage
+export interface ServerApkRelease {
+  version: string;
+  fileName: string;
+  fileSize: string;
+  releaseNotes: string;
+  uploadedAt: string;
+  downloadsCount: number;
+  isDeleted: boolean;
+  hasBinary: boolean;
+}
+
+const APK_META_FILE = path.join(DATA_DIR, 'apk_release.json');
+const APK_BINARY_FILE = path.join(DATA_DIR, 'motoride-release.apk');
+
+export let serverApkRelease: ServerApkRelease = {
+  version: '2.4.0',
+  fileName: 'motoride-v2.4.0-release.apk',
+  fileSize: '13.3 MB',
+  releaseNotes: 'Stable Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
+  uploadedAt: new Date().toISOString().split('T')[0],
+  downloadsCount: 148,
+  isDeleted: false,
+  hasBinary: false,
+};
+
+// Initialize from disk if available
+try {
+  if (fs.existsSync(APK_META_FILE)) {
+    const raw = fs.readFileSync(APK_META_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    serverApkRelease = { ...serverApkRelease, ...parsed };
+  }
+  if (fs.existsSync(APK_BINARY_FILE)) {
+    serverApkRelease.hasBinary = true;
+    const stats = fs.statSync(APK_BINARY_FILE);
+    const sizeMb = (stats.size / (1024 * 1024)).toFixed(1) + ' MB';
+    serverApkRelease.fileSize = sizeMb;
+  }
+} catch (e) {
+  console.warn('Could not load APK metadata on startup:', e);
+}
+
+export function saveServerApkRelease(updated: Partial<ServerApkRelease>): ServerApkRelease {
+  serverApkRelease = {
+    ...serverApkRelease,
+    ...updated,
+  };
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(APK_META_FILE, JSON.stringify(serverApkRelease, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Failed to save APK release metadata to disk:', err);
+  }
+  broadcastEvent('APK_RELEASE_UPDATED', serverApkRelease);
+  return serverApkRelease;
+}
+
+export function saveServerApkBinary(buffer: Buffer, fileName?: string, version?: string): ServerApkRelease {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(APK_BINARY_FILE, buffer);
+    const sizeMb = (buffer.length / (1024 * 1024)).toFixed(1) + ' MB';
+    serverApkRelease = {
+      ...serverApkRelease,
+      fileName: fileName || serverApkRelease.fileName,
+      fileSize: sizeMb,
+      version: version || serverApkRelease.version,
+      uploadedAt: new Date().toISOString().split('T')[0],
+      hasBinary: true,
+      isDeleted: false,
+    };
+    fs.writeFileSync(APK_META_FILE, JSON.stringify(serverApkRelease, null, 2), 'utf-8');
+    broadcastEvent('APK_RELEASE_UPDATED', serverApkRelease);
+  } catch (err) {
+    console.warn('Failed to save APK binary to disk:', err);
+  }
+  return serverApkRelease;
+}
+
+export function getServerApkBinary(): { buffer: Buffer; fileName: string; fileSize: string } | null {
+  try {
+    if (fs.existsSync(APK_BINARY_FILE)) {
+      const buffer = fs.readFileSync(APK_BINARY_FILE);
+      return {
+        buffer,
+        fileName: serverApkRelease.fileName || 'motoride-release.apk',
+        fileSize: serverApkRelease.fileSize,
+      };
+    }
+  } catch (e) {
+    console.warn('Could not read APK binary file:', e);
+  }
+  return null;
+}
+
