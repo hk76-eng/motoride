@@ -112,31 +112,29 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Android APK Download Button */}
-          {!apkRelease.isDeleted && (
-            <button
-              type="button"
-              onClick={() => {
-                const blob = motorideApi.getApkBlob(apkRelease);
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = apkRelease.fileName || 'motoride-release.apk';
-                a.click();
-                URL.revokeObjectURL(url);
-                const updated = { ...apkRelease, downloadsCount: apkRelease.downloadsCount + 1 };
-                setApkRelease(updated);
-                motorideApi.saveApkRelease(updated);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
-              title={`Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`}
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Download APK</span>
-              <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.2 rounded text-[10px] font-mono-num hidden md:inline">
-                {apkRelease.fileSize}
-              </span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              const blob = motorideApi.getApkBlob(apkRelease);
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = apkRelease.fileName || 'motoride-release.apk';
+              a.click();
+              URL.revokeObjectURL(url);
+              const updated = { ...apkRelease, downloadsCount: apkRelease.downloadsCount + 1 };
+              setApkRelease(updated);
+              motorideApi.saveApkRelease(updated);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
+            title={`Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>Download APK</span>
+            <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.2 rounded text-[10px] font-mono-num hidden md:inline">
+              {apkRelease.fileSize}
+            </span>
+          </button>
 
           {/* GPS Quality Pill */}
           <div
