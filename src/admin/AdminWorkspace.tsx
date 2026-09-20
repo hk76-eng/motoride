@@ -50,6 +50,9 @@ import {
   Navigation,
   Trash2,
   AlertTriangle,
+  Loader2,
+  FileCheck2,
+  Upload,
 } from 'lucide-react';
 
 interface AdminWorkspaceProps {
@@ -67,6 +70,9 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
   const [apkInfo, setApkInfo] = useState(() => motorideApi.getApkRelease());
   const [apkSaveStatus, setApkSaveStatus] = useState<string | null>(null);
+  const [isUploadingApk, setIsUploadingApk] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingFileName, setUploadingFileName] = useState('');
 
   useEffect(() => {
     motorideApi.fetchApkReleaseFromServer().then((rel) => {
@@ -2506,19 +2512,39 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="px-3 py-1.5 rounded-xl bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-xs font-bold font-mono-num flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                  Version {apkInfo.version} Active
-                </span>
+                {apkInfo.hasBinary && apkInfo.fileSize ? (
+                  <span className="px-3 py-1.5 rounded-xl bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-xs font-bold font-mono-num flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    Uploaded ({apkInfo.fileSize})
+                  </span>
+                ) : (
+                  <span className="px-3 py-1.5 rounded-xl bg-amber-950/50 border border-amber-500/30 text-amber-300 text-xs font-bold font-mono-num flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                    No Package Uploaded
+                  </span>
+                )}
                 <span className="px-3 py-1.5 rounded-xl bg-indigo-950/50 border border-indigo-500/30 text-indigo-300 text-xs font-bold font-mono-num">
+                  Version {apkInfo.version}
+                </span>
+                <span className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 text-xs font-bold font-mono-num">
                   {apkInfo.downloadsCount} Total Downloads
                 </span>
               </div>
             </div>
 
             {apkSaveStatus && (
-              <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <div
+                className={`p-3 rounded-2xl border text-xs font-bold flex items-center gap-2 ${
+                  apkSaveStatus.includes('❌') || apkSaveStatus.toLowerCase().includes('failed')
+                    ? 'bg-rose-500/15 border-rose-500/30 text-rose-200'
+                    : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-200'
+                }`}
+              >
+                {apkSaveStatus.includes('❌') || apkSaveStatus.toLowerCase().includes('failed') ? (
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                )}
                 <span>{apkSaveStatus}</span>
               </div>
             )}
@@ -2555,10 +2581,23 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                       </span>
                     </label>
                     <div className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-num flex items-center justify-between">
-                      <span className={apkInfo.hasBinary && apkInfo.fileSize ? 'text-emerald-400 font-bold' : 'text-slate-500 italic'}>
-                        {apkInfo.hasBinary && apkInfo.fileSize ? apkInfo.fileSize : 'No APK uploaded yet'}
-                      </span>
-                      {apkInfo.hasBinary && apkInfo.fileSize && (
+                      {isUploadingApk ? (
+                        <span className="text-indigo-400 font-bold flex items-center gap-1.5">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Uploading ({uploadProgress}%)...</span>
+                        </span>
+                      ) : (
+                        <span
+                          className={
+                            apkInfo.hasBinary && apkInfo.fileSize
+                              ? 'text-emerald-400 font-bold'
+                              : 'text-slate-500 italic'
+                          }
+                        >
+                          {apkInfo.hasBinary && apkInfo.fileSize ? apkInfo.fileSize : 'No APK uploaded yet'}
+                        </span>
+                      )}
+                      {apkInfo.hasBinary && apkInfo.fileSize && !isUploadingApk && (
                         <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
                           Verified File
                         </span>
@@ -2578,36 +2617,184 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   />
                 </div>
 
-                {/* File Upload Box */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold text-slate-300">Upload Real APK File (.apk)</label>
-                  <div className="relative border-2 border-dashed border-slate-800 hover:border-indigo-500/50 rounded-2xl p-6 text-center bg-slate-950/60 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer group">
-                    <input
-                      type="file"
-                      accept=".apk,application/vnd.android.package-archive"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const realFormatted = formatRealFileSize(file.size);
-                          setApkSaveStatus(`Uploading real APK file: ${file.name} (${realFormatted} - ${file.size.toLocaleString()} bytes)...`);
-                          try {
-                            const updated = await motorideApi.uploadApkBinary(file, file.name, apkInfo.version);
-                            setApkInfo(updated);
-                            setApkSaveStatus(`✅ Successfully uploaded real APK: ${file.name} (${updated.fileSize})! Real file size active.`);
-                            setTimeout(() => setApkSaveStatus(null), 6000);
-                          } catch (err: any) {
-                            setApkSaveStatus(`Upload failed: ${err.message || 'Unknown error'}`);
-                          }
-                        }
-                      }}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    />
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                      <UploadCloud className="w-6 h-6" />
+                {/* ACTIVE UPLOADED APK PACKAGE STATUS & UPLOADER */}
+                <div className="flex flex-col gap-3">
+                  <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                    <span>Android APK Package Binary</span>
+                    {apkInfo.hasBinary && apkInfo.fileSize && (
+                      <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Live Binary Available
+                      </span>
+                    )}
+                  </label>
+
+                  {/* 1. UPLOADING PROGRESS VIEW */}
+                  {isUploadingApk && (
+                    <div className="p-6 rounded-2xl bg-indigo-950/40 border-2 border-indigo-500/40 flex flex-col items-center justify-center gap-3 text-center">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">Uploading Android APK Binary...</div>
+                        <div className="text-xs text-indigo-300 mt-0.5 font-mono">
+                          {uploadingFileName} • {uploadProgress}% Complete
+                        </div>
+                      </div>
+                      <div className="w-full max-w-md h-2.5 rounded-full bg-slate-800 overflow-hidden mt-1">
+                        <div
+                          className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-200 rounded-full"
+                          style={{ width: `${Math.max(5, uploadProgress)}%` }}
+                        />
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        Calculating exact file size and syncing binary to distribution storage...
+                      </div>
                     </div>
-                    <div className="text-xs font-bold text-white">Click or drag &amp; drop your Android APK file here</div>
-                    <div className="text-[11px] text-slate-400">Calculates and verifies exact byte size instantly on upload</div>
-                  </div>
+                  )}
+
+                  {/* 2. CONFIRMED UPLOADED APK PACKAGE CARD */}
+                  {!isUploadingApk && apkInfo.hasBinary && apkInfo.fileSize && (
+                    <div className="p-5 rounded-2xl bg-emerald-950/30 border-2 border-emerald-500/40 flex flex-col gap-4 shadow-lg shadow-emerald-950/20">
+                      <div className="flex items-start justify-between flex-wrap gap-3 pb-3 border-b border-emerald-500/20">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                            <FileCheck2 className="w-6 h-6" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-black text-white font-mono">{apkInfo.fileName}</span>
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-black uppercase tracking-wider">
+                                Uploaded &amp; Live
+                              </span>
+                            </div>
+                            <div className="text-xs text-emerald-300/80 mt-0.5 flex items-center gap-2">
+                              <span className="font-bold text-emerald-300 font-mono-num">{apkInfo.fileSize}</span>
+                              {apkInfo.fileSizeBytes ? (
+                                <span className="text-slate-400">({apkInfo.fileSizeBytes.toLocaleString()} bytes)</span>
+                              ) : null}
+                              <span className="text-slate-500">•</span>
+                              <span className="text-slate-400">Uploaded {apkInfo.uploadedAt}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                await motorideApi.downloadApk(apkInfo);
+                                const updated = { ...apkInfo, downloadsCount: (apkInfo.downloadsCount || 0) + 1 };
+                                setApkInfo(updated);
+                              } catch (err: any) {
+                                setApkSaveStatus(`Download test failed: ${err.message}`);
+                              }
+                            }}
+                            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            <span>Download APK</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Replace APK Button & Drag Area */}
+                      <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-slate-400">
+                        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Ready for passenger and captain downloads
+                        </span>
+
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept=".apk,application/vnd.android.package-archive"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const realFormatted = formatRealFileSize(file.size);
+                                setUploadingFileName(file.name);
+                                setIsUploadingApk(true);
+                                setUploadProgress(0);
+                                setApkSaveStatus(`Uploading real APK file: ${file.name} (${realFormatted} - ${file.size.toLocaleString()} bytes)...`);
+                                try {
+                                  const updated = await motorideApi.uploadApkBinary(
+                                    file,
+                                    file.name,
+                                    apkInfo.version,
+                                    (pct) => setUploadProgress(pct)
+                                  );
+                                  setApkInfo(updated);
+                                  setIsUploadingApk(false);
+                                  setUploadProgress(100);
+                                  setApkSaveStatus(`✅ Successfully uploaded real APK: ${file.name} (${updated.fileSize})! Real file size active.`);
+                                  setTimeout(() => setApkSaveStatus(null), 7000);
+                                } catch (err: any) {
+                                  setIsUploadingApk(false);
+                                  setApkSaveStatus(`❌ Upload failed: ${err.message || 'Unknown error'}`);
+                                }
+                              }
+                            }}
+                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                          />
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <UploadCloud className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>Upload Newer APK Build</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. INITIAL DROPZONE WHEN NO APK IS UPLOADED */}
+                  {!isUploadingApk && (!apkInfo.hasBinary || !apkInfo.fileSize) && (
+                    <div className="relative border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-8 text-center bg-slate-950/80 transition-all flex flex-col items-center justify-center gap-3 cursor-pointer group">
+                      <input
+                        type="file"
+                        accept=".apk,application/vnd.android.package-archive"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const realFormatted = formatRealFileSize(file.size);
+                            setUploadingFileName(file.name);
+                            setIsUploadingApk(true);
+                            setUploadProgress(0);
+                            setApkSaveStatus(`Uploading real APK file: ${file.name} (${realFormatted} - ${file.size.toLocaleString()} bytes)...`);
+                            try {
+                              const updated = await motorideApi.uploadApkBinary(
+                                file,
+                                file.name,
+                                apkInfo.version,
+                                (pct) => setUploadProgress(pct)
+                              );
+                              setApkInfo(updated);
+                              setIsUploadingApk(false);
+                              setUploadProgress(100);
+                              setApkSaveStatus(`✅ Successfully uploaded real APK: ${file.name} (${updated.fileSize})! Real file size active.`);
+                              setTimeout(() => setApkSaveStatus(null), 7000);
+                            } catch (err: any) {
+                              setIsUploadingApk(false);
+                              setApkSaveStatus(`❌ Upload failed: ${err.message || 'Unknown error'}`);
+                            }
+                          }
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+                      />
+                      <div className="w-14 h-14 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <UploadCloud className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-white">Click or drag &amp; drop your Android APK file here</div>
+                        <div className="text-xs text-slate-400 mt-1">Supports official .apk release binary files up to 250 MB</div>
+                      </div>
+                      <div className="px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-[11px] text-emerald-400 font-mono font-medium">
+                        Automatically measures &amp; verifies exact byte size on upload
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3 pt-2">
@@ -2621,7 +2808,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                         setApkSaveStatus(`✅ Live APK release published! Version: ${saved.version}${saved.fileSize ? ` | Real size: ${saved.fileSize}` : ''} instantly active on mobile browser.`);
                         setTimeout(() => setApkSaveStatus(null), 5000);
                       } catch (err: any) {
-                        setApkSaveStatus(`Failed to publish: ${err.message || 'Error saving'}`);
+                        setApkSaveStatus(`❌ Failed to publish: ${err.message || 'Error saving'}`);
                       }
                     }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-indigo-600/30 active:scale-95"
@@ -2633,9 +2820,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   <button
                     type="button"
                     onClick={async () => {
-                      await motorideApi.downloadApk(apkInfo);
-                      const updated = { ...apkInfo, downloadsCount: (apkInfo.downloadsCount || 0) + 1 };
-                      setApkInfo(updated);
+                      if (!apkInfo.hasBinary) {
+                        setApkSaveStatus('⚠️ No APK binary has been uploaded yet. Please upload a .apk file first.');
+                        setTimeout(() => setApkSaveStatus(null), 5000);
+                        return;
+                      }
+                      try {
+                        await motorideApi.downloadApk(apkInfo);
+                        const updated = { ...apkInfo, downloadsCount: (apkInfo.downloadsCount || 0) + 1 };
+                        setApkInfo(updated);
+                      } catch (err: any) {
+                        setApkSaveStatus(`❌ Download error: ${err.message}`);
+                      }
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
                   >
@@ -2646,10 +2842,10 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   <button
                     type="button"
                     onClick={async () => {
-                      if (window.confirm('Are you sure you want to delete this APK release package?')) {
+                      if (window.confirm('Are you sure you want to delete this APK release package? This will remove the uploaded binary.')) {
                         const reset = await motorideApi.deleteApkRelease();
                         setApkInfo(reset);
-                        setApkSaveStatus('APK release package successfully deleted.');
+                        setApkSaveStatus('APK release package and binary successfully deleted.');
                         setTimeout(() => setApkSaveStatus(null), 4000);
                       }
                     }}

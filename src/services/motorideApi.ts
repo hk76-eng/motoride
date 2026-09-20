@@ -1359,7 +1359,8 @@ export const motorideApi = {
   async uploadApkBinary(
     file: File | Blob,
     fileName?: string,
-    version?: string
+    version?: string,
+    onProgress?: (percent: number) => void
   ): Promise<ApkReleaseInfo> {
     const rawBytes = file.size;
     const realSize = formatRealFileSize(rawBytes);
@@ -1377,51 +1378,80 @@ export const motorideApi = {
       isDeleted: false,
     };
 
-    // 1. Cache in memory
+    // 1. Cache binary in memory for instant local download
     cachedApkBlob = file;
 
-    // 2. Persist in client IndexedDB
+    // 2. Persist binary in client IndexedDB
     try {
       await saveApkBlobToIndexedDb(file);
     } catch (e) {
       console.warn('Failed to cache APK blob in IndexedDB:', e);
     }
 
-    // 3. Save release metadata locally & broadcast immediately
-    await this.saveApkRelease(updated);
+    // 3. Upload binary to backend server with progress tracking
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/admin/upload-apk-binary`, true);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('x-filename', encodeURIComponent(name));
+      xhr.setRequestHeader('x-version', encodeURIComponent(updated.version));
 
-    // 4. Upload binary to backend server using direct raw binary stream
-    try {
-      const uploadRes = await fetch(`${API_BASE}/admin/upload-apk-binary`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/octet-stream',
-          'x-filename': encodeURIComponent(name),
-          'x-version': encodeURIComponent(updated.version),
-        },
-        body: file,
-      });
-
-      if (uploadRes.ok) {
-        const json = await uploadRes.json();
-        if (json?.release) {
-          const finalRelease = {
-            ...updated,
-            ...json.release,
-            fileSize: realSize,
-            fileSizeBytes: rawBytes,
-            hasBinary: true,
-          };
-          safeStorage.setItem('motoride_apk_release', JSON.stringify(finalRelease));
-          realtimeSync.broadcast('APK_RELEASE_UPDATED', finalRelease);
-          return finalRelease;
-        }
+      if (xhr.upload && onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && event.total > 0) {
+            const pct = Math.min(99, Math.round((event.loaded / event.total) * 100));
+            onProgress(pct);
+          }
+        };
       }
-    } catch (err) {
-      console.warn('Direct binary upload error:', err);
-    }
 
-    return updated;
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const json = JSON.parse(xhr.responseText);
+            const finalRelease: ApkReleaseInfo = {
+              ...updated,
+              ...(json.release || {}),
+              fileName: name,
+              fileSize: realSize,
+              fileSizeBytes: rawBytes,
+              hasBinary: true,
+              isDeleted: false,
+            };
+            safeStorage.setItem('motoride_apk_release', JSON.stringify(finalRelease));
+            realtimeSync.broadcast('APK_RELEASE_UPDATED', finalRelease);
+            if (onProgress) onProgress(100);
+            resolve(finalRelease);
+          } catch (e) {
+            safeStorage.setItem('motoride_apk_release', JSON.stringify(updated));
+            realtimeSync.broadcast('APK_RELEASE_UPDATED', updated);
+            if (onProgress) onProgress(100);
+            resolve(updated);
+          }
+        } else {
+          let errMsg = `Upload failed with HTTP status ${xhr.status}`;
+          try {
+            const errJson = JSON.parse(xhr.responseText);
+            if (errJson?.error) errMsg = errJson.error;
+          } catch {}
+          reject(new Error(errMsg));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(
+          new Error(
+            'Network transfer failed while uploading APK binary. Please check connection and try again.'
+          )
+        );
+      };
+
+      xhr.ontimeout = () => {
+        reject(new Error('APK upload timed out. Please try uploading again.'));
+      };
+
+      xhr.send(file);
+    });
   },
 
   async deleteApkRelease(): Promise<ApkReleaseInfo> {

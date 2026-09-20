@@ -6,6 +6,6 @@
   "releaseNotes": "Official Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.",
   "uploadedAt": "2026-09-20",
   "downloadsCount": 148,
-  "isDeleted": false,
+  "isDeleted": true,
   "hasBinary": false
 }
