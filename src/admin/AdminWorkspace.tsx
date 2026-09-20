@@ -94,35 +94,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       const saved = localStorage.getItem('motoride_admin_fare_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
-        return {
-          ...parsed,
-          ride_charges: {
-            base_fare: 25,
-            per_km_rate: 12,
-            minimum_fare: 30,
-            platform_commission_pct: 10,
-            min_offer_pct: 70,
-            max_offer_pct: 180,
-            night_surcharge_pct: 10,
-            auto_multiplier: 1.25,
-            car_multiplier: 1.8,
-            cancellation_fee: 20,
-            ...(parsed.ride_charges || {}),
-          },
-          courier_charges: {
-            base_fare: 35,
-            per_km_rate: 14,
-            minimum_fare: 40,
-            platform_commission_pct: 12,
-            min_offer_pct: 70,
-            max_offer_pct: 180,
-            handling_fee: 10,
-            express_surcharge: 15,
-            max_weight_kg: 15,
-            cancellation_fee: 25,
-            ...(parsed.courier_charges || {}),
-          },
-        };
+        return parsed;
       }
     } catch {}
     return {
