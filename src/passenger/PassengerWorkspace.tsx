@@ -1497,34 +1497,32 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             {/* Service / Ride Type Selector - Show on Top of Booking Page */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-black text-black tracking-wider">Choose Service</label>
-              <div className="flex items-center justify-around py-2 px-2 bg-slate-100 rounded-2xl border border-black">
-                <button
-                  type="button"
-                  onClick={() => setRideType('bike')}
-                  className={`p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
-                    rideType === 'bike'
-                      ? 'text-black scale-125 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)] bg-white ring-2 ring-black border border-black shadow-md'
-                      : 'text-slate-600 hover:text-black'
-                  }`}
-                  title="Bike"
-                  aria-label="Bike"
-                >
-                  <Bike className="w-6 h-6 stroke-[2.5]" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRideType('courier')}
-                  className={`p-2.5 rounded-full transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
-                    rideType === 'courier'
-                      ? 'text-black scale-125 drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)] bg-white ring-2 ring-black border border-black shadow-md'
-                      : 'text-slate-600 hover:text-black'
-                  }`}
-                  title="Courier Parcel"
-                  aria-label="Courier Parcel"
-                >
-                  <Package className="w-6 h-6 stroke-[2.5]" />
-                </button>
+              <div className="grid grid-cols-4 gap-2 bg-slate-100 p-2 rounded-2xl border border-black">
+                {[
+                  { type: 'bike' as RideTypeCode, label: 'Bike', icon: Bike },
+                  { type: 'auto' as RideTypeCode, label: 'Auto', icon: Navigation },
+                  { type: 'car' as RideTypeCode, label: 'Car', icon: Car },
+                  { type: 'courier' as RideTypeCode, label: 'Courier', icon: Package },
+                ].map((s) => {
+                  const Icon = s.icon;
+                  const isSelected = rideType === s.type;
+                  return (
+                    <button
+                      key={s.type}
+                      type="button"
+                      onClick={() => setRideType(s.type)}
+                      className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
+                        isSelected
+                          ? 'bg-black text-white ring-2 ring-emerald-400 shadow-lg scale-105'
+                          : 'bg-black/90 text-white hover:bg-black'
+                      }`}
+                      title={s.label}
+                    >
+                      <Icon className="w-5 h-5 text-white stroke-[2.5]" />
+                      <span className="text-[10px] font-bold text-white mt-1">{s.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
