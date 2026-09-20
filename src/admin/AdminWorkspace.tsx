@@ -897,6 +897,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           { key: 'captains', label: `Captains (${captains.length})`, icon: Users },
           { key: 'passengers', label: `Passengers (${passengers.length})`, icon: Users },
           { key: 'fare', label: 'Fare & Commission', icon: Settings },
+          { key: 'ride_charges', label: 'Ride Charges / KM', icon: Bike },
+          { key: 'courier_charges', label: 'Courier Charges / KM', icon: Settings },
           { key: 'qr', label: 'Official QR Code', icon: QrCode },
           { key: 'supabase', label: 'Supabase SQL Setup', icon: Database },
         ].map((tab) => {
@@ -1769,6 +1771,298 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
             <Save className="w-4 h-4" />
             <span>Save & Broadcast Fare Settings</span>
           </button>
+        </div>
+      )}
+
+      {/* VIEW: RIDE CHARGES (PER KM) */}
+      {activeTab === 'ride_charges' && (
+        <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-4 shadow-xl max-w-2xl">
+          <div>
+            <h2 className="text-base font-extrabold text-white">Ride Charges & Per-KM Pricing</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Set passenger ride base unlock fare, per-KM rate, minimum fare floor, and commission specifically for taxi rides.
+            </p>
+          </div>
+
+          {rideSaveStatus && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+              {rideSaveStatus}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                Ride Base Fare (₹)
+              </label>
+              <input
+                type="number"
+                value={fareSettings.ride_charges?.base_fare ?? 25}
+                onChange={(e) =>
+                  setFareSettings({
+                    ...fareSettings,
+                    ride_charges: {
+                      ...(fareSettings.ride_charges || {
+                        base_fare: 25,
+                        per_km_rate: 12,
+                        minimum_fare: 30,
+                        platform_commission_pct: 10,
+                        min_offer_pct: 70,
+                        max_offer_pct: 180,
+                      }),
+                      base_fare: Number(e.target.value),
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                Ride Per-KM Rate (₹ / km)
+              </label>
+              <input
+                type="number"
+                value={fareSettings.ride_charges?.per_km_rate ?? 12}
+                onChange={(e) =>
+                  setFareSettings({
+                    ...fareSettings,
+                    ride_charges: {
+                      ...(fareSettings.ride_charges || {
+                        base_fare: 25,
+                        per_km_rate: 12,
+                        minimum_fare: 30,
+                        platform_commission_pct: 10,
+                        min_offer_pct: 70,
+                        max_offer_pct: 180,
+                      }),
+                      per_km_rate: Number(e.target.value),
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                Ride Minimum Fare Floor (₹)
+              </label>
+              <input
+                type="number"
+                value={fareSettings.ride_charges?.minimum_fare ?? 30}
+                onChange={(e) =>
+                  setFareSettings({
+                    ...fareSettings,
+                    ride_charges: {
+                      ...(fareSettings.ride_charges || {
+                        base_fare: 25,
+                        per_km_rate: 12,
+                        minimum_fare: 30,
+                        platform_commission_pct: 10,
+                        min_offer_pct: 70,
+                        max_offer_pct: 180,
+                      }),
+                      minimum_fare: Number(e.target.value),
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                Ride Platform Commission (%)
+              </label>
+              <input
+                type="number"
+                value={fareSettings.ride_charges?.platform_commission_pct ?? 10}
+                onChange={(e) =>
+                  setFareSettings({
+                    ...fareSettings,
+                    ride_charges: {
+                      ...(fareSettings.ride_charges || {
+                        base_fare: 25,
+                        per_km_rate: 12,
+                        minimum_fare: 30,
+                        platform_commission_pct: 10,
+                        min_offer_pct: 70,
+                        max_offer_pct: 180,
+                      }),
+                      platform_commission_pct: Number(e.target.value),
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-emerald-400 font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              type="button"
+              onClick={handleSaveRideCharges}
+              className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              <span>Save Ride Charges</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleResetRideCharges}
+              className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer"
+            >
+              Reset Defaults
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: COURIER CHARGES (PER KM) */}
+      {activeTab === 'courier_charges' && (
+        <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-4 shadow-xl max-w-2xl">
+          <div>
+            <h2 className="text-base font-extrabold text-white">Courier & Parcel Delivery Per-KM Pricing</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Set parcel delivery base fare, per-KM delivery rate, minimum delivery floor, handling fee, and express surcharge.
+            </p>
+          </div>
+
+          {courierSaveStatus && (
+            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+              {courierSaveStatus}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                Courier Base Fare (₹)
+              </label>
+              <input
+                type="number"
+                value={fareSettings.courier_charges?.base_fare ?? 35}
+                onChange={(e) =>
+                  setFareSettings({
+                    ...fareSettings,
+                    courier_charges: {
+                      ...(fareSettings.courier_charges || {
+                        base_fare: 35,
+                        per_km_rate: 14,
+                        minimum_fare: 40,
+                        platform_commission_pct: 12,
+                        min_offer_pct: 70,
+                        max_offer_pct: 180,
+                      }),
+                      base_fare: Number(e.target.value),
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                Courier Per-KM Rate (₹ / km)
+              </label>
+              <input
+                type="number"
+                value={fareSettings.courier_charges?.per_km_rate ?? 14}
+                onChange={(e) =>
+                  setFareSettings({
+                    ...fareSettings,
+                    courier_charges: {
+                      ...(fareSettings.courier_charges || {
+                        base_fare: 35,
+                        per_km_rate: 14,
+                        minimum_fare: 40,
+                        platform_commission_pct: 12,
+                        min_offer_pct: 70,
+                        max_offer_pct: 180,
+                      }),
+                      per_km_rate: Number(e.target.value),
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                Courier Minimum Fare Floor (₹)
+              </label>
+              <input
+                type="number"
+                value={fareSettings.courier_charges?.minimum_fare ?? 40}
+                onChange={(e) =>
+                  setFareSettings({
+                    ...fareSettings,
+                    courier_charges: {
+                      ...(fareSettings.courier_charges || {
+                        base_fare: 35,
+                        per_km_rate: 14,
+                        minimum_fare: 40,
+                        platform_commission_pct: 12,
+                        min_offer_pct: 70,
+                        max_offer_pct: 180,
+                      }),
+                      minimum_fare: Number(e.target.value),
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-400 block mb-1">
+                Courier Platform Commission (%)
+              </label>
+              <input
+                type="number"
+                value={fareSettings.courier_charges?.platform_commission_pct ?? 12}
+                onChange={(e) =>
+                  setFareSettings({
+                    ...fareSettings,
+                    courier_charges: {
+                      ...(fareSettings.courier_charges || {
+                        base_fare: 35,
+                        per_km_rate: 14,
+                        minimum_fare: 40,
+                        platform_commission_pct: 12,
+                        min_offer_pct: 70,
+                        max_offer_pct: 180,
+                      }),
+                      platform_commission_pct: Number(e.target.value),
+                    },
+                  })
+                }
+                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-emerald-400 font-bold"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              type="button"
+              onClick={handleSaveCourierCharges}
+              className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              <span>Save Courier Charges</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleResetCourierCharges}
+              className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer"
+            >
+              Reset Defaults
+            </button>
+          </div>
         </div>
       )}
 
