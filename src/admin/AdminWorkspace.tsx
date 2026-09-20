@@ -2559,19 +2559,15 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                         const file = e.target.files?.[0];
                         if (file) {
                           const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-                          const reader = new FileReader();
-                          reader.onload = (uploadEvent) => {
-                            const dataUrl = uploadEvent.target?.result as string || '';
-                            setApkInfo({
-                              ...apkInfo,
-                              fileName: file.name,
-                              fileSize: sizeMB,
-                              downloadUrl: dataUrl,
-                              uploadedAt: new Date().toISOString().split('T')[0],
-                            });
-                            setApkSaveStatus(`Successfully loaded APK file: ${file.name} (${sizeMB})`);
-                          };
-                          reader.readAsDataURL(file);
+                          motorideApi.cacheApkBlob(file);
+                          setApkInfo({
+                            ...apkInfo,
+                            fileName: file.name,
+                            fileSize: sizeMB,
+                            downloadUrl: 'blob',
+                            uploadedAt: new Date().toISOString().split('T')[0],
+                          });
+                          setApkSaveStatus(`Successfully loaded APK file: ${file.name} (${sizeMB})`);
                         }
                       }}
                       className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
@@ -2599,17 +2595,16 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   </button>
 
                   <a
-                    href={apkInfo.downloadUrl || '#'}
+                    href="#"
                     onClick={(e) => {
-                      if (!apkInfo.downloadUrl) {
-                        e.preventDefault();
-                        const blob = new Blob([`MotoRide Android App v${apkInfo.version}\nPackage: ${apkInfo.fileName}\nSize: ${apkInfo.fileSize}\nRelease Notes: ${apkInfo.releaseNotes}`], { type: 'application/vnd.android.package-archive' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = apkInfo.fileName;
-                        a.click();
-                      }
+                      e.preventDefault();
+                      const blob = motorideApi.getApkBlob(apkInfo);
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = apkInfo.fileName || 'motoride-release.apk';
+                      a.click();
+                      URL.revokeObjectURL(url);
                       const updated = { ...apkInfo, downloadsCount: apkInfo.downloadsCount + 1 };
                       setApkInfo(updated);
                       motorideApi.saveApkRelease(updated);
@@ -2620,6 +2615,23 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                     <Download className="w-4 h-4 text-emerald-400" />
                     <span>Download Test APK ({apkInfo.fileSize})</span>
                   </a>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete this APK release and reset to default?')) {
+                        const reset = motorideApi.deleteApkRelease();
+                        setApkInfo(reset);
+                        setApkSaveStatus('APK release package successfully deleted and reset to default.');
+                        setTimeout(() => setApkSaveStatus(null), 4000);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold transition-all cursor-pointer active:scale-95 ml-auto"
+                    title="Delete APK release"
+                  >
+                    <Trash2 className="w-4 h-4 text-rose-400" />
+                    <span>Delete APK</span>
+                  </button>
                 </div>
               </div>
 

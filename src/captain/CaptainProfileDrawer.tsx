@@ -855,19 +855,13 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (apkRelease.downloadUrl) {
-                  const a = document.createElement('a');
-                  a.href = apkRelease.downloadUrl;
-                  a.download = apkRelease.fileName;
-                  a.click();
-                } else {
-                  const blob = new Blob([`MotoRide Android App v${apkRelease.version}\nPackage: ${apkRelease.fileName}`], { type: 'application/vnd.android.package-archive' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = apkRelease.fileName;
-                  a.click();
-                }
+                const blob = motorideApi.getApkBlob(apkRelease);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = apkRelease.fileName || 'motoride-release.apk';
+                a.click();
+                URL.revokeObjectURL(url);
                 const updated = { ...apkRelease, downloadsCount: apkRelease.downloadsCount + 1 };
                 setApkRelease(updated);
                 motorideApi.saveApkRelease(updated);

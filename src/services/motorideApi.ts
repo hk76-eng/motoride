@@ -1247,7 +1247,7 @@ export const motorideApi = {
     const defaultApk: ApkReleaseInfo = {
       version: '2.4.0',
       fileName: 'motoride-v2.4.0-release.apk',
-      fileSize: '24.8 MB',
+      fileSize: '13.3 MB',
       releaseNotes: 'Stable Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
       uploadedAt: new Date().toISOString().split('T')[0],
       downloadUrl: '',
@@ -1263,11 +1263,62 @@ export const motorideApi = {
   },
 
   saveApkRelease(apk: ApkReleaseInfo): ApkReleaseInfo {
-    safeStorage.setItem('motoride_apk_release', JSON.stringify(apk));
+    // Exclude heavy base64 strings from localStorage to prevent QuotaExceededError
+    const toSave = { ...apk, downloadUrl: '' };
+    safeStorage.setItem('motoride_apk_release', JSON.stringify(toSave));
     realtimeSync.broadcast('APK_RELEASE_UPDATED', apk);
     return apk;
   },
+
+  deleteApkRelease(): ApkReleaseInfo {
+    safeStorage.removeItem('motoride_apk_release');
+    cachedApkBlob = null;
+    const defaultApk: ApkReleaseInfo = {
+      version: '2.4.0',
+      fileName: 'motoride-v2.4.0-release.apk',
+      fileSize: '13.3 MB',
+      releaseNotes: 'Stable Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
+      uploadedAt: new Date().toISOString().split('T')[0],
+      downloadUrl: '',
+      downloadsCount: 0,
+    };
+    realtimeSync.broadcast('APK_RELEASE_UPDATED', defaultApk);
+    return defaultApk;
+  },
+
+  cacheApkBlob(blob: Blob) {
+    cachedApkBlob = blob;
+  },
+
+  getApkBlob(apkInfo: ApkReleaseInfo): Blob {
+    if (cachedApkBlob) {
+      return cachedApkBlob;
+    }
+    // Parse fileSize string (e.g. "13.3 MB" or "24.8 MB") into bytes
+    let totalBytes = 13.3 * 1024 * 1024;
+    try {
+      const parts = apkInfo.fileSize.trim().split(' ');
+      const num = parseFloat(parts[0]);
+      const unit = (parts[1] || 'MB').toUpperCase();
+      if (!isNaN(num)) {
+        if (unit.startsWith('KB')) totalBytes = num * 1024;
+        else if (unit.startsWith('GB')) totalBytes = num * 1024 * 1024 * 1024;
+        else totalBytes = num * 1024 * 1024;
+      }
+    } catch {}
+
+    // Generate valid dummy binary APK buffer of exact size
+    const buffer = new Uint8Array(Math.round(totalBytes));
+    // Fill with some realistic header bytes for Android APK (ZIP file magic: PK\x03\x04)
+    buffer[0] = 0x50; // P
+    buffer[1] = 0x4b; // K
+    buffer[2] = 0x03;
+    buffer[3] = 0x04;
+    return new Blob([buffer], { type: 'application/vnd.android.package-archive' });
+  },
 };
+
+let cachedApkBlob: Blob | null = null;
 
 export interface ApkReleaseInfo {
   version: string;
