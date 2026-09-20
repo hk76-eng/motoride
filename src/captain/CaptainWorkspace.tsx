@@ -605,8 +605,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
       const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
       
-      const notes = [523.25, 659.25, 783.99, 987.77]; // C5, E5, G5, B5 soft marimba chime
+      const notes = [523.25, 659.25, 783.99, 987.77, 1046.50]; // C5, E5, G5, B5, C6 soft marimba chime
       notes.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -614,7 +617,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
         
         gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.12);
-        gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + idx * 0.12 + 0.02);
+        gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + idx * 0.12 + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.35);
         
         osc.connect(gain);
@@ -623,14 +626,27 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         osc.start(ctx.currentTime + idx * 0.12);
         osc.stop(ctx.currentTime + idx * 0.12 + 0.4);
       });
-    } catch {}
+    } catch (e) {
+      console.warn('Audio playback notice:', e);
+    }
   };
 
   const prevRideIdsRef = useRef<Set<string>>(new Set());
+  const isInitializedRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (!isOnline) return;
+    if (!isOnline) {
+      isInitializedRef.current = false;
+      prevRideIdsRef.current = new Set();
+      return;
+    }
     const currentIds = new Set(availableRides.map(r => r.id));
+    if (!isInitializedRef.current) {
+      prevRideIdsRef.current = currentIds;
+      isInitializedRef.current = true;
+      return;
+    }
+
     let hasNew = false;
     for (const id of currentIds) {
       if (!prevRideIdsRef.current.has(id)) {
@@ -638,7 +654,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         break;
       }
     }
-    if (hasNew && prevRideIdsRef.current.size > 0) {
+    if (hasNew) {
       playIncomingCallTune();
     }
     prevRideIdsRef.current = currentIds;
