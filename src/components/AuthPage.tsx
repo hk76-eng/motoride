@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bike,
   Shield,
@@ -24,10 +24,14 @@ import {
   MapPin,
   Clock,
   Compass,
+  Download,
+  Smartphone,
 } from 'lucide-react';
 import { UserRole, RideTypeCode } from '../types/motoride';
 import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { motorideApi, ApkReleaseInfo } from '../services/motorideApi';
+import { realtimeSync } from '../services/realtimeSync';
 
 interface AuthPageProps {
   onAuthenticated: (user: AuthUser) => void;
@@ -40,6 +44,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>(defaultRole);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [apkRelease, setApkRelease] = useState(() => motorideApi.getApkRelease());
+
+  useEffect(() => {
+    const unsub = realtimeSync.on('APK_RELEASE_UPDATED', (updated: ApkReleaseInfo) => {
+      setApkRelease(updated);
+    });
+    return () => {
+      unsub();
+    };
+  }, []);
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -223,8 +237,35 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </div>
         </div>
 
-        {/* 2-Role Quick Select Switcher (Passenger & Captain) */}
-        <div className="flex items-center gap-1.5 p-1 bg-black border border-white/25 rounded-2xl">
+        {/* Right Side: APK Download Button & 2-Role Quick Select Switcher */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          {/* Android APK Download Button */}
+          <button
+            type="button"
+            onClick={() => {
+              const blob = motorideApi.getApkBlob(apkRelease);
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = apkRelease.fileName || 'motoride-release.apk';
+              a.click();
+              URL.revokeObjectURL(url);
+              const updated = { ...apkRelease, downloadsCount: apkRelease.downloadsCount + 1 };
+              setApkRelease(updated);
+              motorideApi.saveApkRelease(updated);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
+            title={`Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>Download APK</span>
+            <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.2 rounded text-[10px] font-mono-num hidden md:inline">
+              {apkRelease.fileSize}
+            </span>
+          </button>
+
+          {/* 2-Role Quick Select Switcher (Passenger & Captain) */}
+          <div className="flex items-center gap-1.5 p-1 bg-black border border-white/25 rounded-2xl">
           <button
             type="button"
             onClick={() => handleRoleSelect('passenger')}
@@ -249,6 +290,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <Bike className="w-3.5 h-3.5" />
             <span>Captain</span>
           </button>
+          </div>
         </div>
       </header>
 
