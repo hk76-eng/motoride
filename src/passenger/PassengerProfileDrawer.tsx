@@ -780,39 +780,6 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
               <ChevronRight className="w-4 h-4" />
             </a>
 
-            {/* Download Android APK Card */}
-            {!apkRelease.isDeleted && (
-              <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-white/5 border border-emerald-500/30 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-sm shrink-0">
-                    <Smartphone className="w-4 h-4" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">Android APK v{apkRelease.version}</span>
-                    <span className="text-[10px] text-emerald-400 font-mono-num">{apkRelease.fileSize} • Official Release</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const blob = motorideApi.getApkBlob(apkRelease);
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = apkRelease.fileName || 'motoride-release.apk';
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    const updated = { ...apkRelease, downloadsCount: apkRelease.downloadsCount + 1 };
-                    setApkRelease(updated);
-                    motorideApi.saveApkRelease(updated);
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download</span>
-                </button>
-              </div>
-            )}
 
             <button
               type="button"
