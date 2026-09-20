@@ -285,14 +285,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     setShowPickupToast(true);
     setTimeout(() => setShowPickupToast(false), 3500);
   };
-  const [fareSettings, setFareSettings] = useState<FareSettings>({
-    base_fare: 25,
-    per_km_rate: 12,
-    minimum_fare: 30,
-    platform_commission_pct: 10,
-    min_offer_pct: 70,
-    max_offer_pct: 180,
-    currency_symbol: '₹',
+  const [fareSettings, setFareSettings] = useState<FareSettings>(() => {
+    try {
+      const saved = localStorage.getItem('motoride_admin_fare_settings');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {
+      currency_symbol: '₹',
+      ride_charges: {},
+      courier_charges: {},
+    } as any;
   });
 
   // Trip Completed Rating State
@@ -322,34 +324,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     : 0;
   const durationMin = hasSelectedLocations ? Math.round(distanceKm * 2.8 + 4) : 0;
 
-  // Multiplier and dedicated separate pricing by service type (Ride vs Courier)
-  const rideConfig = fareSettings.ride_charges || {
-    base_fare: fareSettings.base_fare ?? 25,
-    per_km_rate: fareSettings.per_km_rate ?? 12,
-    minimum_fare: fareSettings.minimum_fare ?? 30,
-    platform_commission_pct: fareSettings.platform_commission_pct ?? 10,
-    min_offer_pct: fareSettings.min_offer_pct ?? 70,
-    max_offer_pct: fareSettings.max_offer_pct ?? 180,
-    auto_multiplier: 1.25,
-    car_multiplier: 1.8,
-  };
-
-  const courierConfig = fareSettings.courier_charges || {
-    base_fare: 35,
-    per_km_rate: 14,
-    minimum_fare: 40,
-    platform_commission_pct: 12,
-    min_offer_pct: 70,
-    max_offer_pct: 180,
-    handling_fee: 10,
-  };
+  // Dedicated separate pricing by service type (Ride vs Courier)
+  const rideConfig = fareSettings.ride_charges || {};
+  const courierConfig = fareSettings.courier_charges || {};
 
   let estimatedFare = 0;
   if (hasSelectedLocations) {
     if (rideType === 'courier') {
-      const base = (courierConfig.base_fare ?? 35) + (courierConfig.handling_fee ?? 0);
-      const running = distanceKm * (courierConfig.per_km_rate ?? 14);
-      estimatedFare = Math.max(courierConfig.minimum_fare ?? 40, Math.round(base + running));
+      const base = (courierConfig.base_fare ?? fareSettings.base_fare ?? 0) + (courierConfig.handling_fee ?? 0);
+      const rate = courierConfig.per_km_rate ?? fareSettings.per_km_rate ?? 0;
+      const minFare = courierConfig.minimum_fare ?? fareSettings.minimum_fare ?? 0;
+      const running = distanceKm * rate;
+      estimatedFare = Math.max(minFare, Math.round(base + running));
     } else {
       const multiplier =
         rideType === 'auto'
@@ -357,9 +343,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           : rideType === 'car'
           ? (rideConfig.car_multiplier || 1.8)
           : 1.0;
-      const base = rideConfig.base_fare ?? 25;
-      const running = distanceKm * (rideConfig.per_km_rate ?? 12);
-      estimatedFare = Math.max(rideConfig.minimum_fare ?? 30, Math.round((base + running) * multiplier));
+      const base = rideConfig.base_fare ?? fareSettings.base_fare ?? 0;
+      const rate = rideConfig.per_km_rate ?? fareSettings.per_km_rate ?? 0;
+      const minFare = rideConfig.minimum_fare ?? fareSettings.minimum_fare ?? 0;
+      const running = distanceKm * rate;
+      estimatedFare = Math.max(minFare, Math.round((base + running) * multiplier));
     }
   }
 

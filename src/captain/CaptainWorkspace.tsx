@@ -662,6 +662,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const loadAvailableRides = async () => {
     try {
+      if (fareSettings?.require_admin_approval_for_rides && captain && !captain.is_approved) {
+        setAvailableRides([]);
+        return;
+      }
       const list = await motorideApi.getRides({ active_for_captain: true });
       if (Array.isArray(list)) {
         const realRides = list.filter(
@@ -1206,22 +1210,30 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               )}
 
               {/* Status & Scanning Message */}
-              <div className="flex flex-col items-center gap-1 text-center px-4">
-                <p className="text-sm font-bold text-slate-900 flex items-center justify-center gap-2">
-                  {isOnline ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
-                      <span>Scanning for nearby live ride requests...</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span>You are currently OFFLINE</span>
-                    </>
-                  )}
-                </p>
+              <div className="flex flex-col items-center gap-1 text-center px-4 w-full">
+                {fareSettings?.require_admin_approval_for_rides && captain && !captain.is_approved ? (
+                  <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-center text-xs text-amber-900 font-medium mb-3 w-full shadow-sm">
+                    <strong>Pending Admin Approval:</strong> Your new captain account requires admin approval before passenger ride requests can be displayed in your dashboard.
+                  </div>
+                ) : (
+                  <p className="text-sm font-bold text-slate-900 flex items-center justify-center gap-2">
+                    {isOnline ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                        <span>Scanning for nearby live ride requests...</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>You are currently OFFLINE</span>
+                      </>
+                    )}
+                  </p>
+                )}
                 <span className="text-[11px] text-slate-500 max-w-sm">
-                  {isOnline
+                  {fareSettings?.require_admin_approval_for_rides && captain && !captain.is_approved
+                    ? 'Please contact admin or wait for account approval.'
+                    : isOnline
                     ? 'Passenger ride requests appear here instantly in real time with audio alert'
                     : 'Use the Online capsule button near Captain App at the top right to go Online and receive rides'}
                 </span>

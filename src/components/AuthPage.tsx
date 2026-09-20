@@ -85,7 +85,13 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (!signInEmail.trim() || !signInEmail.includes('@')) {
+    const cleanEmail = signInEmail.trim().toLowerCase();
+    if (selectedRole === 'admin' && cleanEmail !== 'freelanceseoservices01@gmail.com') {
+      setErrorMessage('Restricted area do not proceed');
+      return;
+    }
+
+    if (!cleanEmail || !signInEmail.includes('@')) {
       setErrorMessage('Please enter a valid email address');
       return;
     }
@@ -158,6 +164,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       email = admEmail.trim();
       phone = admPhone.trim();
       password = admPassword;
+    }
+
+    if (selectedRole === 'admin' && email.trim().toLowerCase() !== 'freelanceseoservices01@gmail.com') {
+      setErrorMessage('Restricted area do not proceed');
+      return;
     }
 
     if (!name || !email || !password) {
@@ -344,9 +355,9 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
               {/* Error Message */}
               {errorMessage && (
-                <div className="mb-5 p-3.5 rounded-2xl bg-black border border-white/40 text-white text-xs font-medium flex items-center gap-2.5 shadow-md">
-                  <ShieldAlert className="w-4 h-4 shrink-0 text-white stroke-[2.5]" />
-                  <span className="text-white">{errorMessage}</span>
+                <div className="mb-5 p-3.5 rounded-2xl bg-rose-950/90 border border-rose-500 text-rose-300 text-xs font-bold flex items-center gap-2.5 shadow-xl animate-in fade-in">
+                  <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400 stroke-[2.5]" />
+                  <span className="text-rose-200">{errorMessage}</span>
                 </div>
               )}
 

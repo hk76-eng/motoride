@@ -176,6 +176,7 @@ export interface FareSettings {
   max_offer_pct: number; // e.g. 150% of estimated fare
   currency_symbol: string;
   updated_at?: string;
+  require_admin_approval_for_rides?: boolean;
 
   // Dedicated Ride & Courier charge modules configured separately by admin
   ride_charges?: RideChargeSettings;
