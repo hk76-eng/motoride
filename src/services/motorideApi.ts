@@ -1017,6 +1017,11 @@ export const motorideApi = {
   },
 
   // 3. Passengers
+  async getAccounts(): Promise<any[]> {
+    const json = await safeFetchJson<{ accounts?: any[] }>(`${API_BASE}/auth/accounts`, undefined, { accounts: [] });
+    return json.accounts || [];
+  },
+
   async getPassengers(): Promise<Passenger[]> {
     const json = await safeFetchJson<{ passengers?: Passenger[] }>(`${API_BASE}/passengers`, undefined, { passengers: [] });
     return json.passengers || [];

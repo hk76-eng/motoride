@@ -330,22 +330,24 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   let estimatedFare = 0;
   if (hasSelectedLocations) {
+    const cc = courierConfig as any;
+    const rc = rideConfig as any;
     if (rideType === 'courier') {
-      const base = (courierConfig.base_fare ?? fareSettings.base_fare ?? 0) + (courierConfig.handling_fee ?? 0);
-      const rate = courierConfig.per_km_rate ?? fareSettings.per_km_rate ?? 0;
-      const minFare = courierConfig.minimum_fare ?? fareSettings.minimum_fare ?? 0;
+      const base = (cc.base_fare ?? fareSettings.base_fare ?? 0) + (cc.handling_fee ?? 0);
+      const rate = cc.per_km_rate ?? fareSettings.per_km_rate ?? 0;
+      const minFare = cc.minimum_fare ?? fareSettings.minimum_fare ?? 0;
       const running = distanceKm * rate;
       estimatedFare = Math.max(minFare, Math.round(base + running));
     } else {
       const multiplier =
         rideType === 'auto'
-          ? (rideConfig.auto_multiplier || 1.25)
+          ? (rc.auto_multiplier || 1.25)
           : rideType === 'car'
-          ? (rideConfig.car_multiplier || 1.8)
+          ? (rc.car_multiplier || 1.8)
           : 1.0;
-      const base = rideConfig.base_fare ?? fareSettings.base_fare ?? 0;
-      const rate = rideConfig.per_km_rate ?? fareSettings.per_km_rate ?? 0;
-      const minFare = rideConfig.minimum_fare ?? fareSettings.minimum_fare ?? 0;
+      const base = rc.base_fare ?? fareSettings.base_fare ?? 0;
+      const rate = rc.per_km_rate ?? fareSettings.per_km_rate ?? 0;
+      const minFare = rc.minimum_fare ?? fareSettings.minimum_fare ?? 0;
       const running = distanceKm * rate;
       estimatedFare = Math.max(minFare, Math.round((base + running) * multiplier));
     }

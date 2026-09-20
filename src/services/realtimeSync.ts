@@ -116,6 +116,21 @@ class RealtimeSyncManager {
     // 2. Initialize Shared Backend SSE stream if available
     this.connectSSE();
 
+    // 3. Initialize Local BroadcastChannel for instant same-browser multi-tab synchronization
+    if (typeof window !== 'undefined' && window.BroadcastChannel) {
+      try {
+        const localChannel = new BroadcastChannel('motoride-local-realtime');
+        localChannel.onmessage = (event) => {
+          const { type, payload } = event.data || {};
+          if (type && payload) {
+            this.emit(type, payload, false); // Don't broadcast it back to local channel
+          }
+        };
+      } catch (err) {
+        console.warn('Local BroadcastChannel setup warning:', err);
+      }
+    }
+
     // Reconnect on tab focus / wake up from background on mobile
     if (typeof window !== 'undefined') {
       const handleWake = () => {
@@ -184,7 +199,7 @@ class RealtimeSyncManager {
     };
   }
 
-  public emit(event: string, payload: any) {
+  public emit(event: string, payload: any, broadcastLocally: boolean = true) {
     const callbacks = this.listeners.get(event);
     if (callbacks) {
       callbacks.forEach((cb) => {
@@ -194,6 +209,14 @@ class RealtimeSyncManager {
           console.error('Error in realtime event callback:', err);
         }
       });
+    }
+
+    if (broadcastLocally && typeof window !== 'undefined' && window.BroadcastChannel && event !== 'CONNECTION_STATUS' && event !== 'PING') {
+      try {
+        const bc = new BroadcastChannel('motoride-local-realtime');
+        bc.postMessage({ type: event, payload });
+        bc.close();
+      } catch {}
     }
   }
 

@@ -280,10 +280,10 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     const unsubStats = realtimeSync.on('STATS_UPDATED', () => loadAllData());
     const unsubProf = realtimeSync.on('PROFILES_UPDATED', () => loadAllData());
 
-    // 4-second poll to ensure admin view updates across devices
+    // 1.5-second fast poll to ensure admin view updates immediately across all screens and devices
     const pollInterval = setInterval(() => {
       loadAllData();
-    }, 4000);
+    }, 1500);
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
@@ -309,17 +309,88 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
   const loadAllData = async () => {
     try {
-      const [s, c, p, r, f, q] = await Promise.all([
-        motorideApi.getAdminStats(),
-        motorideApi.getCaptains(),
-        motorideApi.getPassengers(),
-        motorideApi.getRides(),
-        motorideApi.getFareSettings(),
-        motorideApi.getQRSettings(),
+      const [s, c, p, r, f, q, serverAccounts] = await Promise.all([
+        motorideApi.getAdminStats().catch((err) => {
+          console.warn('AdminStats load failed, using fallback:', err);
+          return null;
+        }),
+        motorideApi.getCaptains().catch((err) => {
+          console.warn('Captains load failed, using fallback:', err);
+          return [];
+        }),
+        motorideApi.getPassengers().catch((err) => {
+          console.warn('Passengers load failed, using fallback:', err);
+          return [];
+        }),
+        motorideApi.getRides().catch((err) => {
+          console.warn('Rides load failed, using fallback:', err);
+          return [];
+        }),
+        motorideApi.getFareSettings().catch((err) => {
+          console.warn('FareSettings load failed, using fallback:', err);
+          return null;
+        }),
+        motorideApi.getQRSettings().catch((err) => {
+          console.warn('QRSettings load failed, using fallback:', err);
+          return null;
+        }),
+        motorideApi.getAccounts().catch((err) => {
+          console.warn('Accounts load failed, using fallback:', err);
+          return [];
+        }),
       ]);
 
       let localCaptains: Captain[] = [];
       let localPassengers: Passenger[] = [];
+
+      // Process server accounts
+      if (Array.isArray(serverAccounts)) {
+        for (const a of serverAccounts) {
+          if (isDemoAccount(a)) continue;
+          if (a.role === 'captain') {
+            localCaptains.push({
+              id: a.id,
+              profile_id: a.id,
+              full_name: a.name,
+              email: a.email,
+              phone: a.phone || '',
+              is_online: true,
+              is_approved: true,
+              is_active: true,
+              current_lat: 30.7046,
+              current_lng: 76.7178,
+              rating: 4.9,
+              total_rides: 0,
+              today_earnings: 0,
+              total_earnings: 0,
+              wallet_balance: a.wallet_balance ?? 500,
+              vehicle: {
+                id: `veh_${a.id}`,
+                captain_id: a.id,
+                model: a.vehicle_model || '',
+                plate_number: a.plate_number || '',
+                vehicle_type: a.vehicle_type || 'bike',
+                color: 'Black',
+                is_active: true,
+              },
+              created_at: a.member_since || a.created_at || new Date().toISOString(),
+            });
+          } else if (a.role === 'passenger') {
+            localPassengers.push({
+              id: a.id,
+              profile_id: a.id,
+              full_name: a.name,
+              email: a.email,
+              phone: a.phone || '',
+              total_rides: 0,
+              rating: 5.0,
+              wallet_balance: a.wallet_balance ?? 200,
+              emergency_contact: a.phone || '',
+              created_at: a.member_since || a.created_at || new Date().toISOString(),
+            });
+          }
+        }
+      }
 
       // Clean up demo accounts from localStorage so only real accounts persist
       try {
@@ -330,127 +401,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
             const cleaned = users.filter((u: any) => !isDemoAccount(u));
             if (cleaned.length !== users.length) {
               localStorage.setItem('motoride_users', JSON.stringify(cleaned));
-            }
-          }
-        }
-      } catch {}
-
-      // 1. Load accounts from registered accounts storage (real accounts only)
-      try {
-        const regAccounts = supabaseAuth.getRegisteredAccounts();
-        for (const a of regAccounts) {
-          if (isDemoAccount(a)) continue;
-          if (a.role === 'captain') {
-            if (!c.some(existing => existing.email === a.email || existing.id === a.id) &&
-                !localCaptains.some(existing => existing.email === a.email || existing.id === a.id)) {
-              localCaptains.push({
-                id: a.id,
-                profile_id: a.id,
-                full_name: a.name,
-                email: a.email,
-                phone: a.phone || '',
-                is_online: true,
-                is_approved: true,
-                is_active: true,
-                current_lat: 30.7046,
-                current_lng: 76.7178,
-                rating: 4.9,
-                total_rides: 0,
-                today_earnings: 0,
-                total_earnings: 0,
-                wallet_balance: a.walletBalance ?? 500,
-                vehicle: {
-                  id: `veh_${a.id}`,
-                  captain_id: a.id,
-                  model: a.vehicleModel || '',
-                  plate_number: a.plateNumber || '',
-                  vehicle_type: a.vehicleType || 'bike',
-                  color: 'Black',
-                  is_active: true,
-                },
-                created_at: a.memberSince || new Date().toISOString(),
-              });
-            }
-          } else if (a.role === 'passenger') {
-            if (!p.some(existing => (existing.email && existing.email.toLowerCase() === a.email.toLowerCase()) || existing.id === a.id) &&
-                !localPassengers.some(existing => (existing.email && existing.email.toLowerCase() === a.email.toLowerCase()) || existing.id === a.id)) {
-              localPassengers.push({
-                id: a.id,
-                profile_id: a.id,
-                full_name: a.name,
-                email: a.email,
-                phone: a.phone || '',
-                total_rides: 0,
-                rating: 5.0,
-                wallet_balance: a.walletBalance ?? 200,
-                emergency_contact: a.phone || '',
-                created_at: a.memberSince || new Date().toISOString(),
-              });
-            }
-          }
-        }
-      } catch {}
-
-      // 2. Load accounts from fallback localStorage users (real users only)
-      try {
-        const rawUsers = localStorage.getItem('motoride_users');
-        if (rawUsers) {
-          const users = JSON.parse(rawUsers);
-          if (Array.isArray(users)) {
-            for (const u of users) {
-              if (isDemoAccount(u)) continue;
-              const uId = u.id || `usr_${u.email}`;
-              const uName = u.name || u.fullName || 'User';
-              const uEmail = u.email || '';
-              const uPhone = u.phone || '';
-              if (u.role === 'captain') {
-                if (!c.some(existing => existing.id === uId || existing.email === uEmail) &&
-                    !localCaptains.some(existing => existing.email === uEmail || existing.id === uId)) {
-                  localCaptains.push({
-                    id: uId,
-                    profile_id: `prof_${uId}`,
-                    full_name: uName,
-                    email: uEmail,
-                    phone: uPhone,
-                    is_online: true,
-                    is_approved: true,
-                    is_active: true,
-                    current_lat: 30.7046,
-                    current_lng: 76.7178,
-                    rating: 4.9,
-                    total_rides: 0,
-                    today_earnings: 0,
-                    total_earnings: 0,
-                    wallet_balance: 500,
-                    vehicle: {
-                      id: `veh_${uId}`,
-                      captain_id: uId,
-                      model: u.vehicleModel || '',
-                      plate_number: u.plateNumber || '',
-                      vehicle_type: u.vehicleType || 'bike',
-                      color: 'Black',
-                      is_active: true,
-                    },
-                    created_at: u.memberSince || new Date().toISOString(),
-                  });
-                }
-              } else if (u.role === 'passenger') {
-                if (!p.some(existing => (existing.email && existing.email.toLowerCase() === uEmail.toLowerCase()) || existing.id === uId) &&
-                    !localPassengers.some(existing => (existing.email && existing.email.toLowerCase() === uEmail.toLowerCase()) || existing.id === uId)) {
-                  localPassengers.push({
-                    id: uId,
-                    profile_id: `prof_${uId}`,
-                    full_name: uName,
-                    email: uEmail,
-                    phone: uPhone,
-                    total_rides: 0,
-                    rating: 5.0,
-                    wallet_balance: 200,
-                    emergency_contact: uPhone || '',
-                    created_at: u.memberSince || new Date().toISOString(),
-                  });
-                }
-              }
             }
           }
         }
@@ -535,9 +485,39 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
         }
       }
 
-      // Filter out any demo data completely across all sources
-      const filteredCaptains = [...(c || []), ...localCaptains].filter(cpt => !isDemoAccount(cpt));
-      const filteredPassengers = [...(p || []), ...localPassengers].filter(psg => !isDemoAccount(psg));
+      // Filter out any demo data and deduplicate across all sources
+      const captainMap = new Map<string, Captain>();
+      for (const cpt of [...(c || []), ...localCaptains]) {
+        if (!cpt || isDemoAccount(cpt)) continue;
+        const key = (cpt.email && cpt.email.includes('@')) ? cpt.email.toLowerCase() : cpt.id;
+        const existing = captainMap.get(key);
+        if (!existing) {
+          captainMap.set(key, cpt);
+        } else {
+          // Merge details if existing has placeholder values
+          if (cpt.full_name && (!existing.full_name || existing.full_name === 'Captain')) existing.full_name = cpt.full_name;
+          if (cpt.phone && !existing.phone) existing.phone = cpt.phone;
+          if (cpt.vehicle?.model && !existing.vehicle?.model) existing.vehicle.model = cpt.vehicle.model;
+          if (cpt.vehicle?.plate_number && !existing.vehicle?.plate_number) existing.vehicle.plate_number = cpt.vehicle.plate_number;
+        }
+      }
+      const filteredCaptains = Array.from(captainMap.values());
+
+      const passengerMap = new Map<string, Passenger>();
+      for (const psg of [...(p || []), ...localPassengers]) {
+        if (!psg || isDemoAccount(psg)) continue;
+        const key = (psg.email && psg.email.includes('@')) ? psg.email.toLowerCase() : psg.id;
+        const existing = passengerMap.get(key);
+        if (!existing) {
+          passengerMap.set(key, psg);
+        } else {
+          // Merge details if existing has placeholder values
+          if (psg.full_name && (!existing.full_name || existing.full_name === 'Passenger')) existing.full_name = psg.full_name;
+          if (psg.phone && !existing.phone) existing.phone = psg.phone;
+        }
+      }
+      const filteredPassengers = Array.from(passengerMap.values());
+
       const filteredRides = (r || []).filter(ride => !isDemoRide(ride));
 
       const activeRidesCount = filteredRides.filter(ride => 

@@ -23,8 +23,8 @@ export const VehicleModal: React.FC<VehicleModalProps> = ({
   const savedModel = safeStorage.getItem('motoride_captain_vehicle_model');
   const savedPlate = safeStorage.getItem('motoride_captain_plate');
 
-  const modelName = vehicle?.name || vehicle?.model || (savedModel && savedModel.trim() ? savedModel : 'Motorcycle');
-  const regNumber = vehicle?.id || vehicle?.qr_code || vehicle?.plate_number || (savedPlate && savedPlate.trim() ? savedPlate : 'N/A');
+  const modelName = vehicle?.name || (vehicle as any)?.model || (savedModel && savedModel.trim() ? savedModel : 'Motorcycle');
+  const regNumber = vehicle?.id || vehicle?.qr_code || (vehicle as any)?.plate_number || (savedPlate && savedPlate.trim() ? savedPlate : 'N/A');
 
   return (
     <AnimatePresence>

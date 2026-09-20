@@ -139,12 +139,12 @@ export interface RideOffer {
 }
 
 export interface RideChargeSettings {
-  base_fare: number;
-  per_km_rate: number;
-  minimum_fare: number;
-  platform_commission_pct: number;
-  min_offer_pct: number;
-  max_offer_pct: number;
+  base_fare?: number;
+  per_km_rate?: number;
+  minimum_fare?: number;
+  platform_commission_pct?: number;
+  min_offer_pct?: number;
+  max_offer_pct?: number;
   night_surcharge_pct?: number;
   auto_multiplier?: number;
   car_multiplier?: number;
@@ -153,12 +153,12 @@ export interface RideChargeSettings {
 }
 
 export interface CourierChargeSettings {
-  base_fare: number;
-  per_km_rate: number;
-  minimum_fare: number;
-  platform_commission_pct: number;
-  min_offer_pct: number;
-  max_offer_pct: number;
+  base_fare?: number;
+  per_km_rate?: number;
+  minimum_fare?: number;
+  platform_commission_pct?: number;
+  min_offer_pct?: number;
+  max_offer_pct?: number;
   handling_fee?: number;
   express_surcharge?: number;
   max_weight_kg?: number;

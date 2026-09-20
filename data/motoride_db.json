@@ -1,6 +1,72 @@
 {
-  "accounts": [],
+  "accounts": [
+    [
+      "freelanceseoservices01@gmail.com_admin",
+      {
+        "id": "usr_1789917331400_mwfr8",
+        "email": "freelanceseoservices01@gmail.com",
+        "password_hash": "Freelanceseoservices01@1978",
+        "name": "Freelanceseoservices01",
+        "role": "admin",
+        "phone": "",
+        "vehicle_model": "",
+        "plate_number": "",
+        "vehicle_type": "bike",
+        "wallet_balance": 200,
+        "member_since": "2026-09-20T15:15:31.400Z",
+        "created_at": "2026-09-20T15:15:31.400Z"
+      }
+    ],
+    [
+      "osmskart@gmail.com_passenger",
+      {
+        "id": "usr_1789917923920_d4kaz",
+        "email": "osmskart@gmail.com",
+        "password_hash": "password",
+        "name": "Ritu Sharma",
+        "role": "passenger",
+        "phone": "+919876543210",
+        "vehicle_model": "",
+        "plate_number": "",
+        "vehicle_type": "bike",
+        "wallet_balance": 200,
+        "member_since": "2026-09-20T15:25:23.920Z",
+        "created_at": "2026-09-20T15:25:23.920Z"
+      }
+    ]
+  ],
   "captains": [],
-  "passengers": [],
-  "wallets": []
+  "passengers": [
+    [
+      "usr_1789917923920_d4kaz",
+      {
+        "id": "usr_1789917923920_d4kaz",
+        "profile_id": "prof_usr_1789917923920_d4kaz",
+        "full_name": "Ritu Sharma",
+        "email": "osmskart@gmail.com",
+        "phone": "+919876543210",
+        "total_rides": 0,
+        "rating": 5,
+        "wallet_balance": 200,
+        "emergency_contact": "+919876543210",
+        "created_at": "2026-09-20T15:25:23.920Z"
+      }
+    ]
+  ],
+  "wallets": [
+    [
+      "usr_1789917331400_mwfr8",
+      {
+        "balance": 200,
+        "currency": "₹"
+      }
+    ],
+    [
+      "usr_1789917923920_d4kaz",
+      {
+        "balance": 200,
+        "currency": "₹"
+      }
+    ]
+  ]
 }

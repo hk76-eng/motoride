@@ -25,8 +25,8 @@ export const RideStartCard: React.FC<RideStartCardProps> = ({
 }) => {
   const availableBikes = bikes && bikes.length > 0 ? bikes : [];
   const selectedBike = availableBikes.find((b) => b.id === selectedBikeId) || availableBikes[0];
-  const bikeName = selectedBike?.name || selectedBike?.model || 'Motorcycle';
-  const bikeReg = selectedBike?.qr_code || selectedBike?.plate_number || selectedBike?.id || 'GPS-Enabled';
+  const bikeName = selectedBike?.name || (selectedBike as any)?.model || 'Motorcycle';
+  const bikeReg = selectedBike?.qr_code || (selectedBike as any)?.plate_number || selectedBike?.id || 'GPS-Enabled';
 
   return (
     <div
