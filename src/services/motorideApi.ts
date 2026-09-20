@@ -1284,8 +1284,34 @@ export const motorideApi = {
         safeStorage.removeItem('motoride_active_rides_cache');
         safeStorage.removeItem('motoride_registered_accounts');
         safeStorage.removeItem('motoride_users');
+        safeStorage.removeItem('motoride_auth_session_user');
         safeStorage.removeItem('motoride_captain_recent_trips');
+        safeStorage.removeItem('motoride_supa_profiles');
+        safeStorage.removeItem('motoride_passenger_avatar');
+        safeStorage.removeItem('motoride_captain_avatar');
+        safeStorage.removeItem('motoride_captain_name');
+        safeStorage.removeItem('motoride_captain_phone');
+        safeStorage.removeItem('motoride_captain_vehicle_model');
+        safeStorage.removeItem('motoride_captain_plate');
+        safeStorage.removeItem('motoride_passenger_name');
+        safeStorage.removeItem('motoride_passenger_phone');
       } catch {}
+    }
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await Promise.allSettled([
+          supabase.from('rides').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('chat_messages').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('captains').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('passengers').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('vehicles').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('wallets').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+          supabase.from('profiles').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+        ]);
+      } catch (e) {
+        console.warn('Supabase database purge notice:', e);
+      }
     }
     const json = await safeFetchJson<{ success: boolean; message: string }>(`${API_BASE}/admin/purge-all`, {
       method: 'POST',

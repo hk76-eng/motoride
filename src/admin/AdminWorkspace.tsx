@@ -158,16 +158,20 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     setIsPurging(true);
     try {
       await motorideApi.purgeAllData();
+      setSelectedCaptain(null);
+      setSelectedPassenger(null);
       if (typeof window !== 'undefined') {
         try {
           localStorage.removeItem('motoride_users');
           localStorage.removeItem('motoride_registered_accounts');
+          localStorage.removeItem('motoride_auth_session_user');
           localStorage.removeItem('motoride_active_rides_cache');
           localStorage.removeItem('motoride_captain_recent_trips');
+          localStorage.removeItem('motoride_supa_profiles');
         } catch {}
       }
       setPurgeConfirmOpen(false);
-      showToast('All registered passengers, captains, rides, wallets, and test/mock data successfully removed! Clean slate ready.');
+      showToast('All registered passengers, captains, rides, wallets, and test/mock accounts successfully removed! Clean slate ready.');
       await loadAllData();
     } catch (err: any) {
       alert(err?.message || 'Purge failed');
