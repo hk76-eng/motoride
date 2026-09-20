@@ -1178,15 +1178,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <span>Live Ride Requests</span>
             </h3>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => playIncomingCallTune()}
-                className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-950 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs"
-                title="Test incoming caller soft tune"
-              >
-                <Volume2 className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
-                <span>Test Tune</span>
-              </button>
               <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 font-mono-num border border-amber-300">
                 {availableRides.length} Available
               </span>
