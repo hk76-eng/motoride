@@ -409,6 +409,46 @@ export const supabaseAuth = {
   },
 
   /**
+   * Update password locally for any matching cached accounts
+   */
+  updatePasswordLocally(email: string, newPasswordHash: string) {
+    try {
+      const accounts = this.getRegisteredAccounts();
+      const cleanEmail = email.trim().toLowerCase();
+      let updated = false;
+
+      accounts.forEach((a) => {
+        if (a.email.toLowerCase() === cleanEmail) {
+          a.passwordHash = newPasswordHash;
+          updated = true;
+        }
+      });
+
+      if (updated) {
+        safeStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(accounts));
+        
+        // Also update in motoride_users cache
+        try {
+          const rawUsers = safeStorage.getItem('motoride_users');
+          if (rawUsers) {
+            const users = JSON.parse(rawUsers);
+            if (Array.isArray(users)) {
+              users.forEach((u: any) => {
+                if (u.email?.toLowerCase() === cleanEmail) {
+                  u.passwordHash = newPasswordHash;
+                }
+              });
+              safeStorage.setItem('motoride_users', JSON.stringify(users));
+            }
+          }
+        } catch {}
+      }
+    } catch (e) {
+      console.warn('Failed to update local password:', e);
+    }
+  },
+
+  /**
    * Get current stored auth user from localStorage or Supabase
    */
   getCurrentUser(): AuthUser | null {

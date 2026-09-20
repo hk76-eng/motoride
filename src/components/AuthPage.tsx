@@ -42,7 +42,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   defaultRole = 'passenger',
 }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>(defaultRole);
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +52,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   // Sign In Form State (Starts completely empty for fresh accounts)
   const [signInEmail, setSignInEmail] = useState('');
   const [signInPassword, setSignInPassword] = useState('');
+
+  // Password Reset Form State
+  const [resetEmail, setResetEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   // Passenger Sign Up State
   const [psgName, setPsgName] = useState('');
@@ -130,6 +136,64 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       setErrorMessage(err.message || 'Failed to sign in. Please check credentials.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    const cleanEmail = resetEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 4) {
+      setErrorMessage('Password must be at least 4 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const res = await motorideApi.resetPassword(cleanEmail, newPassword);
+      if (res.success) {
+        // Update local cache password
+        supabaseAuth.updatePasswordLocally(cleanEmail, newPassword);
+        setSuccessMessage(res.message || 'Password updated successfully! Signing you in...');
+
+        // Attempt instant sign-in
+        const { user, error } = await supabaseAuth.signIn({
+          email: cleanEmail,
+          password: newPassword,
+          role: selectedRole,
+        });
+
+        if (!error && user) {
+          setTimeout(() => {
+            onAuthenticated(user);
+          }, 800);
+        } else {
+          setTimeout(() => {
+            setSignInEmail(cleanEmail);
+            setSignInPassword(newPassword);
+            setAuthMode('signin');
+            setSuccessMessage('Password updated successfully! Please click Sign In.');
+          }, 1000);
+        }
+      } else {
+        setErrorMessage(res.error || 'Failed to update password. Please check your credentials.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to update password.');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -308,7 +372,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 </div>
 
                 <span className="text-[11px] font-semibold text-white/80">
-                  {authMode === 'signin' ? 'Sign In Mode' : 'New Account'}
+                  {authMode === 'signin' ? 'Sign In Mode' : authMode === 'forgot' ? 'Reset Password' : 'New Account'}
                 </span>
               </div>
 
@@ -413,6 +477,20 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         {showPassword ? <EyeOff className="w-4 h-4 text-white" /> : <Eye className="w-4 h-4 text-white" />}
                       </button>
                     </div>
+                    <div className="flex justify-end mt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetEmail(signInEmail);
+                          setAuthMode('forgot');
+                          setErrorMessage(null);
+                          setSuccessMessage(null);
+                        }}
+                        className="text-[11px] font-bold text-white/80 hover:text-white underline cursor-pointer hover:no-underline transition-all"
+                      >
+                        Forgot Password? Change Password & Sign In
+                      </button>
+                    </div>
                   </div>
 
                   <button
@@ -432,6 +510,107 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       </>
                     )}
                   </button>
+                </form>
+              )}
+
+              {/* ======================================================== */}
+              {/* MODE: FORGOT / CHANGE PASSWORD FORM                       */}
+              {/* ======================================================== */}
+              {authMode === 'forgot' && (
+                <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+                  <div className="p-3.5 rounded-2xl bg-neutral-950 border border-white/20 text-[11px] text-white/80 leading-relaxed mb-1">
+                    Enter your registered email and your new password below. We will securely update your password in the database and automatically sign you into the dashboard.
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-white uppercase tracking-wider mb-2">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-white absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        placeholder="Enter your registered email"
+                        className="w-full bg-black border border-white/30 rounded-2xl py-3 pl-11 pr-4 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-white uppercase tracking-wider mb-2">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-white absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password (min 4 characters)"
+                        className="w-full bg-black border border-white/30 rounded-2xl py-3 pl-11 pr-12 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4 text-white" /> : <Eye className="w-4 h-4 text-white" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-white uppercase tracking-wider mb-2">
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-white absolute left-4 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        className="w-full bg-black border border-white/30 rounded-2xl py-3 pl-11 pr-12 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-white focus:ring-1 focus:ring-white transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex flex-col gap-2">
+                    <button
+                      type="submit"
+                      disabled={isResetting}
+                      className="w-full py-3.5 px-4 rounded-2xl font-black text-xs sm:text-sm shadow-xl transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer disabled:opacity-50 bg-black hover:bg-neutral-900 text-white border-2 border-white shadow-black/80 ring-1 ring-white/20"
+                    >
+                      {isResetting ? (
+                        <span className="flex items-center gap-2 text-white">
+                          <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          <span className="text-white">Updating Password...</span>
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-white">Change Password & Sign In</span>
+                          <ArrowRight className="w-4 h-4 text-white stroke-[2.5]" />
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode('signin');
+                        setErrorMessage(null);
+                        setSuccessMessage(null);
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white/70 hover:text-white transition-all bg-transparent border border-white/10 hover:border-white/30 cursor-pointer"
+                    >
+                      Back to Sign In
+                    </button>
+                  </div>
                 </form>
               )}
 

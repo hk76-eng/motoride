@@ -346,6 +346,24 @@ export function loadDbFromDisk() {
   }
 }
 
+export function updateAccountPassword(email: string, newPasswordHash: string): boolean {
+  const cleanEmail = email.trim().toLowerCase();
+  let updated = false;
+
+  for (const [key, acc] of accountsStore.entries()) {
+    if (acc.email.toLowerCase() === cleanEmail) {
+      acc.password_hash = newPasswordHash;
+      accountsStore.set(key, acc);
+      updated = true;
+    }
+  }
+
+  if (updated) {
+    persistDbToDisk();
+  }
+  return updated;
+}
+
 // Automatically load existing persisted records on module startup
 loadDbFromDisk();
 

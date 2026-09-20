@@ -1596,6 +1596,20 @@ export const motorideApi = {
       }
     }
   },
+
+  async resetPassword(email: string, passwordHash: string): Promise<{ success: boolean; error?: string; message?: string }> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: passwordHash }),
+      });
+      const data = await res.json();
+      return data;
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to update password.' };
+    }
+  },
 };
 
 let cachedApkBlob: Blob | null = null;

@@ -33,6 +33,7 @@ import {
   saveServerApkBinary,
   getServerApkBinary,
   deleteServerApkBinary,
+  updateAccountPassword,
 } from './motorideDb';
 import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain, Passenger } from '../src/types/motoride';
 import { backendHaversineDistanceKm } from './fareEngine';
@@ -1771,6 +1772,40 @@ motorideRouter.post('/auth/login', (req: Request, res: Response) => {
     });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message || 'Login failed' });
+  }
+});
+
+motorideRouter.post('/auth/reset-password', (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, error: 'A valid email address is required.' });
+    }
+    if (!password || String(password).trim().length < 4) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 4 characters long.' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const newPass = String(password).trim();
+
+    const updated = updateAccountPassword(cleanEmail, newPass);
+
+    if (!updated) {
+      return res.status(404).json({
+        success: false,
+        error: 'No registered passenger or captain account found with this email.',
+      });
+    }
+
+    // Broadcast the account updates to let any connected dashboards know
+    broadcastEvent('ACCOUNTS_UPDATED', Array.from(accountsStore.values()));
+
+    return res.json({
+      success: true,
+      message: 'Password changed successfully! You can now sign in with your new password.',
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || 'Password update failed' });
   }
 });
 
