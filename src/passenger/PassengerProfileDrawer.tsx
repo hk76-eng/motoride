@@ -785,7 +785,6 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
         <div className="p-4 border-t border-white/15 bg-black/60 backdrop-blur-md flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-[11px] font-bold text-slate-300">Motoride App v2.4</span>
-            <span className="text-[10px] text-slate-500">Supabase Auth Session</span>
           </div>
           <button
             type="button"

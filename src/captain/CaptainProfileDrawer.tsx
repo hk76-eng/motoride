@@ -843,7 +843,6 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
         <div className="p-4 border-t border-white/10 bg-black/60 backdrop-blur-md flex items-center justify-between text-xs text-slate-400">
           <div className="flex flex-col">
             <span className="font-bold text-white">Motoride Captain Partner v2.4</span>
-            <span className="text-emerald-400 text-[10px]">● Supabase Session Active</span>
           </div>
           <button
             type="button"

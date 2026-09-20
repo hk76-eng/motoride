@@ -42,6 +42,7 @@ import {
   ArrowLeft,
   IndianRupee,
   History,
+  Volume2,
 } from 'lucide-react';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
 
@@ -598,6 +599,51 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     } catch {}
   };
 
+  // Soft nice caller tune alert for incoming ride requests
+  const playIncomingCallTune = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      
+      const notes = [523.25, 659.25, 783.99, 987.77]; // C5, E5, G5, B5 soft marimba chime
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
+        
+        gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.12);
+        gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + idx * 0.12 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.35);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(ctx.currentTime + idx * 0.12);
+        osc.stop(ctx.currentTime + idx * 0.12 + 0.4);
+      });
+    } catch {}
+  };
+
+  const prevRideIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!isOnline) return;
+    const currentIds = new Set(availableRides.map(r => r.id));
+    let hasNew = false;
+    for (const id of currentIds) {
+      if (!prevRideIdsRef.current.has(id)) {
+        hasNew = true;
+        break;
+      }
+    }
+    if (hasNew && prevRideIdsRef.current.size > 0) {
+      playIncomingCallTune();
+    }
+    prevRideIdsRef.current = currentIds;
+  }, [availableRides, isOnline]);
+
   const loadAvailableRides = async () => {
     try {
       const list = await motorideApi.getRides({ active_for_captain: true });
@@ -1112,12 +1158,23 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between pb-2 border-b border-slate-200">
             <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <Bike className="w-4 h-4 text-amber-500" />
+              <Bike className="w-4 h-4 text-amber-500 animate-bounce" />
               <span>Live Ride Requests</span>
             </h3>
-            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 font-mono-num border border-amber-300">
-              {availableRides.length} Available
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => playIncomingCallTune()}
+                className="px-2.5 py-1 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-950 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-xs"
+                title="Test incoming caller soft tune"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
+                <span>Test Tune</span>
+              </button>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 font-mono-num border border-amber-300">
+                {availableRides.length} Available
+              </span>
+            </div>
           </div>
 
           {!isOnline || availableRides.length === 0 ? (
