@@ -22,7 +22,7 @@
       {
         "id": "usr_1789917923920_d4kaz",
         "email": "osmskart@gmail.com",
-        "password_hash": "password",
+        "password_hash": "test",
         "name": "Ritu Sharma",
         "role": "passenger",
         "phone": "+919876543210",
