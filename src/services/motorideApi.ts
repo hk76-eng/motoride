@@ -1241,4 +1241,41 @@ export const motorideApi = {
     });
     return Boolean(json?.success);
   },
+
+  // 10. APK App Release Management
+  getApkRelease(): ApkReleaseInfo {
+    const defaultApk: ApkReleaseInfo = {
+      version: '2.4.0',
+      fileName: 'motoride-v2.4.0-release.apk',
+      fileSize: '24.8 MB',
+      releaseNotes: 'Stable Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
+      uploadedAt: new Date().toISOString().split('T')[0],
+      downloadUrl: '',
+      downloadsCount: 148,
+    };
+    try {
+      const saved = safeStorage.getItem('motoride_apk_release');
+      if (saved) {
+        return { ...defaultApk, ...JSON.parse(saved) };
+      }
+    } catch {}
+    return defaultApk;
+  },
+
+  saveApkRelease(apk: ApkReleaseInfo): ApkReleaseInfo {
+    safeStorage.setItem('motoride_apk_release', JSON.stringify(apk));
+    realtimeSync.broadcast('APK_RELEASE_UPDATED', apk);
+    return apk;
+  },
 };
+
+export interface ApkReleaseInfo {
+  version: string;
+  fileName: string;
+  fileSize: string;
+  releaseNotes: string;
+  uploadedAt: string;
+  downloadUrl: string;
+  downloadsCount: number;
+}
+

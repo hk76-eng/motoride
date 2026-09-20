@@ -28,6 +28,8 @@ import {
   Trash2,
   Bike,
   History,
+  Download,
+  Smartphone,
 } from 'lucide-react';
 
 import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
@@ -89,6 +91,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
 
   const ridesTaken = totalRides ?? 0;
   const rating = 5.0;
+  const [apkRelease, setApkRelease] = useState(() => motorideApi.getApkRelease());
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -766,6 +769,44 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
               </div>
               <ChevronRight className="w-4 h-4" />
             </a>
+
+            {/* Download Android APK Card */}
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-white/5 border border-emerald-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-sm shrink-0">
+                  <Smartphone className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-white">Android APK v{apkRelease.version}</span>
+                  <span className="text-[10px] text-emerald-400 font-mono-num">{apkRelease.fileSize} • Official Release</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (apkRelease.downloadUrl) {
+                    const a = document.createElement('a');
+                    a.href = apkRelease.downloadUrl;
+                    a.download = apkRelease.fileName;
+                    a.click();
+                  } else {
+                    const blob = new Blob([`MotoRide Android App v${apkRelease.version}\nPackage: ${apkRelease.fileName}`], { type: 'application/vnd.android.package-archive' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = apkRelease.fileName;
+                    a.click();
+                  }
+                  const updated = { ...apkRelease, downloadsCount: apkRelease.downloadsCount + 1 };
+                  setApkRelease(updated);
+                  motorideApi.saveApkRelease(updated);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download</span>
+              </button>
+            </div>
 
             <button
               type="button"

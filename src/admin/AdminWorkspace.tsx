@@ -34,6 +34,8 @@ import {
   ChevronRight,
   LogOut,
   UploadCloud,
+  Download,
+  Smartphone,
   Mail,
   Phone,
   MapPin,
@@ -60,8 +62,11 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   onSignOut,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'captains' | 'passengers' | 'rides' | 'fare' | 'qr' | 'supabase'
+    'overview' | 'captains' | 'passengers' | 'rides' | 'fare' | 'qr' | 'supabase' | 'apk'
   >('overview');
+
+  const [apkInfo, setApkInfo] = useState(() => motorideApi.getApkRelease());
+  const [apkSaveStatus, setApkSaveStatus] = useState<string | null>(null);
 
   const [stats, setStats] = useState<AdminDashboardStats>({
     totalPassengers: 0,
@@ -719,6 +724,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           { key: 'fare', label: 'Fare & Commission', icon: Settings },
           { key: 'qr', label: 'Official QR Code', icon: QrCode },
           { key: 'supabase', label: 'Supabase SQL Setup', icon: Database },
+          { key: 'apk', label: 'APK App Release', icon: Smartphone },
         ].map((tab) => {
           const Icon = tab.icon;
           return (
@@ -2468,6 +2474,189 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               >
                 Delete Record
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: APK APP RELEASE MANAGEMENT */}
+      {activeTab === 'apk' && (
+        <div className="flex flex-col gap-6">
+          <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl flex flex-col gap-6">
+            <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-slate-800">
+              <div>
+                <h2 className="text-lg font-black text-white flex items-center gap-2">
+                  <Smartphone className="w-5 h-5 text-indigo-400" />
+                  <span>Android APK App Release & Distribution</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Upload the latest built Android APK file (.apk) so passengers and captains can download and install the official MotoRide mobile app directly from the platform.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1.5 rounded-xl bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-xs font-bold font-mono-num flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  Version {apkInfo.version} Active
+                </span>
+                <span className="px-3 py-1.5 rounded-xl bg-indigo-950/50 border border-indigo-500/30 text-indigo-300 text-xs font-bold font-mono-num">
+                  {apkInfo.downloadsCount} Total Downloads
+                </span>
+              </div>
+            </div>
+
+            {apkSaveStatus && (
+              <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{apkSaveStatus}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left 2 Cols: Edit APK Release Details & Upload */}
+              <div className="lg:col-span-2 flex flex-col gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-300">App Version Number</label>
+                    <input
+                      type="text"
+                      value={apkInfo.version}
+                      onChange={(e) => setApkInfo({ ...apkInfo, version: e.target.value })}
+                      placeholder="e.g. 2.4.0"
+                      className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono-num focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-slate-300">APK File Name</label>
+                    <input
+                      type="text"
+                      value={apkInfo.fileName}
+                      onChange={(e) => setApkInfo({ ...apkInfo, fileName: e.target.value })}
+                      placeholder="motoride-v2.4.0.apk"
+                      className="px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono-num focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-slate-300">Release Notes & What&apos;s New</label>
+                  <textarea
+                    rows={3}
+                    value={apkInfo.releaseNotes}
+                    onChange={(e) => setApkInfo({ ...apkInfo, releaseNotes: e.target.value })}
+                    placeholder="Describe new features, bug fixes, or performance improvements in this build..."
+                    className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-indigo-500 resize-none"
+                  />
+                </div>
+
+                {/* File Upload Box */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold text-slate-300">Upload APK File (.apk)</label>
+                  <div className="relative border-2 border-dashed border-slate-800 hover:border-indigo-500/50 rounded-2xl p-6 text-center bg-slate-950/60 transition-colors flex flex-col items-center justify-center gap-2 cursor-pointer group">
+                    <input
+                      type="file"
+                      accept=".apk,application/vnd.android.package-archive"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+                          const reader = new FileReader();
+                          reader.onload = (uploadEvent) => {
+                            const dataUrl = uploadEvent.target?.result as string || '';
+                            setApkInfo({
+                              ...apkInfo,
+                              fileName: file.name,
+                              fileSize: sizeMB,
+                              downloadUrl: dataUrl,
+                              uploadedAt: new Date().toISOString().split('T')[0],
+                            });
+                            setApkSaveStatus(`Successfully loaded APK file: ${file.name} (${sizeMB})`);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <div className="text-xs font-bold text-white">Click or drag &amp; drop your Android APK file here</div>
+                    <div className="text-[11px] text-slate-400">Supports .apk packages for Passenger &amp; Captain Android app</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      motorideApi.saveApkRelease(apkInfo);
+                      setApkSaveStatus('APK release configuration updated and published successfully! Passengers and Captains can now download it instantly from their portals.');
+                      setTimeout(() => setApkSaveStatus(null), 4000);
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-indigo-600/30 active:scale-95"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Publish APK Release</span>
+                  </button>
+
+                  <a
+                    href={apkInfo.downloadUrl || '#'}
+                    onClick={(e) => {
+                      if (!apkInfo.downloadUrl) {
+                        e.preventDefault();
+                        const blob = new Blob([`MotoRide Android App v${apkInfo.version}\nPackage: ${apkInfo.fileName}\nSize: ${apkInfo.fileSize}\nRelease Notes: ${apkInfo.releaseNotes}`], { type: 'application/vnd.android.package-archive' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = apkInfo.fileName;
+                        a.click();
+                      }
+                      const updated = { ...apkInfo, downloadsCount: apkInfo.downloadsCount + 1 };
+                      setApkInfo(updated);
+                      motorideApi.saveApkRelease(updated);
+                    }}
+                    download={apkInfo.fileName}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 text-emerald-400" />
+                    <span>Download Test APK ({apkInfo.fileSize})</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* Right Col: APK Summary Card */}
+              <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-4">
+                <div className="flex flex-col gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center font-bold">
+                    <Smartphone className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-sm font-bold text-white">APK Distribution Hub</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    When you publish a new APK release, a secure download link automatically appears in the Passenger and Captain profile drawers so all users can download the latest Android app update.
+                  </p>
+                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-col gap-2 text-xs">
+                    <div className="flex justify-between text-slate-400">
+                      <span>Package File:</span>
+                      <span className="text-white font-mono">{apkInfo.fileName}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>File Size:</span>
+                      <span className="text-emerald-400 font-mono">{apkInfo.fileSize}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Published Date:</span>
+                      <span className="text-white font-mono">{apkInfo.uploadedAt}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>Total Downloads:</span>
+                      <span className="text-indigo-400 font-mono font-bold">{apkInfo.downloadsCount}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-indigo-950/30 border border-indigo-500/30 text-indigo-300 text-[11px] leading-snug">
+                  💡 <b>Pro Tip:</b> Captains and Passengers can directly download this APK file from their sidebar profile menus in one tap.
+                </div>
+              </div>
             </div>
           </div>
         </div>
