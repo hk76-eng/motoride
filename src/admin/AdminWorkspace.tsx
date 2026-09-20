@@ -5,6 +5,8 @@ import {
   Passenger,
   MotorideRide,
   FareSettings,
+  RideChargeSettings,
+  CourierChargeSettings,
   QRCodeSetting,
 } from '../types/motoride';
 import { motorideApi, ApkReleaseInfo, formatRealFileSize } from '../services/motorideApi';
@@ -53,6 +55,10 @@ import {
   Loader2,
   FileCheck2,
   Upload,
+  Package,
+  RotateCcw,
+  Sparkles,
+  Percent,
 } from 'lucide-react';
 
 interface AdminWorkspaceProps {
@@ -65,7 +71,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   onSignOut,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'captains' | 'passengers' | 'rides' | 'fare' | 'qr' | 'supabase' | 'apk'
+    'overview' | 'captains' | 'passengers' | 'rides' | 'fare' | 'ride_charges' | 'courier_charges' | 'qr' | 'supabase' | 'apk'
   >('overview');
 
   const [apkInfo, setApkInfo] = useState(() => motorideApi.getApkRelease());
@@ -104,7 +110,38 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const [fareSettings, setFareSettings] = useState<FareSettings>(() => {
     try {
       const saved = localStorage.getItem('motoride_admin_fare_settings');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          ride_charges: {
+            base_fare: 25,
+            per_km_rate: 12,
+            minimum_fare: 30,
+            platform_commission_pct: 10,
+            min_offer_pct: 70,
+            max_offer_pct: 180,
+            night_surcharge_pct: 10,
+            auto_multiplier: 1.25,
+            car_multiplier: 1.8,
+            cancellation_fee: 20,
+            ...(parsed.ride_charges || {}),
+          },
+          courier_charges: {
+            base_fare: 35,
+            per_km_rate: 14,
+            minimum_fare: 40,
+            platform_commission_pct: 12,
+            min_offer_pct: 70,
+            max_offer_pct: 180,
+            handling_fee: 10,
+            express_surcharge: 15,
+            max_weight_kg: 15,
+            cancellation_fee: 25,
+            ...(parsed.courier_charges || {}),
+          },
+        };
+      }
     } catch {}
     return {
       base_fare: 25,
@@ -114,8 +151,36 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       min_offer_pct: 70,
       max_offer_pct: 180,
       currency_symbol: '₹',
+      ride_charges: {
+        base_fare: 25,
+        per_km_rate: 12,
+        minimum_fare: 30,
+        platform_commission_pct: 10,
+        min_offer_pct: 70,
+        max_offer_pct: 180,
+        night_surcharge_pct: 10,
+        auto_multiplier: 1.25,
+        car_multiplier: 1.8,
+        cancellation_fee: 20,
+      },
+      courier_charges: {
+        base_fare: 35,
+        per_km_rate: 14,
+        minimum_fare: 40,
+        platform_commission_pct: 12,
+        min_offer_pct: 70,
+        max_offer_pct: 180,
+        handling_fee: 10,
+        express_surcharge: 15,
+        max_weight_kg: 15,
+        cancellation_fee: 25,
+      },
     };
   });
+  const [testRideKm, setTestRideKm] = useState<number>(5.0);
+  const [testCourierKm, setTestCourierKm] = useState<number>(4.0);
+  const [rideSaveStatus, setRideSaveStatus] = useState<string | null>(null);
+  const [courierSaveStatus, setCourierSaveStatus] = useState<string | null>(null);
   const [qrSettings, setQrSettings] = useState<QRCodeSetting>({
     qr_image_url:
       'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=motoride.platform@upi%26pn=Motoride%20Technologies%26cu=INR',
@@ -584,8 +649,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       setCaptains(filteredCaptains);
       setPassengers(filteredPassengers);
       setRides(filteredRides);
-      // Do not overwrite fareSettings if admin is actively viewing/editing the fare tab
-      if (f && activeTab !== 'fare') {
+      // Do not overwrite fareSettings if admin is actively viewing/editing any fare tab
+      if (f && activeTab !== 'fare' && activeTab !== 'ride_charges' && activeTab !== 'courier_charges') {
         const localSaved = localStorage.getItem('motoride_admin_fare_settings');
         if (!localSaved) {
           setFareSettings(f);
@@ -621,6 +686,116 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     } catch (err: any) {
       alert(err.message || 'Failed to save');
     }
+  };
+
+  const handleSaveRideCharges = async () => {
+    try {
+      const currentRide: RideChargeSettings = fareSettings.ride_charges || {
+        base_fare: 25,
+        per_km_rate: 12,
+        minimum_fare: 30,
+        platform_commission_pct: 10,
+        min_offer_pct: 70,
+        max_offer_pct: 180,
+        night_surcharge_pct: 10,
+        auto_multiplier: 1.25,
+        car_multiplier: 1.8,
+        cancellation_fee: 20,
+      };
+      const updatedSettings: FareSettings = {
+        ...fareSettings,
+        base_fare: currentRide.base_fare,
+        per_km_rate: currentRide.per_km_rate,
+        minimum_fare: currentRide.minimum_fare,
+        platform_commission_pct: currentRide.platform_commission_pct,
+        min_offer_pct: currentRide.min_offer_pct,
+        max_offer_pct: currentRide.max_offer_pct,
+        ride_charges: currentRide,
+      };
+      localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(updatedSettings));
+      const res = await motorideApi.updateRideCharges(currentRide);
+      if (res) setFareSettings(res);
+      setRideSaveStatus('Passenger Ride Charges saved successfully! All taxi fares and captain commission rates updated in real-time.');
+      setTimeout(() => setRideSaveStatus(null), 4000);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to save ride charges');
+    }
+  };
+
+  const handleResetRideCharges = () => {
+    const defaultRide: RideChargeSettings = {
+      base_fare: 25,
+      per_km_rate: 12,
+      minimum_fare: 30,
+      platform_commission_pct: 10,
+      min_offer_pct: 70,
+      max_offer_pct: 180,
+      night_surcharge_pct: 10,
+      auto_multiplier: 1.25,
+      car_multiplier: 1.8,
+      cancellation_fee: 20,
+      updated_at: new Date().toISOString(),
+    };
+    setFareSettings(prev => ({
+      ...prev,
+      base_fare: 25,
+      per_km_rate: 12,
+      minimum_fare: 30,
+      platform_commission_pct: 10,
+      ride_charges: defaultRide,
+    }));
+    setRideSaveStatus('Reset to benchmark ride defaults. Click "Save Ride Charges" to lock and broadcast.');
+    setTimeout(() => setRideSaveStatus(null), 4000);
+  };
+
+  const handleSaveCourierCharges = async () => {
+    try {
+      const currentCourier: CourierChargeSettings = fareSettings.courier_charges || {
+        base_fare: 35,
+        per_km_rate: 14,
+        minimum_fare: 40,
+        platform_commission_pct: 12,
+        min_offer_pct: 70,
+        max_offer_pct: 180,
+        handling_fee: 10,
+        express_surcharge: 15,
+        max_weight_kg: 15,
+        cancellation_fee: 25,
+      };
+      const updatedSettings: FareSettings = {
+        ...fareSettings,
+        courier_charges: currentCourier,
+      };
+      localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(updatedSettings));
+      const res = await motorideApi.updateCourierCharges(currentCourier);
+      if (res) setFareSettings(res);
+      setCourierSaveStatus('Courier & Parcel Delivery Charges saved successfully! Delivery estimates and platform commission updated in real-time.');
+      setTimeout(() => setCourierSaveStatus(null), 4000);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to save courier charges');
+    }
+  };
+
+  const handleResetCourierCharges = () => {
+    const defaultCourier: CourierChargeSettings = {
+      base_fare: 35,
+      per_km_rate: 14,
+      minimum_fare: 40,
+      platform_commission_pct: 12,
+      min_offer_pct: 70,
+      max_offer_pct: 180,
+      handling_fee: 10,
+      express_surcharge: 15,
+      max_weight_kg: 15,
+      cancellation_fee: 25,
+      updated_at: new Date().toISOString(),
+    };
+    setFareSettings(prev => ({
+      ...prev,
+      courier_charges: defaultCourier,
+    }));
+    setCourierSaveStatus('Reset to benchmark courier defaults. Click "Save Courier Charges" to lock and broadcast.');
+    setTimeout(() => setCourierSaveStatus(null), 4000);
   };
 
   const handleSaveQR = async () => {

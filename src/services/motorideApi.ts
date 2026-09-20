@@ -1037,6 +1037,30 @@ export const motorideApi = {
         max_offer_pct: 180,
         currency_symbol: '₹',
         updated_at: new Date().toISOString(),
+        ride_charges: {
+          base_fare: 25,
+          per_km_rate: 12,
+          minimum_fare: 30,
+          platform_commission_pct: 10,
+          min_offer_pct: 70,
+          max_offer_pct: 180,
+          night_surcharge_pct: 10,
+          auto_multiplier: 1.25,
+          car_multiplier: 1.8,
+          cancellation_fee: 20,
+        },
+        courier_charges: {
+          base_fare: 35,
+          per_km_rate: 14,
+          minimum_fare: 40,
+          platform_commission_pct: 12,
+          min_offer_pct: 70,
+          max_offer_pct: 180,
+          handling_fee: 10,
+          express_surcharge: 15,
+          max_weight_kg: 15,
+          cancellation_fee: 25,
+        },
       },
     });
     return json.settings;
@@ -1044,7 +1068,10 @@ export const motorideApi = {
 
   async updateFareSettings(settings: Partial<FareSettings>): Promise<FareSettings> {
     try {
-      safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(settings));
+      const existing = safeStorage.getItem('motoride_admin_fare_settings');
+      const parsed = existing ? JSON.parse(existing) : {};
+      const merged = { ...parsed, ...settings };
+      safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(merged));
     } catch {}
     const supabase = getSupabase();
     if (supabase) {
@@ -1058,6 +1085,14 @@ export const motorideApi = {
       body: JSON.stringify(settings),
     });
     return json.settings || (settings as FareSettings);
+  },
+
+  async updateRideCharges(charges: Partial<import('../types/motoride').RideChargeSettings>): Promise<FareSettings> {
+    return this.updateFareSettings({ ride_charges: charges as any });
+  },
+
+  async updateCourierCharges(charges: Partial<import('../types/motoride').CourierChargeSettings>): Promise<FareSettings> {
+    return this.updateFareSettings({ courier_charges: charges as any });
   },
 
   // 5. QR Code Settings

@@ -138,6 +138,34 @@ export interface RideOffer {
   created_at: string;
 }
 
+export interface RideChargeSettings {
+  base_fare: number;
+  per_km_rate: number;
+  minimum_fare: number;
+  platform_commission_pct: number;
+  min_offer_pct: number;
+  max_offer_pct: number;
+  night_surcharge_pct?: number;
+  auto_multiplier?: number;
+  car_multiplier?: number;
+  cancellation_fee?: number;
+  updated_at?: string;
+}
+
+export interface CourierChargeSettings {
+  base_fare: number;
+  per_km_rate: number;
+  minimum_fare: number;
+  platform_commission_pct: number;
+  min_offer_pct: number;
+  max_offer_pct: number;
+  handling_fee?: number;
+  express_surcharge?: number;
+  max_weight_kg?: number;
+  cancellation_fee?: number;
+  updated_at?: string;
+}
+
 export interface FareSettings {
   id?: string;
   base_fare: number;
@@ -148,6 +176,10 @@ export interface FareSettings {
   max_offer_pct: number; // e.g. 150% of estimated fare
   currency_symbol: string;
   updated_at?: string;
+
+  // Dedicated Ride & Courier charge modules configured separately by admin
+  ride_charges?: RideChargeSettings;
+  courier_charges?: CourierChargeSettings;
 }
 
 export interface RideTypeConfig {

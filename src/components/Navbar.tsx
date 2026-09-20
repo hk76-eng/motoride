@@ -1,15 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Bike,
   ShieldCheck,
   Lock,
   LogOut,
-  Download,
-  Smartphone,
 } from 'lucide-react';
 import { GPSSignalStatus, PricingSettings, UserProfile } from '../types';
-import { motorideApi, ApkReleaseInfo } from '../services/motorideApi';
-import { realtimeSync } from '../services/realtimeSync';
 
 interface NavbarProps {
   gpsStatus: GPSSignalStatus;
@@ -69,19 +65,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const badge = getQualityBadge();
-  const [apkRelease, setApkRelease] = useState(() => motorideApi.getApkRelease());
-
-  useEffect(() => {
-    motorideApi.fetchApkReleaseFromServer().then((rel) => {
-      if (rel) setApkRelease(rel);
-    });
-    const unsub = realtimeSync.on('APK_RELEASE_UPDATED', (updated: ApkReleaseInfo) => {
-      setApkRelease(updated);
-    });
-    return () => {
-      unsub();
-    };
-  }, []);
 
   return (
     <header className="w-full border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md sticky top-0 z-40">
@@ -114,28 +97,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Android APK Download Button */}
-          <button
-            type="button"
-            onClick={async () => {
-              await motorideApi.downloadApk(apkRelease);
-              setApkRelease({ ...apkRelease, downloadsCount: (apkRelease.downloadsCount || 0) + 1 });
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
-            title={
-              apkRelease.hasBinary && apkRelease.fileSize
-                ? `Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`
-                : `Download Android APK v${apkRelease.version}`
-            }
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>Download APK</span>
-            {apkRelease.hasBinary && apkRelease.fileSize && (
-              <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.5 rounded text-[10px] font-mono-num font-bold">
-                {apkRelease.fileSize}
-              </span>
-            )}
-          </button>
 
           {/* GPS Quality Pill */}
           <div

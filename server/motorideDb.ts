@@ -7,6 +7,8 @@ import {
   Profile,
   Vehicle,
   FareSettings,
+  RideChargeSettings,
+  CourierChargeSettings,
   QRCodeSetting,
   WalletTransaction,
   MotorideNotification,
@@ -36,7 +38,38 @@ export function broadcastEvent(event: string, payload: any) {
   }
 }
 
-// 1. Initial Fare Settings
+// 1. Initial Fare Settings & Separate Ride/Courier Configurations
+const DATA_DIR = path.join(process.cwd(), 'data');
+const FARE_FILE = path.join(DATA_DIR, 'fare_settings.json');
+
+export const defaultRideCharges: RideChargeSettings = {
+  base_fare: 25.0,
+  per_km_rate: 12.0,
+  minimum_fare: 30.0,
+  platform_commission_pct: 10.0,
+  min_offer_pct: 70.0,
+  max_offer_pct: 180.0,
+  night_surcharge_pct: 10.0,
+  auto_multiplier: 1.25,
+  car_multiplier: 1.8,
+  cancellation_fee: 20.0,
+  updated_at: new Date().toISOString(),
+};
+
+export const defaultCourierCharges: CourierChargeSettings = {
+  base_fare: 35.0,
+  per_km_rate: 14.0,
+  minimum_fare: 40.0,
+  platform_commission_pct: 12.0,
+  min_offer_pct: 70.0,
+  max_offer_pct: 180.0,
+  handling_fee: 10.0,
+  express_surcharge: 15.0,
+  max_weight_kg: 15.0,
+  cancellation_fee: 25.0,
+  updated_at: new Date().toISOString(),
+};
+
 export let fareSettings: FareSettings = {
   base_fare: 25.0,
   per_km_rate: 12.0,
@@ -46,20 +79,99 @@ export let fareSettings: FareSettings = {
   max_offer_pct: 180.0,
   currency_symbol: '₹',
   updated_at: new Date().toISOString(),
+  ride_charges: { ...defaultRideCharges },
+  courier_charges: { ...defaultCourierCharges },
 };
 
+export function saveFareSettingsToDisk() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(FARE_FILE, JSON.stringify(fareSettings, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Failed to save fare settings to disk:', err);
+  }
+}
+
+export function loadFareSettingsFromDisk() {
+  try {
+    if (fs.existsSync(FARE_FILE)) {
+      const raw = fs.readFileSync(FARE_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      if (data && typeof data === 'object') {
+        fareSettings = {
+          ...fareSettings,
+          ...data,
+          ride_charges: {
+            ...defaultRideCharges,
+            ...(data.ride_charges || {}),
+          },
+          courier_charges: {
+            ...defaultCourierCharges,
+            ...(data.courier_charges || {}),
+          },
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load fare settings from disk:', err);
+  }
+}
+
+// Automatically load persisted fare settings
+loadFareSettingsFromDisk();
+
 export function updateFareSettings(newSettings: Partial<FareSettings>): FareSettings {
+  const mergedRide: RideChargeSettings = {
+    ...(fareSettings.ride_charges || defaultRideCharges),
+    ...(newSettings.ride_charges || {}),
+  };
+  if (newSettings.ride_charges) {
+    if (newSettings.ride_charges.base_fare !== undefined) mergedRide.base_fare = Number(newSettings.ride_charges.base_fare);
+    if (newSettings.ride_charges.per_km_rate !== undefined) mergedRide.per_km_rate = Number(newSettings.ride_charges.per_km_rate);
+    if (newSettings.ride_charges.minimum_fare !== undefined) mergedRide.minimum_fare = Number(newSettings.ride_charges.minimum_fare);
+    if (newSettings.ride_charges.platform_commission_pct !== undefined) mergedRide.platform_commission_pct = Number(newSettings.ride_charges.platform_commission_pct);
+    if (newSettings.ride_charges.min_offer_pct !== undefined) mergedRide.min_offer_pct = Number(newSettings.ride_charges.min_offer_pct);
+    if (newSettings.ride_charges.max_offer_pct !== undefined) mergedRide.max_offer_pct = Number(newSettings.ride_charges.max_offer_pct);
+    if (newSettings.ride_charges.night_surcharge_pct !== undefined) mergedRide.night_surcharge_pct = Number(newSettings.ride_charges.night_surcharge_pct);
+    if (newSettings.ride_charges.auto_multiplier !== undefined) mergedRide.auto_multiplier = Number(newSettings.ride_charges.auto_multiplier);
+    if (newSettings.ride_charges.car_multiplier !== undefined) mergedRide.car_multiplier = Number(newSettings.ride_charges.car_multiplier);
+    if (newSettings.ride_charges.cancellation_fee !== undefined) mergedRide.cancellation_fee = Number(newSettings.ride_charges.cancellation_fee);
+  }
+
+  const mergedCourier: CourierChargeSettings = {
+    ...(fareSettings.courier_charges || defaultCourierCharges),
+    ...(newSettings.courier_charges || {}),
+  };
+  if (newSettings.courier_charges) {
+    if (newSettings.courier_charges.base_fare !== undefined) mergedCourier.base_fare = Number(newSettings.courier_charges.base_fare);
+    if (newSettings.courier_charges.per_km_rate !== undefined) mergedCourier.per_km_rate = Number(newSettings.courier_charges.per_km_rate);
+    if (newSettings.courier_charges.minimum_fare !== undefined) mergedCourier.minimum_fare = Number(newSettings.courier_charges.minimum_fare);
+    if (newSettings.courier_charges.platform_commission_pct !== undefined) mergedCourier.platform_commission_pct = Number(newSettings.courier_charges.platform_commission_pct);
+    if (newSettings.courier_charges.min_offer_pct !== undefined) mergedCourier.min_offer_pct = Number(newSettings.courier_charges.min_offer_pct);
+    if (newSettings.courier_charges.max_offer_pct !== undefined) mergedCourier.max_offer_pct = Number(newSettings.courier_charges.max_offer_pct);
+    if (newSettings.courier_charges.handling_fee !== undefined) mergedCourier.handling_fee = Number(newSettings.courier_charges.handling_fee);
+    if (newSettings.courier_charges.express_surcharge !== undefined) mergedCourier.express_surcharge = Number(newSettings.courier_charges.express_surcharge);
+    if (newSettings.courier_charges.max_weight_kg !== undefined) mergedCourier.max_weight_kg = Number(newSettings.courier_charges.max_weight_kg);
+    if (newSettings.courier_charges.cancellation_fee !== undefined) mergedCourier.cancellation_fee = Number(newSettings.courier_charges.cancellation_fee);
+  }
+
   fareSettings = {
     ...fareSettings,
     ...newSettings,
-    base_fare: Number(newSettings.base_fare ?? fareSettings.base_fare),
-    per_km_rate: Number(newSettings.per_km_rate ?? fareSettings.per_km_rate),
-    minimum_fare: Number(newSettings.minimum_fare ?? fareSettings.minimum_fare),
-    platform_commission_pct: Number(newSettings.platform_commission_pct ?? fareSettings.platform_commission_pct),
-    min_offer_pct: Number(newSettings.min_offer_pct ?? fareSettings.min_offer_pct),
-    max_offer_pct: Number(newSettings.max_offer_pct ?? fareSettings.max_offer_pct),
+    base_fare: Number(newSettings.base_fare ?? mergedRide.base_fare ?? fareSettings.base_fare),
+    per_km_rate: Number(newSettings.per_km_rate ?? mergedRide.per_km_rate ?? fareSettings.per_km_rate),
+    minimum_fare: Number(newSettings.minimum_fare ?? mergedRide.minimum_fare ?? fareSettings.minimum_fare),
+    platform_commission_pct: Number(newSettings.platform_commission_pct ?? mergedRide.platform_commission_pct ?? fareSettings.platform_commission_pct),
+    min_offer_pct: Number(newSettings.min_offer_pct ?? mergedRide.min_offer_pct ?? fareSettings.min_offer_pct),
+    max_offer_pct: Number(newSettings.max_offer_pct ?? mergedRide.max_offer_pct ?? fareSettings.max_offer_pct),
+    ride_charges: mergedRide,
+    courier_charges: mergedCourier,
     updated_at: new Date().toISOString(),
   };
+
+  saveFareSettingsToDisk();
   broadcastEvent('FARE_SETTINGS_UPDATED', fareSettings);
   return fareSettings;
 }
@@ -115,7 +227,6 @@ export const walletsStore = new Map<string, { balance: number; currency: string 
 export const walletTransactionsStore: WalletTransaction[] = [];
 
 // Persistent Disk Storage helpers for server container reliability
-const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'motoride_db.json');
 
 export function persistDbToDisk() {
@@ -327,7 +438,10 @@ export function calculateCaptainTodayEarnings(captainId: string, timezone: strin
           }
           if (rideDateStr === todayDateStr) {
             const gross = Number(ride.fare_amount ?? ride.final_fare ?? ride.offered_fare ?? 0);
-            const commission = (gross * fareSettings.platform_commission_pct) / 100;
+            const commPct = ride.ride_type === 'courier'
+              ? (fareSettings.courier_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct)
+              : (fareSettings.ride_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct);
+            const commission = (gross * commPct) / 100;
             todayTotal += gross - commission;
           }
         }
@@ -343,7 +457,10 @@ export function calculateCaptainTotalEarnings(captainId: string): number {
     const isCompleted = ride.status === 'completed' || ride.status === 'trip_completed';
     if (ride.captain_id === captainId && isCompleted) {
       const gross = Number(ride.fare_amount ?? ride.final_fare ?? ride.offered_fare ?? 0);
-      const commission = (gross * fareSettings.platform_commission_pct) / 100;
+      const commPct = ride.ride_type === 'courier'
+        ? (fareSettings.courier_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct)
+        : (fareSettings.ride_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct);
+      const commission = (gross * commPct) / 100;
       total += gross - commission;
     }
   }
@@ -381,7 +498,10 @@ export function getAdminStats(): AdminDashboardStats {
       const fare = Number(ride.final_fare || 0);
       totalVolume += fare;
       if (ride.trip_completed_at && new Date(ride.trip_completed_at).getTime() >= startOfDay) {
-        todayPlatformRevenue += (fare * fareSettings.platform_commission_pct) / 100;
+        const commPct = ride.ride_type === 'courier'
+          ? (fareSettings.courier_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct)
+          : (fareSettings.ride_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct);
+        todayPlatformRevenue += (fare * commPct) / 100;
       }
     } else if (
       ride.status === 'cancelled_by_passenger' ||

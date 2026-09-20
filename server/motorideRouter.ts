@@ -634,7 +634,10 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
     // Credit captain earnings and deduct platform commission
     if (ride.captain_id) {
       const gross = Number(ride.final_fare);
-      const commission = (gross * fareSettings.platform_commission_pct) / 100;
+      const commPct = ride.ride_type === 'courier'
+        ? (fareSettings.courier_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct)
+        : (fareSettings.ride_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct);
+      const commission = (gross * commPct) / 100;
       const net = gross - commission;
 
       const currentWallet = walletsStore.get(ride.captain_id) || { balance: 100, currency: '₹' };
@@ -648,7 +651,7 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
         amount: net,
         type: 'credit',
         category: 'ride_earning',
-        description: `Net earnings from ride ${ride.ride_code} (Gross: ₹${gross}, Commission ${fareSettings.platform_commission_pct}%: -₹${commission.toFixed(2)})`,
+        description: `Net earnings from ${ride.ride_type === 'courier' ? 'courier delivery' : 'ride'} ${ride.ride_code} (Gross: ₹${gross}, Commission ${commPct}%: -₹${commission.toFixed(2)})`,
         reference_ride_id: ride.id,
         created_at: now,
       });
@@ -1345,6 +1348,16 @@ motorideRouter.get('/fare-settings', (req: Request, res: Response) => {
 motorideRouter.post('/fare-settings', (req: Request, res: Response) => {
   const updated = updateFareSettings(req.body);
   res.json({ success: true, settings: updated });
+});
+
+motorideRouter.post('/fare-settings/ride', (req: Request, res: Response) => {
+  const updated = updateFareSettings({ ride_charges: req.body });
+  res.json({ success: true, settings: updated, ride_charges: updated.ride_charges });
+});
+
+motorideRouter.post('/fare-settings/courier', (req: Request, res: Response) => {
+  const updated = updateFareSettings({ courier_charges: req.body });
+  res.json({ success: true, settings: updated, courier_charges: updated.courier_charges });
 });
 
 motorideRouter.get('/qr-settings', (req: Request, res: Response) => {

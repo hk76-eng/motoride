@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Bike,
   Shield,
@@ -24,13 +24,11 @@ import {
   MapPin,
   Clock,
   Compass,
-  Download,
-  Smartphone,
 } from 'lucide-react';
 import { UserRole, RideTypeCode } from '../types/motoride';
 import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { motorideApi, ApkReleaseInfo } from '../services/motorideApi';
+import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 
 interface AuthPageProps {
@@ -44,46 +42,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>(defaultRole);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
-  const [apkRelease, setApkRelease] = useState(() => motorideApi.getApkRelease());
-
-  useEffect(() => {
-    // Initial immediate fetch with cache buster
-    motorideApi.fetchApkReleaseFromServer().then((rel) => {
-      if (rel && rel.fileSize) setApkRelease(rel);
-    });
-
-    // Real-time broadcast listener
-    const unsub = realtimeSync.on('APK_RELEASE_UPDATED', (updated: ApkReleaseInfo) => {
-      if (updated && updated.fileSize) {
-        setApkRelease(updated);
-      }
-    });
-
-    // Refresh on tab visibility / focus change (critical for mobile browsers waking up or switching apps)
-    const handleWake = () => {
-      if (document.visibilityState === 'visible') {
-        motorideApi.fetchApkReleaseFromServer().then((rel) => {
-          if (rel && rel.fileSize) setApkRelease(rel);
-        });
-      }
-    };
-    window.addEventListener('visibilitychange', handleWake);
-    window.addEventListener('focus', handleWake);
-
-    // Periodic safety sync every 10 seconds to ensure mobile devices stay perfectly synced
-    const interval = setInterval(() => {
-      motorideApi.fetchApkReleaseFromServer().then((rel) => {
-        if (rel && rel.fileSize) setApkRelease(rel);
-      });
-    }, 10000);
-
-    return () => {
-      unsub();
-      clearInterval(interval);
-      window.removeEventListener('visibilitychange', handleWake);
-      window.removeEventListener('focus', handleWake);
-    };
-  }, []);
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -267,31 +225,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </div>
         </div>
 
-        {/* Right Side: APK Download Button & 2-Role Quick Select Switcher */}
+        {/* Right Side: 2-Role Quick Select Switcher */}
         <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 flex-wrap">
-          {/* Android APK Download Button */}
-          <button
-            type="button"
-            onClick={async () => {
-              await motorideApi.downloadApk(apkRelease);
-              setApkRelease({ ...apkRelease, downloadsCount: (apkRelease.downloadsCount || 0) + 1 });
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-lg shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 shrink-0 whitespace-nowrap"
-            title={
-              apkRelease.hasBinary && apkRelease.fileSize
-                ? `Download Android APK v${apkRelease.version} (${apkRelease.fileSize})`
-                : `Download Android APK v${apkRelease.version}`
-            }
-          >
-            <Smartphone className="w-3.5 h-3.5 shrink-0" />
-            <span>Download APK</span>
-            {apkRelease.hasBinary && apkRelease.fileSize && (
-              <span className="bg-slate-950/20 text-slate-950 px-1.5 py-0.5 rounded text-[10px] font-mono-num font-bold">
-                {apkRelease.fileSize}
-              </span>
-            )}
-          </button>
-
           {/* 2-Role Quick Select Switcher (Passenger & Captain) */}
           <div className="flex items-center gap-1 p-1 bg-black border border-white/25 rounded-2xl shrink-0">
           <button

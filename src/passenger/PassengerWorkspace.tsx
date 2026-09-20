@@ -322,20 +322,46 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     : 0;
   const durationMin = hasSelectedLocations ? Math.round(distanceKm * 2.8 + 4) : 0;
 
-  // Multiplier by ride type
-  const typeMultiplier = {
-    bike: 1.0,
-    auto: 1.25,
-    car: 1.8,
-    courier: 1.15,
-  }[rideType];
+  // Multiplier and dedicated separate pricing by service type (Ride vs Courier)
+  const rideConfig = fareSettings.ride_charges || {
+    base_fare: fareSettings.base_fare ?? 25,
+    per_km_rate: fareSettings.per_km_rate ?? 12,
+    minimum_fare: fareSettings.minimum_fare ?? 30,
+    platform_commission_pct: fareSettings.platform_commission_pct ?? 10,
+    min_offer_pct: fareSettings.min_offer_pct ?? 70,
+    max_offer_pct: fareSettings.max_offer_pct ?? 180,
+    auto_multiplier: 1.25,
+    car_multiplier: 1.8,
+  };
 
-  const estimatedFare = hasSelectedLocations
-    ? Math.max(
-        fareSettings.minimum_fare,
-        Math.round((fareSettings.base_fare + distanceKm * fareSettings.per_km_rate) * typeMultiplier)
-      )
-    : 0;
+  const courierConfig = fareSettings.courier_charges || {
+    base_fare: 35,
+    per_km_rate: 14,
+    minimum_fare: 40,
+    platform_commission_pct: 12,
+    min_offer_pct: 70,
+    max_offer_pct: 180,
+    handling_fee: 10,
+  };
+
+  let estimatedFare = 0;
+  if (hasSelectedLocations) {
+    if (rideType === 'courier') {
+      const base = (courierConfig.base_fare ?? 35) + (courierConfig.handling_fee ?? 0);
+      const running = distanceKm * (courierConfig.per_km_rate ?? 14);
+      estimatedFare = Math.max(courierConfig.minimum_fare ?? 40, Math.round(base + running));
+    } else {
+      const multiplier =
+        rideType === 'auto'
+          ? (rideConfig.auto_multiplier || 1.25)
+          : rideType === 'car'
+          ? (rideConfig.car_multiplier || 1.8)
+          : 1.0;
+      const base = rideConfig.base_fare ?? 25;
+      const running = distanceKm * (rideConfig.per_km_rate ?? 12);
+      estimatedFare = Math.max(rideConfig.minimum_fare ?? 30, Math.round((base + running) * multiplier));
+    }
+  }
 
   // Auto-align offered fare with estimated fare when endpoints/type change
   useEffect(() => {
