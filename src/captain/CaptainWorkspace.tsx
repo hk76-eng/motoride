@@ -733,10 +733,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const resolvedPhone = captain?.phone || authUser?.phone || '';
       const resolvedModel = captain?.vehicle?.model || authUser?.vehicleModel || 'Honda Activa 6G';
       const resolvedPlate = captain?.vehicle?.plate_number || authUser?.plateNumber || 'PB65XX1000';
+      const captainSavedAvatar = safeStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || authUser?.avatarUrl || undefined;
 
       const updated = await motorideApi.acceptRide(ride.id, {
         captain_id: captain?.id || captainId,
         captain_name: resolvedName,
+        captain_avatar: captainSavedAvatar,
         captain_phone: resolvedPhone,
         vehicle_model: resolvedModel,
         plate_number: resolvedPlate,

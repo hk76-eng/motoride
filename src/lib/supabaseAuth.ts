@@ -43,6 +43,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
   const cleanName = (user.name || '').trim() || 'MotoRide User';
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const validProfileId = uuidRegex.test(user.id) ? user.id : generateUUID();
+  const avatarToSave = user.avatarUrl || safeStorage.getItem(`motoride_${user.role}_avatar`) || null;
 
   // Local storage profile fallback cache so profiles never get lost
   try {
@@ -55,6 +56,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
       full_name: cleanName,
       phone: user.phone?.trim() || '',
       role: user.role,
+      avatar_url: avatarToSave,
       wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
       is_active: true,
       created_at: user.memberSince || new Date().toISOString(),
@@ -77,6 +79,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
       full_name: cleanName,
       phone: user.phone?.trim() || null,
       role: user.role,
+      avatar_url: avatarToSave,
       wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
       is_active: true,
       updated_at: new Date().toISOString(),
@@ -126,6 +129,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
             {
               id: captainId,
               profile_id: actualProfileId,
+              avatar_url: avatarToSave,
               is_online: true,
               is_approved: true,
               is_active: true,
@@ -145,6 +149,10 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
         actualCaptainId = newCpt?.id || captainId;
         if (cptErr) {
           console.warn('Supabase captain insert warning:', cptErr.message);
+        }
+      } else {
+        if (avatarToSave) {
+          await supabase.from('captains').update({ avatar_url: avatarToSave }).eq('id', existingCpt.id);
         }
       }
 
@@ -320,12 +328,24 @@ export const supabaseAuth = {
       const existingIdx = accounts.findIndex(
         (a) => a.email.toLowerCase() === account.email.toLowerCase() && a.role === account.role
       );
+      const existingAvatar = existingIdx >= 0 ? accounts[existingIdx].avatarUrl : undefined;
+      const fallbackStorageAvatar = safeStorage.getItem(`motoride_${account.role}_avatar`) || undefined;
+      const resolvedAvatar = account.avatarUrl || existingAvatar || fallbackStorageAvatar;
+      const accountToSave: StoredAccount = {
+        ...account,
+        avatarUrl: resolvedAvatar,
+      };
+
       if (existingIdx >= 0) {
-        accounts[existingIdx] = account;
+        accounts[existingIdx] = accountToSave;
       } else {
-        accounts.push(account);
+        accounts.push(accountToSave);
       }
       safeStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(accounts));
+
+      if (resolvedAvatar) {
+        safeStorage.setItem(`motoride_${account.role}_avatar`, resolvedAvatar);
+      }
 
       // Also sync into motoride_users
       try {
@@ -335,14 +355,14 @@ export const supabaseAuth = {
           const uIdx = users.findIndex(
             (u: any) => u.email?.toLowerCase() === account.email.toLowerCase() && u.role === account.role
           );
-          if (uIdx >= 0) users[uIdx] = account;
-          else users.push(account);
+          if (uIdx >= 0) users[uIdx] = accountToSave;
+          else users.push(accountToSave);
           safeStorage.setItem('motoride_users', JSON.stringify(users));
         }
       } catch {}
 
       // Asynchronously ensure synced into Supabase profiles/passengers/captains
-      syncUserToSupabase(account).catch((err) => {
+      syncUserToSupabase(accountToSave).catch((err) => {
         console.warn('Background Supabase user sync notice:', err);
       });
     } catch (e) {
@@ -362,6 +382,12 @@ export const supabaseAuth = {
           safeStorage.removeItem(STORAGE_SESSION_KEY);
           return null;
         }
+        if (user) {
+          const storedAvatar = safeStorage.getItem(`motoride_${user.role}_avatar`);
+          if (storedAvatar && !user.avatarUrl) {
+            user.avatarUrl = storedAvatar;
+          }
+        }
         return user;
       }
     } catch (e) {
@@ -375,8 +401,17 @@ export const supabaseAuth = {
    */
   setCurrentUser(user: AuthUser | null) {
     if (user) {
-      safeStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(user));
+      const storedAvatar = safeStorage.getItem(`motoride_${user.role}_avatar`) || undefined;
+      const resolvedAvatar = user.avatarUrl || storedAvatar;
+      const userToSave: AuthUser = {
+        ...user,
+        avatarUrl: resolvedAvatar,
+      };
+      safeStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(userToSave));
       safeStorage.setItem('motoride_active_role', user.role);
+      if (resolvedAvatar) {
+        safeStorage.setItem(`motoride_${user.role}_avatar`, resolvedAvatar);
+      }
     } else {
       safeStorage.removeItem(STORAGE_SESSION_KEY);
     }
@@ -413,12 +448,18 @@ export const supabaseAuth = {
       });
       const serverData = await serverResp.json();
       if (serverData.success && serverData.account) {
+        const storedAvatar =
+          serverData.account.avatar_url ||
+          serverData.account.avatarUrl ||
+          safeStorage.getItem(`motoride_${serverData.account.role || params.role}_avatar`) ||
+          undefined;
         const authUser: AuthUser = {
           id: serverData.account.id,
           email: serverData.account.email,
           name: serverData.account.name,
           role: serverData.account.role,
           phone: serverData.account.phone,
+          avatarUrl: storedAvatar,
           vehicleModel: serverData.account.vehicle_model,
           plateNumber: serverData.account.plate_number,
           vehicleType: serverData.account.vehicle_type,

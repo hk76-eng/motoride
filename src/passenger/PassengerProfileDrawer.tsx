@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 
 import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
+import { safeStorage } from '../lib/safeStorage';
 import { uploadMediaToSupabase } from '../lib/supabaseStorage';
 import { motorideApi } from '../services/motorideApi';
 
@@ -48,6 +49,7 @@ interface PassengerProfileDrawerProps {
   onOpenRideHistory?: () => void;
   onSelectSavedLocation?: (loc: { name: string; lat: number; lng: number }) => void;
   onSignOut?: () => void;
+  onUpdateUser?: (user: AuthUser) => void;
 }
 
 export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
@@ -62,6 +64,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   onOpenRideHistory,
   onSelectSavedLocation,
   onSignOut,
+  onUpdateUser,
 }) => {
   const authUser = currentUser || supabaseAuth.getCurrentUser();
   const initialName = (passengerName && passengerName !== 'Passenger')
@@ -114,6 +117,11 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     } else if (current?.phone) {
       setPhone(current.phone);
     }
+
+    const savedAvatar = current?.avatarUrl || safeStorage.getItem('motoride_passenger_avatar');
+    if (savedAvatar) {
+      setAvatarUrl(savedAvatar);
+    }
   }, [passengerName, passengerEmail, passengerPhone, currentUser, isOpen]);
 
   // Handle Photo Upload
@@ -136,18 +144,26 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
       const result = event.target?.result as string;
       setAvatarUrl(result);
       try {
-        localStorage.setItem('motoride_passenger_avatar', result);
+        safeStorage.setItem('motoride_passenger_avatar', result);
       } catch (err) {
         console.warn('Could not persist avatar to storage:', err);
       }
 
       // Upload to Supabase 'motoride-media' bucket
       const uploadedUrl = await uploadMediaToSupabase(file, file.name, 'avatars');
-      if (uploadedUrl) {
-        setAvatarUrl(uploadedUrl);
-        try {
-          localStorage.setItem('motoride_passenger_avatar', uploadedUrl);
-        } catch {}
+      const finalAvatar = uploadedUrl || result;
+      setAvatarUrl(finalAvatar);
+      try {
+        safeStorage.setItem('motoride_passenger_avatar', finalAvatar);
+      } catch {}
+
+      // Instantly sync to auth user and local storage session
+      const current = currentUser || supabaseAuth.getCurrentUser();
+      if (current) {
+        const updatedUser: AuthUser = { ...current, avatarUrl: finalAvatar };
+        supabaseAuth.setCurrentUser(updatedUser);
+        supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
+        if (onUpdateUser) onUpdateUser(updatedUser);
       }
 
       setToastMessage('Profile photo updated & saved to Supabase Storage!');
@@ -164,6 +180,12 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
       safeStorage.removeItem('motoride_passenger_avatar');
     } catch (err) {
       console.warn(err);
+    }
+    const current = currentUser || supabaseAuth.getCurrentUser();
+    if (current) {
+      const updatedUser: AuthUser = { ...current, avatarUrl: undefined };
+      supabaseAuth.setCurrentUser(updatedUser);
+      if (onUpdateUser) onUpdateUser(updatedUser);
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -206,16 +228,19 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     setIsEditing(false);
 
     try {
-      const user = supabaseAuth.getCurrentUser();
+      const user = currentUser || supabaseAuth.getCurrentUser();
       if (user) {
+        const finalAvatar = avatarUrl || user.avatarUrl || safeStorage.getItem('motoride_passenger_avatar') || undefined;
         const updatedUser: AuthUser = {
           ...user,
           name: name.trim() || user.name,
           email: email.trim() || user.email,
           phone: phone.trim() || user.phone,
+          avatarUrl: finalAvatar,
         };
         supabaseAuth.setCurrentUser(updatedUser);
         supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
+        if (onUpdateUser) onUpdateUser(updatedUser);
 
         motorideApi.updatePassengerProfile(user.id, {
           name: updatedUser.name,

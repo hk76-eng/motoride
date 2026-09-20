@@ -165,7 +165,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   // Captain Avatar Photo (Stored in state & safeStorage)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
     try {
-      return safeStorage.getItem('motoride_captain_avatar') || null;
+      return safeStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || null;
     } catch {
       return null;
     }
@@ -190,6 +190,10 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
       }
       if (captain.vehicle?.plate_number && !safeStorage.getItem('motoride_captain_plate')) {
         setPlateNumber(captain.vehicle.plate_number);
+      }
+      if (captain.avatar_url && !safeStorage.getItem('motoride_captain_avatar')) {
+        setAvatarUrl(captain.avatar_url);
+        safeStorage.setItem('motoride_captain_avatar', captain.avatar_url);
       }
     }
   }, [captain]);
@@ -221,11 +225,22 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
 
       // Upload to Supabase 'motoride-media' bucket
       const uploadedUrl = await uploadMediaToSupabase(file, file.name, 'avatars');
-      if (uploadedUrl) {
-        setAvatarUrl(uploadedUrl);
-        try {
-          safeStorage.setItem('motoride_captain_avatar', uploadedUrl);
-        } catch {}
+      const finalAvatar = uploadedUrl || result;
+      setAvatarUrl(finalAvatar);
+      try {
+        safeStorage.setItem('motoride_captain_avatar', finalAvatar);
+      } catch {}
+
+      // Update auth session & captain state
+      const user = supabaseAuth.getCurrentUser();
+      if (user) {
+        const updatedUser = { ...user, avatarUrl: finalAvatar };
+        supabaseAuth.setCurrentUser(updatedUser);
+        supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
+      }
+
+      if (onUpdateCaptain) {
+        onUpdateCaptain({ avatar_url: finalAvatar });
       }
 
       setToastMessage('Captain profile photo updated & saved to Supabase Storage!');
@@ -243,6 +258,14 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
     } catch (err) {
       console.warn(err);
     }
+    const user = supabaseAuth.getCurrentUser();
+    if (user) {
+      const updatedUser = { ...user, avatarUrl: undefined };
+      supabaseAuth.setCurrentUser(updatedUser);
+    }
+    if (onUpdateCaptain) {
+      onUpdateCaptain({ avatar_url: undefined });
+    }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -257,6 +280,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
       alert('Name cannot be empty.');
       return;
     }
+    const finalAvatar = avatarUrl || safeStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || undefined;
     try {
       safeStorage.setItem('motoride_captain_name', name);
       safeStorage.setItem('motoride_captain_phone', phone);
@@ -265,8 +289,24 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
       safeStorage.setItem('motoride_captain_plate', plateNumber);
       safeStorage.setItem('motoride_captain_dl', drivingLicense);
       safeStorage.setItem('motoride_captain_sos', emergencyContact);
+      if (finalAvatar) {
+        safeStorage.setItem('motoride_captain_avatar', finalAvatar);
+      }
     } catch (err) {
       console.warn(err);
+    }
+
+    const user = supabaseAuth.getCurrentUser();
+    if (user) {
+      const updatedUser = {
+        ...user,
+        name,
+        email,
+        phone,
+        avatarUrl: finalAvatar,
+      };
+      supabaseAuth.setCurrentUser(updatedUser);
+      supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
     }
 
     if (onUpdateCaptain) {
@@ -274,6 +314,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
         full_name: name,
         phone,
         email,
+        avatar_url: finalAvatar,
         vehicle: {
           model: vehicleModel,
           plate_number: plateNumber,
