@@ -1252,6 +1252,7 @@ export const motorideApi = {
       uploadedAt: new Date().toISOString().split('T')[0],
       downloadUrl: '',
       downloadsCount: 148,
+      isDeleted: false,
     };
     try {
       const saved = safeStorage.getItem('motoride_apk_release');
@@ -1264,26 +1265,27 @@ export const motorideApi = {
 
   saveApkRelease(apk: ApkReleaseInfo): ApkReleaseInfo {
     // Exclude heavy base64 strings from localStorage to prevent QuotaExceededError
-    const toSave = { ...apk, downloadUrl: '' };
+    const toSave = { ...apk, downloadUrl: '', isDeleted: false };
     safeStorage.setItem('motoride_apk_release', JSON.stringify(toSave));
-    realtimeSync.broadcast('APK_RELEASE_UPDATED', apk);
+    realtimeSync.broadcast('APK_RELEASE_UPDATED', { ...apk, isDeleted: false });
     return apk;
   },
 
   deleteApkRelease(): ApkReleaseInfo {
-    safeStorage.removeItem('motoride_apk_release');
-    cachedApkBlob = null;
-    const defaultApk: ApkReleaseInfo = {
+    const deletedApk: ApkReleaseInfo = {
       version: '2.4.0',
       fileName: 'motoride-v2.4.0-release.apk',
       fileSize: '13.3 MB',
-      releaseNotes: 'Stable Android APK release with live GPS tracking, instant rider-captain matching, and secure wallet payments.',
+      releaseNotes: '',
       uploadedAt: new Date().toISOString().split('T')[0],
       downloadUrl: '',
       downloadsCount: 0,
+      isDeleted: true,
     };
-    realtimeSync.broadcast('APK_RELEASE_UPDATED', defaultApk);
-    return defaultApk;
+    safeStorage.setItem('motoride_apk_release', JSON.stringify(deletedApk));
+    cachedApkBlob = null;
+    realtimeSync.broadcast('APK_RELEASE_UPDATED', deletedApk);
+    return deletedApk;
   },
 
   cacheApkBlob(blob: Blob) {
@@ -1328,5 +1330,6 @@ export interface ApkReleaseInfo {
   uploadedAt: string;
   downloadUrl: string;
   downloadsCount: number;
+  isDeleted?: boolean;
 }
 

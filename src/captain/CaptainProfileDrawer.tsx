@@ -39,7 +39,8 @@ import {
 } from 'lucide-react';
 import { Captain } from '../types/motoride';
 import { safeStorage } from '../lib/safeStorage';
-import { motorideApi } from '../services/motorideApi';
+import { motorideApi, ApkReleaseInfo } from '../services/motorideApi';
+import { realtimeSync } from '../services/realtimeSync';
 
 interface CaptainProfileDrawerProps {
   isOpen: boolean;
@@ -78,6 +79,15 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   const [highAccuracyGps, setHighAccuracyGps] = useState(true);
   const [audioAlerts, setAudioAlerts] = useState(true);
   const [apkRelease, setApkRelease] = useState(() => motorideApi.getApkRelease());
+
+  useEffect(() => {
+    const unsub = realtimeSync.on('APK_RELEASE_UPDATED', (updated: ApkReleaseInfo) => {
+      setApkRelease(updated);
+    });
+    return () => {
+      unsub();
+    };
+  }, []);
   const [doNotScreenOff, setDoNotScreenOff] = useState<boolean>(() => {
     try {
       const saved = safeStorage.getItem('motoride_captain_do_not_screen_off');
@@ -842,36 +852,38 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
           </div>
 
           {/* Download Android APK Card */}
-          <div className="p-3.5 rounded-3xl bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-black/40 border border-emerald-500/30 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-sm shrink-0">
-                <Smartphone className="w-4 h-4" />
+          {!apkRelease.isDeleted && (
+            <div className="p-3.5 rounded-3xl bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-black/40 border border-emerald-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-sm shrink-0">
+                  <Smartphone className="w-4 h-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-white">Captain APK v{apkRelease.version}</span>
+                  <span className="text-[10px] text-emerald-400 font-mono-num">{apkRelease.fileSize} • Latest Build</span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-white">Captain APK v{apkRelease.version}</span>
-                <span className="text-[10px] text-emerald-400 font-mono-num">{apkRelease.fileSize} • Latest Build</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const blob = motorideApi.getApkBlob(apkRelease);
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = apkRelease.fileName || 'motoride-release.apk';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  const updated = { ...apkRelease, downloadsCount: apkRelease.downloadsCount + 1 };
+                  setApkRelease(updated);
+                  motorideApi.saveApkRelease(updated);
+                }}
+                className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download APK</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                const blob = motorideApi.getApkBlob(apkRelease);
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = apkRelease.fileName || 'motoride-release.apk';
-                a.click();
-                URL.revokeObjectURL(url);
-                const updated = { ...apkRelease, downloadsCount: apkRelease.downloadsCount + 1 };
-                setApkRelease(updated);
-                motorideApi.saveApkRelease(updated);
-              }}
-              className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download APK</span>
-            </button>
-          </div>
+          )}
 
         </div>
 
