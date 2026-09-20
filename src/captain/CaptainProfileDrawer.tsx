@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { Captain } from '../types/motoride';
 import { safeStorage } from '../lib/safeStorage';
+import { uploadMediaToSupabase } from '../lib/supabaseStorage';
 
 interface CaptainProfileDrawerProps {
   isOpen: boolean;
@@ -194,7 +195,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   }, [captain]);
 
   // Handle Photo Upload
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -209,7 +210,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const result = event.target?.result as string;
       setAvatarUrl(result);
       try {
@@ -217,7 +218,17 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
       } catch (err) {
         console.warn('Could not persist captain avatar to safeStorage:', err);
       }
-      setToastMessage('Captain profile photo updated!');
+
+      // Upload to Supabase 'motoride-media' bucket
+      const uploadedUrl = await uploadMediaToSupabase(file, file.name, 'avatars');
+      if (uploadedUrl) {
+        setAvatarUrl(uploadedUrl);
+        try {
+          safeStorage.setItem('motoride_captain_avatar', uploadedUrl);
+        } catch {}
+      }
+
+      setToastMessage('Captain profile photo updated & saved to Supabase Storage!');
       setIsSavedToast(true);
       setTimeout(() => setIsSavedToast(false), 3000);
     };

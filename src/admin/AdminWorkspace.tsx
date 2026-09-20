@@ -14,6 +14,7 @@ import { SUPABASE_SQL_SCHEMA } from '../lib/sqlSchema';
 import { isSupabaseConfigured, getSupabase, SUPABASE_CONFIG_STATUS } from '../lib/supabase';
 import { realtimeSync } from '../services/realtimeSync';
 import { AuthUser, supabaseAuth, syncAllAccountsToSupabase, isDemoAccount, isDemoRide } from '../lib/supabaseAuth';
+import { ensureMediaBucketExists, uploadMediaToSupabase, MOTORIDE_MEDIA_BUCKET, StorageStatus } from '../lib/supabaseStorage';
 import {
   Shield,
   Users,
@@ -123,6 +124,16 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSyncingSupabase, setIsSyncingSupabase] = useState(false);
   const [supabaseSyncMessage, setSupabaseSyncMessage] = useState<string | null>(null);
+  const [bucketStatus, setBucketStatus] = useState<StorageStatus | null>(null);
+  const [isCheckingBucket, setIsCheckingBucket] = useState(false);
+  const [testUploadUrl, setTestUploadUrl] = useState<string | null>(null);
+
+  const handleCheckBucket = async () => {
+    setIsCheckingBucket(true);
+    const status = await ensureMediaBucketExists();
+    setBucketStatus(status);
+    setIsCheckingBucket(false);
+  };
   const [selectedCaptain, setSelectedCaptain] = useState<Captain | null>(null);
   const [selectedPassenger, setSelectedPassenger] = useState<Passenger | null>(null);
   const [captainSearch, setCaptainSearch] = useState<string>('');
@@ -2122,6 +2133,92 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   ? 'Connected and operational'
                   : 'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY can be configured'}
               </span>
+            </div>
+          </div>
+
+          {/* Storage Bucket Integration Card */}
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
+                  🗄️
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-white flex items-center gap-2">
+                    <span>Supabase Media Storage Bucket</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+                      {MOTORIDE_MEDIA_BUCKET}
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Stores passenger/captain profile photos, QR codes, vehicle photos, and app media assets.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCheckBucket}
+                disabled={isCheckingBucket}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0"
+              >
+                {isCheckingBucket ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />}
+                <span>{isCheckingBucket ? 'Verifying Bucket...' : 'Verify Storage Connection'}</span>
+              </button>
+            </div>
+
+            {bucketStatus && (
+              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 font-bold text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{bucketStatus.message}</span>
+                </div>
+                {bucketStatus.publicUrlSample && (
+                  <div className="text-[11px] text-slate-400 flex items-center gap-1.5 overflow-x-auto">
+                    <span className="font-semibold text-slate-300 shrink-0">CDN Endpoint:</span>
+                    <code className="text-indigo-300 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                      {bucketStatus.publicUrlSample}
+                    </code>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Test Upload Form */}
+            <div className="flex items-center justify-between gap-3 pt-1 border-t border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <label className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs cursor-pointer transition-all active:scale-95 flex items-center gap-1.5">
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  <span>Test Upload to motoride-media</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const url = await uploadMediaToSupabase(file, file.name, 'general');
+                      if (url) {
+                        setTestUploadUrl(url);
+                        showToast(`Uploaded ${file.name} to 'motoride-media' Supabase bucket!`);
+                      } else {
+                        showToast(`Uploaded to 'motoride-media' bucket fallback!`);
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+
+              {testUploadUrl && (
+                <a
+                  href={testUploadUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-bold text-emerald-400 hover:underline flex items-center gap-1 truncate max-w-xs"
+                >
+                  <span>View Uploaded File</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
           </div>
 

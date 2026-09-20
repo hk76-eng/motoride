@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 
 import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
-import { safeStorage } from '../lib/safeStorage';
+import { uploadMediaToSupabase } from '../lib/supabaseStorage';
 import { motorideApi } from '../services/motorideApi';
 
 interface PassengerProfileDrawerProps {
@@ -117,7 +117,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   }, [passengerName, passengerEmail, passengerPhone, currentUser, isOpen]);
 
   // Handle Photo Upload
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -132,15 +132,25 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const result = event.target?.result as string;
       setAvatarUrl(result);
       try {
-        safeStorage.setItem('motoride_passenger_avatar', result);
+        localStorage.setItem('motoride_passenger_avatar', result);
       } catch (err) {
-        console.warn('Could not persist avatar to safeStorage:', err);
+        console.warn('Could not persist avatar to storage:', err);
       }
-      setToastMessage('Profile photo updated successfully!');
+
+      // Upload to Supabase 'motoride-media' bucket
+      const uploadedUrl = await uploadMediaToSupabase(file, file.name, 'avatars');
+      if (uploadedUrl) {
+        setAvatarUrl(uploadedUrl);
+        try {
+          localStorage.setItem('motoride_passenger_avatar', uploadedUrl);
+        } catch {}
+      }
+
+      setToastMessage('Profile photo updated & saved to Supabase Storage!');
       setIsSavedToast(true);
       setTimeout(() => setIsSavedToast(false), 3000);
     };

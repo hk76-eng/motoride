@@ -389,4 +389,45 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.ride_offers;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.captain_locations;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.passenger_locations;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+
+-- ==============================================================================
+-- MOTORIDE MEDIA STORAGE BUCKET: motoride-media
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'motoride-media',
+    'motoride-media',
+    true,
+    52428800,
+    ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'audio/mpeg', 'video/mp4']
+)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Public Storage Policies for motoride-media
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND policyname = 'Public Read Access for motoride-media'
+    ) THEN
+        CREATE POLICY "Public Read Access for motoride-media" ON storage.objects FOR SELECT USING (bucket_id = 'motoride-media');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND policyname = 'Public Upload Access for motoride-media'
+    ) THEN
+        CREATE POLICY "Public Upload Access for motoride-media" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'motoride-media');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND policyname = 'Public Update Access for motoride-media'
+    ) THEN
+        CREATE POLICY "Public Update Access for motoride-media" ON storage.objects FOR UPDATE USING (bucket_id = 'motoride-media');
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename = 'objects' AND policyname = 'Public Delete Access for motoride-media'
+    ) THEN
+        CREATE POLICY "Public Delete Access for motoride-media" ON storage.objects FOR DELETE USING (bucket_id = 'motoride-media');
+    END IF;
+END $$;
 `;
