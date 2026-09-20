@@ -1604,10 +1604,27 @@ export const motorideApi = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: passwordHash }),
       });
-      const data = await res.json();
-      return data;
+
+      const text = await res.text();
+      if (!text || text.trim().startsWith('<') || text.trim().startsWith('The page')) {
+        return {
+          success: false,
+          error: `Server error (${res.status}). The server returned an invalid response. Please try again in a few seconds.`,
+        };
+      }
+
+      try {
+        const data = JSON.parse(text);
+        if (res.ok) {
+          return data;
+        } else {
+          return { success: false, error: data.error || 'Failed to update password.' };
+        }
+      } catch {
+        return { success: false, error: 'The server response was in an incorrect format.' };
+      }
     } catch (err: any) {
-      return { success: false, error: err.message || 'Failed to update password.' };
+      return { success: false, error: err.message || 'Network error occurred while updating password.' };
     }
   },
 };
