@@ -132,25 +132,112 @@ const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: numb
   { name: 'Sector 11 Panchkula Market', aliases: ['panchkula 11', 'sector 11 panchkula'], lat: 30.689514, lng: 76.861124 },
   { name: 'Sector 20 Panchkula Highrise Hub', aliases: ['panchkula 20', 'sector 20 panchkula'], lat: 30.672514, lng: 76.868124 },
   { name: 'Zirakpur VIP Road & Metro Wholesale', aliases: ['zirakpur', 'vip road', 'metro zirakpur'], lat: 30.642514, lng: 76.818124 },
+  { name: 'CP 67 Mall, Sector 67 Mohali', aliases: ['cp 67', 'cp67', 'cp67 mall', 'sector 67 mall'], lat: 30.693812, lng: 76.721415 },
+  { name: 'Bestech Square Mall, Sector 66', aliases: ['bestech', 'bestech mall', 'sector 66'], lat: 30.690514, lng: 76.736124 },
+  { name: 'GMCH Hospital Sector 32', aliases: ['gmch', 'gmch 32', 'sector 32 hospital', '32 hospital'], lat: 30.712514, lng: 76.779124 },
 ];
 
-// Helper: Instant Matching Suggestions for Drop-off / Pickup
+// Helper: High-Accuracy Instant Matching Suggestions for Drop-off / Pickup
 const getInstantMatchingSuggestions = (query: string): { name: string; lat: number; lng: number }[] => {
-  const q = query.trim().toLowerCase();
+  const raw = query.trim();
+  const q = raw.toLowerCase();
   if (!q) return [];
-  const results: { name: string; lat: number; lng: number }[] = [];
+
+  // Extract sector number if user typed e.g. "43", "sec 43", "sector 43"
+  const secNumMatch = q.match(/^(?:sec|sector)?\s*([0-9]{1,3})\b/i);
+  const targetSecNum = secNumMatch ? parseInt(secNumMatch[1], 10) : null;
+
+  // Extract phase if user typed e.g. "7", "phase 7", "3b2", "phase 8b"
+  const phaseMatch = q.match(/^(?:phase)?\s*([0-9]{1,2}[a-z0-9]*)\b/i);
+  const targetPhase = phaseMatch ? phaseMatch[1].toLowerCase() : null;
+
+  interface ScoredCandidate {
+    name: string;
+    lat: number;
+    lng: number;
+    score: number;
+  }
+
+  const scored: ScoredCandidate[] = [];
   const seen = new Set<string>();
 
   for (const loc of KNOWN_LOCATIONS) {
     const nameLower = loc.name.toLowerCase();
-    const isMatch = nameLower.includes(q) ||
-      loc.aliases.some((a) => q.includes(a) || a.includes(q));
-    if (isMatch && !seen.has(loc.name)) {
+    let score = 0;
+
+    // 1. Exact full name match
+    if (nameLower === q) {
+      score += 250;
+    }
+    // 2. Name starts with exact query
+    else if (nameLower.startsWith(q)) {
+      score += 150;
+    }
+    // 3. Name contains query as a distinct word boundary
+    else if (new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(nameLower)) {
+      score += 100;
+    }
+    // 4. Substring in name
+    else if (nameLower.includes(q)) {
+      score += 60;
+    }
+
+    // Alias matching
+    for (const a of loc.aliases) {
+      if (a === q) {
+        score = Math.max(score, 200);
+      } else if (a.startsWith(q)) {
+        score = Math.max(score, 130);
+      } else if (q.includes(a) && a.length >= 3) {
+        score = Math.max(score, 90);
+      } else if (a.includes(q) && q.length >= 3) {
+        score = Math.max(score, 75);
+      }
+    }
+
+    // Sector query boost (e.g. user typed "43" or "sector 43")
+    if (targetSecNum !== null) {
+      const locSecMatch = nameLower.match(/sector\s*([0-9]{1,3})/i);
+      if (locSecMatch && parseInt(locSecMatch[1], 10) === targetSecNum) {
+        score = Math.max(score, 180);
+      }
+    }
+
+    // Phase query boost (e.g. user typed "phase 7" or "phase 3b2")
+    if (targetPhase && targetPhase.length >= 1) {
+      const locPhaseMatch = nameLower.match(/phase\s*([0-9]{1,2}[a-z0-9]*)/i);
+      if (locPhaseMatch && locPhaseMatch[1].toLowerCase() === targetPhase) {
+        score = Math.max(score, 180);
+      }
+    }
+
+    if (score > 0 && !seen.has(loc.name)) {
       seen.add(loc.name);
-      results.push({ name: loc.name, lat: loc.lat, lng: loc.lng });
+      scored.push({ name: loc.name, lat: loc.lat, lng: loc.lng, score });
     }
   }
-  return results.slice(0, 6);
+
+  // Sort descending by relevance score
+  scored.sort((a, b) => b.score - a.score);
+
+  const results = scored.slice(0, 7).map((s) => ({
+    name: s.name,
+    lat: s.lat,
+    lng: s.lng,
+  }));
+
+  // If user entered a specific sector number not in KNOWN_LOCATIONS (e.g. "Sector 82")
+  if (targetSecNum !== null && !results.some((r) => r.name.toLowerCase().includes(`sector ${targetSecNum}`))) {
+    const latOffset = ((targetSecNum % 10) - 5) * 0.008;
+    const lngOffset = (Math.floor(targetSecNum / 10) - 2) * 0.012;
+    results.unshift({
+      name: `Sector ${targetSecNum}, Chandigarh/Mohali`,
+      lat: Number((30.7350 + latOffset).toFixed(6)),
+      lng: Number((76.7750 + lngOffset).toFixed(6)),
+    });
+  }
+
+  return results.slice(0, 7);
 };
 
 // Helper: Immediately resolve coordinates for any typed text
@@ -159,7 +246,20 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
   const q = clean.toLowerCase();
   if (!q) return { name: '', lat: 0, lng: 0 };
 
-  // 1. Sector number extraction (e.g. "sector 17", "sec 22", "sector 43")
+  // 1. Try high-accuracy instant matching first
+  const instantMatches = getInstantMatchingSuggestions(clean);
+  if (instantMatches.length > 0) {
+    const top = instantMatches[0];
+    const isSameAsReference = reference?.name && top.name.toLowerCase() === reference.name.toLowerCase();
+    if (!isSameAsReference) {
+      return { name: top.name, lat: top.lat, lng: top.lng };
+    }
+    if (instantMatches.length > 1) {
+      return { name: instantMatches[1].name, lat: instantMatches[1].lat, lng: instantMatches[1].lng };
+    }
+  }
+
+  // 2. Sector number extraction (e.g. "sector 17", "sec 22", "sector 43")
   const secMatch = q.match(/(?:sector|sec)\s*([0-9]{1,3})/i);
   if (secMatch) {
     const secNum = parseInt(secMatch[1], 10);
@@ -167,7 +267,7 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
       l.name.toLowerCase().includes(`sector ${secNum}`) ||
       l.aliases.some((a) => a === `sector ${secNum}` || a === `${secNum}`)
     );
-    if (knownSec) {
+    if (knownSec && (!reference?.name || knownSec.name.toLowerCase() !== reference.name.toLowerCase())) {
       return { name: knownSec.name, lat: knownSec.lat, lng: knownSec.lng };
     }
     const latOffset = ((secNum % 10) - 5) * 0.008;
@@ -179,7 +279,7 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
     };
   }
 
-  // 2. Phase extraction (e.g. "phase 8b", "phase 7", "phase 5")
+  // 3. Phase extraction (e.g. "phase 8b", "phase 7", "phase 5")
   const phaseMatch = q.match(/(?:phase)\s*([0-9]{1,2}[a-z0-9]*)/i);
   if (phaseMatch) {
     const phaseStr = phaseMatch[1].toLowerCase();
@@ -195,31 +295,6 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
       lat: 30.7100,
       lng: 76.7200,
     };
-  }
-
-  // 3. High-confidence match in KNOWN_LOCATIONS (exclude overly generic words like "sector", "market", "mohali")
-  const genericWords = new Set(['sector', 'sec', 'market', 'phase', 'mohali', 'chandigarh', 'panchkula', 'road', 'street']);
-  if (!genericWords.has(q) && q.length >= 3) {
-    const direct = KNOWN_LOCATIONS.find((loc) => {
-      const nameLower = loc.name.toLowerCase();
-      // Exact name match
-      if (nameLower === q) return true;
-      // Exact alias match
-      if (loc.aliases.some((alias) => alias === q)) return true;
-      // High-confidence prefix match (at least 4 chars)
-      if (q.length >= 4 && (nameLower.startsWith(q) || loc.aliases.some((a) => a === q || a.startsWith(q)))) return true;
-      // Distinctive substring match (at least 5 chars)
-      if (q.length >= 5 && nameLower.includes(q)) return true;
-      return false;
-    });
-
-    if (direct) {
-      // If reference has a name (e.g. pickup is Sector 70), do not mistakenly map dropoff to pickup unless explicitly requested
-      const isSameAsReference = reference?.name && direct.name.toLowerCase() === reference.name.toLowerCase();
-      if (!isSameAsReference || q.length >= direct.name.length) {
-        return { name: direct.name, lat: direct.lat, lng: direct.lng };
-      }
-    }
   }
 
   // 4. Custom destination entered by user: retain user's exact destination label with distinct coordinates
@@ -447,17 +522,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               const instant = getInstantMatchingSuggestions(q);
               const merged = [...instant];
               for (const r of data.results) {
-                if (!merged.some((m) => m.name === r.name)) {
+                if (!merged.some((m) => m.name.toLowerCase() === r.name.toLowerCase())) {
                   merged.push(r);
                 }
               }
-              setDropoffSuggestions(merged.slice(0, 6));
+              setDropoffSuggestions(merged.slice(0, 7));
+              setShowDropoffSuggestions(true);
 
               // Refine dropoff coordinates with exact server geocoding
               if (data.results.length > 0) {
                 const best = data.results[0];
                 setDropoff((prev) => {
-                  if (prev.name === q || prev.name.toLowerCase().includes(q.toLowerCase())) {
+                  if (prev.lat === 0 || prev.name === q || prev.name.toLowerCase().includes(q.toLowerCase())) {
                     return { ...prev, lat: best.lat, lng: best.lng };
                   }
                   return prev;
@@ -471,7 +547,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       } finally {
         setIsSearchingDropoff(false);
       }
-    }, 250);
+    }, 150);
     return () => clearTimeout(timer);
   }, [dropoffInputText, dropoffMode]);
 
@@ -494,7 +570,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     setPickupSuggestions(instantMatches);
 
     // 2. Immediately resolve coordinates so map pin A and route update in 0ms!
-    const resolved = resolveLocationFromText(text, passengerGps.lat ? passengerGps : null);
+    const resolved = instantMatches.length > 0 ? instantMatches[0] : resolveLocationFromText(text, passengerGps.lat ? passengerGps : null);
     setPickup(resolved);
   };
 
@@ -522,19 +598,31 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     if (!text.trim()) {
       setDropoff({ name: '', lat: 0, lng: 0 });
       setDropoffSuggestions([]);
+      setShowDropoffSuggestions(false);
       return;
     }
-    // Immediately resolve coordinates so Marker B, route, and booking tabs update in 0ms!
-    const resolved = resolveLocationFromText(text, pickup);
-    setDropoff(resolved);
+    const instant = getInstantMatchingSuggestions(text);
+    setDropoffSuggestions(instant);
+    setShowDropoffSuggestions(true);
+
+    // Immediately resolve coordinates so Marker B, route, and fare update in 0ms!
+    const resolved = instant.length > 0 ? instant[0] : resolveLocationFromText(text, pickup);
+    setDropoff({
+      name: text.trim(),
+      lat: resolved.lat,
+      lng: resolved.lng,
+    });
   };
 
   const handleDropoffKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (dropoffInputText.trim()) {
+      if (dropoffSuggestions.length > 0) {
+        handleSelectDropoffSuggestion(dropoffSuggestions[0]);
+      } else if (dropoffInputText.trim()) {
         const resolved = resolveLocationFromText(dropoffInputText, pickup);
         setDropoff(resolved);
+        setShowDropoffSuggestions(false);
       }
     }
   };
@@ -617,15 +705,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     return Number((R * c).toFixed(1));
   };
 
+  const activePickupLat = pickup.lat || passengerGps.lat || 30.704649;
+  const activePickupLng = pickup.lng || passengerGps.lng || 76.717873;
+  const activePickupName = pickup.name?.trim() || 'Sector 70, Mohali Market';
+
+  const activeDropoffLat = dropoff.lat;
+  const activeDropoffLng = dropoff.lng;
+  const activeDropoffName = dropoff.name?.trim() || dropoffInputText?.trim();
+
   const hasSelectedLocations = Boolean(
-    pickup.name?.trim() &&
-    pickup.lat &&
-    dropoff.name?.trim() &&
-    dropoff.lat
+    activePickupName &&
+    activePickupLat &&
+    activeDropoffName &&
+    activeDropoffLat
   );
 
   const distanceKm = hasSelectedLocations
-    ? Math.max(1.0, calculateDistance(pickup.lat, pickup.lng, dropoff.lat, dropoff.lng))
+    ? Math.max(1.0, calculateDistance(activePickupLat, activePickupLng, activeDropoffLat, activeDropoffLng))
     : 0;
   const durationMin = hasSelectedLocations ? Math.round(distanceKm * 2.8 + 4) : 0;
 
@@ -639,24 +735,27 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const rc = rideConfig as any;
     const effectiveKm = Math.max(1.0, distanceKm || 1.0);
     if (rideType === 'courier') {
-      const base = Number(cc.base_fare ?? fareSettings.base_fare ?? 35);
-      const handling = Number(cc.handling_fee ?? 10);
-      const rate = Number(cc.per_km_rate ?? fareSettings.per_km_rate ?? 14);
-      const minFare = Number(cc.minimum_fare ?? fareSettings.minimum_fare ?? 40);
+      const base = Number(cc.base_fare ?? fareSettings.base_fare ?? 35) || 35;
+      const handling = Number(cc.handling_fee ?? 10) || 10;
+      const rate = Number(cc.per_km_rate ?? fareSettings.per_km_rate ?? 14) || 14;
+      const minFare = Number(cc.minimum_fare ?? fareSettings.minimum_fare ?? 40) || 40;
       const running = effectiveKm * rate;
       estimatedFare = Math.max(minFare, Math.round(base + handling + running));
     } else {
       const multiplier =
         rideType === 'auto'
-          ? Number(rc.auto_multiplier || 1.25)
+          ? Number(rc.auto_multiplier || 1.25) || 1.25
           : rideType === 'car'
-          ? Number(rc.car_multiplier || 1.8)
+          ? Number(rc.car_multiplier || 1.8) || 1.8
           : 1.0;
-      const base = Number(rc.base_fare ?? fareSettings.base_fare ?? 25);
-      const rate = Number(rc.per_km_rate ?? fareSettings.per_km_rate ?? 12);
-      const minFare = Number(rc.minimum_fare ?? fareSettings.minimum_fare ?? 30);
+      const base = Number(rc.base_fare ?? fareSettings.base_fare ?? 25) || 25;
+      const rate = Number(rc.per_km_rate ?? fareSettings.per_km_rate ?? 12) || 12;
+      const minFare = Number(rc.minimum_fare ?? fareSettings.minimum_fare ?? 30) || 30;
       const running = effectiveKm * rate;
       estimatedFare = Math.max(Math.round(minFare * multiplier), Math.round((base + running) * multiplier));
+    }
+    if (isNaN(estimatedFare) || estimatedFare <= 0) {
+      estimatedFare = Math.max(30, Math.round(25 + effectiveKm * 12));
     }
   }
 
@@ -2139,6 +2238,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       type="text"
                       value={dropoffInputText}
                       onChange={(e) => handleManualDropoffChange(e.target.value)}
+                      onFocus={() => {
+                        const q = dropoffInputText.trim();
+                        const matches = q ? getInstantMatchingSuggestions(q) : KNOWN_LOCATIONS.slice(0, 7);
+                        setDropoffSuggestions(matches);
+                        setShowDropoffSuggestions(true);
+                      }}
                       onKeyDown={handleDropoffKeyDown}
                       placeholder="Type custom drop-off destination or landmark..."
                       className="w-full pl-9 pr-24 py-2.5 rounded-xl bg-slate-50 border border-black text-xs text-black placeholder-slate-500 font-semibold focus:outline-none focus:ring-2 focus:ring-black shadow-xs"
@@ -2162,6 +2267,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                             setDropoffInputText('');
                             setDropoff({ name: '', lat: 0, lng: 0 });
                             setDropoffSuggestions([]);
+                            setShowDropoffSuggestions(false);
                           }}
                           title="Clear dropoff text"
                           className="p-1 rounded-md bg-slate-200 hover:bg-slate-300 text-black border border-black transition-all cursor-pointer flex items-center justify-center active:scale-95"
@@ -2171,6 +2277,48 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       ) : null}
                     </div>
                   </div>
+
+                  {/* High-Accuracy Drop-off Search Results Popover */}
+                  {showDropoffSuggestions && dropoffSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white border-2 border-black rounded-xl shadow-2xl overflow-hidden max-h-64 overflow-y-auto divide-y divide-slate-100 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {dropoffSuggestions.map((item, idx) => {
+                        const itemDist = activePickupLat && item.lat
+                          ? calculateDistance(activePickupLat, activePickupLng, item.lat, item.lng)
+                          : null;
+                        return (
+                          <button
+                            key={`${item.name}-${idx}`}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleSelectDropoffSuggestion(item);
+                            }}
+                            onClick={() => handleSelectDropoffSuggestion(item)}
+                            className="w-full px-3.5 py-2.5 text-left text-xs hover:bg-rose-50 flex items-center justify-between gap-2.5 transition-colors cursor-pointer group"
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                              <div className="w-6 h-6 rounded-lg bg-rose-100 group-hover:bg-rose-600 group-hover:text-white text-rose-600 flex items-center justify-center shrink-0 transition-colors">
+                                <MapPin className="w-3.5 h-3.5 stroke-[2.5]" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate font-black text-slate-900 group-hover:text-black">
+                                  {item.name}
+                                </div>
+                                {itemDist !== null && (
+                                  <div className="text-[10px] font-bold text-slate-500 group-hover:text-rose-700">
+                                    ~{itemDist} km from pickup point
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-slate-100 group-hover:bg-rose-600 group-hover:text-white text-slate-700 shrink-0 transition-colors shadow-2xs">
+                              Select
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
