@@ -161,29 +161,48 @@ export function updateFareSettings(newSettings: Partial<FareSettings>): FareSett
     mergedCourier.updated_at = new Date().toISOString();
   }
 
-  const baseFareVal = newSettings.base_fare !== undefined && !isNaN(Number(newSettings.base_fare))
+  if (newSettings.base_fare !== undefined && !isNaN(Number(newSettings.base_fare))) {
+    mergedRide.base_fare = Number(newSettings.base_fare);
+  }
+  if (newSettings.per_km_rate !== undefined && !isNaN(Number(newSettings.per_km_rate))) {
+    mergedRide.per_km_rate = Number(newSettings.per_km_rate);
+  }
+  if (newSettings.minimum_fare !== undefined && !isNaN(Number(newSettings.minimum_fare))) {
+    mergedRide.minimum_fare = Number(newSettings.minimum_fare);
+  }
+  if (newSettings.platform_commission_pct !== undefined && !isNaN(Number(newSettings.platform_commission_pct))) {
+    mergedRide.platform_commission_pct = Number(newSettings.platform_commission_pct);
+  }
+  if (newSettings.min_offer_pct !== undefined && !isNaN(Number(newSettings.min_offer_pct))) {
+    mergedRide.min_offer_pct = Number(newSettings.min_offer_pct);
+  }
+  if (newSettings.max_offer_pct !== undefined && !isNaN(Number(newSettings.max_offer_pct))) {
+    mergedRide.max_offer_pct = Number(newSettings.max_offer_pct);
+  }
+
+  const baseFareVal = mergedRide.base_fare ?? (newSettings.base_fare !== undefined && !isNaN(Number(newSettings.base_fare))
     ? Number(newSettings.base_fare)
-    : (mergedRide.base_fare ?? fareSettings.base_fare ?? 25.0);
+    : (fareSettings.base_fare ?? 25.0));
 
-  const perKmVal = newSettings.per_km_rate !== undefined && !isNaN(Number(newSettings.per_km_rate))
+  const perKmVal = mergedRide.per_km_rate ?? (newSettings.per_km_rate !== undefined && !isNaN(Number(newSettings.per_km_rate))
     ? Number(newSettings.per_km_rate)
-    : (mergedRide.per_km_rate ?? fareSettings.per_km_rate ?? 12.0);
+    : (fareSettings.per_km_rate ?? 12.0));
 
-  const minFareVal = newSettings.minimum_fare !== undefined && !isNaN(Number(newSettings.minimum_fare))
+  const minFareVal = mergedRide.minimum_fare ?? (newSettings.minimum_fare !== undefined && !isNaN(Number(newSettings.minimum_fare))
     ? Number(newSettings.minimum_fare)
-    : (mergedRide.minimum_fare ?? fareSettings.minimum_fare ?? 30.0);
+    : (fareSettings.minimum_fare ?? 30.0));
 
-  const commissionVal = newSettings.platform_commission_pct !== undefined && !isNaN(Number(newSettings.platform_commission_pct))
+  const commissionVal = mergedRide.platform_commission_pct ?? (newSettings.platform_commission_pct !== undefined && !isNaN(Number(newSettings.platform_commission_pct))
     ? Number(newSettings.platform_commission_pct)
-    : (mergedRide.platform_commission_pct ?? fareSettings.platform_commission_pct ?? 10.0);
+    : (fareSettings.platform_commission_pct ?? 10.0));
 
-  const minOfferVal = newSettings.min_offer_pct !== undefined && !isNaN(Number(newSettings.min_offer_pct))
+  const minOfferVal = mergedRide.min_offer_pct ?? (newSettings.min_offer_pct !== undefined && !isNaN(Number(newSettings.min_offer_pct))
     ? Number(newSettings.min_offer_pct)
-    : (mergedRide.min_offer_pct ?? fareSettings.min_offer_pct ?? 70.0);
+    : (fareSettings.min_offer_pct ?? 70.0));
 
-  const maxOfferVal = newSettings.max_offer_pct !== undefined && !isNaN(Number(newSettings.max_offer_pct))
+  const maxOfferVal = mergedRide.max_offer_pct ?? (newSettings.max_offer_pct !== undefined && !isNaN(Number(newSettings.max_offer_pct))
     ? Number(newSettings.max_offer_pct)
-    : (mergedRide.max_offer_pct ?? fareSettings.max_offer_pct ?? 180.0);
+    : (fareSettings.max_offer_pct ?? 180.0));
 
   fareSettings = {
     ...fareSettings,

@@ -1042,40 +1042,7 @@ export const motorideApi = {
 
   // 4. Fare Settings
   async getFareSettings(): Promise<FareSettings> {
-    try {
-      const json = await safeFetchJson<{ settings: FareSettings }>(`${API_BASE}/fare-settings`);
-      if (json?.settings?.base_fare !== undefined || json?.settings?.ride_charges?.base_fare !== undefined) {
-        try {
-          safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(json.settings));
-        } catch {}
-        return json.settings;
-      }
-    } catch {}
-
-    const supabase = getSupabase();
-    if (supabase) {
-      try {
-        const { data } = await supabase.from('fare_settings').select('*').limit(1).maybeSingle();
-        if (data) {
-          try {
-            safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(data));
-          } catch {}
-          return data as FareSettings;
-        }
-      } catch {}
-    }
-
-    try {
-      const local = safeStorage.getItem('motoride_admin_fare_settings');
-      if (local) {
-        const parsed = JSON.parse(local);
-        if (parsed && typeof parsed === 'object') {
-          return parsed;
-        }
-      }
-    } catch {}
-
-    return {
+    const defaultSettings: FareSettings = {
       id: 'default',
       base_fare: 25.0,
       per_km_rate: 12.0,
@@ -1111,30 +1078,164 @@ export const motorideApi = {
         cancellation_fee: 25.0,
         updated_at: new Date().toISOString(),
       },
-    } as FareSettings;
-  },
+    };
 
-  async updateFareSettings(settings: Partial<FareSettings>): Promise<FareSettings> {
+    try {
+      const json = await safeFetchJson<{ settings: FareSettings }>(`${API_BASE}/fare-settings`);
+      if (json?.settings && (json.settings.base_fare !== undefined || json.settings.per_km_rate !== undefined || json.settings.ride_charges?.base_fare !== undefined || json.settings.ride_charges?.per_km_rate !== undefined)) {
+        const full: FareSettings = {
+          ...defaultSettings,
+          ...json.settings,
+          ride_charges: {
+            ...defaultSettings.ride_charges,
+            ...(json.settings.ride_charges || {}),
+            per_km_rate: json.settings.ride_charges?.per_km_rate ?? json.settings.per_km_rate ?? defaultSettings.ride_charges.per_km_rate,
+            base_fare: json.settings.ride_charges?.base_fare ?? json.settings.base_fare ?? defaultSettings.ride_charges.base_fare,
+            minimum_fare: json.settings.ride_charges?.minimum_fare ?? json.settings.minimum_fare ?? defaultSettings.ride_charges.minimum_fare,
+            platform_commission_pct: json.settings.ride_charges?.platform_commission_pct ?? json.settings.platform_commission_pct ?? defaultSettings.ride_charges.platform_commission_pct,
+          },
+          courier_charges: {
+            ...defaultSettings.courier_charges,
+            ...(json.settings.courier_charges || {}),
+          },
+        };
+        try {
+          safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(full));
+        } catch {}
+        return full;
+      }
+    } catch {}
+
+    try {
+      const local = safeStorage.getItem('motoride_admin_fare_settings');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...defaultSettings,
+            ...parsed,
+            ride_charges: {
+              ...defaultSettings.ride_charges,
+              ...(parsed.ride_charges || {}),
+            },
+            courier_charges: {
+              ...defaultSettings.courier_charges,
+              ...(parsed.courier_charges || {}),
+            },
+          };
+        }
+      }
+    } catch {}
+
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('fare_settings').upsert([settings]);
+        const { data } = await supabase.from('fare_settings').select('*').limit(1).maybeSingle();
+        if (data && (data.base_fare !== undefined || data.per_km_rate !== undefined)) {
+          const full: FareSettings = {
+            ...defaultSettings,
+            ...data,
+            ride_charges: {
+              ...defaultSettings.ride_charges,
+              ...(data.ride_charges || {}),
+              per_km_rate: data.per_km_rate ?? defaultSettings.ride_charges.per_km_rate,
+              base_fare: data.base_fare ?? defaultSettings.ride_charges.base_fare,
+              minimum_fare: data.minimum_fare ?? defaultSettings.ride_charges.minimum_fare,
+              platform_commission_pct: data.platform_commission_pct ?? defaultSettings.ride_charges.platform_commission_pct,
+            },
+            courier_charges: {
+              ...defaultSettings.courier_charges,
+              ...(data.courier_charges || {}),
+            },
+          };
+          try {
+            safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(full));
+          } catch {}
+          return full;
+        }
       } catch {}
     }
+
+    return defaultSettings;
+  },
+
+  async updateFareSettings(settings: Partial<FareSettings>): Promise<FareSettings> {
+    const current = await this.getFareSettings();
+    const mergedRide = {
+      ...current.ride_charges,
+      ...(settings.ride_charges || {}),
+    };
+    if (settings.base_fare !== undefined) mergedRide.base_fare = Number(settings.base_fare);
+    if (settings.per_km_rate !== undefined) mergedRide.per_km_rate = Number(settings.per_km_rate);
+    if (settings.minimum_fare !== undefined) mergedRide.minimum_fare = Number(settings.minimum_fare);
+    if (settings.platform_commission_pct !== undefined) mergedRide.platform_commission_pct = Number(settings.platform_commission_pct);
+
+    const mergedCourier = {
+      ...current.courier_charges,
+      ...(settings.courier_charges || {}),
+    };
+
+    const fullPayload: FareSettings = {
+      ...current,
+      ...settings,
+      base_fare: mergedRide.base_fare ?? current.base_fare,
+      per_km_rate: mergedRide.per_km_rate ?? current.per_km_rate,
+      minimum_fare: mergedRide.minimum_fare ?? current.minimum_fare,
+      platform_commission_pct: mergedRide.platform_commission_pct ?? current.platform_commission_pct,
+      min_offer_pct: mergedRide.min_offer_pct ?? current.min_offer_pct,
+      max_offer_pct: mergedRide.max_offer_pct ?? current.max_offer_pct,
+      ride_charges: mergedRide,
+      courier_charges: mergedCourier,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(fullPayload));
+    } catch {}
+    realtimeSync.emit('FARE_SETTINGS_UPDATED', fullPayload);
+
     const json = await safeFetchJson<{ settings: FareSettings }>(`${API_BASE}/fare-settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
+      body: JSON.stringify(fullPayload),
     });
-    const result = json?.settings || (settings as FareSettings);
+
+    const result = json?.settings || fullPayload;
     try {
       safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(result));
     } catch {}
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('fare_settings').upsert([{
+          base_fare: fullPayload.base_fare,
+          per_km_rate: fullPayload.per_km_rate,
+          minimum_fare: fullPayload.minimum_fare,
+          platform_commission_pct: fullPayload.platform_commission_pct,
+          min_offer_pct: fullPayload.min_offer_pct,
+          max_offer_pct: fullPayload.max_offer_pct,
+          currency_symbol: fullPayload.currency_symbol || '₹',
+          ride_charges: fullPayload.ride_charges,
+          courier_charges: fullPayload.courier_charges,
+          updated_at: new Date().toISOString(),
+        }]);
+      } catch {}
+    }
+
     return result;
   },
 
   async updateRideCharges(charges: Partial<import('../types/motoride').RideChargeSettings>): Promise<FareSettings> {
-    return this.updateFareSettings({ ride_charges: charges as any });
+    return this.updateFareSettings({
+      base_fare: charges.base_fare,
+      per_km_rate: charges.per_km_rate,
+      minimum_fare: charges.minimum_fare,
+      platform_commission_pct: charges.platform_commission_pct,
+      min_offer_pct: charges.min_offer_pct,
+      max_offer_pct: charges.max_offer_pct,
+      ride_charges: charges as any,
+    });
   },
 
   async updateCourierCharges(charges: Partial<import('../types/motoride').CourierChargeSettings>): Promise<FareSettings> {

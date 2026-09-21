@@ -320,6 +320,49 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   };
 
   useEffect(() => {
+    // Fetch latest fare settings on mount once
+    motorideApi.getFareSettings().then((f) => {
+      if (f) {
+        setFareSettings({
+          ...DEFAULT_ADMIN_FARE_SETTINGS,
+          ...f,
+          ride_charges: {
+            ...DEFAULT_RIDE_CHARGES,
+            ...(f.ride_charges || {}),
+            per_km_rate: f.ride_charges?.per_km_rate ?? f.per_km_rate ?? DEFAULT_RIDE_CHARGES.per_km_rate,
+            base_fare: f.ride_charges?.base_fare ?? f.base_fare ?? DEFAULT_RIDE_CHARGES.base_fare,
+            minimum_fare: f.ride_charges?.minimum_fare ?? f.minimum_fare ?? DEFAULT_RIDE_CHARGES.minimum_fare,
+            platform_commission_pct: f.ride_charges?.platform_commission_pct ?? f.platform_commission_pct ?? DEFAULT_RIDE_CHARGES.platform_commission_pct,
+          },
+          courier_charges: {
+            ...DEFAULT_COURIER_CHARGES,
+            ...(f.courier_charges || {}),
+          },
+        });
+      }
+    }).catch(() => {});
+
+    const unsubFareUpdated = realtimeSync.on('FARE_SETTINGS_UPDATED', (f: FareSettings) => {
+      if (f) {
+        setFareSettings({
+          ...DEFAULT_ADMIN_FARE_SETTINGS,
+          ...f,
+          ride_charges: {
+            ...DEFAULT_RIDE_CHARGES,
+            ...(f.ride_charges || {}),
+            per_km_rate: f.ride_charges?.per_km_rate ?? f.per_km_rate ?? DEFAULT_RIDE_CHARGES.per_km_rate,
+            base_fare: f.ride_charges?.base_fare ?? f.base_fare ?? DEFAULT_RIDE_CHARGES.base_fare,
+            minimum_fare: f.ride_charges?.minimum_fare ?? f.minimum_fare ?? DEFAULT_RIDE_CHARGES.minimum_fare,
+            platform_commission_pct: f.ride_charges?.platform_commission_pct ?? f.platform_commission_pct ?? DEFAULT_RIDE_CHARGES.platform_commission_pct,
+          },
+          courier_charges: {
+            ...DEFAULT_COURIER_CHARGES,
+            ...(f.courier_charges || {}),
+          },
+        });
+      }
+    });
+
     loadAllData();
 
     // Listen to real-time events to refresh admin metrics
@@ -345,6 +388,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
+      unsubFareUpdated();
       unsub();
       unsubCreate();
       unsubPass();
@@ -356,11 +400,11 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       window.removeEventListener('focus', handleVisibility);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [activeTab]);
+  }, []);
 
   const loadAllData = async () => {
     try {
-      const [s, c, p, r, f, q, serverAccounts] = await Promise.all([
+      const [s, c, p, r, q, serverAccounts] = await Promise.all([
         motorideApi.getAdminStats().catch((err) => {
           console.warn('AdminStats load failed, using fallback:', err);
           return null;
@@ -376,10 +420,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
         motorideApi.getRides().catch((err) => {
           console.warn('Rides load failed, using fallback:', err);
           return [];
-        }),
-        motorideApi.getFareSettings().catch((err) => {
-          console.warn('FareSettings load failed, using fallback:', err);
-          return null;
         }),
         motorideApi.getQRSettings().catch((err) => {
           console.warn('QRSettings load failed, using fallback:', err);
@@ -599,7 +639,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           const fare = Number(ride.final_fare || ride.offered_fare || 0);
           totalVolume += fare;
           if (ride.trip_completed_at && new Date(ride.trip_completed_at).getTime() >= startOfDay) {
-            const commPct = f?.platform_commission_pct ?? 10;
+            const commPct = fareSettings.platform_commission_pct ?? 10;
             todayPlatformRevenue += (fare * commPct) / 100;
           }
         }
@@ -621,26 +661,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       setPassengers(filteredPassengers);
       setRides(filteredRides);
 
-      // Synchronize latest server fare settings
-      if (f) {
-        setFareSettings(prev => {
-          if (activeTab === 'fare' || activeTab === 'ride_charges' || activeTab === 'courier_charges') {
-            return prev;
-          }
-          return {
-            ...DEFAULT_ADMIN_FARE_SETTINGS,
-            ...f,
-            ride_charges: {
-              ...DEFAULT_RIDE_CHARGES,
-              ...(f.ride_charges || {}),
-            },
-            courier_charges: {
-              ...DEFAULT_COURIER_CHARGES,
-              ...(f.courier_charges || {}),
-            },
-          };
-        });
-      }
       if (q) setQrSettings(q);
     } catch {}
   };
@@ -1693,13 +1713,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <input
                 type="number"
                 placeholder="Set Base Unlock Fare (₹)"
-                value={fareSettings.base_fare ?? ''}
-                onChange={(e) =>
+                value={fareSettings.ride_charges?.base_fare ?? fareSettings.base_fare ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
                   setFareSettings({
                     ...fareSettings,
-                    base_fare: e.target.value === '' ? (undefined as any) : Number(e.target.value),
-                  })
-                }
+                    base_fare: val,
+                    ride_charges: {
+                      ...(fareSettings.ride_charges || {}),
+                      base_fare: val,
+                    },
+                  });
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
               />
             </div>
@@ -1711,13 +1736,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <input
                 type="number"
                 placeholder="Set Per-KM Rate (₹/km)"
-                value={fareSettings.per_km_rate ?? ''}
-                onChange={(e) =>
+                value={fareSettings.ride_charges?.per_km_rate ?? fareSettings.per_km_rate ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
                   setFareSettings({
                     ...fareSettings,
-                    per_km_rate: e.target.value === '' ? (undefined as any) : Number(e.target.value),
-                  })
-                }
+                    per_km_rate: val,
+                    ride_charges: {
+                      ...(fareSettings.ride_charges || {}),
+                      per_km_rate: val,
+                    },
+                  });
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
               />
             </div>
@@ -1729,13 +1759,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <input
                 type="number"
                 placeholder="Set Minimum Fare (₹)"
-                value={fareSettings.minimum_fare ?? ''}
-                onChange={(e) =>
+                value={fareSettings.ride_charges?.minimum_fare ?? fareSettings.minimum_fare ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
                   setFareSettings({
                     ...fareSettings,
-                    minimum_fare: e.target.value === '' ? (undefined as any) : Number(e.target.value),
-                  })
-                }
+                    minimum_fare: val,
+                    ride_charges: {
+                      ...(fareSettings.ride_charges || {}),
+                      minimum_fare: val,
+                    },
+                  });
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
               />
             </div>
@@ -1747,13 +1782,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <input
                 type="number"
                 placeholder="Set Commission %"
-                value={fareSettings.platform_commission_pct ?? ''}
-                onChange={(e) =>
+                value={fareSettings.ride_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
                   setFareSettings({
                     ...fareSettings,
-                    platform_commission_pct: e.target.value === '' ? (undefined as any) : Number(e.target.value),
-                  })
-                }
+                    platform_commission_pct: val,
+                    ride_charges: {
+                      ...(fareSettings.ride_charges || {}),
+                      platform_commission_pct: val,
+                    },
+                  });
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-emerald-400 font-bold"
               />
             </div>
@@ -1821,16 +1861,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <input
                 type="number"
                 placeholder="Set Ride Base Fare (₹)"
-                value={fareSettings.ride_charges?.base_fare ?? ''}
-                onChange={(e) =>
+                value={fareSettings.ride_charges?.base_fare ?? fareSettings.base_fare ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
                   setFareSettings({
                     ...fareSettings,
+                    base_fare: val,
                     ride_charges: {
                       ...(fareSettings.ride_charges || {}),
-                      base_fare: e.target.value === '' ? (undefined as any) : Number(e.target.value),
+                      base_fare: val,
                     },
-                  })
-                }
+                  });
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
               />
             </div>
@@ -1842,16 +1884,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <input
                 type="number"
                 placeholder="Set Ride Per-KM Rate (₹/km)"
-                value={fareSettings.ride_charges?.per_km_rate ?? ''}
-                onChange={(e) =>
+                value={fareSettings.ride_charges?.per_km_rate ?? fareSettings.per_km_rate ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
                   setFareSettings({
                     ...fareSettings,
+                    per_km_rate: val,
                     ride_charges: {
                       ...(fareSettings.ride_charges || {}),
-                      per_km_rate: e.target.value === '' ? (undefined as any) : Number(e.target.value),
+                      per_km_rate: val,
                     },
-                  })
-                }
+                  });
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
               />
             </div>
@@ -1863,16 +1907,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <input
                 type="number"
                 placeholder="Set Minimum Fare Floor (₹)"
-                value={fareSettings.ride_charges?.minimum_fare ?? ''}
-                onChange={(e) =>
+                value={fareSettings.ride_charges?.minimum_fare ?? fareSettings.minimum_fare ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
                   setFareSettings({
                     ...fareSettings,
+                    minimum_fare: val,
                     ride_charges: {
                       ...(fareSettings.ride_charges || {}),
-                      minimum_fare: e.target.value === '' ? (undefined as any) : Number(e.target.value),
+                      minimum_fare: val,
                     },
-                  })
-                }
+                  });
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
               />
             </div>
@@ -1884,16 +1930,18 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <input
                 type="number"
                 placeholder="Set Commission %"
-                value={fareSettings.ride_charges?.platform_commission_pct ?? ''}
-                onChange={(e) =>
+                value={fareSettings.ride_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
                   setFareSettings({
                     ...fareSettings,
+                    platform_commission_pct: val,
                     ride_charges: {
                       ...(fareSettings.ride_charges || {}),
-                      platform_commission_pct: e.target.value === '' ? (undefined as any) : Number(e.target.value),
+                      platform_commission_pct: val,
                     },
-                  })
-                }
+                  });
+                }}
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-emerald-400 font-bold"
               />
             </div>

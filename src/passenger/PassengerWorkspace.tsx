@@ -781,11 +781,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       .then((res) => res.json())
       .then((data) => {
         if (data?.settings) {
+          const s = data.settings;
           const merged = {
             ...DEFAULT_PASSENGER_FARE_SETTINGS,
-            ...data.settings,
-            ride_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges, ...(data.settings.ride_charges || {}) },
-            courier_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.courier_charges, ...(data.settings.courier_charges || {}) },
+            ...s,
+            per_km_rate: s.ride_charges?.per_km_rate ?? s.per_km_rate ?? DEFAULT_PASSENGER_FARE_SETTINGS.per_km_rate,
+            base_fare: s.ride_charges?.base_fare ?? s.base_fare ?? DEFAULT_PASSENGER_FARE_SETTINGS.base_fare,
+            minimum_fare: s.ride_charges?.minimum_fare ?? s.minimum_fare ?? DEFAULT_PASSENGER_FARE_SETTINGS.minimum_fare,
+            platform_commission_pct: s.ride_charges?.platform_commission_pct ?? s.platform_commission_pct ?? DEFAULT_PASSENGER_FARE_SETTINGS.platform_commission_pct,
+            ride_charges: {
+              ...DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges,
+              ...(s.ride_charges || {}),
+              per_km_rate: s.ride_charges?.per_km_rate ?? s.per_km_rate ?? DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges.per_km_rate,
+              base_fare: s.ride_charges?.base_fare ?? s.base_fare ?? DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges.base_fare,
+              minimum_fare: s.ride_charges?.minimum_fare ?? s.minimum_fare ?? DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges.minimum_fare,
+              platform_commission_pct: s.ride_charges?.platform_commission_pct ?? s.platform_commission_pct ?? DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges.platform_commission_pct,
+            },
+            courier_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.courier_charges, ...(s.courier_charges || {}) },
           };
           setFareSettings(merged);
           try {
@@ -800,7 +812,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         const merged = {
           ...DEFAULT_PASSENGER_FARE_SETTINGS,
           ...newSettings,
-          ride_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges, ...(newSettings.ride_charges || {}) },
+          per_km_rate: newSettings.ride_charges?.per_km_rate ?? newSettings.per_km_rate ?? DEFAULT_PASSENGER_FARE_SETTINGS.per_km_rate,
+          base_fare: newSettings.ride_charges?.base_fare ?? newSettings.base_fare ?? DEFAULT_PASSENGER_FARE_SETTINGS.base_fare,
+          minimum_fare: newSettings.ride_charges?.minimum_fare ?? newSettings.minimum_fare ?? DEFAULT_PASSENGER_FARE_SETTINGS.minimum_fare,
+          platform_commission_pct: newSettings.ride_charges?.platform_commission_pct ?? newSettings.platform_commission_pct ?? DEFAULT_PASSENGER_FARE_SETTINGS.platform_commission_pct,
+          ride_charges: {
+            ...DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges,
+            ...(newSettings.ride_charges || {}),
+            per_km_rate: newSettings.ride_charges?.per_km_rate ?? newSettings.per_km_rate ?? DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges.per_km_rate,
+            base_fare: newSettings.ride_charges?.base_fare ?? newSettings.base_fare ?? DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges.base_fare,
+            minimum_fare: newSettings.ride_charges?.minimum_fare ?? newSettings.minimum_fare ?? DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges.minimum_fare,
+            platform_commission_pct: newSettings.ride_charges?.platform_commission_pct ?? newSettings.platform_commission_pct ?? DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges.platform_commission_pct,
+          },
           courier_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.courier_charges, ...(newSettings.courier_charges || {}) },
         };
         setFareSettings(merged);
