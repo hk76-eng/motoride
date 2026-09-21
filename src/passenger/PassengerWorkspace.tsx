@@ -753,7 +753,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       dropoffContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
 
-    setPickupToastMessage('To (A) filled with live GPS! Fill From (B).');
+    setPickupToastMessage('Live GPS location set! Fill destination.');
     setShowPickupToast(true);
     setTimeout(() => setShowPickupToast(false), 3500);
   };
@@ -2122,11 +2122,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
             )}
 
-            {/* Location (A) Field (Preset Dropdown or Manual Text Typing) */}
+            {/* To Field (Preset Dropdown or Manual Text Typing) */}
             <div className="flex flex-col gap-1.5 relative">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-black text-black tracking-wider">
-                  To (A)
+                  To
                 </label>
                 <button
                   type="button"
@@ -2291,11 +2291,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               )}
             </div>
 
-            {/* Location (B) Field (Preset Dropdown or Manual Text Typing) */}
+            {/* From Field (Preset Dropdown or Manual Text Typing) */}
             <div className="flex flex-col gap-1.5 relative">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-black text-black tracking-wider">
-                  From (B)
+                  From
                 </label>
                 <button
                   type="button"
@@ -2689,7 +2689,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   Where to?
                 </div>
                 <div className="text-xs sm:text-sm font-black text-slate-800 truncate mt-0.5">
-                  {dropoff.name || dropoffInputText || 'Search drop location (B)...'}
+                  {dropoff.name || dropoffInputText || 'Search drop location...'}
                 </div>
               </div>
             </div>
