@@ -154,24 +154,22 @@ const getInstantMatchingSuggestions = (query: string): { name: string; lat: numb
 };
 
 // Helper: Immediately resolve coordinates for any typed text
-const resolveLocationFromText = (query: string, reference?: { lat: number; lng: number } | null) => {
-  const q = query.trim().toLowerCase();
+const resolveLocationFromText = (query: string, reference?: { lat: number; lng: number; name?: string } | null) => {
+  const clean = query.trim();
+  const q = clean.toLowerCase();
   if (!q) return { name: '', lat: 0, lng: 0 };
 
-  // 1. Direct match in KNOWN_LOCATIONS
-  const direct = KNOWN_LOCATIONS.find((loc) => {
-    const nameLower = loc.name.toLowerCase();
-    if (nameLower.includes(q) || q.includes(nameLower)) return true;
-    return loc.aliases.some((alias) => q.includes(alias) || alias.includes(q));
-  });
-  if (direct) {
-    return { name: direct.name, lat: direct.lat, lng: direct.lng };
-  }
-
-  // 2. Sector number extraction (e.g. "sector 17", "sec 22", "phase 7")
+  // 1. Sector number extraction (e.g. "sector 17", "sec 22", "sector 43")
   const secMatch = q.match(/(?:sector|sec)\s*([0-9]{1,3})/i);
   if (secMatch) {
     const secNum = parseInt(secMatch[1], 10);
+    const knownSec = KNOWN_LOCATIONS.find((l) =>
+      l.name.toLowerCase().includes(`sector ${secNum}`) ||
+      l.aliases.some((a) => a === `sector ${secNum}` || a === `${secNum}`)
+    );
+    if (knownSec) {
+      return { name: knownSec.name, lat: knownSec.lat, lng: knownSec.lng };
+    }
     const latOffset = ((secNum % 10) - 5) * 0.008;
     const lngOffset = (Math.floor(secNum / 10) - 2) * 0.012;
     return {
@@ -181,25 +179,54 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
     };
   }
 
-  const phaseMatch = q.match(/(?:phase)\s*([0-9]{1,2}[a-z]?)/i);
+  // 2. Phase extraction (e.g. "phase 8b", "phase 7", "phase 5")
+  const phaseMatch = q.match(/(?:phase)\s*([0-9]{1,2}[a-z0-9]*)/i);
   if (phaseMatch) {
-    const phaseStr = phaseMatch[1].toUpperCase();
-    const phaseKnown = KNOWN_LOCATIONS.find(l => l.aliases.some(a => a.includes(`phase ${phaseStr.toLowerCase()}`) || a === phaseStr.toLowerCase()));
+    const phaseStr = phaseMatch[1].toLowerCase();
+    const phaseKnown = KNOWN_LOCATIONS.find((l) =>
+      l.aliases.some((a) => a === `phase ${phaseStr}` || a === phaseStr) ||
+      l.name.toLowerCase().includes(`phase ${phaseStr}`)
+    );
     if (phaseKnown) {
       return { name: phaseKnown.name, lat: phaseKnown.lat, lng: phaseKnown.lng };
     }
     return {
-      name: `Phase ${phaseStr}, Mohali`,
+      name: `Phase ${phaseMatch[1].toUpperCase()}, Mohali`,
       lat: 30.7100,
       lng: 76.7200,
     };
   }
 
-  // 3. Fallback offset from reference point (e.g. pickup or default city center)
+  // 3. High-confidence match in KNOWN_LOCATIONS (exclude overly generic words like "sector", "market", "mohali")
+  const genericWords = new Set(['sector', 'sec', 'market', 'phase', 'mohali', 'chandigarh', 'panchkula', 'road', 'street']);
+  if (!genericWords.has(q) && q.length >= 3) {
+    const direct = KNOWN_LOCATIONS.find((loc) => {
+      const nameLower = loc.name.toLowerCase();
+      // Exact name match
+      if (nameLower === q) return true;
+      // Exact alias match
+      if (loc.aliases.some((alias) => alias === q)) return true;
+      // High-confidence prefix match (at least 4 chars)
+      if (q.length >= 4 && (nameLower.startsWith(q) || loc.aliases.some((a) => a === q || a.startsWith(q)))) return true;
+      // Distinctive substring match (at least 5 chars)
+      if (q.length >= 5 && nameLower.includes(q)) return true;
+      return false;
+    });
+
+    if (direct) {
+      // If reference has a name (e.g. pickup is Sector 70), do not mistakenly map dropoff to pickup unless explicitly requested
+      const isSameAsReference = reference?.name && direct.name.toLowerCase() === reference.name.toLowerCase();
+      if (!isSameAsReference || q.length >= direct.name.length) {
+        return { name: direct.name, lat: direct.lat, lng: direct.lng };
+      }
+    }
+  }
+
+  // 4. Custom destination entered by user: retain user's exact destination label with distinct coordinates
   const baseLat = reference?.lat && reference.lat > 0 ? reference.lat : 30.704649;
   const baseLng = reference?.lng && reference.lng > 0 ? reference.lng : 76.717873;
   return {
-    name: query.trim(),
+    name: clean,
     lat: Number((baseLat + 0.024).toFixed(6)),
     lng: Number((baseLng + 0.024).toFixed(6)),
   };
@@ -492,17 +519,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   const handleManualDropoffChange = (text: string) => {
     setDropoffInputText(text);
-    setShowDropoffSuggestions(true);
     if (!text.trim()) {
       setDropoff({ name: '', lat: 0, lng: 0 });
       setDropoffSuggestions([]);
       return;
     }
-    // 1. Instant local matching
-    const instantMatches = getInstantMatchingSuggestions(text);
-    setDropoffSuggestions(instantMatches);
-
-    // 2. Immediately resolve coordinates so Marker B, route, and booking tabs update in 0ms!
+    // Immediately resolve coordinates so Marker B, route, and booking tabs update in 0ms!
     const resolved = resolveLocationFromText(text, pickup);
     setDropoff(resolved);
   };
@@ -510,12 +532,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const handleDropoffKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (dropoffSuggestions.length > 0) {
-        handleSelectDropoffSuggestion(dropoffSuggestions[0]);
-      } else if (dropoffInputText.trim()) {
+      if (dropoffInputText.trim()) {
         const resolved = resolveLocationFromText(dropoffInputText, pickup);
         setDropoff(resolved);
-        setShowDropoffSuggestions(false);
       }
     }
   };
@@ -2121,7 +2140,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       value={dropoffInputText}
                       onChange={(e) => handleManualDropoffChange(e.target.value)}
                       onKeyDown={handleDropoffKeyDown}
-                      onFocus={() => setShowDropoffSuggestions(true)}
                       placeholder="Type custom drop-off destination or landmark..."
                       className="w-full pl-9 pr-24 py-2.5 rounded-xl bg-slate-50 border border-black text-xs text-black placeholder-slate-500 font-semibold focus:outline-none focus:ring-2 focus:ring-black shadow-xs"
                     />
@@ -2153,36 +2171,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       ) : null}
                     </div>
                   </div>
-
-                  {/* Suggestions Popover */}
-                  {showDropoffSuggestions && dropoffSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-white border border-black rounded-xl shadow-2xl overflow-hidden max-h-52 overflow-y-auto">
-                      <div className="px-2.5 py-1.5 text-[10px] uppercase font-bold text-slate-700 bg-slate-100 border-b border-black flex items-center justify-between">
-                        <span>Matching Places</span>
-                        <span className="text-emerald-700 font-bold">Tap to select & view on map</span>
-                      </div>
-                      {dropoffSuggestions.map((item, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleSelectDropoffSuggestion(item);
-                          }}
-                          onClick={() => handleSelectDropoffSuggestion(item)}
-                          className="w-full px-3 py-2 text-left text-xs text-slate-800 hover:bg-emerald-50 hover:text-black flex items-center justify-between gap-2 border-b border-slate-100 last:border-0 transition-colors cursor-pointer group"
-                        >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            <Navigation className="w-3.5 h-3.5 text-black shrink-0 group-hover:text-emerald-700 transition-colors" />
-                            <span className="truncate font-semibold text-slate-900">{item.name}</span>
-                          </div>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white text-slate-600 shrink-0 transition-colors">
-                            Select
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )}
             </div>

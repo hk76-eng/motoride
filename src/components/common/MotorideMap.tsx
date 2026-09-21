@@ -238,7 +238,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   };
 
   const createDropoffIcon = (destinationName?: string, distanceText?: string) => {
-    const rawName = destinationName && destinationName.trim() ? destinationName.trim() : 'DROPOFF';
+    const rawName = destinationName && destinationName.trim() ? destinationName.trim() : 'Destination (B)';
     const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
     const displayName = shortName.length > 22 ? `${shortName.slice(0, 20)}…` : shortName;
 
@@ -600,6 +600,18 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       bounds.push([pickupLat, pickupLng]);
       const aIcon = createPickupIcon(pickupAddress || undefined, pickupDistanceText);
 
+      const pickupPopupHtml = `
+        <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 180px; color: #000000; padding: 2px;">
+          <div style="font-weight: 900; color: #059669; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
+            <span>🟢 Pickup Location (A)${pickupDistanceText ? ` • ${pickupDistanceText}` : ''}</span>
+          </div>
+          <div style="color: #0f172a; font-size: 12px; font-weight: 700;">
+            ${pickupAddress || 'Selected Pickup Point'}
+          </div>
+          ${distToPickupMeters !== null ? `<div style="color: #64748b; font-size: 11px; margin-top: 4px; font-weight: 500;">Passenger standing <b>${distToPickupMeters}m</b> away</div>` : ''}
+        </div>
+      `;
+
       if (!pickupMarkerRef.current || !map.hasLayer(pickupMarkerRef.current)) {
         if (pickupMarkerRef.current) {
           try {
@@ -611,20 +623,14 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           zIndexOffset: 2000,
         })
           .addTo(map)
-          .bindPopup(`
-            <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 175px; color: #000000;">
-              <div style="font-weight: 900; color: #059669; display: flex; align-items: center; gap: 6px; font-size: 13px;">
-                <span>🟢 Pickup Location (A)${pickupDistanceText ? ` • ${pickupDistanceText}` : ''}</span>
-              </div>
-              <div style="color: #1e293b; font-size: 11px; margin-top: 5px; font-weight: 600;">
-                ${pickupAddress || 'Selected Pickup Point'}<br/>
-                ${distToPickupMeters !== null ? `<span style="color: #64748b; font-weight: 500;">Passenger standing <b>${distToPickupMeters}m</b> away</span>` : ''}
-              </div>
-            </div>
-          `);
+          .bindPopup(pickupPopupHtml);
+        pickupMarkerRef.current.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+        });
       } else {
         pickupMarkerRef.current.setLatLng([pickupLat, pickupLng]);
         pickupMarkerRef.current.setIcon(aIcon);
+        pickupMarkerRef.current.setPopupContent(pickupPopupHtml);
       }
     } else if (pickupMarkerRef.current) {
       map.removeLayer(pickupMarkerRef.current);
@@ -653,10 +659,22 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       passengerToPickupLineRef.current = null;
     }
 
-    // 3. Dropoff Marker (Location B - Only shown when dropoff location is selected)
+    // 3. Dropoff Marker (Location B - Destination)
     if (hasDropoff && dropoffLat && dropoffLng) {
       bounds.push([dropoffLat, dropoffLng]);
       const bIcon = createDropoffIcon(dropoffAddress || undefined, dropoffDistanceText);
+
+      const dropoffPopupHtml = `
+        <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 180px; color: #000000; padding: 2px;">
+          <div style="font-weight: 900; color: #e11d48; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
+            <span>🔴 Destination Location (B)${dropoffDistanceText ? ` • ${dropoffDistanceText}` : ''}</span>
+          </div>
+          <div style="color: #0f172a; font-size: 12px; font-weight: 700;">
+            ${dropoffAddress || 'Selected Destination'}
+          </div>
+          ${rideDistanceText ? `<div style="color: #64748b; font-size: 11px; margin-top: 4px; font-weight: 500;">Trip distance: <b>${rideDistanceText}</b></div>` : ''}
+        </div>
+      `;
 
       if (!dropoffMarkerRef.current || !map.hasLayer(dropoffMarkerRef.current)) {
         if (dropoffMarkerRef.current) {
@@ -666,13 +684,18 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         }
         dropoffMarkerRef.current = L.marker([dropoffLat, dropoffLng], {
           icon: bIcon,
-          zIndexOffset: 1500,
+          zIndexOffset: 2500,
         })
           .addTo(map)
-          .bindPopup(`<b>Destination (B):${dropoffDistanceText ? ` (${dropoffDistanceText})` : ''}</b><br/>${dropoffAddress || 'Selected Point'}`);
+          .bindPopup(dropoffPopupHtml);
+        dropoffMarkerRef.current.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+        });
       } else {
         dropoffMarkerRef.current.setLatLng([dropoffLat, dropoffLng]);
         dropoffMarkerRef.current.setIcon(bIcon);
+        dropoffMarkerRef.current.setZIndexOffset(2500);
+        dropoffMarkerRef.current.setPopupContent(dropoffPopupHtml);
       }
     } else if (dropoffMarkerRef.current) {
       map.removeLayer(dropoffMarkerRef.current);

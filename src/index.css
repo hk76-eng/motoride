@@ -31,10 +31,17 @@
   pointer-events: auto !important;
 }
 
-.custom-pin-icon,
-.marker-pin-a,
+.custom-pin-icon {
+  overflow: visible !important;
+  pointer-events: auto !important;
+}
+
+.marker-pin-a {
+  z-index: 2000 !important;
+}
+
 .marker-pin-b {
-  z-index: 1200 !important;
+  z-index: 2500 !important;
 }
 
 .passenger-gps-marker {
