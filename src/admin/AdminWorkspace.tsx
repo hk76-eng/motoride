@@ -113,7 +113,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   onSignOut,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'captains' | 'passengers' | 'rides' | 'fare' | 'ride_charges' | 'courier_charges' | 'qr' | 'supabase'
+    'overview' | 'captains' | 'passengers' | 'rides' | 'ride_charges' | 'courier_charges' | 'qr' | 'supabase'
   >('overview');
 
   const [stats, setStats] = useState<AdminDashboardStats>({
@@ -169,7 +169,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   });
 
   const [copiedSql, setCopiedSql] = useState(false);
-  const [fareSaveStatus, setFareSaveStatus] = useState<string | null>(null);
   const [qrSaveStatus, setQrSaveStatus] = useState<string | null>(null);
   const [rideFilter, setRideFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -681,36 +680,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     }
   };
 
-  const handleSaveFare = async () => {
-    try {
-      const payload: FareSettings = {
-        ...DEFAULT_ADMIN_FARE_SETTINGS,
-        ...fareSettings,
-        ride_charges: {
-          ...DEFAULT_RIDE_CHARGES,
-          ...(fareSettings.ride_charges || {}),
-        },
-        courier_charges: {
-          ...DEFAULT_COURIER_CHARGES,
-          ...(fareSettings.courier_charges || {}),
-        },
-      };
-      const updated = await motorideApi.updateFareSettings(payload);
-      if (updated) {
-        setFareSettings({
-          ...DEFAULT_ADMIN_FARE_SETTINGS,
-          ...updated,
-          ride_charges: { ...DEFAULT_RIDE_CHARGES, ...(updated.ride_charges || {}) },
-          courier_charges: { ...DEFAULT_COURIER_CHARGES, ...(updated.courier_charges || {}) },
-        });
-      }
-      setFareSaveStatus('Global Fare & Commission Rules saved permanently! Locked to admin configuration.');
-      setTimeout(() => setFareSaveStatus(null), 4000);
-    } catch (err: any) {
-      alert(err.message || 'Failed to save');
-    }
-  };
-
   const handleSaveRideCharges = async () => {
     try {
       const currentRide: RideChargeSettings = {
@@ -899,7 +868,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           { key: 'rides', label: `Live Rides (${rides.length})`, icon: Bike },
           { key: 'captains', label: `Captains (${captains.length})`, icon: Users },
           { key: 'passengers', label: `Passengers (${passengers.length})`, icon: Users },
-          { key: 'fare', label: 'Fare & Commission', icon: Settings },
           { key: 'ride_charges', label: 'Ride Charges / KM', icon: Bike },
           { key: 'courier_charges', label: 'Courier Charges / KM', icon: Settings },
           { key: 'qr', label: 'Official QR Code', icon: QrCode },
@@ -1107,6 +1075,39 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                       {f.label}
                     </button>
                   ))}
+                </div>
+
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-950 rounded-xl border border-slate-800">
+                  <span className="text-[11px] font-bold text-slate-300">Require Approval:</span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const updatedVal = !fareSettings.require_admin_approval_for_rides;
+                      const nextSettings = {
+                        ...fareSettings,
+                        require_admin_approval_for_rides: updatedVal,
+                      };
+                      setFareSettings(nextSettings);
+                      try {
+                        await motorideApi.updateFareSettings(nextSettings);
+                        showToast(
+                          updatedVal
+                            ? 'Admin approval is now REQUIRED for new captains to receive ride requests.'
+                            : 'Admin approval requirement turned OFF. All captains can receive ride requests immediately.'
+                        );
+                      } catch {}
+                    }}
+                    className={`w-10 h-5 flex items-center rounded-full p-0.5 transition-colors cursor-pointer ${
+                      fareSettings.require_admin_approval_for_rides ? 'bg-indigo-600' : 'bg-slate-700'
+                    }`}
+                    title="Toggle whether captains require admin approval before receiving rides"
+                  >
+                    <div
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                        fareSettings.require_admin_approval_for_rides ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
                 </div>
 
                 <div className="relative">
@@ -1685,155 +1686,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               ))
             )}
           </div>
-        </div>
-      )}
-
-      {/* VIEW 5: FARE SETTINGS */}
-      {activeTab === 'fare' && (
-        <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-4 shadow-xl max-w-2xl">
-          <div>
-            <h2 className="text-base font-extrabold text-white">Global Fare & Commission Rules</h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              These settings drive passenger fare estimates, captain commission deductions, and
-              bidding constraints across the platform in real time.
-            </p>
-          </div>
-
-          {fareSaveStatus && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
-              {fareSaveStatus}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-400 block mb-1">
-                Base Unlock Fare (₹)
-              </label>
-              <input
-                type="number"
-                placeholder="Set Base Unlock Fare (₹)"
-                value={fareSettings.ride_charges?.base_fare ?? fareSettings.base_fare ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
-                  setFareSettings({
-                    ...fareSettings,
-                    base_fare: val,
-                    ride_charges: {
-                      ...(fareSettings.ride_charges || {}),
-                      base_fare: val,
-                    },
-                  });
-                }}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-400 block mb-1">
-                Per-KM Rate (₹ / km)
-              </label>
-              <input
-                type="number"
-                placeholder="Set Per-KM Rate (₹/km)"
-                value={fareSettings.ride_charges?.per_km_rate ?? fareSettings.per_km_rate ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
-                  setFareSettings({
-                    ...fareSettings,
-                    per_km_rate: val,
-                    ride_charges: {
-                      ...(fareSettings.ride_charges || {}),
-                      per_km_rate: val,
-                    },
-                  });
-                }}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-400 block mb-1">
-                Minimum Fare Floor (₹)
-              </label>
-              <input
-                type="number"
-                placeholder="Set Minimum Fare (₹)"
-                value={fareSettings.ride_charges?.minimum_fare ?? fareSettings.minimum_fare ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
-                  setFareSettings({
-                    ...fareSettings,
-                    minimum_fare: val,
-                    ride_charges: {
-                      ...(fareSettings.ride_charges || {}),
-                      minimum_fare: val,
-                    },
-                  });
-                }}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-400 block mb-1">
-                Platform Commission Fee (%)
-              </label>
-              <input
-                type="number"
-                placeholder="Set Commission %"
-                value={fareSettings.ride_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
-                  setFareSettings({
-                    ...fareSettings,
-                    platform_commission_pct: val,
-                    ride_charges: {
-                      ...(fareSettings.ride_charges || {}),
-                      platform_commission_pct: val,
-                    },
-                  });
-                }}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-emerald-400 font-bold"
-              />
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-            <div>
-              <h3 className="text-xs font-bold text-white">Require Admin Approval for Captain Ride Requests</h3>
-              <p className="text-[11px] text-slate-400">
-                When enabled, new captain accounts must be approved by admin before receiving passenger ride requests.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                setFareSettings({
-                  ...fareSettings,
-                  require_admin_approval_for_rides: !fareSettings.require_admin_approval_for_rides,
-                })
-              }
-              className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
-                fareSettings.require_admin_approval_for_rides ? 'bg-indigo-600' : 'bg-slate-700'
-              }`}
-            >
-              <div
-                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                  fareSettings.require_admin_approval_for_rides ? 'translate-x-6' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSaveFare}
-            className="mt-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            <span>Save & Broadcast Fare Settings</span>
-          </button>
         </div>
       )}
 
