@@ -2469,58 +2469,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               )}
             </div>
 
-            {/* Destination Location (B) Confirmation & Live Fare Calculation Card */}
-            {(dropoff.name || dropoffInputText) && (
-              <div className="p-3 sm:p-3.5 rounded-2xl bg-white border-2 border-rose-500 shadow-sm flex flex-col gap-2 transition-all animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[11px] font-black shrink-0 shadow-xs">
-                      B
-                    </span>
-                    <span className="text-[11px] font-black text-rose-700 uppercase tracking-wide truncate">
-                      Destination Location (B)
-                    </span>
-                  </div>
-                  {dropoff.lat > 0 && (
-                    <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                      On Map
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between gap-3 pl-7">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs sm:text-sm font-black text-slate-900 truncate leading-snug">
-                      {dropoff.name || dropoffInputText}
-                    </p>
-                    {pickup.name && (
-                      <p className="text-[11px] font-semibold text-slate-500 truncate mt-0.5">
-                        From: <span className="text-slate-800">{pickup.name}</span>
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Calculated Metric Pills */}
-                  {hasSelectedLocations && (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="text-right">
-                        <div className="text-[10px] font-bold text-slate-400 leading-none">Standard Fare</div>
-                        <div className="text-sm sm:text-base font-black font-mono-num text-emerald-700 leading-tight">
-                          ₹{estimatedFare}
-                        </div>
-                      </div>
-                      <div className="h-7 w-[1px] bg-slate-200"></div>
-                      <div className="text-right">
-                        <div className="text-[10px] font-bold text-slate-400 leading-none">{distanceKm} km</div>
-                        <div className="text-[11px] font-bold text-slate-600 leading-tight">~{durationMin}m</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Fare & Payment Control Card */}
             <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-black flex flex-col gap-3 shadow-xs">
               {/* Fare Stepper: (-) Fare ₹ 0 (+) comment box icon */}

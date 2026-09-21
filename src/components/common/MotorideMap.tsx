@@ -669,7 +669,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       const dropoffPopupHtml = `
         <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 180px; color: #000000; padding: 2px;">
           <div style="font-weight: 900; color: #e11d48; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
-            <span>🔴 Destination Location (B)${dropoffDistanceText ? ` • ${dropoffDistanceText}` : ''}</span>
+            <span>🔴 From (B)${dropoffDistanceText ? ` • ${dropoffDistanceText}` : ''}</span>
           </div>
           <div style="color: #0f172a; font-size: 12px; font-weight: 700;">
             ${dropoffAddress || 'Selected Destination'}
