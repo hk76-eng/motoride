@@ -2054,55 +2054,40 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         ) : (
           /* Standard Ride Booking Form - Clean Borderless Modern Layout */
           <div className="bg-white rounded-3xl p-4 sm:p-5 flex flex-col gap-3.5 shadow-2xl text-black">
-            {/* Header with Motoride Booking Title and Dropdown Collapse Button */}
-            <div className="flex items-center justify-between pb-1.5">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-black animate-pulse" />
-                <h2 className="text-sm sm:text-base font-black text-black tracking-tight">
-                  Motoride Booking
-                </h2>
-              </div>
-
-              {/* Dropdown Button */}
-              <button
-                type="button"
-                onClick={() => setIsCardMinimized(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black text-xs font-bold transition-all active:scale-95 cursor-pointer group shadow-xs"
-                title="Drop down booking form to see full map"
-              >
-                <span>Drop Down</span>
-                <ChevronDown className="w-4 h-4 text-black group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
-              </button>
+            {/* Top Pull Down / Minimize Handle Bar */}
+            <div
+              onClick={() => setIsCardMinimized(true)}
+              className="w-full -mt-1 py-1 flex items-center justify-center cursor-pointer group select-none"
+              title="Minimize booking form to see full map"
+            >
+              <div className="w-12 h-1.5 rounded-full bg-slate-200 group-hover:bg-slate-400 transition-colors" />
             </div>
 
             {/* Service / Ride Type Selector - Show on Top of Booking Page */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-black text-black tracking-wider">Choose Service</label>
-              <div className="grid grid-cols-2 gap-2 bg-slate-100 p-2 rounded-2xl">
-                {[
-                  { type: 'bike' as RideTypeCode, label: 'Bike', icon: Bike },
-                  { type: 'courier' as RideTypeCode, label: 'Courier', icon: Package },
-                ].map((s) => {
-                  const Icon = s.icon;
-                  const isSelected = rideType === s.type;
-                  return (
-                    <button
-                      key={s.type}
-                      type="button"
-                      onClick={() => setRideType(s.type)}
-                      className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
-                        isSelected
-                          ? 'bg-black text-white ring-2 ring-emerald-400 shadow-lg scale-105'
-                          : 'bg-black/90 text-white hover:bg-black'
-                      }`}
-                      title={s.label}
-                    >
-                      <Icon className="w-6 h-6 text-white stroke-[2.5]" />
-                      <span className="text-[11px] font-bold text-white mt-1">{s.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+            <div className="grid grid-cols-2 gap-2 bg-slate-100 p-2 rounded-2xl">
+              {[
+                { type: 'bike' as RideTypeCode, label: 'Bike', icon: Bike },
+                { type: 'courier' as RideTypeCode, label: 'Courier', icon: Package },
+              ].map((s) => {
+                const Icon = s.icon;
+                const isSelected = rideType === s.type;
+                return (
+                  <button
+                    key={s.type}
+                    type="button"
+                    onClick={() => setRideType(s.type)}
+                    className={`flex flex-col items-center justify-center py-3 px-2 rounded-xl transition-all cursor-pointer active:scale-95 ${
+                      isSelected
+                        ? 'bg-black text-white ring-2 ring-emerald-400 shadow-lg scale-105'
+                        : 'bg-black/90 text-white hover:bg-black'
+                    }`}
+                    title={s.label}
+                  >
+                    <Icon className="w-6 h-6 text-white stroke-[2.5]" />
+                    <span className="text-[11px] font-bold text-white mt-1">{s.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Location Permission Denied / Error Banner */}
