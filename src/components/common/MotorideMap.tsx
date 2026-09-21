@@ -169,19 +169,19 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   };
 
   // Custom DivIcon for Passenger Standing Location with the User's uploaded Rise-Hand Hailing Silhouette Icon
-  const createPassengerIcon = (label: string = 'Standing Here (GPS)', isPickupHere: boolean = false) =>
+  const createPassengerIcon = (label: string = 'Going From?', isPickupHere: boolean = false) =>
     L.divIcon({
       className: 'passenger-standing-marker',
       html: `
-        <div style="position: relative; width: 84px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; user-select: none; pointer-events: auto; cursor: pointer;" title="${isPickupHere ? 'Pickup Location (A) is set here' : 'One click to set as Pickup Location (A)'}">
+        <div style="position: relative; width: 96px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; user-select: none; pointer-events: auto; cursor: pointer;" title="${isPickupHere ? 'Pickup Location (A) is set here' : 'Going From? - Click to set Pickup Location (A)'}">
           <!-- GPS Radar Ripple Pulse Rings -->
           <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: ${isPickupHere ? '68px' : '60px'}; height: ${isPickupHere ? '68px' : '60px'}; border-radius: 50%; background: ${isPickupHere ? 'rgba(16, 185, 129, 0.28)' : 'rgba(0, 0, 0, 0.14)'}; animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
           <div style="position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; border-radius: 50%; background: rgba(16, 185, 129, 0.22); pointer-events: none;"></div>
 
-          <!-- Top Floating Label: Standing Here or Tap to set Pickup -->
-          <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: ${isPickupHere ? '#022c22' : '#000000'}; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 800; padding: 2.5px 9px; border-radius: 9999px; border: 1.5px solid ${isPickupHere ? '#10b981' : '#ffffff'}; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.6); pointer-events: none; letter-spacing: 0.3px; z-index: 30; display: flex; align-items: center; gap: 4px;">
+          <!-- Top Floating Label: Going From? -->
+          <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: ${isPickupHere ? '#022c22' : '#000000'}; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 9999px; border: 1.5px solid ${isPickupHere ? '#10b981' : '#ffffff'}; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.6); pointer-events: none; letter-spacing: 0.3px; z-index: 30; display: flex; align-items: center; gap: 4px;">
             <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block; box-shadow: 0 0 6px #10b981;"></span>
-            <span>${label || 'Standing Here'}</span>
+            <span>${label || 'Going From?'}</span>
           </div>
 
           <!-- Standing Passenger Pin Circle Badge with Crisp White Background & Solid Black/Emerald Border -->
@@ -200,8 +200,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           <div style="width: 6px; height: 6px; border-radius: 50%; background: ${isPickupHere ? '#10b981' : '#000000'}; margin-top: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.6); z-index: 10;"></div>
         </div>
       `,
-      iconSize: [84, 80],
-      iconAnchor: [42, 76],
+      iconSize: [96, 80],
+      iconAnchor: [48, 76],
       popupAnchor: [0, -76],
     });
 
@@ -526,10 +526,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     if (shouldShowPassengerStanding && passengerLat && passengerLng) {
       bounds.push([passengerLat, passengerLng]);
       const labelText = isPickupAtPassenger
-        ? 'A • PICKUP (Current Position)'
-        : hasPickup
-        ? (passengerName === 'My Location' || passengerName === 'Standing Here' ? '🧍 You (Tap for A)' : `${passengerName} (Tap for A)`)
-        : '📍 Tap to set Pickup';
+        ? 'A • Going From Here'
+        : 'Going From?';
       const pIcon = createPassengerIcon(labelText, isPickupAtPassenger);
 
       if (!passengerMarkerRef.current || !map.hasLayer(passengerMarkerRef.current)) {
