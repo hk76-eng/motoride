@@ -825,32 +825,102 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
   }
 
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`;
+    // Search with priority for Tricity / India coordinates (bounding box around Mohali/Chandigarh/Panchkula)
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' Chandigarh')}&limit=6&addressdetails=1&countrycodes=in&viewbox=76.4,30.4,77.2,30.9`;
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'MotorideRideApp/2.0 (contact@motoride.app)',
         'Accept': 'application/json',
       },
-      signal: AbortSignal.timeout(1500),
+      signal: AbortSignal.timeout(1800),
     });
 
     const text = await response.text();
     if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
       const parsed = JSON.parse(text);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        const results = parsed.map((item: any) => ({
-          name: item.display_name.split(',').slice(0, 3).join(', ').trim(),
-          lat: parseFloat(item.lat),
-          lng: parseFloat(item.lon),
-        }));
+        const results = parsed
+          .map((item: any) => ({
+            name: item.display_name.split(',').slice(0, 3).join(', ').trim(),
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lon),
+          }))
+          .filter(r => r.lat >= 30.2 && r.lat <= 31.2 && r.lng >= 76.2 && r.lng <= 77.4); // Filter to Tricity region
+
         // Merge matched local presets at the top if any
         const combined = [...matched, ...results.filter(r => !matched.some(m => m.name === r.name))];
-        return res.json({ success: true, results: combined.slice(0, 6) });
+        if (combined.length > 0) {
+          return res.json({ success: true, results: combined.slice(0, 6) });
+        }
       }
     }
   } catch {}
 
   res.json({ success: true, results: matched });
+});
+
+// Driving Road Route Distance & Duration Endpoint using OSRM with calibrated urban grid fallback
+motorideRouter.get('/route/distance', async (req: Request, res: Response) => {
+  const originLat = parseFloat(req.query.originLat as string);
+  const originLng = parseFloat(req.query.originLng as string);
+  const destLat = parseFloat(req.query.destLat as string);
+  const destLng = parseFloat(req.query.destLng as string);
+
+  if (
+    isNaN(originLat) || isNaN(originLng) || isNaN(destLat) || isNaN(destLng) ||
+    (originLat === 0 && originLng === 0) || (destLat === 0 && destLng === 0)
+  ) {
+    return res.json({ success: false, error: 'Invalid coordinates' });
+  }
+
+  // Base spherical distance
+  const toRad = (angle: number) => (angle * Math.PI) / 180;
+  const dLat = toRad(destLat - originLat);
+  const dLon = toRad(destLng - originLng);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(originLat)) * Math.cos(toRad(destLat)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const straightLineKm = 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+
+  // Identical coordinates
+  if (straightLineKm <= 0.05) {
+    return res.json({ success: true, distance_km: 0, duration_min: 0, source: 'identical' });
+  }
+
+  // Calibrated urban road detour factor (accounts for sector turns, roundabouts, and arterial roads)
+  const detourFactor = straightLineKm < 3.5 ? 1.62 : straightLineKm < 9.0 ? 1.42 : 1.32;
+  const fallbackKm = Number(Math.max(1.0, straightLineKm * detourFactor).toFixed(1));
+  const fallbackDurationMin = Math.max(2, Math.round(fallbackKm * 2.5 + 3));
+
+  try {
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=false`;
+    const response = await fetch(osrmUrl, {
+      headers: { 'User-Agent': 'MotorideApp/2.0' },
+      signal: AbortSignal.timeout(2000),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.code === 'Ok' && Array.isArray(data.routes) && data.routes.length > 0) {
+        const route = data.routes[0];
+        const distKm = Number((route.distance / 1000).toFixed(1));
+        const durMin = Math.max(1, Math.round(route.duration / 60));
+        return res.json({
+          success: true,
+          distance_km: distKm,
+          duration_min: durMin,
+          source: 'osrm',
+        });
+      }
+    }
+  } catch {}
+
+  return res.json({
+    success: true,
+    distance_km: fallbackKm,
+    duration_min: fallbackDurationMin,
+    source: 'calibrated_road_grid',
+  });
 });
 
 // Proxy Reverse Geocode

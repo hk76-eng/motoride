@@ -11,7 +11,7 @@ import { PassengerProfileDrawer } from './PassengerProfileDrawer';
 import { DigitalWatchETA } from './DigitalWatchETA';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
-import { calculateBearingDegrees } from '../utils/distanceCalculator';
+import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
 import { safeStorage } from '../lib/safeStorage';
 import {
   MapPin,
@@ -67,9 +67,10 @@ interface PassengerWorkspaceProps {
 const PRESET_LOCATIONS = [
   { name: 'Sector 70, Mohali Market', lat: 30.704649, lng: 76.717873 },
   { name: 'Phase 8B, Industrial & Tech Park', lat: 30.718214, lng: 76.732124 },
-  { name: 'Chandigarh Railway Station', lat: 30.702214, lng: 76.788124 },
+  { name: 'Chandigarh Railway Station', lat: 30.704123, lng: 76.828456 },
   { name: 'ISBT Sector 43 Bus Stand', lat: 30.722514, lng: 76.745124 },
   { name: 'Elante Mall, Phase 1', lat: 30.705514, lng: 76.801124 },
+  { name: 'Shaheed Bhagat Singh Int. Airport Mohali', lat: 30.673523, lng: 76.788544 },
   { name: 'Aroma Chowk, Sector 22', lat: 30.731514, lng: 76.772124 },
   { name: 'Sukhna Lake Promenade', lat: 30.742514, lng: 76.815124 },
   { name: 'IT Park Cyber City', lat: 30.725514, lng: 76.840124 },
@@ -101,7 +102,7 @@ const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: numb
   { name: 'Aroma Chowk, Sector 22', aliases: ['aroma', 'sector 22', '22 chandigarh', 'aroma chowk', 'kisan bhawan'], lat: 30.731514, lng: 76.772124 },
   { name: 'ISBT Sector 43 Bus Stand', aliases: ['isbt 43', 'sector 43', '43 bus stand', 'isbt chandigarh'], lat: 30.722514, lng: 76.745124 },
   { name: 'Elante Mall, Phase 1', aliases: ['elante', 'elante mall', 'industrial area phase 1'], lat: 30.705514, lng: 76.801124 },
-  { name: 'Chandigarh Railway Station', aliases: ['railway station', 'chandigarh junction', 'cdg station', 'daria'], lat: 30.702214, lng: 76.788124 },
+  { name: 'Chandigarh Railway Station', aliases: ['railway station', 'chandigarh junction', 'cdg station', 'daria'], lat: 30.704123, lng: 76.828456 },
   { name: 'Sukhna Lake Promenade', aliases: ['sukhna lake', 'lake', 'sukhna', 'promenade'], lat: 30.742514, lng: 76.815124 },
   { name: 'Rock Garden of Chandigarh', aliases: ['rock garden', 'nek chand'], lat: 30.752514, lng: 76.807124 },
   { name: 'Rose Garden, Sector 16', aliases: ['rose garden', 'sector 16', '16 chandigarh'], lat: 30.746514, lng: 76.784124 },
@@ -690,28 +691,25 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [reviewText, setReviewText] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
-  // Calculate distance in KM using Haversine formula
+  // Real Driving Road Route Distance & Duration State
+  const [routeDistanceInfo, setRouteDistanceInfo] = useState<{
+    distanceKm: number;
+    durationMin: number;
+    isRoadAccurate: boolean;
+  } | null>(null);
+
+  // General coordinate distance helper using calibrated road network geometry
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // km
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return Number((R * c).toFixed(1));
+    return calculateRoadDistanceKm(lat1, lon1, lat2, lon2);
   };
 
   const activePickupLat = pickup.lat || passengerGps.lat || 30.704649;
   const activePickupLng = pickup.lng || passengerGps.lng || 76.717873;
-  const activePickupName = pickup.name?.trim() || 'Sector 70, Mohali Market';
+  const activePickupName = pickup.name?.trim() || (pickupMode === 'manual' ? pickupInputText.trim() : 'Sector 70, Mohali Market');
 
   const activeDropoffLat = dropoff.lat;
   const activeDropoffLng = dropoff.lng;
-  const activeDropoffName = dropoff.name?.trim() || dropoffInputText?.trim();
+  const activeDropoffName = dropoff.name?.trim() || (dropoffMode === 'manual' ? dropoffInputText.trim() : '');
 
   const hasSelectedLocations = Boolean(
     activePickupName &&
@@ -720,10 +718,46 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     activeDropoffLat
   );
 
-  const distanceKm = hasSelectedLocations
-    ? Math.max(1.0, calculateDistance(activePickupLat, activePickupLng, activeDropoffLat, activeDropoffLng))
+  // Immediate calibrated urban road distance calculation for 0ms initial render
+  const instantRoadDistance = hasSelectedLocations
+    ? calculateRoadDistanceKm(activePickupLat, activePickupLng, activeDropoffLat, activeDropoffLng)
     : 0;
-  const durationMin = hasSelectedLocations ? Math.round(distanceKm * 2.8 + 4) : 0;
+  const instantDurationMin = hasSelectedLocations
+    ? Math.max(3, Math.round(instantRoadDistance * 2.4 + 3))
+    : 0;
+
+  // Real driving road distance (refined to exact OSRM driving distance when fetched)
+  const distanceKm = hasSelectedLocations
+    ? (routeDistanceInfo?.distanceKm ?? instantRoadDistance)
+    : 0;
+  const durationMin = hasSelectedLocations
+    ? (routeDistanceInfo?.durationMin ?? instantDurationMin)
+    : 0;
+
+  // Fetch real road driving route distance & duration from routing service
+  useEffect(() => {
+    if (!hasSelectedLocations || !activePickupLat || !activeDropoffLat) {
+      setRouteDistanceInfo(null);
+      return;
+    }
+
+    let isCancelled = false;
+    const immediateKm = calculateRoadDistanceKm(activePickupLat, activePickupLng, activeDropoffLat, activeDropoffLng);
+    const immediateMin = Math.max(3, Math.round(immediateKm * 2.4 + 3));
+    setRouteDistanceInfo({ distanceKm: immediateKm, durationMin: immediateMin, isRoadAccurate: false });
+
+    fetchRouteRoadDistance(activePickupLat, activePickupLng, activeDropoffLat, activeDropoffLng)
+      .then((res) => {
+        if (!isCancelled && res.distanceKm > 0) {
+          setRouteDistanceInfo(res);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activePickupLat, activePickupLng, activeDropoffLat, activeDropoffLng, hasSelectedLocations]);
 
   // Dedicated separate pricing by service type (Ride vs Courier)
   const rideConfig = fareSettings.ride_charges || DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges || {};
@@ -1444,6 +1478,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         dropoffLat={currentDropoffLat}
         dropoffLng={currentDropoffLng}
         dropoffAddress={currentDropoffAddress}
+        rideDistanceText={distanceKm > 0 ? `${distanceKm} km (~${durationMin} min)` : undefined}
         captainLat={currentCaptainLat}
         captainLng={currentCaptainLng}
         captainHeading={currentCaptainHeading}

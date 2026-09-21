@@ -76,6 +76,71 @@ export function calculateHaversineDistanceKm(
 }
 
 /**
+ * Calculates realistic driving road distance in kilometers.
+ * In urban and semi-urban road networks (such as Chandigarh Tricity / Mohali),
+ * actual driving route distance is ~1.30x to 1.65x the straight-line Haversine displacement
+ * due to sector grids, roundabouts, U-turns, and arterial route alignment.
+ */
+export function calculateRoadDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+  const straightLine = calculateHaversineDistanceKm(lat1, lon1, lat2, lon2);
+  if (straightLine <= 0.05) return 0;
+
+  // Short city trips (<3.5 km) navigate sector internal roads & roundabouts (~1.6x factor)
+  // Medium trips (3.5 - 9 km) use main sector divide roads / Madhya/Himalaya Marg (~1.42x factor)
+  // Longer trips (>9 km) use arterial/highways like PR7, Airport Road (~1.32x factor)
+  const detourFactor = straightLine < 3.5 ? 1.62 : straightLine < 9.0 ? 1.42 : 1.32;
+  const roadKm = straightLine * detourFactor;
+  return Number(Math.max(1.0, roadKm).toFixed(1));
+}
+
+/**
+ * Fetches exact driving route distance and duration from backend / OSRM routing engine,
+ * with instantaneous calibrated road-network fallback.
+ */
+export async function fetchRouteRoadDistance(
+  originLat: number,
+  originLng: number,
+  destLat: number,
+  destLng: number
+): Promise<{ distanceKm: number; durationMin: number; isRoadAccurate: boolean }> {
+  const fallbackKm = calculateRoadDistanceKm(originLat, originLng, destLat, destLng);
+  const fallbackDuration = Math.max(3, Math.round(fallbackKm * 2.5 + 3));
+
+  if (!originLat || !originLng || !destLat || !destLng) {
+    return { distanceKm: 0, durationMin: 0, isRoadAccurate: false };
+  }
+
+  try {
+    const res = await fetch(
+      `/api/motoride/route/distance?originLat=${originLat}&originLng=${originLng}&destLat=${destLat}&destLng=${destLng}`,
+      { signal: AbortSignal.timeout(2200) }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && typeof data.distance_km === 'number' && data.distance_km > 0) {
+        return {
+          distanceKm: Number(data.distance_km.toFixed(1)),
+          durationMin: Math.max(1, Number(data.duration_min || Math.round(data.distance_km * 2.5 + 3))),
+          isRoadAccurate: true,
+        };
+      }
+    }
+  } catch {}
+
+  return {
+    distanceKm: fallbackKm,
+    durationMin: fallbackDuration,
+    isRoadAccurate: false,
+  };
+}
+
+/**
  * Calculates initial bearing / heading angle in degrees (0-360) from point 1 to point 2
  */
 export function calculateBearingDegrees(

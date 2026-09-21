@@ -11,7 +11,7 @@ import { RideChatModal } from '../components/common/RideChatModal';
 import { CaptainPassengerRatingModal } from './CaptainPassengerRatingModal';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
-import { calculateBearingDegrees } from '../utils/distanceCalculator';
+import { calculateBearingDegrees, calculateRoadDistanceKm } from '../utils/distanceCalculator';
 import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
 import { safeStorage } from '../lib/safeStorage';
 import { CaptainProfileDrawer } from './CaptainProfileDrawer';
@@ -56,19 +56,9 @@ interface CaptainWorkspaceProps {
   onToggleOnline?: () => void;
 }
 
-// Haversine distance calculator for real-time proximity
+// Realistic road distance calculator for urban travel proximity
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  return calculateRoadDistanceKm(lat1, lon1, lat2, lon2);
 }
 
 // Service / Vehicle Badge Helper (Motobike, Auto, Cab, Courier)
