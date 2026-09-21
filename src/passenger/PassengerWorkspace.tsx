@@ -165,7 +165,7 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
     return loc.aliases.some((alias) => q.includes(alias) || alias.includes(q));
   });
   if (direct) {
-    return { name: query.trim(), lat: direct.lat, lng: direct.lng };
+    return { name: direct.name, lat: direct.lat, lng: direct.lng };
   }
 
   // 2. Sector number extraction (e.g. "sector 17", "sec 22", "phase 7")
@@ -175,7 +175,7 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
     const latOffset = ((secNum % 10) - 5) * 0.008;
     const lngOffset = (Math.floor(secNum / 10) - 2) * 0.012;
     return {
-      name: query.trim(),
+      name: `Sector ${secNum}, Chandigarh/Mohali`,
       lat: Number((30.7350 + latOffset).toFixed(6)),
       lng: Number((76.7750 + lngOffset).toFixed(6)),
     };
@@ -183,11 +183,16 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
 
   const phaseMatch = q.match(/(?:phase)\s*([0-9]{1,2}[a-z]?)/i);
   if (phaseMatch) {
-    const phaseStr = phaseMatch[1].toLowerCase();
-    const phaseKnown = KNOWN_LOCATIONS.find(l => l.aliases.some(a => a.includes(`phase ${phaseStr}`) || a === phaseStr));
+    const phaseStr = phaseMatch[1].toUpperCase();
+    const phaseKnown = KNOWN_LOCATIONS.find(l => l.aliases.some(a => a.includes(`phase ${phaseStr.toLowerCase()}`) || a === phaseStr.toLowerCase()));
     if (phaseKnown) {
-      return { name: query.trim(), lat: phaseKnown.lat, lng: phaseKnown.lng };
+      return { name: phaseKnown.name, lat: phaseKnown.lat, lng: phaseKnown.lng };
     }
+    return {
+      name: `Phase ${phaseStr}, Mohali`,
+      lat: 30.7100,
+      lng: 76.7200,
+    };
   }
 
   // 3. Fallback offset from reference point (e.g. pickup or default city center)
@@ -198,6 +203,44 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
     lat: Number((baseLat + 0.024).toFixed(6)),
     lng: Number((baseLng + 0.024).toFixed(6)),
   };
+};
+
+// Robust default fare settings guaranteeing instantaneous fare calculation
+const DEFAULT_PASSENGER_FARE_SETTINGS: FareSettings = {
+  currency_symbol: '₹',
+  base_fare: 25.0,
+  per_km_rate: 12.0,
+  minimum_fare: 30.0,
+  platform_commission_pct: 10.0,
+  min_offer_pct: 70.0,
+  max_offer_pct: 180.0,
+  updated_at: new Date().toISOString(),
+  ride_charges: {
+    base_fare: 25.0,
+    per_km_rate: 12.0,
+    minimum_fare: 30.0,
+    platform_commission_pct: 10.0,
+    min_offer_pct: 70.0,
+    max_offer_pct: 180.0,
+    night_surcharge_pct: 10.0,
+    auto_multiplier: 1.25,
+    car_multiplier: 1.8,
+    cancellation_fee: 20.0,
+    updated_at: new Date().toISOString(),
+  },
+  courier_charges: {
+    base_fare: 35.0,
+    per_km_rate: 14.0,
+    minimum_fare: 40.0,
+    platform_commission_pct: 12.0,
+    min_offer_pct: 70.0,
+    max_offer_pct: 180.0,
+    handling_fee: 10.0,
+    express_surcharge: 15.0,
+    max_weight_kg: 15.0,
+    cancellation_fee: 25.0,
+    updated_at: new Date().toISOString(),
+  },
 };
 
 export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
@@ -499,14 +542,41 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [fareSettings, setFareSettings] = useState<FareSettings>(() => {
     try {
       const saved = localStorage.getItem('motoride_admin_fare_settings');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.base_fare || parsed.ride_charges?.base_fare) {
+          return {
+            ...DEFAULT_PASSENGER_FARE_SETTINGS,
+            ...parsed,
+            ride_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges, ...(parsed.ride_charges || {}) },
+            courier_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.courier_charges, ...(parsed.courier_charges || {}) },
+          };
+        }
+      }
     } catch {}
-    return {
-      currency_symbol: '₹',
-      ride_charges: {},
-      courier_charges: {},
-    } as any;
+    return DEFAULT_PASSENGER_FARE_SETTINGS;
   });
+
+  // Fetch latest fare settings from server to keep perfectly synchronized
+  useEffect(() => {
+    fetch('/api/motoride/fare-settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.settings?.base_fare || data?.settings?.ride_charges?.base_fare) {
+          const merged = {
+            ...DEFAULT_PASSENGER_FARE_SETTINGS,
+            ...data.settings,
+            ride_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges, ...(data.settings.ride_charges || {}) },
+            courier_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.courier_charges, ...(data.settings.courier_charges || {}) },
+          };
+          setFareSettings(merged);
+          try {
+            localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(merged));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Trip Completed Rating State
   const [ratingScore, setRatingScore] = useState(5);
@@ -541,37 +611,41 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const durationMin = hasSelectedLocations ? Math.round(distanceKm * 2.8 + 4) : 0;
 
   // Dedicated separate pricing by service type (Ride vs Courier)
-  const rideConfig = fareSettings.ride_charges || {};
-  const courierConfig = fareSettings.courier_charges || {};
+  const rideConfig = fareSettings.ride_charges || DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges || {};
+  const courierConfig = fareSettings.courier_charges || DEFAULT_PASSENGER_FARE_SETTINGS.courier_charges || {};
 
   let estimatedFare = 0;
   if (hasSelectedLocations) {
     const cc = courierConfig as any;
     const rc = rideConfig as any;
+    const effectiveKm = Math.max(1.0, distanceKm || 1.0);
     if (rideType === 'courier') {
-      const base = (cc.base_fare ?? fareSettings.base_fare ?? 0) + (cc.handling_fee ?? 0);
-      const rate = cc.per_km_rate ?? fareSettings.per_km_rate ?? 0;
-      const minFare = cc.minimum_fare ?? fareSettings.minimum_fare ?? 0;
-      const running = distanceKm * rate;
-      estimatedFare = Math.max(minFare, Math.round(base + running));
+      const base = Number(cc.base_fare ?? fareSettings.base_fare ?? 35);
+      const handling = Number(cc.handling_fee ?? 10);
+      const rate = Number(cc.per_km_rate ?? fareSettings.per_km_rate ?? 14);
+      const minFare = Number(cc.minimum_fare ?? fareSettings.minimum_fare ?? 40);
+      const running = effectiveKm * rate;
+      estimatedFare = Math.max(minFare, Math.round(base + handling + running));
     } else {
       const multiplier =
         rideType === 'auto'
-          ? (rc.auto_multiplier || 1.25)
+          ? Number(rc.auto_multiplier || 1.25)
           : rideType === 'car'
-          ? (rc.car_multiplier || 1.8)
+          ? Number(rc.car_multiplier || 1.8)
           : 1.0;
-      const base = rc.base_fare ?? fareSettings.base_fare ?? 0;
-      const rate = rc.per_km_rate ?? fareSettings.per_km_rate ?? 0;
-      const minFare = rc.minimum_fare ?? fareSettings.minimum_fare ?? 0;
-      const running = distanceKm * rate;
-      estimatedFare = Math.max(minFare, Math.round((base + running) * multiplier));
+      const base = Number(rc.base_fare ?? fareSettings.base_fare ?? 25);
+      const rate = Number(rc.per_km_rate ?? fareSettings.per_km_rate ?? 12);
+      const minFare = Number(rc.minimum_fare ?? fareSettings.minimum_fare ?? 30);
+      const running = effectiveKm * rate;
+      estimatedFare = Math.max(Math.round(minFare * multiplier), Math.round((base + running) * multiplier));
     }
   }
 
   // Auto-align offered fare with estimated fare when endpoints/type change
   useEffect(() => {
-    setOfferedFare(estimatedFare);
+    if (estimatedFare > 0) {
+      setOfferedFare(estimatedFare);
+    }
   }, [estimatedFare]);
 
   // 5-second interval ticker for stale location detection (>30s)
@@ -1221,9 +1295,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const currentPickupLng = activeRide ? activeRide.pickup_lng : (pickup.name && pickup.lat ? pickup.lng : null);
     const currentPickupAddress = activeRide ? activeRide.pickup_address : (pickup.name && pickup.lat ? pickup.name : null);
 
-    const currentDropoffLat = activeRide ? activeRide.dropoff_lat : (dropoff.name && dropoff.lat ? dropoff.lat : null);
-    const currentDropoffLng = activeRide ? activeRide.dropoff_lng : (dropoff.name && dropoff.lat ? dropoff.lng : null);
-    const currentDropoffAddress = activeRide ? activeRide.dropoff_address : (dropoff.name && dropoff.lat ? dropoff.name : null);
+    const currentDropoffLat = activeRide ? activeRide.dropoff_lat : (dropoff.lat && dropoff.lat > 0 ? dropoff.lat : null);
+    const currentDropoffLng = activeRide ? activeRide.dropoff_lng : (dropoff.lng && dropoff.lng > 0 ? dropoff.lng : null);
+    const currentDropoffAddress = activeRide ? activeRide.dropoff_address : (dropoff.name || dropoffInputText.trim() || null);
 
     const currentCaptainLat = activeRide?.captain_id
       ? (animatedCaptainPos?.lat ?? activeRide.captain_current_lat ?? null)
@@ -2112,6 +2186,58 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Destination Location (B) Confirmation & Live Fare Calculation Card */}
+            {(dropoff.name || dropoffInputText) && (
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-white border-2 border-rose-500 shadow-sm flex flex-col gap-2 transition-all animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-5 h-5 rounded-full bg-rose-600 text-white flex items-center justify-center text-[11px] font-black shrink-0 shadow-xs">
+                      B
+                    </span>
+                    <span className="text-[11px] font-black text-rose-700 uppercase tracking-wide truncate">
+                      Destination Location (B)
+                    </span>
+                  </div>
+                  {dropoff.lat > 0 && (
+                    <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                      On Map
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3 pl-7">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs sm:text-sm font-black text-slate-900 truncate leading-snug">
+                      {dropoff.name || dropoffInputText}
+                    </p>
+                    {pickup.name && (
+                      <p className="text-[11px] font-semibold text-slate-500 truncate mt-0.5">
+                        From: <span className="text-slate-800">{pickup.name}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Calculated Metric Pills */}
+                  {hasSelectedLocations && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-400 leading-none">Standard Fare</div>
+                        <div className="text-sm sm:text-base font-black font-mono-num text-emerald-700 leading-tight">
+                          ₹{estimatedFare}
+                        </div>
+                      </div>
+                      <div className="h-7 w-[1px] bg-slate-200"></div>
+                      <div className="text-right">
+                        <div className="text-[10px] font-bold text-slate-400 leading-none">{distanceKm} km</div>
+                        <div className="text-[11px] font-bold text-slate-600 leading-tight">~{durationMin}m</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Fare & Payment Control Card */}
             <div className="p-3.5 sm:p-4 rounded-2xl bg-slate-50 border border-black flex flex-col gap-3 shadow-xs">

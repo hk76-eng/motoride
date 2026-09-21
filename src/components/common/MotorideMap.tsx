@@ -206,14 +206,21 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     });
 
 
-  // Custom DivIcons for Location A and Location B
-  const createPickupIcon = (distanceText?: string) =>
-    L.divIcon({
+  // Custom DivIcons for Location A and Location B with prominent name displays
+  const createPickupIcon = (pickupLocationName?: string, distanceText?: string) => {
+    const rawName = pickupLocationName && pickupLocationName.trim() ? pickupLocationName.trim() : 'PICKUP';
+    const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
+    const displayName = shortName.length > 22 ? `${shortName.slice(0, 20)}…` : shortName;
+
+    return L.divIcon({
       className: 'custom-pin-icon marker-pin-a',
       html: `
-        <div style="position: relative; width: ${distanceText ? '124px' : '96px'}; height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
-          <div style="padding: 3px 8px; margin-bottom: 3px; border-radius: 6px; background: #020617; color: #34d399; font-weight: 900; font-size: 11px; border: 1.5px solid #10b981; box-shadow: 0 4px 14px rgba(0,0,0,0.7); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 4px;">
-            <span>A • PICKUP</span>
+        <div style="position: relative; width: max-content; min-width: 96px; max-width: 240px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
+          <div style="padding: 4px 9px; margin-bottom: 3px; border-radius: 8px; background: #020617; color: #34d399; font-weight: 900; font-size: 11px; border: 1.5px solid #10b981; box-shadow: 0 4px 14px rgba(0,0,0,0.7); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px;">
+            <span style="display: flex; align-items: center; gap: 4px;">
+              <span style="background: #10b981; color: #020617; width: 15px; height: 15px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900;">A</span>
+              <span style="max-width: 145px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
+            </span>
             ${distanceText ? `<span style="background: #10b981; color: #020617; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 900;">${distanceText}</span>` : ''}
           </div>
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
@@ -224,18 +231,26 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           </div>
         </div>
       `,
-      iconSize: [distanceText ? 124 : 96, 68],
-      iconAnchor: [distanceText ? 62 : 48, 68],
-      popupAnchor: [0, -68],
+      iconSize: [140, 72],
+      iconAnchor: [70, 72],
+      popupAnchor: [0, -72],
     });
+  };
 
-  const createDropoffIcon = (distanceText?: string) =>
-    L.divIcon({
+  const createDropoffIcon = (destinationName?: string, distanceText?: string) => {
+    const rawName = destinationName && destinationName.trim() ? destinationName.trim() : 'DROPOFF';
+    const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
+    const displayName = shortName.length > 22 ? `${shortName.slice(0, 20)}…` : shortName;
+
+    return L.divIcon({
       className: 'custom-pin-icon marker-pin-b',
       html: `
-        <div style="position: relative; width: ${distanceText ? '124px' : '96px'}; height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
-          <div style="padding: 3px 8px; margin-bottom: 3px; border-radius: 6px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 14px rgba(0,0,0,0.7); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 4px;">
-            <span>B • DROPOFF</span>
+        <div style="position: relative; width: max-content; min-width: 96px; max-width: 240px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
+          <div style="padding: 4px 9px; margin-bottom: 3px; border-radius: 8px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 14px rgba(0,0,0,0.7); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px;">
+            <span style="display: flex; align-items: center; gap: 4px;">
+              <span style="background: #f43f5e; color: #ffffff; width: 15px; height: 15px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900;">B</span>
+              <span style="max-width: 145px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
+            </span>
             ${distanceText ? `<span style="background: #f43f5e; color: #ffffff; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-weight: 900;">${distanceText}</span>` : ''}
           </div>
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
@@ -246,10 +261,11 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           </div>
         </div>
       `,
-      iconSize: [distanceText ? 124 : 96, 68],
-      iconAnchor: [distanceText ? 62 : 48, 68],
-      popupAnchor: [0, -68],
+      iconSize: [140, 72],
+      iconAnchor: [70, 72],
+      popupAnchor: [0, -72],
     });
+  };
 
   const createCaptainIcon = (
     heading: number = 0,
@@ -274,7 +290,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     let glowShadow = isNearest ? '0 4px 18px rgba(16, 185, 129, 0.65)' : '0 4px 18px rgba(245, 158, 11, 0.55)';
     let statusPillHtml = '';
 
-    if (isArrivingPickup) {
+    if (isCaptainMode) {
+      statusPillHtml = '';
+    } else if (isArrivingPickup) {
       borderColor = '#10b981';
       pingColor = 'rgba(16, 185, 129, 0.45)';
       pingColorInner = 'rgba(16, 185, 129, 0.30)';
@@ -580,7 +598,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     // 2. Pickup Marker (Location A - Always shown when pickup location coordinates are available)
     if (hasPickup && pickupLat && pickupLng) {
       bounds.push([pickupLat, pickupLng]);
-      const aIcon = createPickupIcon(pickupDistanceText);
+      const aIcon = createPickupIcon(pickupAddress || undefined, pickupDistanceText);
 
       if (!pickupMarkerRef.current || !map.hasLayer(pickupMarkerRef.current)) {
         if (pickupMarkerRef.current) {
@@ -638,7 +656,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     // 3. Dropoff Marker (Location B - Only shown when dropoff location is selected)
     if (hasDropoff && dropoffLat && dropoffLng) {
       bounds.push([dropoffLat, dropoffLng]);
-      const bIcon = createDropoffIcon(dropoffDistanceText);
+      const bIcon = createDropoffIcon(dropoffAddress || undefined, dropoffDistanceText);
 
       if (!dropoffMarkerRef.current || !map.hasLayer(dropoffMarkerRef.current)) {
         if (dropoffMarkerRef.current) {
