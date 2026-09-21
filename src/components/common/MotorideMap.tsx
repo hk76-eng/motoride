@@ -15,13 +15,15 @@ interface MapLayerConfig {
   maxZoom: number;
 }
 
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyC0e-_TvGfEzBHiSDnTWeZKrL9ImUZ9dLg';
+
 const MAP_LAYERS: Record<MapLayerType, MapLayerConfig> = {
   'google-street': {
     id: 'google-street',
     label: 'Google Street',
     shortLabel: 'Street',
     tooltip: 'Google Maps Roadmaps & Street View (Default)',
-    url: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    url: `https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
     subdomains: ['0', '1', '2', '3'],
     maxZoom: 20,
   },
@@ -30,7 +32,7 @@ const MAP_LAYERS: Record<MapLayerType, MapLayerConfig> = {
     label: 'Google Terrain',
     shortLabel: 'Terrain',
     tooltip: 'Google Maps Topographic Terrain & Relief',
-    url: 'https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+    url: `https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
     subdomains: ['0', '1', '2', '3'],
     maxZoom: 20,
   },

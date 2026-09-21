@@ -159,19 +159,21 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
     }
   };
 
+  const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyC0e-_TvGfEzBHiSDnTWeZKrL9ImUZ9dLg';
+
   const TILE_CONFIGS: Record<string, { url: string; subdomains?: string; maxZoom: number; label: string }> = {
     'google-streets': {
-      url: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      url: `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
       maxZoom: 20,
       label: 'Google Streets',
     },
     'google-satellite': {
-      url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      url: `https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
       maxZoom: 20,
       label: 'Google Satellite',
     },
     'google-terrain': {
-      url: 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+      url: `https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
       maxZoom: 20,
       label: 'Google Terrain',
     },
