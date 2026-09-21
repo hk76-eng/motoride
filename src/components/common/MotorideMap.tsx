@@ -211,26 +211,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     });
 
 
-  // Custom DivIcons for Location A, Location B, and Midpoint Route Distance Marker
-  const createRouteDistanceIcon = (distText: string, durationText?: string, serviceType?: string | null) => {
-    const isCourier = serviceType === 'courier';
-    return L.divIcon({
-      className: 'route-distance-midpoint-marker',
-      html: `
-        <div style="position: relative; display: flex; align-items: center; justify-content: center; user-select: none; pointer-events: auto; cursor: pointer;" title="Total Trip Distance">
-          <div style="display: flex; align-items: center; gap: 6px; background: #020617; color: #ffffff; padding: 5px 12px; border-radius: 9999px; border: 2px solid #10b981; box-shadow: 0 6px 20px rgba(0,0,0,0.85); font-family: system-ui, -apple-system, sans-serif; white-space: nowrap;">
-            <span style="background: #10b981; color: #020617; padding: 1px 6px; border-radius: 6px; font-size: 10px; font-weight: 900; letter-spacing: 0.3px;">${isCourier ? '📦 A ➔ B' : '🏍️ A ➔ B'}</span>
-            <span style="color: #34d399; font-size: 13px; font-weight: 900; font-family: ui-monospace, monospace;">${distText}</span>
-            ${durationText ? `<span style="color: #94a3b8; font-size: 11px; font-weight: 700;">(${durationText})</span>` : ''}
-          </div>
-        </div>
-      `,
-      iconSize: [170, 38],
-      iconAnchor: [85, 19],
-    });
-  };
-
-  const createPickupIcon = (pickupLocationName?: string, distanceText?: string) => {
+  // Custom DivIcons for Location A and Location B
+  const createPickupIcon = (pickupLocationName?: string) => {
     const rawName = pickupLocationName && pickupLocationName.trim() ? pickupLocationName.trim() : 'To (A)';
     const isGpsDefault =
       rawName.toLowerCase().includes('my live gps') ||
@@ -249,7 +231,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
               <span style="background: #10b981; color: #020617; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900;">A</span>
               <span style="max-width: 135px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>
             </span>
-            ${distanceText ? `<span style="background: #10b981; color: #020617; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 900; letter-spacing: 0.3px;">${distanceText}</span>` : ''}
           </div>
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
             <div style="width: 34px; height: 34px; border-radius: 50%; background: #10b981; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; box-shadow: 0 4px 18px rgba(16, 185, 129, 0.9); border: 2.5px solid #ffffff;">
@@ -270,16 +251,22 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
     const displayName = shortName.length > 20 ? `${shortName.slice(0, 18)}…` : shortName;
 
+    // Format clean distance badge e.g. "27km"
+    let formattedDist = distanceText ? distanceText.trim() : '';
+    if (formattedDist && !formattedDist.toLowerCase().endsWith('km')) {
+      formattedDist = `${formattedDist}km`;
+    }
+
     return L.divIcon({
       className: 'custom-pin-icon marker-pin-b',
       html: `
-        <div style="position: relative; width: max-content; min-width: 96px; max-width: 250px; height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
+        <div style="position: relative; width: max-content; min-width: 96px; max-width: 260px; height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
           <div style="padding: 4px 9px; margin-bottom: 3px; border-radius: 9px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 16px rgba(0,0,0,0.75); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px;">
             <span style="display: flex; align-items: center; gap: 4px;">
               <span style="background: #f43f5e; color: #ffffff; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900;">B</span>
               <span style="max-width: 135px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>
             </span>
-            ${distanceText ? `<span style="background: #f43f5e; color: #ffffff; padding: 2px 6px; border-radius: 6px; font-size: 10.5px; font-weight: 900; letter-spacing: 0.3px;">${distanceText}</span>` : ''}
+            ${formattedDist ? `<span style="background: #f43f5e; color: #ffffff; padding: 2px 7px; border-radius: 6px; font-size: 11px; font-weight: 900; letter-spacing: 0.3px; box-shadow: 0 1px 4px rgba(244,63,94,0.4);">${formattedDist}</span>` : ''}
           </div>
           <div style="position: relative; display: flex; align-items: center; justify-content: center;">
             <div style="width: 34px; height: 34px; border-radius: 50%; background: #f43f5e; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; box-shadow: 0 4px 18px rgba(244, 63, 94, 0.9); border: 2.5px solid #ffffff;">
@@ -992,33 +979,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       // Ensure no distance tooltip/tab is attached to the route polyline on map
       polylineRef.current.unbindTooltip();
 
-      // Render midpoint distance marker on polyline
-      const midLat = (pickupLat + dropoffLat) / 2;
-      const midLng = (pickupLng + dropoffLng) / 2;
-      const computedKm = calculateHaversineDistanceKm(pickupLat, pickupLng, dropoffLat, dropoffLng);
-      const displayKmText = totalDistanceKm != null && totalDistanceKm > 0
-        ? `${totalDistanceKm} km`
-        : rideDistanceText && rideDistanceText.includes('km')
-        ? rideDistanceText.split('(')[0].trim()
-        : `${computedKm.toFixed(1)} km`;
-
-      const displayDuration = rideDistanceText && rideDistanceText.includes('~')
-        ? rideDistanceText.slice(rideDistanceText.indexOf('~')).replace(')', '')
-        : '';
-
-      if (!routeDistanceMarkerRef.current || !map.hasLayer(routeDistanceMarkerRef.current)) {
-        if (routeDistanceMarkerRef.current) {
-          try {
-            map.removeLayer(routeDistanceMarkerRef.current);
-          } catch {}
-        }
-        routeDistanceMarkerRef.current = L.marker([midLat, midLng], {
-          icon: createRouteDistanceIcon(displayKmText, displayDuration, rideType),
-          zIndexOffset: 3000,
-        }).addTo(map);
-      } else {
-        routeDistanceMarkerRef.current.setLatLng([midLat, midLng]);
-        routeDistanceMarkerRef.current.setIcon(createRouteDistanceIcon(displayKmText, displayDuration, rideType));
+      if (routeDistanceMarkerRef.current) {
+        map.removeLayer(routeDistanceMarkerRef.current);
+        routeDistanceMarkerRef.current = null;
       }
     } else {
       if (polylineRef.current) {
@@ -1218,34 +1181,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       }`}
     >
       <div ref={mapContainerRef} className="w-full h-full" />
-
-      {/* On-Map Floating Route Total Distance HUD when both Marker A and B are present */}
-      {pickupLat && pickupLng && dropoffLat && dropoffLng && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[410] max-w-[95%] pointer-events-none transition-all duration-300">
-          <div className="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-2xl bg-slate-950/95 text-white backdrop-blur-md border border-emerald-500/80 shadow-2xl">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-              {rideType === 'courier' ? '📦 Courier' : '🏍️ Ride'}
-            </span>
-            <span className="w-1 h-1 rounded-full bg-slate-600" />
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
-              <span className="text-emerald-400 font-black">A</span>
-              <span className="text-slate-400 text-[10px]">➔</span>
-              <span className="text-rose-400 font-black">B</span>
-            </div>
-            <span className="w-1 h-1 rounded-full bg-slate-600" />
-            <div className="flex items-center gap-1 bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 rounded-lg">
-              <span className="text-[11px] font-bold text-emerald-400">Total Distance:</span>
-              <span className="text-emerald-300 font-mono-num font-black text-xs sm:text-sm">
-                {totalDistanceKm != null && totalDistanceKm > 0
-                  ? `${totalDistanceKm} km`
-                  : rideDistanceText && rideDistanceText.includes('km')
-                  ? rideDistanceText.split('(')[0].trim()
-                  : `${calculateHaversineDistanceKm(pickupLat, pickupLng, dropoffLat, dropoffLng).toFixed(1)} km`}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Map Overlay Controls - Hidden by default */}
       {showOverlayControls && (
