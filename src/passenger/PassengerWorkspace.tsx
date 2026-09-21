@@ -1654,15 +1654,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Drop Down Button in Active Ride */}
+                {/* Minimize Button in Active Ride */}
                 <button
                   type="button"
                   onClick={() => setIsCardMinimized(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-black text-xs font-black transition-all active:scale-95 cursor-pointer group shadow-xs"
-                  title="Drop down active ride details to view full map"
-                  aria-label="Drop down active ride details"
+                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-black text-xs font-black transition-all active:scale-95 cursor-pointer group shadow-xs flex items-center justify-center"
+                  title="Minimize ride details to view full map"
+                  aria-label="Minimize ride details"
                 >
-                  <span>Drop Down</span>
                   <ChevronDown className="w-4 h-4 text-black group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
                 </button>
 
