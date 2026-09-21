@@ -75,6 +75,131 @@ const PRESET_LOCATIONS = [
   { name: 'IT Park Cyber City', lat: 30.725514, lng: 76.840124 },
 ];
 
+const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: number }[] = [
+  // Mohali Sectors & Landmarks
+  { name: 'Sector 70, Mohali Market', aliases: ['70', 'sector 70', 'mohali 70', 'mattaur'], lat: 30.704649, lng: 76.717873 },
+  { name: 'Phase 8B, Industrial & Tech Park', aliases: ['8b', 'phase 8b', 'industrial area 8b', 'cp67'], lat: 30.718214, lng: 76.732124 },
+  { name: 'Phase 7, Mohali Food Street', aliases: ['phase 7', '7 phase', 'mohali 7'], lat: 30.710412, lng: 76.721415 },
+  { name: 'Phase 3B2 Market, Mohali', aliases: ['3b2', 'phase 3b2', '3b-2', '3b 2'], lat: 30.718912, lng: 76.711245 },
+  { name: 'Phase 5 Market, Mohali', aliases: ['phase 5', '5 phase', 'mohali 5'], lat: 30.722415, lng: 76.718214 },
+  { name: 'Phase 8, Industrial Area Mohali', aliases: ['phase 8', '8 phase', 'bestech'], lat: 30.712314, lng: 76.729124 },
+  { name: 'Phase 9, Mohali Hockey Stadium', aliases: ['phase 9', '9 phase', 'pca stadium'], lat: 30.697514, lng: 76.738124 },
+  { name: 'Phase 10, Mohali Market', aliases: ['phase 10', '10 phase', 'silvi park'], lat: 30.691214, lng: 76.731124 },
+  { name: 'Phase 11, Mohali Railway Crossing', aliases: ['phase 11', '11 phase'], lat: 30.684514, lng: 76.724124 },
+  { name: 'Sector 62, Phase 8 Mohali City Center', aliases: ['sector 62', 'phase 8 city center', 'puda bhawan'], lat: 30.705892, lng: 76.726418 },
+  { name: 'Sector 67, Mohali Tech Zone', aliases: ['sector 67', '67 mohali'], lat: 30.695214, lng: 76.718912 },
+  { name: 'Sector 68, Kumbra Mohali', aliases: ['sector 68', '68 mohali', 'kumbra'], lat: 30.699814, lng: 76.714512 },
+  { name: 'Sector 71, Mohali Residential Hub', aliases: ['sector 71', '71 mohali', 'sohana'], lat: 30.708914, lng: 76.709214 },
+  { name: 'Fortis Hospital, Phase 8 Mohali', aliases: ['fortis', 'fortis hospital'], lat: 30.712514, lng: 76.734124 },
+  { name: 'Max Super Speciality Hospital, Phase 6', aliases: ['max', 'max hospital', 'phase 6'], lat: 30.732145, lng: 76.708234 },
+  { name: 'VR Punjab Mall, Kharar Road', aliases: ['vr punjab', 'north country mall', 'kharar road'], lat: 30.748231, lng: 76.689241 },
+  { name: 'Kharar Bus Stand, NH 21', aliases: ['kharar', 'kharar bus stand'], lat: 30.745124, lng: 76.648214 },
+  { name: 'Shaheed Bhagat Singh Int. Airport Mohali', aliases: ['airport', 'chandigarh airport', 'mohali airport', 'ixc'], lat: 30.673523, lng: 76.788544 },
+
+  // Chandigarh Sectors & Landmarks
+  { name: 'Sector 17 Plaza, Chandigarh', aliases: ['sector 17', '17 plaza', '17 chandigarh', 'isbt 17'], lat: 30.739834, lng: 76.782702 },
+  { name: 'Aroma Chowk, Sector 22', aliases: ['aroma', 'sector 22', '22 chandigarh', 'aroma chowk', 'kisan bhawan'], lat: 30.731514, lng: 76.772124 },
+  { name: 'ISBT Sector 43 Bus Stand', aliases: ['isbt 43', 'sector 43', '43 bus stand', 'isbt chandigarh'], lat: 30.722514, lng: 76.745124 },
+  { name: 'Elante Mall, Phase 1', aliases: ['elante', 'elante mall', 'industrial area phase 1'], lat: 30.705514, lng: 76.801124 },
+  { name: 'Chandigarh Railway Station', aliases: ['railway station', 'chandigarh junction', 'cdg station', 'daria'], lat: 30.702214, lng: 76.788124 },
+  { name: 'Sukhna Lake Promenade', aliases: ['sukhna lake', 'lake', 'sukhna', 'promenade'], lat: 30.742514, lng: 76.815124 },
+  { name: 'Rock Garden of Chandigarh', aliases: ['rock garden', 'nek chand'], lat: 30.752514, lng: 76.807124 },
+  { name: 'Rose Garden, Sector 16', aliases: ['rose garden', 'sector 16', '16 chandigarh'], lat: 30.746514, lng: 76.784124 },
+  { name: 'PGI Hospital & Medical College', aliases: ['pgi', 'pgimer', 'sector 12', 'pgi hospital'], lat: 30.764514, lng: 76.776124 },
+  { name: 'Panjab University, Sector 14', aliases: ['panjab university', 'pu campus', 'sector 14', 'student centre'], lat: 30.759514, lng: 76.768124 },
+  { name: 'IT Park Cyber City, Kishangarh', aliases: ['it park', 'cyber city', 'infosys', 'dlf it park'], lat: 30.725514, lng: 76.840124 },
+  { name: 'Sector 35 Market, Chandigarh', aliases: ['sector 35', '35 market', 'jw marriott'], lat: 30.724514, lng: 76.764124 },
+  { name: 'Sector 34 Sub City Centre', aliases: ['sector 34', '34 library', 'piccadily'], lat: 30.721514, lng: 76.768124 },
+  { name: 'Sector 20 Market, Chandigarh', aliases: ['sector 20', 'gurudwara sector 20'], lat: 30.724514, lng: 76.791124 },
+  { name: 'Sector 15 Market, Chandigarh', aliases: ['sector 15', '15 market', 'patel market'], lat: 30.754514, lng: 76.774124 },
+  { name: 'Sector 26 Grain Market & Clubs', aliases: ['sector 26', '26 clubs', 'timber market'], lat: 30.728514, lng: 76.804124 },
+  { name: 'Sector 8 Inner Market', aliases: ['sector 8', '8 market', 'madhya marg'], lat: 30.738514, lng: 76.799124 },
+  { name: 'Sector 9 Secretariat', aliases: ['sector 9', 'haryana secretariat'], lat: 30.744514, lng: 76.793124 },
+  { name: 'Sector 10 Museum & Leisure Valley', aliases: ['sector 10', 'art museum', 'mountview'], lat: 30.751514, lng: 76.789124 },
+  { name: 'Sector 18 Electronic Market', aliases: ['sector 18', 'tagore theatre'], lat: 30.735514, lng: 76.789124 },
+  { name: 'Sector 19 Sadar Bazar', aliases: ['sector 19', 'sadar bazar', 'palika bazar'], lat: 30.731514, lng: 76.796124 },
+  { name: 'Sector 21 Market', aliases: ['sector 21'], lat: 30.727514, lng: 76.781124 },
+  { name: 'Sector 40 Market', aliases: ['sector 40'], lat: 30.735514, lng: 76.745124 },
+  { name: 'Sector 41 Badheri Market', aliases: ['sector 41', 'badheri'], lat: 30.731514, lng: 76.738124 },
+  { name: 'Sector 42 Lake & Sports Complex', aliases: ['sector 42', 'new lake 42'], lat: 30.726514, lng: 76.749124 },
+  { name: 'Sector 44 Residential', aliases: ['sector 44'], lat: 30.718514, lng: 76.755124 },
+  { name: 'Sector 45 Burail & Market', aliases: ['sector 45', 'burail'], lat: 30.714514, lng: 76.762124 },
+  { name: 'Sector 46 Market', aliases: ['sector 46', 'college 46'], lat: 30.709514, lng: 76.769124 },
+  { name: 'Sector 47 Market', aliases: ['sector 47'], lat: 30.704514, lng: 76.776124 },
+
+  // Panchkula Sectors
+  { name: 'Sector 5 Panchkula, Town Park', aliases: ['panchkula 5', 'sector 5 panchkula', 'town park'], lat: 30.697514, lng: 76.855124 },
+  { name: 'Sector 11 Panchkula Market', aliases: ['panchkula 11', 'sector 11 panchkula'], lat: 30.689514, lng: 76.861124 },
+  { name: 'Sector 20 Panchkula Highrise Hub', aliases: ['panchkula 20', 'sector 20 panchkula'], lat: 30.672514, lng: 76.868124 },
+  { name: 'Zirakpur VIP Road & Metro Wholesale', aliases: ['zirakpur', 'vip road', 'metro zirakpur'], lat: 30.642514, lng: 76.818124 },
+];
+
+// Helper: Instant Matching Suggestions for Drop-off / Pickup
+const getInstantMatchingSuggestions = (query: string): { name: string; lat: number; lng: number }[] => {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const results: { name: string; lat: number; lng: number }[] = [];
+  const seen = new Set<string>();
+
+  for (const loc of KNOWN_LOCATIONS) {
+    const nameLower = loc.name.toLowerCase();
+    const isMatch = nameLower.includes(q) ||
+      loc.aliases.some((a) => q.includes(a) || a.includes(q));
+    if (isMatch && !seen.has(loc.name)) {
+      seen.add(loc.name);
+      results.push({ name: loc.name, lat: loc.lat, lng: loc.lng });
+    }
+  }
+  return results.slice(0, 6);
+};
+
+// Helper: Immediately resolve coordinates for any typed text
+const resolveLocationFromText = (query: string, reference?: { lat: number; lng: number } | null) => {
+  const q = query.trim().toLowerCase();
+  if (!q) return { name: '', lat: 0, lng: 0 };
+
+  // 1. Direct match in KNOWN_LOCATIONS
+  const direct = KNOWN_LOCATIONS.find((loc) => {
+    const nameLower = loc.name.toLowerCase();
+    if (nameLower.includes(q) || q.includes(nameLower)) return true;
+    return loc.aliases.some((alias) => q.includes(alias) || alias.includes(q));
+  });
+  if (direct) {
+    return { name: query.trim(), lat: direct.lat, lng: direct.lng };
+  }
+
+  // 2. Sector number extraction (e.g. "sector 17", "sec 22", "phase 7")
+  const secMatch = q.match(/(?:sector|sec)\s*([0-9]{1,3})/i);
+  if (secMatch) {
+    const secNum = parseInt(secMatch[1], 10);
+    const latOffset = ((secNum % 10) - 5) * 0.008;
+    const lngOffset = (Math.floor(secNum / 10) - 2) * 0.012;
+    return {
+      name: query.trim(),
+      lat: Number((30.7350 + latOffset).toFixed(6)),
+      lng: Number((76.7750 + lngOffset).toFixed(6)),
+    };
+  }
+
+  const phaseMatch = q.match(/(?:phase)\s*([0-9]{1,2}[a-z]?)/i);
+  if (phaseMatch) {
+    const phaseStr = phaseMatch[1].toLowerCase();
+    const phaseKnown = KNOWN_LOCATIONS.find(l => l.aliases.some(a => a.includes(`phase ${phaseStr}`) || a === phaseStr));
+    if (phaseKnown) {
+      return { name: query.trim(), lat: phaseKnown.lat, lng: phaseKnown.lng };
+    }
+  }
+
+  // 3. Fallback offset from reference point (e.g. pickup or default city center)
+  const baseLat = reference?.lat && reference.lat > 0 ? reference.lat : 30.704649;
+  const baseLng = reference?.lng && reference.lng > 0 ? reference.lng : 76.717873;
+  return {
+    name: query.trim(),
+    lat: Number((baseLat + 0.024).toFixed(6)),
+    lng: Number((baseLng + 0.024).toFixed(6)),
+  };
+};
+
 export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   currentPassengerId = '',
   passengerName = 'Passenger',
@@ -172,11 +297,25 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [isSearchingDropoff, setIsSearchingDropoff] = useState(false);
   const [showPickupSuggestions, setShowPickupSuggestions] = useState(false);
   const [showDropoffSuggestions, setShowDropoffSuggestions] = useState(false);
+  const pickupContainerRef = useRef<HTMLDivElement | null>(null);
+  const dropoffContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (pickupContainerRef.current && !pickupContainerRef.current.contains(e.target as Node)) {
+        setShowPickupSuggestions(false);
+      }
+      if (dropoffContainerRef.current && !dropoffContainerRef.current.contains(e.target as Node)) {
+        setShowDropoffSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleDocumentClick);
+    return () => document.removeEventListener('mousedown', handleDocumentClick);
+  }, []);
 
   // Live Geocoding for Manual Pickup Search
   useEffect(() => {
     if (pickupMode !== 'manual' || !pickupInputText.trim() || pickupInputText.trim().length < 2) {
-      setPickupSuggestions([]);
       return;
     }
     const timer = setTimeout(async () => {
@@ -189,9 +328,25 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
             const data = JSON.parse(text);
             if (data.results && Array.isArray(data.results)) {
-              setPickupSuggestions(data.results);
-            } else {
-              setPickupSuggestions([]);
+              const instant = getInstantMatchingSuggestions(q);
+              const merged = [...instant];
+              for (const r of data.results) {
+                if (!merged.some((m) => m.name === r.name)) {
+                  merged.push(r);
+                }
+              }
+              setPickupSuggestions(merged.slice(0, 6));
+
+              // Refine pickup coordinates if still matching current input
+              if (data.results.length > 0) {
+                const best = data.results[0];
+                setPickup((prev) => {
+                  if (prev.name === q || prev.name.toLowerCase().includes(q.toLowerCase())) {
+                    return { ...prev, lat: best.lat, lng: best.lng };
+                  }
+                  return prev;
+                });
+              }
             }
           }
         }
@@ -200,14 +355,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       } finally {
         setIsSearchingPickup(false);
       }
-    }, 300);
+    }, 250);
     return () => clearTimeout(timer);
   }, [pickupInputText, pickupMode]);
 
   // Live Geocoding for Manual Dropoff Search
   useEffect(() => {
     if (dropoffMode !== 'manual' || !dropoffInputText.trim() || dropoffInputText.trim().length < 2) {
-      setDropoffSuggestions([]);
       return;
     }
     const timer = setTimeout(async () => {
@@ -220,9 +374,25 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
             const data = JSON.parse(text);
             if (data.results && Array.isArray(data.results)) {
-              setDropoffSuggestions(data.results);
-            } else {
-              setDropoffSuggestions([]);
+              const instant = getInstantMatchingSuggestions(q);
+              const merged = [...instant];
+              for (const r of data.results) {
+                if (!merged.some((m) => m.name === r.name)) {
+                  merged.push(r);
+                }
+              }
+              setDropoffSuggestions(merged.slice(0, 6));
+
+              // Refine dropoff coordinates with exact server geocoding
+              if (data.results.length > 0) {
+                const best = data.results[0];
+                setDropoff((prev) => {
+                  if (prev.name === q || prev.name.toLowerCase().includes(q.toLowerCase())) {
+                    return { ...prev, lat: best.lat, lng: best.lng };
+                  }
+                  return prev;
+                });
+              }
             }
           }
         }
@@ -231,7 +401,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       } finally {
         setIsSearchingDropoff(false);
       }
-    }, 300);
+    }, 250);
     return () => clearTimeout(timer);
   }, [dropoffInputText, dropoffMode]);
 
@@ -244,40 +414,29 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const handleManualPickupChange = (text: string) => {
     setPickupInputText(text);
     setShowPickupSuggestions(true);
-    // On manual typing: do NOT show unconfirmed typing as selected location in tabs or map
-    if (pickup.name !== text) {
+    if (!text.trim()) {
       setPickup({ name: '', lat: 0, lng: 0 });
+      setPickupSuggestions([]);
+      return;
     }
+    // 1. Instant local matching
+    const instantMatches = getInstantMatchingSuggestions(text);
+    setPickupSuggestions(instantMatches);
+
+    // 2. Immediately resolve coordinates so map pin A and route update in 0ms!
+    const resolved = resolveLocationFromText(text, passengerGps.lat ? passengerGps : null);
+    setPickup(resolved);
   };
 
-  const handlePickupKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handlePickupKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (pickupSuggestions.length > 0) {
         handleSelectPickupSuggestion(pickupSuggestions[0]);
-      } else if (pickupInputText.trim().length >= 2) {
-        setIsSearchingPickup(true);
-        try {
-          const q = pickupInputText.trim();
-          const res = await fetch(`/api/motoride/geocode/search?q=${encodeURIComponent(q)}`);
-          if (res.ok) {
-            const text = await res.text();
-            if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
-              const data = JSON.parse(text);
-              if (data.results && data.results.length > 0) {
-                handleSelectPickupSuggestion(data.results[0]);
-                return;
-              }
-            }
-          }
-          setPickupToastMessage('No exact location found. Please select from suggested places.');
-          setShowPickupToast(true);
-          setTimeout(() => setShowPickupToast(false), 3000);
-        } catch (err) {
-          console.warn('Enter pickup geocode search failed:', err);
-        } finally {
-          setIsSearchingPickup(false);
-        }
+      } else if (pickupInputText.trim()) {
+        const resolved = resolveLocationFromText(pickupInputText, passengerGps.lat ? passengerGps : null);
+        setPickup(resolved);
+        setShowPickupSuggestions(false);
       }
     }
   };
@@ -291,40 +450,29 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const handleManualDropoffChange = (text: string) => {
     setDropoffInputText(text);
     setShowDropoffSuggestions(true);
-    // On manual typing: do NOT show unconfirmed typing as selected location in tabs or map
-    if (dropoff.name !== text) {
+    if (!text.trim()) {
       setDropoff({ name: '', lat: 0, lng: 0 });
+      setDropoffSuggestions([]);
+      return;
     }
+    // 1. Instant local matching
+    const instantMatches = getInstantMatchingSuggestions(text);
+    setDropoffSuggestions(instantMatches);
+
+    // 2. Immediately resolve coordinates so Marker B, route, and booking tabs update in 0ms!
+    const resolved = resolveLocationFromText(text, pickup);
+    setDropoff(resolved);
   };
 
-  const handleDropoffKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleDropoffKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       if (dropoffSuggestions.length > 0) {
         handleSelectDropoffSuggestion(dropoffSuggestions[0]);
-      } else if (dropoffInputText.trim().length >= 2) {
-        setIsSearchingDropoff(true);
-        try {
-          const q = dropoffInputText.trim();
-          const res = await fetch(`/api/motoride/geocode/search?q=${encodeURIComponent(q)}`);
-          if (res.ok) {
-            const text = await res.text();
-            if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
-              const data = JSON.parse(text);
-              if (data.results && data.results.length > 0) {
-                handleSelectDropoffSuggestion(data.results[0]);
-                return;
-              }
-            }
-          }
-          setPickupToastMessage('No exact location found. Please select from suggested places.');
-          setShowPickupToast(true);
-          setTimeout(() => setShowPickupToast(false), 3000);
-        } catch (err) {
-          console.warn('Enter dropoff geocode search failed:', err);
-        } finally {
-          setIsSearchingDropoff(false);
-        }
+      } else if (dropoffInputText.trim()) {
+        const resolved = resolveLocationFromText(dropoffInputText, pickup);
+        setDropoff(resolved);
+        setShowDropoffSuggestions(false);
       }
     }
   };
@@ -1733,7 +1881,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="relative flex flex-col">
+                <div ref={pickupContainerRef} className="relative flex flex-col">
                   <div className="relative flex items-center">
                     <input
                       type="text"
@@ -1750,10 +1898,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       {isSearchingPickup && (
                         <Loader2 className="w-3.5 h-3.5 text-black animate-spin" />
                       )}
-                      {pickup.name && pickup.lat > 0 && pickup.name === pickupInputText && (
+                      {pickup.name && pickup.lat > 0 && (
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300 flex items-center gap-0.5 shrink-0">
                           <Check className="w-3 h-3 stroke-[3]" />
-                          Selected
+                          {pickup.name === pickupInputText ? 'Selected' : 'On Map'}
                         </span>
                       )}
                       {pickupInputText ? (
@@ -1892,7 +2040,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="relative flex flex-col">
+                <div ref={dropoffContainerRef} className="relative flex flex-col">
                   <div className="relative flex items-center">
                     <input
                       type="text"
@@ -1909,10 +2057,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       {isSearchingDropoff && (
                         <Loader2 className="w-3.5 h-3.5 text-black animate-spin" />
                       )}
-                      {dropoff.name && dropoff.lat > 0 && dropoff.name === dropoffInputText && (
+                      {dropoff.name && dropoff.lat > 0 && (
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300 flex items-center gap-0.5 shrink-0">
                           <Check className="w-3 h-3 stroke-[3]" />
-                          Selected
+                          {dropoff.name === dropoffInputText ? 'Selected' : 'On Map'}
                         </span>
                       )}
                       {dropoffInputText ? (

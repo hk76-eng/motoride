@@ -776,18 +776,53 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
     { name: 'Sector 70, Mohali Market', lat: 30.704649, lng: 76.717873 },
     { name: 'Phase 8B Industrial Area, Mohali', lat: 30.718214, lng: 76.732124 },
     { name: 'Sector 62 Phase 8, Mohali City Center', lat: 30.705892, lng: 76.726418 },
-    { name: 'Sector 17 Plaza, Chandigarh', lat: 30.739834, lng: 76.782702 },
-    { name: 'ISBT Sector 43, Chandigarh', lat: 30.722511, lng: 76.745632 },
-    { name: 'Shaheed Bhagat Singh Int. Airport Mohali', lat: 30.673523, lng: 76.788544 },
+    { name: 'Phase 7 Food Street, Mohali', lat: 30.710412, lng: 76.721415 },
+    { name: 'Phase 3B2 Market, Mohali', lat: 30.718912, lng: 76.711245 },
+    { name: 'Phase 5 Market, Mohali', lat: 30.722415, lng: 76.718214 },
+    { name: 'Phase 9 PCA Stadium, Mohali', lat: 30.697514, lng: 76.738124 },
+    { name: 'Phase 10 Silvi Park, Mohali', lat: 30.691214, lng: 76.731124 },
+    { name: 'Phase 11 Railway Crossing, Mohali', lat: 30.684514, lng: 76.724124 },
+    { name: 'Sector 67 Tech Zone, Mohali', lat: 30.695214, lng: 76.718912 },
+    { name: 'Sector 68 Kumbra, Mohali', lat: 30.699814, lng: 76.714512 },
+    { name: 'Sector 71 Residential Hub, Mohali', lat: 30.708914, lng: 76.709214 },
+    { name: 'Fortis Hospital, Phase 8 Mohali', lat: 30.712514, lng: 76.734124 },
+    { name: 'Max Super Speciality Hospital, Phase 6', lat: 30.732145, lng: 76.708234 },
     { name: 'VR Punjab Mall, Kharar Road', lat: 30.748231, lng: 76.689241 },
+    { name: 'Kharar Bus Stand, NH 21', lat: 30.745124, lng: 76.648214 },
+    { name: 'Sector 17 Plaza, Chandigarh', lat: 30.739834, lng: 76.782702 },
+    { name: 'Aroma Chowk, Sector 22 Chandigarh', lat: 30.731514, lng: 76.772124 },
+    { name: 'ISBT Sector 43, Chandigarh', lat: 30.722511, lng: 76.745632 },
+    { name: 'ISBT Sector 17, Chandigarh', lat: 30.737514, lng: 76.780124 },
     { name: 'Elante Mall, Industrial Area Phase 1', lat: 30.705423, lng: 76.801235 },
     { name: 'Chandigarh Railway Station, Daria', lat: 30.704123, lng: 76.828456 },
-    { name: 'Max Super Speciality Hospital, Phase 6', lat: 30.732145, lng: 76.708234 },
+    { name: 'Shaheed Bhagat Singh Int. Airport Mohali', lat: 30.673523, lng: 76.788544 },
+    { name: 'Sukhna Lake Promenade, Chandigarh', lat: 30.742514, lng: 76.815124 },
+    { name: 'Rock Garden of Chandigarh', lat: 30.752514, lng: 76.807124 },
+    { name: 'Rose Garden, Sector 16 Chandigarh', lat: 30.746514, lng: 76.784124 },
+    { name: 'PGI Hospital & Medical College', lat: 30.764514, lng: 76.776124 },
+    { name: 'Panjab University, Sector 14', lat: 30.759514, lng: 76.768124 },
+    { name: 'IT Park Cyber City, Kishangarh', lat: 30.725514, lng: 76.840124 },
+    { name: 'Sector 35 Market, Chandigarh', lat: 30.724514, lng: 76.764124 },
+    { name: 'Sector 34 Sub City Centre, Chandigarh', lat: 30.721514, lng: 76.768124 },
+    { name: 'Sector 20 Market, Chandigarh', lat: 30.724514, lng: 76.791124 },
+    { name: 'Sector 15 Market, Chandigarh', lat: 30.754514, lng: 76.774124 },
+    { name: 'Sector 26 Grain Market & Clubs', lat: 30.728514, lng: 76.804124 },
+    { name: 'Sector 5 Panchkula, Town Park', lat: 30.697514, lng: 76.855124 },
+    { name: 'Sector 11 Panchkula Market', lat: 30.689514, lng: 76.861124 },
+    { name: 'Sector 20 Panchkula Highrise Hub', lat: 30.672514, lng: 76.868124 },
+    { name: 'Zirakpur VIP Road & Metro Wholesale', lat: 30.642514, lng: 76.818124 },
   ];
 
+  const qLower = query.toLowerCase();
   const matched = localPresets.filter((item) =>
-    item.name.toLowerCase().includes(query.toLowerCase())
+    item.name.toLowerCase().includes(qLower) ||
+    (qLower.startsWith('sec') && item.name.toLowerCase().includes(qLower.replace('sector', 'sec')))
   );
+
+  // If local preset has exact or strong matches, return them immediately for instant response
+  if (matched.length >= 2) {
+    return res.json({ success: true, results: matched.slice(0, 5) });
+  }
 
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`;
@@ -796,7 +831,7 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
         'User-Agent': 'MotorideRideApp/2.0 (contact@motoride.app)',
         'Accept': 'application/json',
       },
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(1500),
     });
 
     const text = await response.text();
@@ -808,7 +843,9 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
           lat: parseFloat(item.lat),
           lng: parseFloat(item.lon),
         }));
-        return res.json({ success: true, results });
+        // Merge matched local presets at the top if any
+        const combined = [...matched, ...results.filter(r => !matched.some(m => m.name === r.name))];
+        return res.json({ success: true, results: combined.slice(0, 6) });
       }
     }
   } catch {}
