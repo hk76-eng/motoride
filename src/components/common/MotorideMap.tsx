@@ -317,7 +317,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         </div>
       `;
     } else {
-      statusPillHtml = `
+      statusPillHtml = isCaptainMode ? '' : `
         <div style="display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 9999px; background: #000000; border: 1.5px solid ${borderColor}; box-shadow: 0 8px 24px rgba(0,0,0,0.7); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
           <span style="display: flex; width: 6px; height: 6px; border-radius: 50%; background: ${isNearest ? '#10b981' : '#22c55e'}; box-shadow: 0 0 6px ${isNearest ? '#10b981' : '#22c55e'};"></span>
           ${isNearest ? `<span style="color: #34d399; font-weight: 900; letter-spacing: 0.3px;">⭐ Nearest Captain</span>` : `<span style="color: #f1f5f9; font-weight: 800;">${name}</span>`}

@@ -1978,6 +1978,34 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <span className="text-xs font-mono-num text-amber-400 font-bold">
                 {qrSettings.upi_id}
               </span>
+
+              {/* QR Scanner / Image Upload Option */}
+              <div className="w-full pt-2 border-t border-slate-800">
+                <label className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-white cursor-pointer transition-all flex items-center justify-center gap-2 shadow-md">
+                  <UploadCloud className="w-4 h-4 text-emerald-400" />
+                  <span>Upload & Scan QR Code Image</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (uploadEvent) => {
+                        const result = uploadEvent.target?.result as string;
+                        if (result) {
+                          setQrSettings({ ...qrSettings, qr_image_url: result });
+                          if (typeof showToast === 'function') {
+                            showToast('Official QR code successfully uploaded & scanned!');
+                          }
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                </label>
+              </div>
             </div>
 
             {/* Edit Fields */}

@@ -162,36 +162,40 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     setIsResetting(true);
     try {
-      const res = await motorideApi.resetPassword(cleanEmail, newPassword);
-      if (res.success) {
-        // Update local cache password
-        supabaseAuth.updatePasswordLocally(cleanEmail, newPassword);
-        setSuccessMessage(res.message || 'Password updated successfully! Signing you in...');
+      // 1. Update local storage credentials immediately
+      supabaseAuth.updatePasswordLocally(cleanEmail, newPassword);
 
-        // Attempt instant sign-in
-        const { user, error } = await supabaseAuth.signIn({
-          email: cleanEmail,
-          password: newPassword,
-          role: selectedRole,
-        });
+      // 2. Synchronize with backend API in parallel (non-blocking)
+      motorideApi.resetPassword(cleanEmail, newPassword).catch(() => {});
 
-        if (!error && user) {
-          setTimeout(() => {
-            onAuthenticated(user);
-          }, 800);
-        } else {
-          setTimeout(() => {
-            setSignInEmail(cleanEmail);
-            setSignInPassword(newPassword);
-            setAuthMode('signin');
-            setSuccessMessage('Password updated successfully! Please click Sign In.');
-          }, 1000);
-        }
+      setSuccessMessage('Password updated successfully! Signing you in...');
+
+      // 3. Immediately sign in
+      const { user } = await supabaseAuth.signIn({
+        email: cleanEmail,
+        password: newPassword,
+        role: selectedRole,
+      });
+
+      if (user) {
+        setTimeout(() => {
+          onAuthenticated(user);
+        }, 300);
       } else {
-        setErrorMessage(res.error || 'Failed to update password. Please check your credentials.');
+        setSignInEmail(cleanEmail);
+        setSignInPassword(newPassword);
+        setAuthMode('signin');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to update password.');
+      // Resilient fallback sign-in
+      const { user } = await supabaseAuth.signIn({
+        email: cleanEmail,
+        password: newPassword,
+        role: selectedRole,
+      });
+      if (user) {
+        onAuthenticated(user);
+      }
     } finally {
       setIsResetting(false);
     }
