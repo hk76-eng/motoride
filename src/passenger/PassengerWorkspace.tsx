@@ -775,12 +775,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     return DEFAULT_PASSENGER_FARE_SETTINGS;
   });
 
-  // Fetch latest fare settings from server to keep perfectly synchronized
+  // Fetch latest fare settings from server and subscribe to real-time updates
   useEffect(() => {
     fetch('/api/motoride/fare-settings')
       .then((res) => res.json())
       .then((data) => {
-        if (data?.settings?.base_fare || data?.settings?.ride_charges?.base_fare) {
+        if (data?.settings) {
           const merged = {
             ...DEFAULT_PASSENGER_FARE_SETTINGS,
             ...data.settings,
@@ -794,6 +794,25 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         }
       })
       .catch(() => {});
+
+    const unsubFare = realtimeSync.on('FARE_SETTINGS_UPDATED', (newSettings: any) => {
+      if (newSettings) {
+        const merged = {
+          ...DEFAULT_PASSENGER_FARE_SETTINGS,
+          ...newSettings,
+          ride_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.ride_charges, ...(newSettings.ride_charges || {}) },
+          courier_charges: { ...DEFAULT_PASSENGER_FARE_SETTINGS.courier_charges, ...(newSettings.courier_charges || {}) },
+        };
+        setFareSettings(merged);
+        try {
+          localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(merged));
+        } catch {}
+      }
+    });
+
+    return () => {
+      unsubFare();
+    };
   }, []);
 
   // Trip Completed Rating State

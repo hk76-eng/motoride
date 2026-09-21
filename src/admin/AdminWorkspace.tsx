@@ -62,6 +62,47 @@ import {
   Percent,
 } from 'lucide-react';
 
+const DEFAULT_RIDE_CHARGES: RideChargeSettings = {
+  base_fare: 25.0,
+  per_km_rate: 12.0,
+  minimum_fare: 30.0,
+  platform_commission_pct: 10.0,
+  min_offer_pct: 70.0,
+  max_offer_pct: 180.0,
+  night_surcharge_pct: 10.0,
+  auto_multiplier: 1.25,
+  car_multiplier: 1.8,
+  cancellation_fee: 20.0,
+  updated_at: new Date().toISOString(),
+};
+
+const DEFAULT_COURIER_CHARGES: CourierChargeSettings = {
+  base_fare: 35.0,
+  per_km_rate: 14.0,
+  minimum_fare: 40.0,
+  platform_commission_pct: 12.0,
+  min_offer_pct: 70.0,
+  max_offer_pct: 180.0,
+  handling_fee: 10.0,
+  express_surcharge: 15.0,
+  max_weight_kg: 15.0,
+  cancellation_fee: 25.0,
+  updated_at: new Date().toISOString(),
+};
+
+const DEFAULT_ADMIN_FARE_SETTINGS: FareSettings = {
+  base_fare: 25.0,
+  per_km_rate: 12.0,
+  minimum_fare: 30.0,
+  platform_commission_pct: 10.0,
+  min_offer_pct: 70.0,
+  max_offer_pct: 180.0,
+  currency_symbol: '₹',
+  updated_at: new Date().toISOString(),
+  ride_charges: { ...DEFAULT_RIDE_CHARGES },
+  courier_charges: { ...DEFAULT_COURIER_CHARGES },
+};
+
 interface AdminWorkspaceProps {
   currentUser?: AuthUser | null;
   onSignOut?: () => void;
@@ -94,14 +135,24 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     try {
       const saved = localStorage.getItem('motoride_admin_fare_settings');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...DEFAULT_ADMIN_FARE_SETTINGS,
+            ...parsed,
+            ride_charges: {
+              ...DEFAULT_RIDE_CHARGES,
+              ...(parsed.ride_charges || {}),
+            },
+            courier_charges: {
+              ...DEFAULT_COURIER_CHARGES,
+              ...(parsed.courier_charges || {}),
+            },
+          };
+        }
       }
     } catch {}
-    return {
-      currency_symbol: '₹',
-      ride_charges: {},
-      courier_charges: {},
-    } as any;
+    return DEFAULT_ADMIN_FARE_SETTINGS;
   });
   const [testRideKm, setTestRideKm] = useState<number>(5.0);
   const [testCourierKm, setTestCourierKm] = useState<number>(4.0);
@@ -569,12 +620,26 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       setCaptains(filteredCaptains);
       setPassengers(filteredPassengers);
       setRides(filteredRides);
-      // Do not overwrite fareSettings if admin is actively viewing/editing any fare tab
-      if (f && activeTab !== 'fare' && activeTab !== 'ride_charges' && activeTab !== 'courier_charges') {
-        const localSaved = localStorage.getItem('motoride_admin_fare_settings');
-        if (!localSaved) {
-          setFareSettings(f);
-        }
+
+      // Synchronize latest server fare settings
+      if (f) {
+        setFareSettings(prev => {
+          if (activeTab === 'fare' || activeTab === 'ride_charges' || activeTab === 'courier_charges') {
+            return prev;
+          }
+          return {
+            ...DEFAULT_ADMIN_FARE_SETTINGS,
+            ...f,
+            ride_charges: {
+              ...DEFAULT_RIDE_CHARGES,
+              ...(f.ride_charges || {}),
+            },
+            courier_charges: {
+              ...DEFAULT_COURIER_CHARGES,
+              ...(f.courier_charges || {}),
+            },
+          };
+        });
       }
       if (q) setQrSettings(q);
     } catch {}
@@ -598,10 +663,28 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
   const handleSaveFare = async () => {
     try {
-      localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(fareSettings));
-      const updated = await motorideApi.updateFareSettings(fareSettings);
-      if (updated) setFareSettings(updated);
-      setFareSaveStatus('Global Fare & Commission Rules saved! Values are locked to admin configuration and will not auto-fill or reset.');
+      const payload: FareSettings = {
+        ...DEFAULT_ADMIN_FARE_SETTINGS,
+        ...fareSettings,
+        ride_charges: {
+          ...DEFAULT_RIDE_CHARGES,
+          ...(fareSettings.ride_charges || {}),
+        },
+        courier_charges: {
+          ...DEFAULT_COURIER_CHARGES,
+          ...(fareSettings.courier_charges || {}),
+        },
+      };
+      const updated = await motorideApi.updateFareSettings(payload);
+      if (updated) {
+        setFareSettings({
+          ...DEFAULT_ADMIN_FARE_SETTINGS,
+          ...updated,
+          ride_charges: { ...DEFAULT_RIDE_CHARGES, ...(updated.ride_charges || {}) },
+          courier_charges: { ...DEFAULT_COURIER_CHARGES, ...(updated.courier_charges || {}) },
+        });
+      }
+      setFareSaveStatus('Global Fare & Commission Rules saved permanently! Locked to admin configuration.');
       setTimeout(() => setFareSaveStatus(null), 4000);
     } catch (err: any) {
       alert(err.message || 'Failed to save');
@@ -610,7 +693,10 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
   const handleSaveRideCharges = async () => {
     try {
-      const currentRide: RideChargeSettings = fareSettings.ride_charges || {};
+      const currentRide: RideChargeSettings = {
+        ...DEFAULT_RIDE_CHARGES,
+        ...(fareSettings.ride_charges || {}),
+      };
       const updatedSettings: FareSettings = {
         ...fareSettings,
         base_fare: currentRide.base_fare ?? fareSettings.base_fare,
@@ -621,10 +707,16 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
         max_offer_pct: currentRide.max_offer_pct ?? fareSettings.max_offer_pct,
         ride_charges: currentRide,
       };
-      localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(updatedSettings));
       const res = await motorideApi.updateRideCharges(currentRide);
-      if (res) setFareSettings(res);
-      setRideSaveStatus('Passenger Ride Charges saved permanently! Updated across platform.');
+      if (res) {
+        setFareSettings({
+          ...DEFAULT_ADMIN_FARE_SETTINGS,
+          ...res,
+          ride_charges: { ...DEFAULT_RIDE_CHARGES, ...(res.ride_charges || {}) },
+          courier_charges: { ...DEFAULT_COURIER_CHARGES, ...(res.courier_charges || {}) },
+        });
+      }
+      setRideSaveStatus('Ride Charges & Per-KM Pricing locked & saved permanently! Applied across all apps.');
       setTimeout(() => setRideSaveStatus(null), 4000);
     } catch (err: any) {
       alert(err?.message || 'Failed to save ride charges');
@@ -634,23 +726,28 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const handleResetRideCharges = () => {
     setFareSettings(prev => ({
       ...prev,
-      ride_charges: {},
+      ride_charges: { ...DEFAULT_RIDE_CHARGES },
     }));
-    setRideSaveStatus('Cleared ride charges. Enter new pricing and click "Save Ride Charges" to lock.');
+    setRideSaveStatus('Reset to standard ride defaults. Click "Save Ride Charges" to lock.');
     setTimeout(() => setRideSaveStatus(null), 4000);
   };
 
   const handleSaveCourierCharges = async () => {
     try {
-      const currentCourier: CourierChargeSettings = fareSettings.courier_charges || {};
-      const updatedSettings: FareSettings = {
-        ...fareSettings,
-        courier_charges: currentCourier,
+      const currentCourier: CourierChargeSettings = {
+        ...DEFAULT_COURIER_CHARGES,
+        ...(fareSettings.courier_charges || {}),
       };
-      localStorage.setItem('motoride_admin_fare_settings', JSON.stringify(updatedSettings));
       const res = await motorideApi.updateCourierCharges(currentCourier);
-      if (res) setFareSettings(res);
-      setCourierSaveStatus('Courier Delivery Charges saved permanently! Updated across platform.');
+      if (res) {
+        setFareSettings({
+          ...DEFAULT_ADMIN_FARE_SETTINGS,
+          ...res,
+          ride_charges: { ...DEFAULT_RIDE_CHARGES, ...(res.ride_charges || {}) },
+          courier_charges: { ...DEFAULT_COURIER_CHARGES, ...(res.courier_charges || {}) },
+        });
+      }
+      setCourierSaveStatus('Courier & Parcel Delivery Pricing locked & saved permanently! Applied across all apps.');
       setTimeout(() => setCourierSaveStatus(null), 4000);
     } catch (err: any) {
       alert(err?.message || 'Failed to save courier charges');
@@ -660,9 +757,9 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const handleResetCourierCharges = () => {
     setFareSettings(prev => ({
       ...prev,
-      courier_charges: {},
+      courier_charges: { ...DEFAULT_COURIER_CHARGES },
     }));
-    setCourierSaveStatus('Cleared courier charges. Enter new pricing and click "Save Courier Charges" to lock.');
+    setCourierSaveStatus('Reset to standard courier defaults. Click "Save Courier Charges" to lock.');
     setTimeout(() => setCourierSaveStatus(null), 4000);
   };
 

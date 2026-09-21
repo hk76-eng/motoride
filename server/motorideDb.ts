@@ -124,48 +124,76 @@ loadFareSettingsFromDisk();
 
 export function updateFareSettings(newSettings: Partial<FareSettings>): FareSettings {
   const mergedRide: RideChargeSettings = {
-    ...(fareSettings.ride_charges || defaultRideCharges),
+    ...(defaultRideCharges),
+    ...(fareSettings.ride_charges || {}),
     ...(newSettings.ride_charges || {}),
   };
   if (newSettings.ride_charges) {
-    if (newSettings.ride_charges.base_fare !== undefined) mergedRide.base_fare = Number(newSettings.ride_charges.base_fare);
-    if (newSettings.ride_charges.per_km_rate !== undefined) mergedRide.per_km_rate = Number(newSettings.ride_charges.per_km_rate);
-    if (newSettings.ride_charges.minimum_fare !== undefined) mergedRide.minimum_fare = Number(newSettings.ride_charges.minimum_fare);
-    if (newSettings.ride_charges.platform_commission_pct !== undefined) mergedRide.platform_commission_pct = Number(newSettings.ride_charges.platform_commission_pct);
-    if (newSettings.ride_charges.min_offer_pct !== undefined) mergedRide.min_offer_pct = Number(newSettings.ride_charges.min_offer_pct);
-    if (newSettings.ride_charges.max_offer_pct !== undefined) mergedRide.max_offer_pct = Number(newSettings.ride_charges.max_offer_pct);
-    if (newSettings.ride_charges.night_surcharge_pct !== undefined) mergedRide.night_surcharge_pct = Number(newSettings.ride_charges.night_surcharge_pct);
-    if (newSettings.ride_charges.auto_multiplier !== undefined) mergedRide.auto_multiplier = Number(newSettings.ride_charges.auto_multiplier);
-    if (newSettings.ride_charges.car_multiplier !== undefined) mergedRide.car_multiplier = Number(newSettings.ride_charges.car_multiplier);
-    if (newSettings.ride_charges.cancellation_fee !== undefined) mergedRide.cancellation_fee = Number(newSettings.ride_charges.cancellation_fee);
+    if (newSettings.ride_charges.base_fare !== undefined && !isNaN(Number(newSettings.ride_charges.base_fare))) mergedRide.base_fare = Number(newSettings.ride_charges.base_fare);
+    if (newSettings.ride_charges.per_km_rate !== undefined && !isNaN(Number(newSettings.ride_charges.per_km_rate))) mergedRide.per_km_rate = Number(newSettings.ride_charges.per_km_rate);
+    if (newSettings.ride_charges.minimum_fare !== undefined && !isNaN(Number(newSettings.ride_charges.minimum_fare))) mergedRide.minimum_fare = Number(newSettings.ride_charges.minimum_fare);
+    if (newSettings.ride_charges.platform_commission_pct !== undefined && !isNaN(Number(newSettings.ride_charges.platform_commission_pct))) mergedRide.platform_commission_pct = Number(newSettings.ride_charges.platform_commission_pct);
+    if (newSettings.ride_charges.min_offer_pct !== undefined && !isNaN(Number(newSettings.ride_charges.min_offer_pct))) mergedRide.min_offer_pct = Number(newSettings.ride_charges.min_offer_pct);
+    if (newSettings.ride_charges.max_offer_pct !== undefined && !isNaN(Number(newSettings.ride_charges.max_offer_pct))) mergedRide.max_offer_pct = Number(newSettings.ride_charges.max_offer_pct);
+    if (newSettings.ride_charges.night_surcharge_pct !== undefined && !isNaN(Number(newSettings.ride_charges.night_surcharge_pct))) mergedRide.night_surcharge_pct = Number(newSettings.ride_charges.night_surcharge_pct);
+    if (newSettings.ride_charges.auto_multiplier !== undefined && !isNaN(Number(newSettings.ride_charges.auto_multiplier))) mergedRide.auto_multiplier = Number(newSettings.ride_charges.auto_multiplier);
+    if (newSettings.ride_charges.car_multiplier !== undefined && !isNaN(Number(newSettings.ride_charges.car_multiplier))) mergedRide.car_multiplier = Number(newSettings.ride_charges.car_multiplier);
+    if (newSettings.ride_charges.cancellation_fee !== undefined && !isNaN(Number(newSettings.ride_charges.cancellation_fee))) mergedRide.cancellation_fee = Number(newSettings.ride_charges.cancellation_fee);
+    mergedRide.updated_at = new Date().toISOString();
   }
 
   const mergedCourier: CourierChargeSettings = {
-    ...(fareSettings.courier_charges || defaultCourierCharges),
+    ...(defaultCourierCharges),
+    ...(fareSettings.courier_charges || {}),
     ...(newSettings.courier_charges || {}),
   };
   if (newSettings.courier_charges) {
-    if (newSettings.courier_charges.base_fare !== undefined) mergedCourier.base_fare = Number(newSettings.courier_charges.base_fare);
-    if (newSettings.courier_charges.per_km_rate !== undefined) mergedCourier.per_km_rate = Number(newSettings.courier_charges.per_km_rate);
-    if (newSettings.courier_charges.minimum_fare !== undefined) mergedCourier.minimum_fare = Number(newSettings.courier_charges.minimum_fare);
-    if (newSettings.courier_charges.platform_commission_pct !== undefined) mergedCourier.platform_commission_pct = Number(newSettings.courier_charges.platform_commission_pct);
-    if (newSettings.courier_charges.min_offer_pct !== undefined) mergedCourier.min_offer_pct = Number(newSettings.courier_charges.min_offer_pct);
-    if (newSettings.courier_charges.max_offer_pct !== undefined) mergedCourier.max_offer_pct = Number(newSettings.courier_charges.max_offer_pct);
-    if (newSettings.courier_charges.handling_fee !== undefined) mergedCourier.handling_fee = Number(newSettings.courier_charges.handling_fee);
-    if (newSettings.courier_charges.express_surcharge !== undefined) mergedCourier.express_surcharge = Number(newSettings.courier_charges.express_surcharge);
-    if (newSettings.courier_charges.max_weight_kg !== undefined) mergedCourier.max_weight_kg = Number(newSettings.courier_charges.max_weight_kg);
-    if (newSettings.courier_charges.cancellation_fee !== undefined) mergedCourier.cancellation_fee = Number(newSettings.courier_charges.cancellation_fee);
+    if (newSettings.courier_charges.base_fare !== undefined && !isNaN(Number(newSettings.courier_charges.base_fare))) mergedCourier.base_fare = Number(newSettings.courier_charges.base_fare);
+    if (newSettings.courier_charges.per_km_rate !== undefined && !isNaN(Number(newSettings.courier_charges.per_km_rate))) mergedCourier.per_km_rate = Number(newSettings.courier_charges.per_km_rate);
+    if (newSettings.courier_charges.minimum_fare !== undefined && !isNaN(Number(newSettings.courier_charges.minimum_fare))) mergedCourier.minimum_fare = Number(newSettings.courier_charges.minimum_fare);
+    if (newSettings.courier_charges.platform_commission_pct !== undefined && !isNaN(Number(newSettings.courier_charges.platform_commission_pct))) mergedCourier.platform_commission_pct = Number(newSettings.courier_charges.platform_commission_pct);
+    if (newSettings.courier_charges.min_offer_pct !== undefined && !isNaN(Number(newSettings.courier_charges.min_offer_pct))) mergedCourier.min_offer_pct = Number(newSettings.courier_charges.min_offer_pct);
+    if (newSettings.courier_charges.max_offer_pct !== undefined && !isNaN(Number(newSettings.courier_charges.max_offer_pct))) mergedCourier.max_offer_pct = Number(newSettings.courier_charges.max_offer_pct);
+    if (newSettings.courier_charges.handling_fee !== undefined && !isNaN(Number(newSettings.courier_charges.handling_fee))) mergedCourier.handling_fee = Number(newSettings.courier_charges.handling_fee);
+    if (newSettings.courier_charges.express_surcharge !== undefined && !isNaN(Number(newSettings.courier_charges.express_surcharge))) mergedCourier.express_surcharge = Number(newSettings.courier_charges.express_surcharge);
+    if (newSettings.courier_charges.max_weight_kg !== undefined && !isNaN(Number(newSettings.courier_charges.max_weight_kg))) mergedCourier.max_weight_kg = Number(newSettings.courier_charges.max_weight_kg);
+    if (newSettings.courier_charges.cancellation_fee !== undefined && !isNaN(Number(newSettings.courier_charges.cancellation_fee))) mergedCourier.cancellation_fee = Number(newSettings.courier_charges.cancellation_fee);
+    mergedCourier.updated_at = new Date().toISOString();
   }
+
+  const baseFareVal = newSettings.base_fare !== undefined && !isNaN(Number(newSettings.base_fare))
+    ? Number(newSettings.base_fare)
+    : (mergedRide.base_fare ?? fareSettings.base_fare ?? 25.0);
+
+  const perKmVal = newSettings.per_km_rate !== undefined && !isNaN(Number(newSettings.per_km_rate))
+    ? Number(newSettings.per_km_rate)
+    : (mergedRide.per_km_rate ?? fareSettings.per_km_rate ?? 12.0);
+
+  const minFareVal = newSettings.minimum_fare !== undefined && !isNaN(Number(newSettings.minimum_fare))
+    ? Number(newSettings.minimum_fare)
+    : (mergedRide.minimum_fare ?? fareSettings.minimum_fare ?? 30.0);
+
+  const commissionVal = newSettings.platform_commission_pct !== undefined && !isNaN(Number(newSettings.platform_commission_pct))
+    ? Number(newSettings.platform_commission_pct)
+    : (mergedRide.platform_commission_pct ?? fareSettings.platform_commission_pct ?? 10.0);
+
+  const minOfferVal = newSettings.min_offer_pct !== undefined && !isNaN(Number(newSettings.min_offer_pct))
+    ? Number(newSettings.min_offer_pct)
+    : (mergedRide.min_offer_pct ?? fareSettings.min_offer_pct ?? 70.0);
+
+  const maxOfferVal = newSettings.max_offer_pct !== undefined && !isNaN(Number(newSettings.max_offer_pct))
+    ? Number(newSettings.max_offer_pct)
+    : (mergedRide.max_offer_pct ?? fareSettings.max_offer_pct ?? 180.0);
 
   fareSettings = {
     ...fareSettings,
     ...newSettings,
-    base_fare: Number(newSettings.base_fare ?? mergedRide.base_fare ?? fareSettings.base_fare),
-    per_km_rate: Number(newSettings.per_km_rate ?? mergedRide.per_km_rate ?? fareSettings.per_km_rate),
-    minimum_fare: Number(newSettings.minimum_fare ?? mergedRide.minimum_fare ?? fareSettings.minimum_fare),
-    platform_commission_pct: Number(newSettings.platform_commission_pct ?? mergedRide.platform_commission_pct ?? fareSettings.platform_commission_pct),
-    min_offer_pct: Number(newSettings.min_offer_pct ?? mergedRide.min_offer_pct ?? fareSettings.min_offer_pct),
-    max_offer_pct: Number(newSettings.max_offer_pct ?? mergedRide.max_offer_pct ?? fareSettings.max_offer_pct),
+    base_fare: baseFareVal,
+    per_km_rate: perKmVal,
+    minimum_fare: minFareVal,
+    platform_commission_pct: commissionVal,
+    min_offer_pct: minOfferVal,
+    max_offer_pct: maxOfferVal,
     ride_charges: mergedRide,
     courier_charges: mergedCourier,
     updated_at: new Date().toISOString(),

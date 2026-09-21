@@ -446,6 +446,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       loadCaptainData();
     });
 
+    const unsubFareUpdated = realtimeSync.on('FARE_SETTINGS_UPDATED', (fare: FareSettings) => {
+      if (fare) setFareSettings(fare);
+    });
+
+    const unsubQrUpdated = realtimeSync.on('QR_SETTINGS_UPDATED', (qr: QRCodeSetting) => {
+      if (qr) setQrSettings(qr);
+    });
+
     // Automatic daily reset: check if the calendar date changed in the local business timezone (Asia/Kolkata)
     // When midnight passes, Today's Income automatically resets to ₹0 without requiring manual actions.
     let lastCheckedDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
@@ -469,6 +477,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         loadAvailableRides();
         loadActiveRide();
         loadCaptainData();
+        loadSettings();
       }
     };
     window.addEventListener('focus', handleVisibility);
@@ -478,6 +487,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       unsubRideCreated();
       unsubRideUpdated();
       unsubEarningsUpdated();
+      unsubFareUpdated();
+      unsubQrUpdated();
       clearInterval(rolloverInterval);
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleVisibility);

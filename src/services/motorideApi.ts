@@ -1043,37 +1043,78 @@ export const motorideApi = {
   // 4. Fare Settings
   async getFareSettings(): Promise<FareSettings> {
     try {
-      const local = safeStorage.getItem('motoride_admin_fare_settings');
-      if (local) {
-        return JSON.parse(local);
+      const json = await safeFetchJson<{ settings: FareSettings }>(`${API_BASE}/fare-settings`);
+      if (json?.settings?.base_fare !== undefined || json?.settings?.ride_charges?.base_fare !== undefined) {
+        try {
+          safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(json.settings));
+        } catch {}
+        return json.settings;
       }
     } catch {}
+
     const supabase = getSupabase();
     if (supabase) {
       try {
         const { data } = await supabase.from('fare_settings').select('*').limit(1).maybeSingle();
-        if (data) return data as FareSettings;
+        if (data) {
+          try {
+            safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(data));
+          } catch {}
+          return data as FareSettings;
+        }
       } catch {}
     }
-    const json = await safeFetchJson<{ settings: FareSettings }>(`${API_BASE}/fare-settings`, undefined, {
-      settings: {
-        id: 'default',
-        currency_symbol: '₹',
+
+    try {
+      const local = safeStorage.getItem('motoride_admin_fare_settings');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (parsed && typeof parsed === 'object') {
+          return parsed;
+        }
+      }
+    } catch {}
+
+    return {
+      id: 'default',
+      base_fare: 25.0,
+      per_km_rate: 12.0,
+      minimum_fare: 30.0,
+      platform_commission_pct: 10.0,
+      min_offer_pct: 70.0,
+      max_offer_pct: 180.0,
+      currency_symbol: '₹',
+      updated_at: new Date().toISOString(),
+      ride_charges: {
+        base_fare: 25.0,
+        per_km_rate: 12.0,
+        minimum_fare: 30.0,
+        platform_commission_pct: 10.0,
+        min_offer_pct: 70.0,
+        max_offer_pct: 180.0,
+        night_surcharge_pct: 10.0,
+        auto_multiplier: 1.25,
+        car_multiplier: 1.8,
+        cancellation_fee: 20.0,
         updated_at: new Date().toISOString(),
-        ride_charges: {},
-        courier_charges: {},
-      } as FareSettings,
-    });
-    return json.settings;
+      },
+      courier_charges: {
+        base_fare: 35.0,
+        per_km_rate: 14.0,
+        minimum_fare: 40.0,
+        platform_commission_pct: 12.0,
+        min_offer_pct: 70.0,
+        max_offer_pct: 180.0,
+        handling_fee: 10.0,
+        express_surcharge: 15.0,
+        max_weight_kg: 15.0,
+        cancellation_fee: 25.0,
+        updated_at: new Date().toISOString(),
+      },
+    } as FareSettings;
   },
 
   async updateFareSettings(settings: Partial<FareSettings>): Promise<FareSettings> {
-    try {
-      const existing = safeStorage.getItem('motoride_admin_fare_settings');
-      const parsed = existing ? JSON.parse(existing) : {};
-      const merged = { ...parsed, ...settings };
-      safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(merged));
-    } catch {}
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -1085,7 +1126,11 @@ export const motorideApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
-    return json.settings || (settings as FareSettings);
+    const result = json?.settings || (settings as FareSettings);
+    try {
+      safeStorage.setItem('motoride_admin_fare_settings', JSON.stringify(result));
+    } catch {}
+    return result;
   },
 
   async updateRideCharges(charges: Partial<import('../types/motoride').RideChargeSettings>): Promise<FareSettings> {
