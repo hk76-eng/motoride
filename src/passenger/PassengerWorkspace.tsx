@@ -753,7 +753,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       dropoffContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
 
-    setPickupToastMessage('Pickup Location (A) filled with live GPS! Fill drop location (B).');
+    setPickupToastMessage('To (A) filled with live GPS! Fill From (B).');
     setShowPickupToast(true);
     setTimeout(() => setShowPickupToast(false), 3500);
   };
@@ -2122,11 +2122,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
             )}
 
-            {/* Pickup Location Field (Preset Dropdown or Manual Text Typing) */}
+            {/* Location (A) Field (Preset Dropdown or Manual Text Typing) */}
             <div className="flex flex-col gap-1.5 relative">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-black text-black tracking-wider">
-                  Pickup Location (A)
+                  To (A)
                 </label>
                 <button
                   type="button"
@@ -2291,11 +2291,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               )}
             </div>
 
-            {/* Dropoff Location Field (Preset Dropdown or Manual Text Typing) */}
+            {/* Location (B) Field (Preset Dropdown or Manual Text Typing) */}
             <div className="flex flex-col gap-1.5 relative">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-black text-black tracking-wider">
-                  Drop-off Location (B)
+                  From (B)
                 </label>
                 <button
                   type="button"
