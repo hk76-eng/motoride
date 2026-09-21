@@ -789,9 +789,31 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
     { name: 'Max Super Speciality Hospital, Phase 6', lat: 30.732145, lng: 76.708234 },
     { name: 'VR Punjab Mall, Kharar Road', lat: 30.748231, lng: 76.689241 },
     { name: 'Kharar Bus Stand, NH 21', lat: 30.745124, lng: 76.648214 },
+    // Chandigarh Sectors
+    { name: 'Sector 7 Market, Chandigarh (Madhya Marg)', lat: 30.732514, lng: 76.804514 },
+    { name: 'Sector 8 Inner Market, Chandigarh', lat: 30.738514, lng: 76.799124 },
+    { name: 'Sector 9 Secretariat, Chandigarh', lat: 30.744514, lng: 76.793124 },
+    { name: 'Sector 10 Museum & Leisure Valley', lat: 30.751514, lng: 76.789124 },
     { name: 'Sector 17 Plaza, Chandigarh', lat: 30.739834, lng: 76.782702 },
+    { name: 'Sector 18 Electronic Market, Chandigarh', lat: 30.735514, lng: 76.789124 },
+    { name: 'Sector 19 Sadar Bazar, Chandigarh', lat: 30.731514, lng: 76.796124 },
+    { name: 'Sector 20 Market, Chandigarh', lat: 30.724514, lng: 76.791124 },
+    { name: 'Sector 21 Market, Chandigarh', lat: 30.727514, lng: 76.781124 },
     { name: 'Aroma Chowk, Sector 22 Chandigarh', lat: 30.731514, lng: 76.772124 },
+    { name: 'Sector 23 Market, Chandigarh', lat: 30.737514, lng: 76.766124 },
+    { name: 'Sector 26 Grain Market & Clubs', lat: 30.728514, lng: 76.804124 },
+    { name: 'Sector 27 Market, Chandigarh', lat: 30.722514, lng: 76.801514 },
+    { name: 'Sector 28 Market, Chandigarh', lat: 30.716514, lng: 76.808514 },
+    { name: 'Sector 34 Sub City Centre, Chandigarh', lat: 30.721514, lng: 76.768124 },
+    { name: 'Sector 35 Market, Chandigarh', lat: 30.724514, lng: 76.764124 },
+    { name: 'Sector 40 Market, Chandigarh', lat: 30.735514, lng: 76.745124 },
+    { name: 'Sector 41 Badheri, Chandigarh', lat: 30.731514, lng: 76.738124 },
+    { name: 'Sector 42 Lake & Sports Complex', lat: 30.726514, lng: 76.749124 },
     { name: 'ISBT Sector 43, Chandigarh', lat: 30.722511, lng: 76.745632 },
+    { name: 'Sector 44 Residential, Chandigarh', lat: 30.718514, lng: 76.755124 },
+    { name: 'Sector 45 Burail, Chandigarh', lat: 30.714514, lng: 76.762124 },
+    { name: 'Sector 46 Market & College, Chandigarh', lat: 30.709514, lng: 76.769124 },
+    { name: 'Sector 47 Market, Chandigarh', lat: 30.704514, lng: 76.776124 },
     { name: 'ISBT Sector 17, Chandigarh', lat: 30.737514, lng: 76.780124 },
     { name: 'Elante Mall, Industrial Area Phase 1', lat: 30.705423, lng: 76.801235 },
     { name: 'Chandigarh Railway Station, Daria', lat: 30.704123, lng: 76.828456 },
@@ -802,31 +824,62 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
     { name: 'PGI Hospital & Medical College', lat: 30.764514, lng: 76.776124 },
     { name: 'Panjab University, Sector 14', lat: 30.759514, lng: 76.768124 },
     { name: 'IT Park Cyber City, Kishangarh', lat: 30.725514, lng: 76.840124 },
-    { name: 'Sector 35 Market, Chandigarh', lat: 30.724514, lng: 76.764124 },
-    { name: 'Sector 34 Sub City Centre, Chandigarh', lat: 30.721514, lng: 76.768124 },
-    { name: 'Sector 20 Market, Chandigarh', lat: 30.724514, lng: 76.791124 },
     { name: 'Sector 15 Market, Chandigarh', lat: 30.754514, lng: 76.774124 },
-    { name: 'Sector 26 Grain Market & Clubs', lat: 30.728514, lng: 76.804124 },
-    { name: 'Sector 5 Panchkula, Town Park', lat: 30.697514, lng: 76.855124 },
+
+    // Panchkula Sectors & Landmarks (Haryana)
+    { name: 'Sector 7 Panchkula, Market & Housing Board', lat: 30.706433, lng: 76.845153 },
+    { name: 'Sector 5 Panchkula, Town Park & HUDA', lat: 30.697514, lng: 76.855124 },
+    { name: 'Sector 6 Panchkula, Civil Hospital', lat: 30.712214, lng: 76.852514 },
+    { name: 'Sector 8 Panchkula Market', lat: 30.699814, lng: 76.848814 },
+    { name: 'Sector 9 Panchkula Market', lat: 30.708814, lng: 76.859814 },
+    { name: 'Sector 10 Panchkula', lat: 30.693514, lng: 76.858514 },
     { name: 'Sector 11 Panchkula Market', lat: 30.689514, lng: 76.861124 },
+    { name: 'Sector 12 Panchkula, Rally Stadium', lat: 30.684514, lng: 76.852514 },
+    { name: 'Sector 14 Panchkula, Govt College', lat: 30.694214, lng: 76.866514 },
+    { name: 'Sector 15 Panchkula Market', lat: 30.686514, lng: 76.869514 },
     { name: 'Sector 20 Panchkula Highrise Hub', lat: 30.672514, lng: 76.868124 },
+    { name: 'Sector 21 Panchkula', lat: 30.665514, lng: 76.872514 },
+    { name: 'Mansa Devi Complex (MDC) Panchkula', lat: 30.724514, lng: 76.845514 },
+    { name: 'Sector 2 Panchkula', lat: 30.701214, lng: 76.840214 },
+    { name: 'Sector 4 Panchkula', lat: 30.704214, lng: 76.852214 },
     { name: 'Zirakpur VIP Road & Metro Wholesale', lat: 30.642514, lng: 76.818124 },
   ];
 
-  const qLower = query.toLowerCase();
-  const matched = localPresets.filter((item) =>
-    item.name.toLowerCase().includes(qLower) ||
-    (qLower.startsWith('sec') && item.name.toLowerCase().includes(qLower.replace('sector', 'sec')))
-  );
+  const qLower = query.toLowerCase().trim();
+  const matched = localPresets.filter((item) => {
+    const itemLower = item.name.toLowerCase();
+    if (itemLower.includes(qLower)) return true;
+    // Match queries like "sec 7 panchkula", "sector 7 pkl", "panchkula 7"
+    if (qLower.includes('panchkula') || qLower.includes('pkl')) {
+      const secMatch = qLower.match(/(?:sec|sector)?\s*([0-9]{1,3})/);
+      if (secMatch && itemLower.includes('panchkula') && itemLower.includes(`sector ${secMatch[1]}`)) {
+        return true;
+      }
+    }
+    if (qLower.includes('mohali') || qLower.includes('phase')) {
+      const pMatch = qLower.match(/(?:phase|sec|sector)?\s*([0-9]{1,3}[a-z]?)/);
+      if (pMatch && itemLower.includes(pMatch[1])) {
+        return true;
+      }
+    }
+    return false;
+  });
 
   // If local preset has exact or strong matches, return them immediately for instant response
-  if (matched.length >= 2) {
-    return res.json({ success: true, results: matched.slice(0, 5) });
+  if (matched.length >= 1) {
+    return res.json({ success: true, results: matched.slice(0, 6) });
   }
 
   try {
     // Search with priority for Tricity / India coordinates (bounding box around Mohali/Chandigarh/Panchkula)
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ' Chandigarh')}&limit=6&addressdetails=1&countrycodes=in&viewbox=76.4,30.4,77.2,30.9`;
+    let searchTerms = query.trim();
+    if (!/(chandigarh|mohali|panchkula|zirakpur|kharar|haryana|punjab)/i.test(searchTerms)) {
+      searchTerms += ' Chandigarh Tricity';
+    } else {
+      searchTerms += ' India';
+    }
+
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchTerms)}&limit=6&addressdetails=1&countrycodes=in&viewbox=76.4,30.4,77.2,30.9`;
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'MotorideRideApp/2.0 (contact@motoride.app)',

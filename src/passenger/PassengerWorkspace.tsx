@@ -69,7 +69,9 @@ const PRESET_LOCATIONS = [
   { name: 'Phase 8B, Industrial & Tech Park', lat: 30.718214, lng: 76.732124 },
   { name: 'Chandigarh Railway Station', lat: 30.704123, lng: 76.828456 },
   { name: 'ISBT Sector 43 Bus Stand', lat: 30.722514, lng: 76.745124 },
+  { name: 'Sector 7 Panchkula, Market & Housing Board', lat: 30.706433, lng: 76.845153 },
   { name: 'Elante Mall, Phase 1', lat: 30.705514, lng: 76.801124 },
+  { name: 'Sector 5 Panchkula, Town Park & HUDA', lat: 30.697514, lng: 76.855124 },
   { name: 'Shaheed Bhagat Singh Int. Airport Mohali', lat: 30.673523, lng: 76.788544 },
   { name: 'Aroma Chowk, Sector 22', lat: 30.731514, lng: 76.772124 },
   { name: 'Sukhna Lake Promenade', lat: 30.742514, lng: 76.815124 },
@@ -77,64 +79,90 @@ const PRESET_LOCATIONS = [
 ];
 
 const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: number }[] = [
-  // Mohali Sectors & Landmarks
-  { name: 'Sector 70, Mohali Market', aliases: ['70', 'sector 70', 'mohali 70', 'mattaur'], lat: 30.704649, lng: 76.717873 },
-  { name: 'Phase 8B, Industrial & Tech Park', aliases: ['8b', 'phase 8b', 'industrial area 8b', 'cp67'], lat: 30.718214, lng: 76.732124 },
-  { name: 'Phase 7, Mohali Food Street', aliases: ['phase 7', '7 phase', 'mohali 7'], lat: 30.710412, lng: 76.721415 },
-  { name: 'Phase 3B2 Market, Mohali', aliases: ['3b2', 'phase 3b2', '3b-2', '3b 2'], lat: 30.718912, lng: 76.711245 },
-  { name: 'Phase 5 Market, Mohali', aliases: ['phase 5', '5 phase', 'mohali 5'], lat: 30.722415, lng: 76.718214 },
-  { name: 'Phase 8, Industrial Area Mohali', aliases: ['phase 8', '8 phase', 'bestech'], lat: 30.712314, lng: 76.729124 },
-  { name: 'Phase 9, Mohali Hockey Stadium', aliases: ['phase 9', '9 phase', 'pca stadium'], lat: 30.697514, lng: 76.738124 },
-  { name: 'Phase 10, Mohali Market', aliases: ['phase 10', '10 phase', 'silvi park'], lat: 30.691214, lng: 76.731124 },
-  { name: 'Phase 11, Mohali Railway Crossing', aliases: ['phase 11', '11 phase'], lat: 30.684514, lng: 76.724124 },
-  { name: 'Sector 62, Phase 8 Mohali City Center', aliases: ['sector 62', 'phase 8 city center', 'puda bhawan'], lat: 30.705892, lng: 76.726418 },
-  { name: 'Sector 67, Mohali Tech Zone', aliases: ['sector 67', '67 mohali'], lat: 30.695214, lng: 76.718912 },
-  { name: 'Sector 68, Kumbra Mohali', aliases: ['sector 68', '68 mohali', 'kumbra'], lat: 30.699814, lng: 76.714512 },
-  { name: 'Sector 71, Mohali Residential Hub', aliases: ['sector 71', '71 mohali', 'sohana'], lat: 30.708914, lng: 76.709214 },
-  { name: 'Fortis Hospital, Phase 8 Mohali', aliases: ['fortis', 'fortis hospital'], lat: 30.712514, lng: 76.734124 },
-  { name: 'Max Super Speciality Hospital, Phase 6', aliases: ['max', 'max hospital', 'phase 6'], lat: 30.732145, lng: 76.708234 },
+  // Mohali Sectors & Landmarks (Punjab)
+  { name: 'Sector 70, Mohali Market', aliases: ['70', 'sector 70', 'mohali 70', 'mattaur', 'sec 70', 'sec 70 mohali', 'sector 70 mohali'], lat: 30.704649, lng: 76.717873 },
+  { name: 'Phase 8B, Industrial & Tech Park', aliases: ['8b', 'phase 8b', 'industrial area 8b', 'cp67', 'phase 8b mohali'], lat: 30.718214, lng: 76.732124 },
+  { name: 'Phase 7, Mohali Food Street', aliases: ['phase 7', '7 phase', 'mohali 7', 'phase 7 mohali', 'sec 61 mohali'], lat: 30.710412, lng: 76.721415 },
+  { name: 'Phase 3B2 Market, Mohali', aliases: ['3b2', 'phase 3b2', '3b-2', '3b 2', 'phase 3b2 mohali'], lat: 30.718912, lng: 76.711245 },
+  { name: 'Phase 5 Market, Mohali', aliases: ['phase 5', '5 phase', 'mohali 5', 'phase 5 mohali'], lat: 30.722415, lng: 76.718214 },
+  { name: 'Phase 8, Industrial Area Mohali', aliases: ['phase 8', '8 phase', 'bestech', 'phase 8 mohali'], lat: 30.712314, lng: 76.729124 },
+  { name: 'Phase 9, Mohali Hockey Stadium', aliases: ['phase 9', '9 phase', 'pca stadium', 'phase 9 mohali'], lat: 30.697514, lng: 76.738124 },
+  { name: 'Phase 10, Mohali Market', aliases: ['phase 10', '10 phase', 'silvi park', 'phase 10 mohali'], lat: 30.691214, lng: 76.731124 },
+  { name: 'Phase 11, Mohali Railway Crossing', aliases: ['phase 11', '11 phase', 'phase 11 mohali'], lat: 30.684514, lng: 76.724124 },
+  { name: 'Sector 62, Phase 8 Mohali City Center', aliases: ['sector 62', 'phase 8 city center', 'puda bhawan', 'sec 62 mohali'], lat: 30.705892, lng: 76.726418 },
+  { name: 'Sector 66, Mohali Bawa White House', aliases: ['sector 66', 'sec 66', '66 mohali', 'bestech mall sector 66'], lat: 30.690514, lng: 76.736124 },
+  { name: 'Sector 67, Mohali Tech Zone', aliases: ['sector 67', 'sec 67', '67 mohali', 'cp 67 mall'], lat: 30.695214, lng: 76.718912 },
+  { name: 'Sector 68, Kumbra Mohali', aliases: ['sector 68', 'sec 68', '68 mohali', 'kumbra'], lat: 30.699814, lng: 76.714512 },
+  { name: 'Sector 69, Mohali', aliases: ['sector 69', 'sec 69', '69 mohali'], lat: 30.704214, lng: 76.710514 },
+  { name: 'Sector 71, Mohali Residential Hub', aliases: ['sector 71', 'sec 71', '71 mohali', 'sohana', 'ivt hospital'], lat: 30.708914, lng: 76.709214 },
+  { name: 'Sector 76, Mohali Administrative Hub', aliases: ['sector 76', 'sec 76', '76 mohali', 'dc office mohali'], lat: 30.687514, lng: 76.708514 },
+  { name: 'Sector 77, Mohali', aliases: ['sector 77', 'sec 77', '77 mohali'], lat: 30.682514, lng: 76.714514 },
+  { name: 'Sector 78, Mohali Sports Complex', aliases: ['sector 78', 'sec 78', '78 mohali'], lat: 30.678514, lng: 76.721514 },
+  { name: 'Sector 79, Mohali Commercial Center', aliases: ['sector 79', 'sec 79', '79 mohali'], lat: 30.674514, lng: 76.728514 },
+  { name: 'Sector 80, Mohali', aliases: ['sector 80', 'sec 80', '80 mohali'], lat: 30.670514, lng: 76.735514 },
+  { name: 'Sector 82, Mohali IT City Hub', aliases: ['sector 82', 'sec 82', '82 mohali', 'it city mohali', 'jlpl'], lat: 30.665514, lng: 76.745514 },
+  { name: 'Fortis Hospital, Phase 8 Mohali', aliases: ['fortis', 'fortis hospital', 'fortis mohali'], lat: 30.712514, lng: 76.734124 },
+  { name: 'Max Super Speciality Hospital, Phase 6', aliases: ['max', 'max hospital', 'phase 6 mohali'], lat: 30.732145, lng: 76.708234 },
   { name: 'VR Punjab Mall, Kharar Road', aliases: ['vr punjab', 'north country mall', 'kharar road'], lat: 30.748231, lng: 76.689241 },
   { name: 'Kharar Bus Stand, NH 21', aliases: ['kharar', 'kharar bus stand'], lat: 30.745124, lng: 76.648214 },
-  { name: 'Shaheed Bhagat Singh Int. Airport Mohali', aliases: ['airport', 'chandigarh airport', 'mohali airport', 'ixc'], lat: 30.673523, lng: 76.788544 },
+  { name: 'Shaheed Bhagat Singh Int. Airport Mohali', aliases: ['airport', 'chandigarh airport', 'mohali airport', 'ixc', 'airport terminal'], lat: 30.673523, lng: 76.788544 },
+
+  // Panchkula Sectors & Landmarks (Haryana)
+  { name: 'Sector 7 Panchkula, Market & Housing Board', aliases: ['sector 7 panchkula', 'panchkula 7', 'sec 7 panchkula', '7 panchkula', 'sector 7 pkl', 'sec 7 pkl', 'panchkula sec 7', 'panchkula sector 7'], lat: 30.706433, lng: 76.845153 },
+  { name: 'Sector 5 Panchkula, Town Park & HUDA', aliases: ['panchkula 5', 'sector 5 panchkula', 'town park', 'sec 5 panchkula', '5 panchkula', 'panchkula 5', 'huda sector 5'], lat: 30.697514, lng: 76.855124 },
+  { name: 'Sector 6 Panchkula, Civil Hospital', aliases: ['sector 6 panchkula', 'panchkula 6', 'sec 6 panchkula', '6 panchkula', 'civil hospital panchkula'], lat: 30.712214, lng: 76.852514 },
+  { name: 'Sector 8 Panchkula Market', aliases: ['sector 8 panchkula', 'panchkula 8', 'sec 8 panchkula', '8 panchkula'], lat: 30.699814, lng: 76.848814 },
+  { name: 'Sector 9 Panchkula Market', aliases: ['sector 9 panchkula', 'panchkula 9', 'sec 9 panchkula', '9 panchkula'], lat: 30.708814, lng: 76.859814 },
+  { name: 'Sector 10 Panchkula Market', aliases: ['sector 10 panchkula', 'panchkula 10', 'sec 10 panchkula', '10 panchkula'], lat: 30.693514, lng: 76.858514 },
+  { name: 'Sector 11 Panchkula Market', aliases: ['panchkula 11', 'sector 11 panchkula', 'sec 11 panchkula', '11 panchkula'], lat: 30.689514, lng: 76.861124 },
+  { name: 'Sector 12 Panchkula, Rally Stadium', aliases: ['sector 12 panchkula', 'panchkula 12', 'sec 12 panchkula', '12 panchkula'], lat: 30.684514, lng: 76.852514 },
+  { name: 'Sector 12A Panchkula', aliases: ['sector 12a panchkula', 'panchkula 12a', 'sec 12a panchkula', '12a panchkula'], lat: 30.688514, lng: 76.846514 },
+  { name: 'Sector 14 Panchkula, Govt College', aliases: ['sector 14 panchkula', 'panchkula 14', 'sec 14 panchkula', '14 panchkula'], lat: 30.694214, lng: 76.866514 },
+  { name: 'Sector 15 Panchkula Market', aliases: ['sector 15 panchkula', 'panchkula 15', 'sec 15 panchkula', '15 panchkula'], lat: 30.686514, lng: 76.869514 },
+  { name: 'Sector 16 Panchkula', aliases: ['sector 16 panchkula', 'panchkula 16', 'sec 16 panchkula', '16 panchkula'], lat: 30.679514, lng: 76.862514 },
+  { name: 'Sector 20 Panchkula Highrise Hub', aliases: ['panchkula 20', 'sector 20 panchkula', 'sec 20 panchkula', '20 panchkula'], lat: 30.672514, lng: 76.868124 },
+  { name: 'Sector 21 Panchkula', aliases: ['sector 21 panchkula', 'panchkula 21', 'sec 21 panchkula', '21 panchkula'], lat: 30.665514, lng: 76.872514 },
+  { name: 'Sector 1 Panchkula (MDC)', aliases: ['sector 1 panchkula', 'panchkula 1', 'sec 1 panchkula', 'mdc panchkula'], lat: 30.718514, lng: 76.848514 },
+  { name: 'Sector 2 Panchkula', aliases: ['sector 2 panchkula', 'panchkula 2', 'sec 2 panchkula', '2 panchkula'], lat: 30.701214, lng: 76.840214 },
+  { name: 'Sector 4 Panchkula', aliases: ['sector 4 panchkula', 'panchkula 4', 'sec 4 panchkula', '4 panchkula'], lat: 30.704214, lng: 76.852214 },
+  { name: 'Mansa Devi Complex (MDC) Panchkula', aliases: ['mansa devi', 'mdc', 'mansa devi temple', 'mdc 4', 'mdc 5', 'panchkula temple'], lat: 30.724514, lng: 76.845514 },
+  { name: 'Pinjore Heritage Garden', aliases: ['pinjore', 'pinjore garden', 'yadavindra garden'], lat: 30.796514, lng: 76.915514 },
 
   // Chandigarh Sectors & Landmarks
-  { name: 'Sector 17 Plaza, Chandigarh', aliases: ['sector 17', '17 plaza', '17 chandigarh', 'isbt 17'], lat: 30.739834, lng: 76.782702 },
-  { name: 'Aroma Chowk, Sector 22', aliases: ['aroma', 'sector 22', '22 chandigarh', 'aroma chowk', 'kisan bhawan'], lat: 30.731514, lng: 76.772124 },
-  { name: 'ISBT Sector 43 Bus Stand', aliases: ['isbt 43', 'sector 43', '43 bus stand', 'isbt chandigarh'], lat: 30.722514, lng: 76.745124 },
-  { name: 'Elante Mall, Phase 1', aliases: ['elante', 'elante mall', 'industrial area phase 1'], lat: 30.705514, lng: 76.801124 },
-  { name: 'Chandigarh Railway Station', aliases: ['railway station', 'chandigarh junction', 'cdg station', 'daria'], lat: 30.704123, lng: 76.828456 },
+  { name: 'Sector 7 Market, Chandigarh (Madhya Marg)', aliases: ['sector 7 chandigarh', '7 chandigarh', 'sec 7 chandigarh', 'sector 7 chd', 'sec 7 chd', 'sector 7'], lat: 30.732514, lng: 76.804514 },
+  { name: 'Sector 17 Plaza, Chandigarh', aliases: ['sector 17', '17 plaza', '17 chandigarh', 'isbt 17', 'sec 17'], lat: 30.739834, lng: 76.782702 },
+  { name: 'Aroma Chowk, Sector 22', aliases: ['aroma', 'sector 22', '22 chandigarh', 'aroma chowk', 'kisan bhawan', 'sec 22'], lat: 30.731514, lng: 76.772124 },
+  { name: 'ISBT Sector 43 Bus Stand', aliases: ['isbt 43', 'sector 43', '43 bus stand', 'isbt chandigarh', 'sec 43'], lat: 30.722514, lng: 76.745124 },
+  { name: 'Elante Mall, Phase 1', aliases: ['elante', 'elante mall', 'industrial area phase 1', 'chandigarh mall'], lat: 30.705514, lng: 76.801124 },
+  { name: 'Chandigarh Railway Station', aliases: ['railway station', 'chandigarh junction', 'cdg station', 'daria', 'railway station chandigarh'], lat: 30.704123, lng: 76.828456 },
   { name: 'Sukhna Lake Promenade', aliases: ['sukhna lake', 'lake', 'sukhna', 'promenade'], lat: 30.742514, lng: 76.815124 },
   { name: 'Rock Garden of Chandigarh', aliases: ['rock garden', 'nek chand'], lat: 30.752514, lng: 76.807124 },
-  { name: 'Rose Garden, Sector 16', aliases: ['rose garden', 'sector 16', '16 chandigarh'], lat: 30.746514, lng: 76.784124 },
+  { name: 'Rose Garden, Sector 16', aliases: ['rose garden', 'sector 16', '16 chandigarh', 'sec 16'], lat: 30.746514, lng: 76.784124 },
   { name: 'PGI Hospital & Medical College', aliases: ['pgi', 'pgimer', 'sector 12', 'pgi hospital'], lat: 30.764514, lng: 76.776124 },
-  { name: 'Panjab University, Sector 14', aliases: ['panjab university', 'pu campus', 'sector 14', 'student centre'], lat: 30.759514, lng: 76.768124 },
+  { name: 'Panjab University, Sector 14', aliases: ['panjab university', 'pu campus', 'sector 14', 'student centre', 'pu'], lat: 30.759514, lng: 76.768124 },
   { name: 'IT Park Cyber City, Kishangarh', aliases: ['it park', 'cyber city', 'infosys', 'dlf it park'], lat: 30.725514, lng: 76.840124 },
-  { name: 'Sector 35 Market, Chandigarh', aliases: ['sector 35', '35 market', 'jw marriott'], lat: 30.724514, lng: 76.764124 },
-  { name: 'Sector 34 Sub City Centre', aliases: ['sector 34', '34 library', 'piccadily'], lat: 30.721514, lng: 76.768124 },
-  { name: 'Sector 20 Market, Chandigarh', aliases: ['sector 20', 'gurudwara sector 20'], lat: 30.724514, lng: 76.791124 },
-  { name: 'Sector 15 Market, Chandigarh', aliases: ['sector 15', '15 market', 'patel market'], lat: 30.754514, lng: 76.774124 },
-  { name: 'Sector 26 Grain Market & Clubs', aliases: ['sector 26', '26 clubs', 'timber market'], lat: 30.728514, lng: 76.804124 },
-  { name: 'Sector 8 Inner Market', aliases: ['sector 8', '8 market', 'madhya marg'], lat: 30.738514, lng: 76.799124 },
-  { name: 'Sector 9 Secretariat', aliases: ['sector 9', 'haryana secretariat'], lat: 30.744514, lng: 76.793124 },
-  { name: 'Sector 10 Museum & Leisure Valley', aliases: ['sector 10', 'art museum', 'mountview'], lat: 30.751514, lng: 76.789124 },
-  { name: 'Sector 18 Electronic Market', aliases: ['sector 18', 'tagore theatre'], lat: 30.735514, lng: 76.789124 },
-  { name: 'Sector 19 Sadar Bazar', aliases: ['sector 19', 'sadar bazar', 'palika bazar'], lat: 30.731514, lng: 76.796124 },
-  { name: 'Sector 21 Market', aliases: ['sector 21'], lat: 30.727514, lng: 76.781124 },
-  { name: 'Sector 40 Market', aliases: ['sector 40'], lat: 30.735514, lng: 76.745124 },
-  { name: 'Sector 41 Badheri Market', aliases: ['sector 41', 'badheri'], lat: 30.731514, lng: 76.738124 },
-  { name: 'Sector 42 Lake & Sports Complex', aliases: ['sector 42', 'new lake 42'], lat: 30.726514, lng: 76.749124 },
-  { name: 'Sector 44 Residential', aliases: ['sector 44'], lat: 30.718514, lng: 76.755124 },
-  { name: 'Sector 45 Burail & Market', aliases: ['sector 45', 'burail'], lat: 30.714514, lng: 76.762124 },
-  { name: 'Sector 46 Market', aliases: ['sector 46', 'college 46'], lat: 30.709514, lng: 76.769124 },
-  { name: 'Sector 47 Market', aliases: ['sector 47'], lat: 30.704514, lng: 76.776124 },
-
-  // Panchkula Sectors
-  { name: 'Sector 5 Panchkula, Town Park', aliases: ['panchkula 5', 'sector 5 panchkula', 'town park'], lat: 30.697514, lng: 76.855124 },
-  { name: 'Sector 11 Panchkula Market', aliases: ['panchkula 11', 'sector 11 panchkula'], lat: 30.689514, lng: 76.861124 },
-  { name: 'Sector 20 Panchkula Highrise Hub', aliases: ['panchkula 20', 'sector 20 panchkula'], lat: 30.672514, lng: 76.868124 },
-  { name: 'Zirakpur VIP Road & Metro Wholesale', aliases: ['zirakpur', 'vip road', 'metro zirakpur'], lat: 30.642514, lng: 76.818124 },
-  { name: 'CP 67 Mall, Sector 67 Mohali', aliases: ['cp 67', 'cp67', 'cp67 mall', 'sector 67 mall'], lat: 30.693812, lng: 76.721415 },
-  { name: 'Bestech Square Mall, Sector 66', aliases: ['bestech', 'bestech mall', 'sector 66'], lat: 30.690514, lng: 76.736124 },
+  { name: 'Sector 35 Market, Chandigarh', aliases: ['sector 35', '35 market', 'jw marriott', 'sec 35'], lat: 30.724514, lng: 76.764124 },
+  { name: 'Sector 34 Sub City Centre', aliases: ['sector 34', '34 library', 'piccadily', 'sec 34'], lat: 30.721514, lng: 76.768124 },
+  { name: 'Sector 20 Market, Chandigarh', aliases: ['sector 20 chandigarh', 'sec 20 chandigarh', 'gurudwara sector 20'], lat: 30.724514, lng: 76.791124 },
+  { name: 'Sector 15 Market, Chandigarh', aliases: ['sector 15', '15 market', 'patel market', 'sec 15'], lat: 30.754514, lng: 76.774124 },
+  { name: 'Sector 26 Grain Market & Clubs', aliases: ['sector 26', '26 clubs', 'timber market', 'sec 26'], lat: 30.728514, lng: 76.804124 },
+  { name: 'Sector 8 Inner Market', aliases: ['sector 8 chandigarh', '8 market', 'madhya marg', 'sec 8 chandigarh'], lat: 30.738514, lng: 76.799124 },
+  { name: 'Sector 9 Secretariat', aliases: ['sector 9 chandigarh', 'haryana secretariat', 'sec 9 chandigarh'], lat: 30.744514, lng: 76.793124 },
+  { name: 'Sector 10 Museum & Leisure Valley', aliases: ['sector 10', 'art museum', 'mountview', 'sec 10'], lat: 30.751514, lng: 76.789124 },
+  { name: 'Sector 18 Electronic Market', aliases: ['sector 18', 'tagore theatre', 'sec 18'], lat: 30.735514, lng: 76.789124 },
+  { name: 'Sector 19 Sadar Bazar', aliases: ['sector 19', 'sadar bazar', 'palika bazar', 'sec 19'], lat: 30.731514, lng: 76.796124 },
+  { name: 'Sector 21 Market', aliases: ['sector 21 chandigarh', 'sec 21 chandigarh'], lat: 30.727514, lng: 76.781124 },
+  { name: 'Sector 23 Market, Chandigarh', aliases: ['sector 23', 'sec 23'], lat: 30.737514, lng: 76.766124 },
+  { name: 'Sector 27 Market, Chandigarh', aliases: ['sector 27', 'sec 27'], lat: 30.722514, lng: 76.801514 },
+  { name: 'Sector 28 Market, Chandigarh', aliases: ['sector 28', 'sec 28'], lat: 30.716514, lng: 76.808514 },
+  { name: 'Sector 40 Market', aliases: ['sector 40', 'sec 40'], lat: 30.735514, lng: 76.745124 },
+  { name: 'Sector 41 Badheri Market', aliases: ['sector 41', 'badheri', 'sec 41'], lat: 30.731514, lng: 76.738124 },
+  { name: 'Sector 42 Lake & Sports Complex', aliases: ['sector 42', 'new lake 42', 'sec 42'], lat: 30.726514, lng: 76.749124 },
+  { name: 'Sector 44 Residential', aliases: ['sector 44', 'sec 44'], lat: 30.718514, lng: 76.755124 },
+  { name: 'Sector 45 Burail & Market', aliases: ['sector 45', 'burail', 'sec 45'], lat: 30.714514, lng: 76.762124 },
+  { name: 'Sector 46 Market', aliases: ['sector 46', 'college 46', 'sec 46'], lat: 30.709514, lng: 76.769124 },
+  { name: 'Sector 47 Market', aliases: ['sector 47', 'sec 47'], lat: 30.704514, lng: 76.776124 },
+  { name: 'Zirakpur VIP Road & Metro Wholesale', aliases: ['zirakpur', 'vip road', 'metro zirakpur', 'zirakpur flyover'], lat: 30.642514, lng: 76.818124 },
   { name: 'GMCH Hospital Sector 32', aliases: ['gmch', 'gmch 32', 'sector 32 hospital', '32 hospital'], lat: 30.712514, lng: 76.779124 },
 ];
 
@@ -144,12 +172,16 @@ const getInstantMatchingSuggestions = (query: string): { name: string; lat: numb
   const q = raw.toLowerCase();
   if (!q) return [];
 
-  // Extract sector number if user typed e.g. "43", "sec 43", "sector 43"
-  const secNumMatch = q.match(/^(?:sec|sector)?\s*([0-9]{1,3})\b/i);
+  const isPanchkula = /\b(panchkula|pkl|haryana)\b/i.test(q);
+  const isMohali = /\b(mohali|sas nagar|phase|sohana|mattaur|kumbra|landran|kharar)\b/i.test(q);
+  const isChandigarh = /\b(chandigarh|chd|pgi|pu|isbt)\b/i.test(q);
+
+  // Extract sector number if user typed e.g. "43", "sec 43", "sector 7", "sec 7 panchkula"
+  const secNumMatch = q.match(/(?:sec|sector)?\s*([0-9]{1,3})\b/i);
   const targetSecNum = secNumMatch ? parseInt(secNumMatch[1], 10) : null;
 
   // Extract phase if user typed e.g. "7", "phase 7", "3b2", "phase 8b"
-  const phaseMatch = q.match(/^(?:phase)?\s*([0-9]{1,2}[a-z0-9]*)\b/i);
+  const phaseMatch = q.match(/(?:phase)\s*([0-9]{1,2}[a-z0-9]*)\b/i);
   const targetPhase = phaseMatch ? phaseMatch[1].toLowerCase() : null;
 
   interface ScoredCandidate {
@@ -164,43 +196,57 @@ const getInstantMatchingSuggestions = (query: string): { name: string; lat: numb
 
   for (const loc of KNOWN_LOCATIONS) {
     const nameLower = loc.name.toLowerCase();
+    const locIsPanchkula = nameLower.includes('panchkula');
+    const locIsMohali = nameLower.includes('mohali') || nameLower.includes('phase') || nameLower.includes('kharar');
+    const locIsChandigarh = nameLower.includes('chandigarh') || (!locIsPanchkula && !locIsMohali);
+
     let score = 0;
 
     // 1. Exact full name match
     if (nameLower === q) {
-      score += 250;
+      score += 300;
     }
     // 2. Name starts with exact query
     else if (nameLower.startsWith(q)) {
-      score += 150;
+      score += 180;
     }
     // 3. Name contains query as a distinct word boundary
     else if (new RegExp(`\\b${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(nameLower)) {
-      score += 100;
+      score += 120;
     }
     // 4. Substring in name
     else if (nameLower.includes(q)) {
-      score += 60;
+      score += 70;
     }
 
     // Alias matching
     for (const a of loc.aliases) {
       if (a === q) {
-        score = Math.max(score, 200);
+        score = Math.max(score, 260);
       } else if (a.startsWith(q)) {
-        score = Math.max(score, 130);
+        score = Math.max(score, 160);
       } else if (q.includes(a) && a.length >= 3) {
-        score = Math.max(score, 90);
+        score = Math.max(score, 110);
       } else if (a.includes(q) && q.length >= 3) {
-        score = Math.max(score, 75);
+        score = Math.max(score, 85);
       }
     }
 
-    // Sector query boost (e.g. user typed "43" or "sector 43")
+    // Sector number match logic with strict city weighting
     if (targetSecNum !== null) {
       const locSecMatch = nameLower.match(/sector\s*([0-9]{1,3})/i);
       if (locSecMatch && parseInt(locSecMatch[1], 10) === targetSecNum) {
-        score = Math.max(score, 180);
+        if (isPanchkula && locIsPanchkula) {
+          score += 250;
+        } else if (isMohali && locIsMohali) {
+          score += 250;
+        } else if (isChandigarh && locIsChandigarh) {
+          score += 250;
+        } else if (!isPanchkula && !isMohali && !isChandigarh) {
+          score += 150;
+        } else {
+          score += 20; // Minor score if city differs
+        }
       }
     }
 
@@ -208,9 +254,14 @@ const getInstantMatchingSuggestions = (query: string): { name: string; lat: numb
     if (targetPhase && targetPhase.length >= 1) {
       const locPhaseMatch = nameLower.match(/phase\s*([0-9]{1,2}[a-z0-9]*)/i);
       if (locPhaseMatch && locPhaseMatch[1].toLowerCase() === targetPhase) {
-        score = Math.max(score, 180);
+        score += 220;
       }
     }
+
+    // Regional filter boost/penalty
+    if (isPanchkula && locIsPanchkula) score += 60;
+    if (isMohali && locIsMohali) score += 60;
+    if (isChandigarh && locIsChandigarh) score += 60;
 
     if (score > 0 && !seen.has(loc.name)) {
       seen.add(loc.name);
@@ -227,15 +278,33 @@ const getInstantMatchingSuggestions = (query: string): { name: string; lat: numb
     lng: s.lng,
   }));
 
-  // If user entered a specific sector number not in KNOWN_LOCATIONS (e.g. "Sector 82")
+  // If user entered a specific sector number not in KNOWN_LOCATIONS
   if (targetSecNum !== null && !results.some((r) => r.name.toLowerCase().includes(`sector ${targetSecNum}`))) {
-    const latOffset = ((targetSecNum % 10) - 5) * 0.008;
-    const lngOffset = (Math.floor(targetSecNum / 10) - 2) * 0.012;
-    results.unshift({
-      name: `Sector ${targetSecNum}, Chandigarh/Mohali`,
-      lat: Number((30.7350 + latOffset).toFixed(6)),
-      lng: Number((76.7750 + lngOffset).toFixed(6)),
-    });
+    if (isPanchkula) {
+      const latOffset = ((targetSecNum % 10) - 5) * 0.005;
+      const lngOffset = (Math.floor(targetSecNum / 10) - 1) * 0.006;
+      results.unshift({
+        name: `Sector ${targetSecNum}, Panchkula`,
+        lat: Number((30.6950 + latOffset).toFixed(6)),
+        lng: Number((76.8550 + lngOffset).toFixed(6)),
+      });
+    } else if (isMohali) {
+      const latOffset = ((targetSecNum % 10) - 5) * 0.006;
+      const lngOffset = (Math.floor(targetSecNum / 10) - 7) * 0.008;
+      results.unshift({
+        name: `Sector ${targetSecNum}, Mohali`,
+        lat: Number((30.7050 + latOffset).toFixed(6)),
+        lng: Number((76.7150 + lngOffset).toFixed(6)),
+      });
+    } else {
+      const latOffset = ((targetSecNum % 10) - 5) * 0.008;
+      const lngOffset = (Math.floor(targetSecNum / 10) - 2) * 0.012;
+      results.unshift({
+        name: `Sector ${targetSecNum}, Chandigarh`,
+        lat: Number((30.7350 + latOffset).toFixed(6)),
+        lng: Number((76.7750 + lngOffset).toFixed(6)),
+      });
+    }
   }
 
   return results.slice(0, 7);
@@ -246,6 +315,9 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
   const clean = query.trim();
   const q = clean.toLowerCase();
   if (!q) return { name: '', lat: 0, lng: 0 };
+
+  const isPanchkula = /\b(panchkula|pkl|haryana)\b/i.test(q);
+  const isMohali = /\b(mohali|sas nagar|phase|sohana|mattaur|kumbra|landran|kharar)\b/i.test(q);
 
   // 1. Try high-accuracy instant matching first
   const instantMatches = getInstantMatchingSuggestions(clean);
@@ -260,21 +332,47 @@ const resolveLocationFromText = (query: string, reference?: { lat: number; lng: 
     }
   }
 
-  // 2. Sector number extraction (e.g. "sector 17", "sec 22", "sector 43")
+  // 2. Sector number extraction (e.g. "sector 7 panchkula", "sector 17", "sec 22", "sector 43")
   const secMatch = q.match(/(?:sector|sec)\s*([0-9]{1,3})/i);
   if (secMatch) {
     const secNum = parseInt(secMatch[1], 10);
-    const knownSec = KNOWN_LOCATIONS.find((l) =>
-      l.name.toLowerCase().includes(`sector ${secNum}`) ||
-      l.aliases.some((a) => a === `sector ${secNum}` || a === `${secNum}`)
-    );
+    const knownSec = KNOWN_LOCATIONS.find((l) => {
+      const lName = l.name.toLowerCase();
+      const hasSec = lName.includes(`sector ${secNum}`) || l.aliases.some((a) => a === `sector ${secNum}` || a === `${secNum}`);
+      if (!hasSec) return false;
+      if (isPanchkula) return lName.includes('panchkula');
+      if (isMohali) return lName.includes('mohali');
+      return true;
+    });
+
     if (knownSec && (!reference?.name || knownSec.name.toLowerCase() !== reference.name.toLowerCase())) {
       return { name: knownSec.name, lat: knownSec.lat, lng: knownSec.lng };
     }
+
+    if (isPanchkula) {
+      const latOffset = ((secNum % 10) - 5) * 0.005;
+      const lngOffset = (Math.floor(secNum / 10) - 1) * 0.006;
+      return {
+        name: `Sector ${secNum}, Panchkula`,
+        lat: Number((30.6950 + latOffset).toFixed(6)),
+        lng: Number((76.8550 + lngOffset).toFixed(6)),
+      };
+    }
+
+    if (isMohali) {
+      const latOffset = ((secNum % 10) - 5) * 0.006;
+      const lngOffset = (Math.floor(secNum / 10) - 7) * 0.008;
+      return {
+        name: `Sector ${secNum}, Mohali`,
+        lat: Number((30.7050 + latOffset).toFixed(6)),
+        lng: Number((76.7150 + lngOffset).toFixed(6)),
+      };
+    }
+
     const latOffset = ((secNum % 10) - 5) * 0.008;
     const lngOffset = (Math.floor(secNum / 10) - 2) * 0.012;
     return {
-      name: `Sector ${secNum}, Chandigarh/Mohali`,
+      name: `Sector ${secNum}, Chandigarh`,
       lat: Number((30.7350 + latOffset).toFixed(6)),
       lng: Number((76.7750 + lngOffset).toFixed(6)),
     };
