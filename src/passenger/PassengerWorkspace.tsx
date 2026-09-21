@@ -733,7 +733,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     time: 0,
   });
 
-  // Handler: 1-click set pickup to passenger standing position
+  // Handler: 1-click set pickup to passenger standing position & open drop location fill box
   const handleSetPickupFromPassengerPosition = (lat?: number, lng?: number) => {
     const targetLat = lat ?? passengerGps.lat;
     const targetLng = lng ?? passengerGps.lng;
@@ -742,7 +742,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       lat: targetLat,
       lng: targetLng,
     });
-    setPickupToastMessage('Pickup Location (A) set to your position!');
+    setPickupInputText('My Live GPS Location');
+
+    // Automatically expand card, switch to drop location search, and focus input
+    setIsCardMinimized(false);
+    setDropoffMode('manual');
+    setShowDropoffSuggestions(true);
+    setTimeout(() => {
+      dropoffInputRef.current?.focus();
+      dropoffContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+
+    setPickupToastMessage('Pickup Location (A) filled with live GPS! Fill drop location (B).');
     setShowPickupToast(true);
     setTimeout(() => setShowPickupToast(false), 3500);
   };
