@@ -2757,7 +2757,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       {/* Bottom / Sidebar Booking Form & Active Trip Card Controls */}
       {isCardMinimized ? (
         /* Minimized Floating Bar (Drop Down Condition) */
-        <div className="fixed sm:absolute bottom-3 sm:bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 md:left-6 md:translate-x-0 z-[1000] w-[calc(100%-1.25rem)] sm:w-[460px] md:w-[420px] animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="fixed sm:absolute bottom-3 sm:bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-1.25rem)] sm:w-[460px] md:w-[420px] animate-in fade-in slide-in-from-bottom-3 duration-200">
           <div
             onClick={() => setIsCardMinimized(false)}
             className="p-3 sm:p-3.5 rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl flex items-center justify-between gap-3 hover:border-slate-700 transition-all cursor-pointer"
@@ -2818,7 +2818,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         </div>
       ) : (
         /* Expanded Booking Form */
-        <div className="fixed sm:absolute bottom-3 sm:bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 md:left-6 md:translate-x-0 z-[1000] w-[calc(100%-1.25rem)] sm:w-[480px] md:w-[440px] max-h-[82dvh] sm:max-h-[calc(100vh-90px)] overflow-y-auto flex flex-col gap-2 pb-1 scrollbar-thin animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="fixed sm:absolute bottom-3 sm:bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-1.25rem)] sm:w-[480px] md:w-[440px] max-h-[82dvh] sm:max-h-[calc(100vh-90px)] overflow-y-auto flex flex-col gap-2 pb-1 scrollbar-thin animate-in fade-in slide-in-from-bottom-4 duration-200">
           {renderControlPanel()}
         </div>
       )}
