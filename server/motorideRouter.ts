@@ -790,6 +790,8 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
     { name: 'VR Punjab Mall, Kharar Road', lat: 30.748231, lng: 76.689241 },
     { name: 'Kharar Bus Stand, NH 21', lat: 30.745124, lng: 76.648214 },
     // Chandigarh Sectors
+    { name: 'Mullanpur / New Chandigarh', lat: 30.814514, lng: 76.745514 },
+    { name: 'Dhanas, Chandigarh', lat: 30.771214, lng: 76.758514 },
     { name: 'Sector 1 Chandigarh (Secretariat, High Court & Open Hand Monument)', lat: 30.758514, lng: 76.801514 },
     { name: 'Sector 7 Market, Chandigarh (Madhya Marg)', lat: 30.732514, lng: 76.804514 },
     { name: 'Sector 8 Inner Market, Chandigarh', lat: 30.738514, lng: 76.799124 },
