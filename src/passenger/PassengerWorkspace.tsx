@@ -921,12 +921,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const rc = rideConfig as any;
     const effectiveKm = Math.max(1.0, distanceKm || 1.0);
     if (rideType === 'courier') {
-      const base = Number(cc.base_fare ?? fareSettings.base_fare ?? 35) || 35;
-      const handling = Number(cc.handling_fee ?? 10) || 10;
-      const rate = Number(cc.per_km_rate ?? fareSettings.per_km_rate ?? 14) || 14;
-      const minFare = Number(cc.minimum_fare ?? fareSettings.minimum_fare ?? 40) || 40;
+      const rate = Number(cc.per_km_rate ?? 12) || 12;
       const running = effectiveKm * rate;
-      estimatedFare = Math.max(minFare, Math.round(base + handling + running));
+      estimatedFare = Math.max(40, Math.round(running));
     } else {
       const multiplier =
         rideType === 'auto'
