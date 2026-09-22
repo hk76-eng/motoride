@@ -1086,67 +1086,57 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           </div>
 
           {/* Route Details with Navigator Capsule on top */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
-            {/* Pickup Location with Navigate Button */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${activeRide.pickup_lat},${activeRide.pickup_lng}&travelmode=driving`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black hover:bg-slate-900 text-white text-[11px] font-black transition-all shadow-md active:scale-95 cursor-pointer select-none border border-slate-800"
-                    title="Navigate to Pickup point"
-                  >
-                    <Navigation className="w-3.5 h-3.5 fill-white stroke-white text-white shrink-0" />
-                    <span className="text-white">Navigate</span>
-                  </a>
-                </div>
-              </div>
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2.5">
+            {/* Pickup/Dropoff Location with Smart Navigator Button */}
+            {(() => {
+              const isArrivedOrLater = activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started';
+              const navLat = isArrivedOrLater ? activeRide.dropoff_lat : activeRide.pickup_lat;
+              const navLng = isArrivedOrLater ? activeRide.dropoff_lng : activeRide.pickup_lng;
+              const navTitle = isArrivedOrLater ? 'Navigate to Drop-off' : 'Navigate to Pickup';
+              return (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${navLat},${navLng}&travelmode=driving`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black hover:bg-slate-900 text-white text-[11px] font-black transition-all shadow-md active:scale-95 cursor-pointer select-none border border-slate-800"
+                        title={isArrivedOrLater ? 'Navigate to Drop-off destination' : 'Navigate to Pickup point'}
+                      >
+                        <Navigation className="w-3.5 h-3.5 fill-white stroke-white text-white shrink-0" />
+                        <span className="text-white">{navTitle}</span>
+                      </a>
+                    </div>
+                  </div>
 
-              {/* Pickup Address: Only green dot with A */}
-              <div className="flex items-center gap-2 mt-0.5">
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0 shadow-xs" />
-                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
-                    A
-                  </span>
+                  {/* Pickup Address: Only green dot with A */}
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0 shadow-xs" />
+                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
+                        A
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-900 font-bold truncate flex-1">
+                      {activeRide.pickup_address}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-slate-900 font-bold truncate flex-1">
-                  {activeRide.pickup_address}
-                </p>
-              </div>
-            </div>
+              );
+            })()}
 
-            {/* Dropoff Location with Navigate Button */}
-            <div className="flex flex-col gap-1.5 pt-2.5 border-t border-slate-200">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${activeRide.dropoff_lat},${activeRide.dropoff_lng}&travelmode=driving`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black hover:bg-slate-900 text-white text-[11px] font-black transition-all shadow-md active:scale-95 cursor-pointer select-none border border-slate-800"
-                    title="Navigate to Drop-off destination"
-                  >
-                    <Navigation className="w-3.5 h-3.5 fill-white stroke-white text-white shrink-0" />
-                    <span className="text-white">Navigate</span>
-                  </a>
-                </div>
+            {/* Dropoff Location: Only red dot with B */}
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-rose-500 inline-block shrink-0 shadow-xs" />
+                <span className="w-5 h-5 rounded-full bg-rose-500 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
+                  B
+                </span>
               </div>
-
-              {/* Dropoff Address: Only red dot with B */}
-              <div className="flex items-center gap-2 mt-0.5">
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 inline-block shrink-0 shadow-xs" />
-                  <span className="w-5 h-5 rounded-full bg-rose-500 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
-                    B
-                  </span>
-                </div>
-                <p className="text-xs text-slate-800 font-medium truncate flex-1">
-                  {activeRide.dropoff_address}
-                </p>
-              </div>
+              <p className="text-xs text-slate-800 font-medium truncate flex-1">
+                {activeRide.dropoff_address}
+              </p>
             </div>
 
             {activeRide.comment && (
