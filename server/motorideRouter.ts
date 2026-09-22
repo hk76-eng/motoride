@@ -789,6 +789,17 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
     { name: 'Max Super Speciality Hospital, Phase 6', lat: 30.732145, lng: 76.708234 },
     { name: 'VR Punjab Mall, Kharar Road', lat: 30.748231, lng: 76.689241 },
     { name: 'Kharar Bus Stand, NH 21', lat: 30.745124, lng: 76.648214 },
+    // Zirakpur Areas
+    { name: 'VIP Road, Zirakpur', lat: 30.642514, lng: 76.818124 },
+    { name: 'Patiala Chowk, Zirakpur', lat: 30.648514, lng: 76.825514 },
+    { name: 'Singhpura Chowk, Zirakpur', lat: 30.655514, lng: 76.834514 },
+    { name: 'Dhakoli, Zirakpur', lat: 30.638514, lng: 76.842514 },
+    { name: 'Peer Muchalla, Zirakpur', lat: 30.631514, lng: 76.852514 },
+    { name: 'Baltana, Zirakpur', lat: 30.662514, lng: 76.845514 },
+    { name: 'Zirakpur High Street', lat: 30.646514, lng: 76.815514 },
+    { name: 'Ambala Highway, Zirakpur', lat: 30.640514, lng: 76.822514 },
+    { name: 'Kishanpura, Zirakpur', lat: 30.627514, lng: 76.821514 },
+    { name: 'Zirakpur Bus Stand', lat: 30.650214, lng: 76.828124 },
     // Chandigarh Sectors
     { name: 'Mullanpur / New Chandigarh', lat: 30.814514, lng: 76.745514 },
     { name: 'Dhanas, Chandigarh', lat: 30.771214, lng: 76.758514 },

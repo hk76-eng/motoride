@@ -128,8 +128,17 @@ const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: numb
   { name: 'Mansa Devi Complex (MDC) Panchkula', aliases: ['mansa devi', 'mdc', 'mansa devi temple', 'mdc 4', 'mdc 5', 'panchkula temple'], lat: 30.724514, lng: 76.845514 },
   { name: 'Pinjore Heritage Garden', aliases: ['pinjore', 'pinjore garden', 'yadavindra garden'], lat: 30.796514, lng: 76.915514 },
 
-  // Chandigarh Sectors & Landmarks
-  { name: 'Mullanpur / New Chandigarh', aliases: ['mullanpur', 'new chandigarh', 'mullanpur garibdas', 'new chd'], lat: 30.814514, lng: 76.745514 },
+  // Zirakpur Areas & Landmarks
+  { name: 'VIP Road, Zirakpur', aliases: ['vip road', 'zirakpur vip road', 'vip road zirakpur', 'metro wholesale zirakpur'], lat: 30.642514, lng: 76.818124 },
+  { name: 'Patiala Chowk, Zirakpur', aliases: ['patiala chowk', 'zirakpur patiala chowk', 'patiala road zirakpur'], lat: 30.648514, lng: 76.825514 },
+  { name: 'Singhpura Chowk, Zirakpur', aliases: ['singhpura chowk', 'singhpura', 'zirakpur singhpura'], lat: 30.655514, lng: 76.834514 },
+  { name: 'Dhakoli, Zirakpur', aliases: ['dhakoli', 'zirakpur dhakoli', 'dhakoli zirakpur'], lat: 30.638514, lng: 76.842514 },
+  { name: 'Peer Muchalla, Zirakpur', aliases: ['peer muchalla', 'peermuchalla', 'zirakpur peer muchalla'], lat: 30.631514, lng: 76.852514 },
+  { name: 'Baltana, Zirakpur', aliases: ['baltana', 'zirakpur baltana', 'baltana zirakpur'], lat: 30.662514, lng: 76.845514 },
+  { name: 'Zirakpur High Street', aliases: ['zirakpur high street', 'high street mall', 'zirakpur mall'], lat: 30.646514, lng: 76.815514 },
+  { name: 'Ambala Highway, Zirakpur', aliases: ['ambala highway zirakpur', 'zirakpur ambala road', 'ambala road zirakpur'], lat: 30.640514, lng: 76.822514 },
+  { name: 'Kishanpura, Zirakpur', aliases: ['kishanpura', 'zirakpur kishanpura'], lat: 30.627514, lng: 76.821514 },
+  { name: 'Zirakpur Bus Stand', aliases: ['zirakpur bus stand', 'zirakpur chowk'], lat: 30.650214, lng: 76.828124 },
   { name: 'Dhanas, Chandigarh', aliases: ['dhanas', 'dhanas lake', 'dhanas complex', 'dhanas chd'], lat: 30.771214, lng: 76.758514 },
   { name: 'Sector 1 Chandigarh (Secretariat, High Court & Open Hand Monument)', aliases: ['sector 1 chandigarh', '1 chandigarh', 'sec 1 chandigarh', 'sector 1 chd', 'sec 1 chd', 'high court', 'secretariat', 'open hand'], lat: 30.758514, lng: 76.801514 },
   { name: 'Sector 7 Market, Chandigarh (Madhya Marg)', aliases: ['sector 7 chandigarh', '7 chandigarh', 'sec 7 chandigarh', 'sector 7 chd', 'sec 7 chd', 'sector 7'], lat: 30.732514, lng: 76.804514 },
