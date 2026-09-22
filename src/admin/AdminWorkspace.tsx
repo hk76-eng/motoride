@@ -1708,29 +1708,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-400 block mb-1">
-                Ride Base Fare (₹)
-              </label>
-              <input
-                type="number"
-                placeholder="Set Ride Base Fare (₹)"
-                value={fareSettings.ride_charges?.base_fare ?? fareSettings.base_fare ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
-                  setFareSettings({
-                    ...fareSettings,
-                    base_fare: val,
-                    ride_charges: {
-                      ...(fareSettings.ride_charges || {}),
-                      base_fare: val,
-                    },
-                  });
-                }}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-400 block mb-1">
                 Ride Per-KM Rate (₹ / km)
               </label>
               <input
@@ -1745,29 +1722,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                     ride_charges: {
                       ...(fareSettings.ride_charges || {}),
                       per_km_rate: val,
-                    },
-                  });
-                }}
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-400 block mb-1">
-                Ride Minimum Fare Floor (₹)
-              </label>
-              <input
-                type="number"
-                placeholder="Set Minimum Fare Floor (₹)"
-                value={fareSettings.ride_charges?.minimum_fare ?? fareSettings.minimum_fare ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value === '' ? (undefined as any) : Number(e.target.value);
-                  setFareSettings({
-                    ...fareSettings,
-                    minimum_fare: val,
-                    ride_charges: {
-                      ...(fareSettings.ride_charges || {}),
-                      minimum_fare: val,
                     },
                   });
                 }}
@@ -1838,27 +1792,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-400 block mb-1">
-                Courier Base Fare (₹)
-              </label>
-              <input
-                type="number"
-                placeholder="Set Courier Base Fare (₹)"
-                value={fareSettings.courier_charges?.base_fare ?? ''}
-                onChange={(e) =>
-                  setFareSettings({
-                    ...fareSettings,
-                    courier_charges: {
-                      ...(fareSettings.courier_charges || {}),
-                      base_fare: e.target.value === '' ? (undefined as any) : Number(e.target.value),
-                    },
-                  })
-                }
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-400 block mb-1">
                 Courier Per-KM Rate (₹ / km)
               </label>
               <input
@@ -1871,27 +1804,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                     courier_charges: {
                       ...(fareSettings.courier_charges || {}),
                       per_km_rate: e.target.value === '' ? (undefined as any) : Number(e.target.value),
-                    },
-                  })
-                }
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono-num text-white font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-bold text-slate-400 block mb-1">
-                Courier Minimum Fare Floor (₹)
-              </label>
-              <input
-                type="number"
-                placeholder="Set Courier Minimum Fare (₹)"
-                value={fareSettings.courier_charges?.minimum_fare ?? ''}
-                onChange={(e) =>
-                  setFareSettings({
-                    ...fareSettings,
-                    courier_charges: {
-                      ...(fareSettings.courier_charges || {}),
-                      minimum_fare: e.target.value === '' ? (undefined as any) : Number(e.target.value),
                     },
                   })
                 }
