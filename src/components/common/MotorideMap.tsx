@@ -1182,7 +1182,20 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         activeLayer === 'voyager-dark' ? 'bg-slate-950' : 'bg-slate-100'
       }`}
     >
-      <div ref={mapContainerRef} className="w-full h-full" />
+      {activeLayer !== 'voyager-dark' ? (
+        <div className="absolute inset-0 w-full h-full z-0">
+          <iframe
+            title="Google Maps Background"
+            width="100%"
+            height="100%"
+            style={{ border: 0 }}
+            loading="lazy"
+            src={`https://maps.google.com/maps?q=${pickupLat || passengerLat || 30.704649},${pickupLng || passengerLng || 76.717873}&z=15&output=embed`}
+          />
+        </div>
+      ) : (
+        <div ref={mapContainerRef} className="w-full h-full" />
+      )}
 
       {/* Map Overlay Controls - Hidden by default */}
       {showOverlayControls && (
