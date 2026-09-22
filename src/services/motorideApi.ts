@@ -1045,7 +1045,7 @@ export const motorideApi = {
     const defaultSettings: FareSettings = {
       id: 'default',
       base_fare: 25.0,
-      per_km_rate: 12.0,
+      per_km_rate: 10.0,
       minimum_fare: 30.0,
       platform_commission_pct: 10.0,
       min_offer_pct: 70.0,
@@ -1054,7 +1054,7 @@ export const motorideApi = {
       updated_at: new Date().toISOString(),
       ride_charges: {
         base_fare: 25.0,
-        per_km_rate: 12.0,
+        per_km_rate: 10.0,
         minimum_fare: 30.0,
         platform_commission_pct: 10.0,
         min_offer_pct: 70.0,
@@ -1067,7 +1067,7 @@ export const motorideApi = {
       },
       courier_charges: {
         base_fare: 35.0,
-        per_km_rate: 14.0,
+        per_km_rate: 12.0,
         minimum_fare: 40.0,
         platform_commission_pct: 12.0,
         min_offer_pct: 70.0,

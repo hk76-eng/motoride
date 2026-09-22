@@ -64,7 +64,7 @@ import {
 
 const DEFAULT_RIDE_CHARGES: RideChargeSettings = {
   base_fare: 25.0,
-  per_km_rate: 12.0,
+  per_km_rate: 10.0,
   minimum_fare: 30.0,
   platform_commission_pct: 10.0,
   min_offer_pct: 70.0,
@@ -78,7 +78,7 @@ const DEFAULT_RIDE_CHARGES: RideChargeSettings = {
 
 const DEFAULT_COURIER_CHARGES: CourierChargeSettings = {
   base_fare: 35.0,
-  per_km_rate: 14.0,
+  per_km_rate: 12.0,
   minimum_fare: 40.0,
   platform_commission_pct: 12.0,
   min_offer_pct: 70.0,
@@ -92,7 +92,7 @@ const DEFAULT_COURIER_CHARGES: CourierChargeSettings = {
 
 const DEFAULT_ADMIN_FARE_SETTINGS: FareSettings = {
   base_fare: 25.0,
-  per_km_rate: 12.0,
+  per_km_rate: 10.0,
   minimum_fare: 30.0,
   platform_commission_pct: 10.0,
   min_offer_pct: 70.0,

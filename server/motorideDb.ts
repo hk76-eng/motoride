@@ -44,7 +44,7 @@ const FARE_FILE = path.join(DATA_DIR, 'fare_settings.json');
 
 export const defaultRideCharges: RideChargeSettings = {
   base_fare: 25.0,
-  per_km_rate: 12.0,
+  per_km_rate: 10.0,
   minimum_fare: 30.0,
   platform_commission_pct: 10.0,
   min_offer_pct: 70.0,
@@ -58,7 +58,7 @@ export const defaultRideCharges: RideChargeSettings = {
 
 export const defaultCourierCharges: CourierChargeSettings = {
   base_fare: 35.0,
-  per_km_rate: 14.0,
+  per_km_rate: 12.0,
   minimum_fare: 40.0,
   platform_commission_pct: 12.0,
   min_offer_pct: 70.0,
@@ -72,7 +72,7 @@ export const defaultCourierCharges: CourierChargeSettings = {
 
 export let fareSettings: FareSettings = {
   base_fare: 25.0,
-  per_km_rate: 12.0,
+  per_km_rate: 10.0,
   minimum_fare: 30.0,
   platform_commission_pct: 10.0,
   min_offer_pct: 70.0,
