@@ -129,6 +129,7 @@ const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: numb
   { name: 'Pinjore Heritage Garden', aliases: ['pinjore', 'pinjore garden', 'yadavindra garden'], lat: 30.796514, lng: 76.915514 },
 
   // Chandigarh Sectors & Landmarks
+  { name: 'Sector 1 Chandigarh (Secretariat, High Court & Open Hand Monument)', aliases: ['sector 1 chandigarh', '1 chandigarh', 'sec 1 chandigarh', 'sector 1 chd', 'sec 1 chd', 'high court', 'secretariat', 'open hand'], lat: 30.758514, lng: 76.801514 },
   { name: 'Sector 7 Market, Chandigarh (Madhya Marg)', aliases: ['sector 7 chandigarh', '7 chandigarh', 'sec 7 chandigarh', 'sector 7 chd', 'sec 7 chd', 'sector 7'], lat: 30.732514, lng: 76.804514 },
   { name: 'Sector 17 Plaza, Chandigarh', aliases: ['sector 17', '17 plaza', '17 chandigarh', 'isbt 17', 'sec 17'], lat: 30.739834, lng: 76.782702 },
   { name: 'Aroma Chowk, Sector 22', aliases: ['aroma', 'sector 22', '22 chandigarh', 'aroma chowk', 'kisan bhawan', 'sec 22'], lat: 30.731514, lng: 76.772124 },
