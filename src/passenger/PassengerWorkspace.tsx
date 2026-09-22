@@ -934,14 +934,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           : rideType === 'car'
           ? Number(rc.car_multiplier || 1.8) || 1.8
           : 1.0;
-      const base = Number(rc.base_fare ?? fareSettings.base_fare ?? 25) || 25;
-      const rate = Number(rc.per_km_rate ?? fareSettings.per_km_rate ?? 12) || 12;
+      const base = 0; // Permanently removed Ride Base Fare from ride fare calculation
+      const rate = Number(rc.per_km_rate ?? fareSettings.per_km_rate ?? 10) || 10;
       const minFare = Number(rc.minimum_fare ?? fareSettings.minimum_fare ?? 30) || 30;
       const running = effectiveKm * rate;
       estimatedFare = Math.max(Math.round(minFare * multiplier), Math.round((base + running) * multiplier));
     }
     if (isNaN(estimatedFare) || estimatedFare <= 0) {
-      estimatedFare = Math.max(30, Math.round(25 + effectiveKm * 12));
+      estimatedFare = Math.max(30, Math.round(effectiveKm * 10));
     }
   }
 
