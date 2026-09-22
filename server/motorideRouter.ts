@@ -789,6 +789,10 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
     { name: 'Max Super Speciality Hospital, Phase 6', lat: 30.732145, lng: 76.708234 },
     { name: 'VR Punjab Mall, Kharar Road', lat: 30.748231, lng: 76.689241 },
     { name: 'Kharar Bus Stand, NH 21', lat: 30.745124, lng: 76.648214 },
+    { name: 'Sunny Enclave, Kharar', lat: 30.752514, lng: 76.662514 },
+    { name: 'Modern Housing Complex (MHC) Mani Majra', lat: 30.718514, lng: 76.838514 },
+    { name: 'Old Ropar Road, Mani Majra', lat: 30.714514, lng: 76.843514 },
+    { name: 'Motor Market, Mani Majra', lat: 30.712514, lng: 76.839514 },
     // Zirakpur Areas
     { name: 'VIP Road, Zirakpur', lat: 30.642514, lng: 76.818124 },
     { name: 'Patiala Chowk, Zirakpur', lat: 30.648514, lng: 76.825514 },

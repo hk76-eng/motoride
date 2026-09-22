@@ -128,6 +128,14 @@ const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: numb
   { name: 'Mansa Devi Complex (MDC) Panchkula', aliases: ['mansa devi', 'mdc', 'mansa devi temple', 'mdc 4', 'mdc 5', 'panchkula temple'], lat: 30.724514, lng: 76.845514 },
   { name: 'Pinjore Heritage Garden', aliases: ['pinjore', 'pinjore garden', 'yadavindra garden'], lat: 30.796514, lng: 76.915514 },
 
+  // Mani Majra & Kharar Landmarks
+  { name: 'Modern Housing Complex (MHC) Mani Majra', aliases: ['mhc', 'mhc mani majra', 'manimajra mhc', 'mhc manimajra'], lat: 30.718514, lng: 76.838514 },
+  { name: 'Old Ropar Road, Mani Majra', aliases: ['mani majra', 'manimajra', 'old ropar road manimajra', 'manimajra town'], lat: 30.714514, lng: 76.843514 },
+  { name: 'Motor Market, Mani Majra', aliases: ['motor market manimajra', 'manimajra motor market'], lat: 30.712514, lng: 76.839514 },
+  { name: 'Kharar Bus Stand, NH 21', aliases: ['kharar', 'kharar bus stand', 'kharar chowk', 'nh 21 kharar'], lat: 30.745124, lng: 76.648214 },
+  { name: 'Sunny Enclave, Kharar', aliases: ['sunny enclave', 'kharar sunny enclave', 'desu majra'], lat: 30.752514, lng: 76.662514 },
+  { name: 'VR Punjab Mall, Kharar Road', aliases: ['vr punjab', 'vr mall', 'kharar road mall'], lat: 30.748231, lng: 76.689241 },
+
   // Zirakpur Areas & Landmarks
   { name: 'VIP Road, Zirakpur', aliases: ['vip road', 'zirakpur vip road', 'vip road zirakpur', 'metro wholesale zirakpur'], lat: 30.642514, lng: 76.818124 },
   { name: 'Patiala Chowk, Zirakpur', aliases: ['patiala chowk', 'zirakpur patiala chowk', 'patiala road zirakpur'], lat: 30.648514, lng: 76.825514 },
