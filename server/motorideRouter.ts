@@ -872,7 +872,36 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
   }
 
   try {
-    // Search with priority for Tricity / India coordinates (bounding box around Mohali/Chandigarh/Panchkula)
+    let searchTerms = query.trim();
+    if (!/(chandigarh|mohali|panchkula|zirakpur|kharar|haryana|punjab)/i.test(searchTerms)) {
+      searchTerms += ' Chandigarh Tricity';
+    } else {
+      searchTerms += ' India';
+    }
+
+    // 1. Try Google Maps Geocoding API first for exact location finding
+    const mapsKey = process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyC0e-_TvGfEzBHiSDnTWeZKrL9ImUZ9dLg';
+    const gMapsUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchTerms)}&key=${mapsKey}&region=in`;
+    const gResponse = await fetch(gMapsUrl, { signal: AbortSignal.timeout(2000) });
+    if (gResponse.ok) {
+      const gData = await gResponse.json();
+      if (gData.status === 'OK' && Array.isArray(gData.results) && gData.results.length > 0) {
+        const gResults = gData.results.map((item: any) => ({
+          name: item.formatted_address.split(',').slice(0, 3).join(', ').trim(),
+          lat: item.geometry.location.lat,
+          lng: item.geometry.location.lng,
+        })).filter((r: any) => r.lat >= 30.2 && r.lat <= 31.2 && r.lng >= 76.2 && r.lng <= 77.4);
+
+        const combined = [...matched, ...gResults.filter((r: any) => !matched.some((m: any) => m.name === r.name))];
+        if (combined.length > 0) {
+          return res.json({ success: true, results: combined.slice(0, 6) });
+        }
+      }
+    }
+  } catch {}
+
+  try {
+    // 2. Fallback to OpenStreetMap Nominatim
     let searchTerms = query.trim();
     if (!/(chandigarh|mohali|panchkula|zirakpur|kharar|haryana|punjab)/i.test(searchTerms)) {
       searchTerms += ' Chandigarh Tricity';
