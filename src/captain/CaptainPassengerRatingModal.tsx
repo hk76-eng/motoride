@@ -61,61 +61,61 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
   const currentDisplayScore = hoverScore ?? score;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md select-none animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-slate-950 border-2 border-emerald-500/50 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 text-white shadow-[0_20px_60px_rgba(0,0,0,0.9),0_0_30px_rgba(16,185,129,0.2)] flex flex-col gap-4 max-h-[92vh] overflow-y-auto scrollbar-thin animate-in slide-in-from-bottom-4 duration-200">
+    <div className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm select-none animate-in fade-in duration-200">
+      <div className="w-full max-w-lg bg-white border border-slate-200 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 text-slate-900 shadow-2xl flex flex-col gap-4 max-h-[92vh] overflow-y-auto scrollbar-thin animate-in slide-in-from-bottom-4 duration-200">
         
         {/* Header Celebration Banner */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shadow-inner">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shadow-xs">
               <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h3 className="text-base font-black text-white tracking-tight">
+              <h3 className="text-base font-black text-slate-900 tracking-tight">
                 Trip Completed! 🎉
               </h3>
-              <p className="text-[11px] text-emerald-400 font-bold uppercase tracking-wider">
+              <p className="text-[11px] text-emerald-700 font-bold uppercase tracking-wider">
                 Rate Passenger & Finish Ride
               </p>
             </div>
           </div>
 
-          <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800">
+          <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
             #{ride.ride_code}
           </span>
         </div>
 
         {/* Trip Summary Card */}
-        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex flex-col gap-3">
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-slate-800 border-2 border-emerald-500/60 flex items-center justify-center text-slate-200 font-bold text-base shadow-sm">
-                <User className="w-6 h-6 text-slate-300" />
+              <div className="w-11 h-11 rounded-full bg-slate-200 border-2 border-emerald-500 flex items-center justify-center text-slate-700 font-bold text-base shadow-xs">
+                <User className="w-6 h-6 text-slate-600" />
               </div>
               <div>
-                <h4 className="text-sm font-black text-white">{passengerName}</h4>
-                <p className="text-[11px] text-slate-400 font-medium">Passenger</p>
+                <h4 className="text-sm font-black text-slate-900">{passengerName}</h4>
+                <p className="text-[11px] text-slate-500 font-medium">Passenger</p>
               </div>
             </div>
 
             {/* Earnings Badge */}
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
                 Fare Collected
               </span>
-              <span className="text-lg font-black font-mono text-emerald-400">
+              <span className="text-lg font-black font-mono text-emerald-600">
                 ₹{fareEarned}
               </span>
             </div>
           </div>
 
           {/* Route Summary */}
-          <div className="text-[11px] text-slate-300 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
+          <div className="text-[11px] text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-2xs">
             <div className="flex items-center gap-1.5 truncate pr-2">
-              <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-              <span className="truncate">{ride.dropoff_address || 'Destination Reached'}</span>
+              <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="truncate font-medium">{ride.dropoff_address || 'Destination Reached'}</span>
             </div>
-            <span className="font-mono font-bold text-slate-400 shrink-0">
+            <span className="font-mono font-bold text-slate-600 shrink-0">
               {distanceKm.toFixed(1)} km
             </span>
           </div>
@@ -123,7 +123,7 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
 
         {/* Star Rating Section */}
         <div className="flex flex-col items-center gap-2 py-2">
-          <span className="text-xs font-bold text-slate-300">
+          <span className="text-xs font-bold text-slate-700">
             How was your trip with {passengerName}?
           </span>
 
@@ -141,23 +141,23 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
                 <Star
                   className={`w-9 h-9 transition-colors ${
                     star <= currentDisplayScore
-                      ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]'
-                      : 'text-slate-700 hover:text-slate-500'
+                      ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]'
+                      : 'text-slate-300 hover:text-slate-400'
                   }`}
                 />
               </button>
             ))}
           </div>
 
-          <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/40 px-3 py-1 rounded-full border border-amber-500/30">
+          <span className="text-xs font-mono font-bold text-amber-900 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
             {getRatingLabel(currentDisplayScore)}
           </span>
         </div>
 
         {/* Compliment Tag Chips */}
         <div className="flex flex-col gap-2">
-          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-emerald-400" />
+          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-emerald-600" />
             Passenger Compliments:
           </span>
           <div className="flex flex-wrap gap-1.5">
@@ -170,8 +170,8 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
                   onClick={() => toggleTag(tag)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer select-none active:scale-95 ${
                     isSelected
-                      ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow-md shadow-emerald-500/20'
-                      : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700 hover:bg-slate-850'
+                      ? 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-sm'
+                      : 'bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-200/80'
                   }`}
                 >
                   {tag}
@@ -188,18 +188,18 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
             value={reviewText}
             onChange={(e) => setReviewText(e.target.value)}
             placeholder="Write a note about passenger (e.g. Great rider, on time)..."
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 focus:border-emerald-400 text-xs text-white placeholder-slate-500 focus:outline-none transition-all shadow-inner"
+            className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-all shadow-2xs"
           />
         </div>
 
         {/* Finish Ride Action Buttons */}
-        <div className="flex flex-col gap-2 pt-2 border-t border-slate-800/80">
+        <div className="flex flex-col gap-2 pt-2 border-t border-slate-200">
           <button
             type="button"
             disabled={isSubmitting}
             onClick={() => onSubmit(score, reviewText, selectedTags)}
             style={{ backgroundColor: '#ba1e23' }}
-            className="w-full py-3.5 rounded-2xl hover:opacity-90 active:scale-98 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-950/40 transition-all cursor-pointer flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-2xl hover:opacity-90 active:scale-98 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-900/20 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
@@ -218,7 +218,7 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
             type="button"
             disabled={isSubmitting}
             onClick={onSkip}
-            className="w-full py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-900 text-xs font-semibold cursor-pointer transition-colors text-center disabled:opacity-50"
+            className="w-full py-2.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-xs font-semibold cursor-pointer transition-colors text-center disabled:opacity-50"
           >
             Skip Rating & Finish Ride
           </button>
