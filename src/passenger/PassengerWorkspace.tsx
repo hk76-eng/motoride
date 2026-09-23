@@ -2406,26 +2406,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
             )}
 
-            {/* From Field (Pickup Location - Default Live GPS or Preset/Manual) */}
+            {/* From Field (Pickup Location) */}
             <div className="flex flex-col gap-1.5 relative">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-black text-black tracking-wider flex items-center gap-1.5">
+                <label className="text-xs font-black text-black tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span>From (Pickup Location)</span>
+                  <span className="font-black">From</span>
                 </label>
                 <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleSetPickupFromPassengerPosition();
-                      requestLiveLocation();
-                    }}
-                    className="flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition-colors cursor-pointer"
-                    title="Reset to current live GPS position"
-                  >
-                    <Navigation className="w-2.5 h-2.5" />
-                    <span>My GPS</span>
-                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -2589,9 +2577,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             {/* To Field (Destination Drop-off) */}
             <div className="flex flex-col gap-1.5 relative">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-black text-black tracking-wider flex items-center gap-1.5">
+                <label className="text-xs font-black text-black tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-rose-500" />
-                  <span>To (Drop-off Destination)</span>
+                  <span className="font-black">To</span>
                 </label>
                 <button
                   type="button"
