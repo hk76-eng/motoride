@@ -1215,8 +1215,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => handleStatusChange('captain_arrived')}
-                style={{ backgroundColor: '#174309', borderColor: '#174309' }}
-                className="w-full py-3.5 rounded-2xl hover:opacity-90 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border"
+                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-xl shadow-emerald-600/25 transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border border-emerald-500"
               >
                 <MapPin className="w-4 h-4 stroke-[2.5] text-white" />
                 <span className="text-white">I Have Arrived at Pickup</span>
