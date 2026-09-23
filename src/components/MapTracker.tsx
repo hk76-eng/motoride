@@ -341,8 +341,24 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
         hasMovedFromStart = (deltaLat + deltaLng) > 0.00025; // > ~25m displacement
       }
 
-      // 2. Start Marker A (Removed as requested)
-      if (startMarkerRef.current) {
+      // 2. Start Marker A (Rendered with uploaded green pushpin marker)
+      if (isRideActive && hasMovedFromStart && startLat && startLng) {
+        if (!startMarkerRef.current) {
+          const startIcon = L.divIcon({
+            className: 'custom-origin-marker',
+            html: `
+              <div style="position: relative; width: 28px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45));">
+                <img src="/marker_green.svg" alt="Pickup Point" style="width: 28px; height: 70px; object-fit: contain; pointer-events: none;" />
+              </div>
+            `,
+            iconSize: [28, 70],
+            iconAnchor: [14, 70],
+          });
+          startMarkerRef.current = L.marker([startLat, startLng], { icon: startIcon }).addTo(map);
+        } else {
+          startMarkerRef.current.setLatLng([startLat, startLng]);
+        }
+      } else if (startMarkerRef.current && (!isRideActive || !hasMovedFromStart)) {
         startMarkerRef.current.remove();
         startMarkerRef.current = null;
       }
