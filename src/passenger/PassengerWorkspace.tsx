@@ -9,6 +9,7 @@ import { MotorideMap, AvailableCaptainItem } from '../components/common/Motoride
 import { RideChatModal } from '../components/common/RideChatModal';
 import { PassengerProfileDrawer } from './PassengerProfileDrawer';
 import { DigitalWatchETA } from './DigitalWatchETA';
+import { PassengerCaptainRatingModal } from './PassengerCaptainRatingModal';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
@@ -870,6 +871,27 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [ratingScore, setRatingScore] = useState(5);
   const [reviewText, setReviewText] = useState('');
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [showCaptainRatingModal, setShowCaptainRatingModal] = useState(false);
+  const [completedRideForRating, setCompletedRideForRating] = useState<MotorideRide | null>(null);
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+
+  const getRatedRideIds = (): string[] => {
+    try {
+      return JSON.parse(localStorage.getItem(`motoride_rated_rides_${currentPassengerId}`) || '[]');
+    } catch {
+      return [];
+    }
+  };
+
+  const markRideAsRated = (rideId: string) => {
+    try {
+      const ids = getRatedRideIds();
+      if (!ids.includes(rideId)) {
+        ids.push(rideId);
+        localStorage.setItem(`motoride_rated_rides_${currentPassengerId}`, JSON.stringify(ids));
+      }
+    } catch {}
+  };
 
   // Real Driving Road Route Distance & Duration State
   const [routeDistanceInfo, setRouteDistanceInfo] = useState<{
@@ -1152,6 +1174,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       if (ride.passenger_id === currentPassengerId) {
         if (ride.status.includes('cancelled')) {
           setActiveRide(null);
+          setShowCaptainRatingModal(false);
+          setCompletedRideForRating(null);
+        } else if (ride.status === 'trip_completed' || ride.status === 'completed') {
+          const ratedIds = getRatedRideIds();
+          if (!ratedIds.includes(ride.id)) {
+            setActiveRide(ride);
+            setCompletedRideForRating(ride);
+            setShowCaptainRatingModal(true);
+          } else {
+            setActiveRide(null);
+            setShowCaptainRatingModal(false);
+            setCompletedRideForRating(null);
+          }
         } else {
           setActiveRide((prev) => {
             if (!prev || prev.id !== ride.id) return ride;
@@ -1451,13 +1486,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const loadActiveRide = async () => {
     try {
       const rides = await motorideApi.getRides({ passenger_id: currentPassengerId });
+      const ratedIds = getRatedRideIds();
       const active = rides.find(
         (r) =>
           r.status === 'requested' ||
           r.status === 'captain_offered' ||
           r.status === 'captain_accepted' ||
           r.status === 'captain_arrived' ||
-          r.status === 'trip_started'
+          r.status === 'trip_started' ||
+          ((r.status === 'trip_completed' || r.status === 'completed') && !ratedIds.includes(r.id))
       );
       if (active) {
         setActiveRide((prev) => {
@@ -1472,6 +1509,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             captain_avatar: (active as any).captain_avatar || (active as any).avatar_url || (prev as any).captain_avatar || (prev as any).avatar_url,
           };
         });
+        if ((active.status === 'trip_completed' || active.status === 'completed') && !ratedIds.includes(active.id)) {
+          setCompletedRideForRating(active);
+          setShowCaptainRatingModal(true);
+        }
       }
     } catch {}
   };
@@ -1606,14 +1647,58 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     }
   };
 
-  // Rating Submit
-  const handleRateRide = async () => {
-    setRatingSubmitted(true);
-    setTimeout(() => {
+  // Rating Submit Handlers
+  const handleFinishPassengerRating = async (
+    score: number,
+    review: string = '',
+    tags: string[] = [],
+    skipRating: boolean = false
+  ) => {
+    const rideToFinish = completedRideForRating || activeRide;
+    if (!rideToFinish) {
+      setShowCaptainRatingModal(false);
+      return;
+    }
+
+    setIsSubmittingRating(true);
+    try {
+      markRideAsRated(rideToFinish.id);
+      if (!skipRating && rideToFinish.captain_id) {
+        try {
+          await motorideApi.submitRideRating({
+            ride_id: rideToFinish.id,
+            rater_role: 'passenger',
+            passenger_id: currentPassengerId,
+            captain_id: rideToFinish.captain_id,
+            score: score || 5,
+            review: review,
+            tags: tags,
+          });
+        } catch (e) {
+          console.warn('Passenger rating submit notice:', e);
+        }
+      }
       setActiveRide(null);
-      setRatingSubmitted(false);
+      setCompletedRideForRating(null);
+      setShowCaptainRatingModal(false);
       loadRideHistory();
-    }, 1500);
+    } catch (err) {
+      console.error('Rating completion error:', err);
+      setActiveRide(null);
+      setCompletedRideForRating(null);
+      setShowCaptainRatingModal(false);
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
+
+  const handleRateRide = async () => {
+    const rideToFinish = completedRideForRating || activeRide;
+    if (rideToFinish) {
+      setRatingSubmitted(true);
+      await handleFinishPassengerRating(ratingScore, reviewText, [], false);
+      setRatingSubmitted(false);
+    }
   };
 
   const renderMap = (isFullBackground: boolean) => {
@@ -2058,22 +2143,24 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             )}
 
             {/* Case 3: Trip Completed & Rating Form */}
-            {activeRide.status === 'trip_completed' && (
+            {(activeRide.status === 'trip_completed' || activeRide.status === 'completed') && (
               <div className="flex flex-col items-center text-center py-4 gap-3 text-black">
-                <div className="w-14 h-14 rounded-full bg-slate-100 text-black border-2 border-black flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 border-2 border-emerald-500 flex items-center justify-center shadow-xs">
                   <CheckCircle2 className="w-8 h-8 stroke-[2.5]" />
                 </div>
-                <h3 className="text-lg font-black text-black">Trip Completed!</h3>
-                <p className="text-xs text-slate-700 font-medium">
-                  Total distance: {activeRide.distance_km} km • Final Fare:{' '}
-                  <span className="font-mono-num font-black text-black">
-                    ₹{activeRide.final_fare}
-                  </span>
-                </p>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Trip Completed! 🎉</h3>
+                  <p className="text-xs text-slate-600 font-medium">
+                    Total distance: {activeRide.distance_km} km • Final Fare:{' '}
+                    <span className="font-mono-num font-black text-emerald-600">
+                      ₹{activeRide.final_fare || activeRide.offered_fare}
+                    </span>
+                  </p>
+                </div>
 
                 {/* 1-5 Star Rating */}
-                <div className="w-full mt-2 p-4 rounded-2xl bg-slate-50 border border-black flex flex-col items-center gap-3">
-                  <span className="text-xs font-black text-black">
+                <div className="w-full mt-2 p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center gap-3">
+                  <span className="text-xs font-black text-slate-900">
                     Rate {activeRide.captain_name && activeRide.captain_name !== 'Captain' ? activeRide.captain_name : 'Captain'}
                   </span>
                   <div className="flex items-center gap-2">
@@ -2082,13 +2169,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         type="button"
                         key={star}
                         onClick={() => setRatingScore(star)}
-                        className="p-1 cursor-pointer transition-transform hover:scale-110"
+                        className="p-1 cursor-pointer transition-transform hover:scale-110 active:scale-95"
                       >
                         <Star
-                          className={`w-7 h-7 ${
+                          className={`w-8 h-8 transition-colors ${
                             star <= ratingScore
-                              ? 'fill-black text-black'
-                              : 'text-slate-300'
+                              ? 'fill-amber-400 text-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.4)]'
+                              : 'text-slate-300 hover:text-slate-400'
                           }`}
                         />
                       </button>
@@ -2099,18 +2186,30 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="text"
                     value={reviewText}
                     onChange={(e) => setReviewText(e.target.value)}
-                    placeholder="Leave a quick note (e.g. smooth ride, on time)"
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-white border border-black text-black placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-black font-medium"
+                    placeholder="Leave feedback for captain (e.g. smooth ride, on time)"
+                    className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-white border border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-black font-medium"
                   />
 
-                  <button
-                    type="button"
-                    onClick={handleRateRide}
-                    disabled={ratingSubmitted}
-                    className="w-full py-2.5 rounded-xl bg-black hover:bg-slate-800 text-white font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 border border-black"
-                  >
-                    {ratingSubmitted ? 'Submitted!' : 'Submit Rating & Done'}
-                  </button>
+                  <div className="w-full flex flex-col gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={handleRateRide}
+                      disabled={ratingSubmitted || isSubmittingRating}
+                      className="w-full py-3 rounded-xl bg-black hover:bg-slate-900 text-white font-black text-xs shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50 border border-black flex items-center justify-center gap-2"
+                    >
+                      <Star className="w-4 h-4 fill-white text-white" />
+                      <span>{ratingSubmitted || isSubmittingRating ? 'Submitting...' : 'Submit Rating & Done'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleFinishPassengerRating(5, '', [], true)}
+                      disabled={ratingSubmitted || isSubmittingRating}
+                      className="w-full py-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-xs font-semibold cursor-pointer transition-colors"
+                    >
+                      Skip & Done
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -2833,6 +2932,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             />
           </div>
         </div>
+      )}
+
+      {/* Passenger Captain Rating Modal */}
+      {showCaptainRatingModal && (completedRideForRating || activeRide) && (
+        <PassengerCaptainRatingModal
+          ride={completedRideForRating || activeRide!}
+          isSubmitting={isSubmittingRating}
+          onSubmit={(score, review, tags) => handleFinishPassengerRating(score, review, tags, false)}
+          onSkip={() => handleFinishPassengerRating(5, '', [], true)}
+        />
       )}
     </div>
   );
