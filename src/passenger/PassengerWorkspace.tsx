@@ -2013,18 +2013,20 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     1. En Route
                   </div>
                   <div
+                    style={activeRide.status === 'captain_arrived' ? { backgroundColor: '#174309', borderColor: '#174309' } : undefined}
                     className={`p-2 rounded-xl border ${
                       activeRide.status === 'captain_arrived'
-                        ? 'bg-black text-white border-black font-black'
+                        ? 'text-white font-black shadow-xs'
                         : 'bg-slate-100 border-black/30 text-slate-600 font-semibold'
                     }`}
                   >
                     2. Arrived
                   </div>
                   <div
+                    style={activeRide.status === 'trip_started' ? { backgroundColor: '#DAA520', borderColor: '#DAA520', color: '#020617' } : undefined}
                     className={`p-2 rounded-xl border ${
                       activeRide.status === 'trip_started'
-                        ? 'bg-black text-white border-black font-black'
+                        ? 'text-slate-950 font-black shadow-xs'
                         : 'bg-slate-100 border-black/30 text-slate-600 font-semibold'
                     }`}
                   >

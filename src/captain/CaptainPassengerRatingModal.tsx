@@ -198,11 +198,12 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
             type="button"
             disabled={isSubmitting}
             onClick={() => onSubmit(score, reviewText, selectedTags)}
-            className="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-98 disabled:opacity-50 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+            style={{ backgroundColor: '#ba1e23' }}
+            className="w-full py-3.5 rounded-2xl hover:opacity-90 active:scale-98 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-rose-950/40 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full border-2 border-slate-950 border-t-transparent animate-spin" />
+                <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
                 Completing Ride...
               </span>
             ) : (
