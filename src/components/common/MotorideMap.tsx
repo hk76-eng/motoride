@@ -15,7 +15,7 @@ interface MapLayerConfig {
   maxZoom: number;
 }
 
-const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyC0e-_TvGfEzBHiSDnTWeZKrL9ImUZ9dLg';
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 const MAP_LAYERS: Record<MapLayerType, MapLayerConfig> = {
   'google-street': {

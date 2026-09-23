@@ -949,7 +949,7 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
     }
 
     // 1. Try Google Maps Geocoding API first for exact location finding
-    const mapsKey = process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyC0e-_TvGfEzBHiSDnTWeZKrL9ImUZ9dLg';
+    const mapsKey = process.env.VITE_GOOGLE_MAPS_API_KEY || '';
     const gMapsUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchTerms)}&key=${mapsKey}&region=in`;
     const gResponse = await fetch(gMapsUrl, { signal: AbortSignal.timeout(2000) });
     if (gResponse.ok) {

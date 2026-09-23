@@ -159,7 +159,7 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
     }
   };
 
-  const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyC0e-_TvGfEzBHiSDnTWeZKrL9ImUZ9dLg';
+  const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
   const TILE_CONFIGS: Record<string, { url: string; subdomains?: string; maxZoom: number; label: string }> = {
     'google-streets': {
