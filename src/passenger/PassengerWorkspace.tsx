@@ -1908,17 +1908,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                 {/* When Captain has arrived, show arrival banner */}
                 {activeRide.status === 'captain_arrived' && (
-                  <div
-                    style={{ backgroundColor: 'transparent', borderColor: '#174309' }}
-                    className="w-full rounded-2xl bg-transparent text-slate-900 px-4 py-3 border-2 font-black flex items-center justify-between select-none animate-in fade-in duration-200"
-                  >
+                  <div className="w-full rounded-2xl bg-emerald-500 text-slate-950 px-4 py-3 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
                     <div className="flex items-center gap-2.5">
-                      <span className="w-3 h-3 rounded-full bg-emerald-600 animate-ping shrink-0" />
-                      <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-slate-900">
+                      <span className="w-3 h-3 rounded-full bg-slate-950 animate-ping shrink-0" />
+                      <span className="text-xs sm:text-sm font-black uppercase tracking-wide">
                         Captain has arrived at pickup location!
                       </span>
                     </div>
-                    <span className="text-[11px] bg-emerald-50 text-emerald-900 px-2.5 py-1 rounded-xl font-bold shrink-0 border border-emerald-300">
+                    <span className="text-[11px] bg-slate-950 text-white px-2.5 py-1 rounded-xl font-bold shrink-0">
                       Waiting for you
                     </span>
                   </div>

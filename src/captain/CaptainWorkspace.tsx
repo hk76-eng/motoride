@@ -1033,19 +1033,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     />
   );
 
-  const renderCaptainControls = () => {
-    const isCaptainArrived = activeRide?.status === 'captain_arrived';
-
-    return (
+  const renderCaptainControls = () => (
     <div className="flex flex-col gap-3 pb-4">
       {activeRide ? (
         /* Active Trip Execution Card */
-        <div className={`bg-white rounded-3xl p-5 flex flex-col gap-4 ${
-          isCaptainArrived ? 'border-0 shadow-none ring-0 outline-none' : 'border border-slate-200 shadow-xl'
-        }`}>
-          <div className={`flex items-center justify-between pb-3 ${
-            isCaptainArrived ? 'border-b-0' : 'border-b border-slate-200'
-          }`}>
+        <div className="bg-white border border-slate-200 rounded-3xl p-5 flex flex-col gap-4 shadow-xl">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-mono-num text-amber-600 font-bold">
@@ -1054,9 +1047,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 {(() => {
                   const svc = getServiceBadge(activeRide.ride_type);
                   return (
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-black flex items-center gap-1 ${svc.badgeBg} ${
-                      isCaptainArrived ? 'border-0' : 'border'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded-md border text-[10px] font-black flex items-center gap-1 ${svc.badgeBg}`}>
                       <span>{svc.icon}</span>
                       <span>{svc.label}</span>
                     </span>
@@ -1071,18 +1062,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => setShowChatModal(true)}
-                className={`p-2.5 rounded-xl bg-black text-white hover:bg-slate-900 shadow-sm transition-all active:scale-95 cursor-pointer ${
-                  isCaptainArrived ? 'border-0' : 'border border-slate-800'
-                }`}
+                className="p-2.5 rounded-xl bg-black text-white border border-slate-800 hover:bg-slate-900 shadow-sm transition-all active:scale-95 cursor-pointer"
                 title="Chat with Passenger"
               >
                 <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
               </button>
               <a
                 href={`tel:${activeRide.passenger_phone || '+919780012345'}`}
-                className={`p-2.5 rounded-xl bg-black text-white hover:bg-slate-900 shadow-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center ${
-                  isCaptainArrived ? 'border-0' : 'border border-slate-800'
-                }`}
+                className="p-2.5 rounded-xl bg-black text-white border border-slate-800 hover:bg-slate-900 shadow-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center"
                 title="Call Passenger"
               >
                 <Phone className="w-4 h-4 stroke-[2.5] text-white" />
@@ -1091,9 +1078,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           </div>
 
           {/* Passenger Info */}
-          <div className={`p-3 rounded-2xl bg-slate-50 flex items-center justify-between ${
-            isCaptainArrived ? 'border-0' : 'border border-slate-200'
-          }`}>
+          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <div>
               <span className="text-xs font-bold text-slate-900 block">
                 {activeRide.passenger_name}
@@ -1108,9 +1093,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           </div>
 
           {/* Route Details with Navigator Capsule on top */}
-          <div className={`p-3.5 rounded-2xl bg-slate-50 flex flex-col gap-2.5 ${
-            isCaptainArrived ? 'border-0' : 'border border-slate-200'
-          }`}>
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2.5">
             {/* Pickup/Dropoff Location with Smart Navigator Button */}
             {(() => {
               const isArrivedOrLater = activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started';
@@ -1162,9 +1145,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       <button
                         type="button"
                         onClick={handleNavigateClick}
-                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black hover:bg-slate-900 text-white text-[11px] font-black transition-all shadow-md active:scale-95 cursor-pointer select-none ${
-                          isCaptainArrived ? 'border-0' : 'border border-slate-800'
-                        }`}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black hover:bg-slate-900 text-white text-[11px] font-black transition-all shadow-md active:scale-95 cursor-pointer select-none border border-slate-800"
                         title={isArrivedOrLater ? 'Navigate to Drop-off destination' : 'Navigate to Pickup point'}
                       >
                         <Navigation2 className="w-3.5 h-3.5 fill-white stroke-white text-white shrink-0" />
@@ -1190,9 +1171,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             })()}
 
             {/* Dropoff Location: Only red dot with B */}
-            <div className={`flex items-center gap-2 pt-2 ${
-              isCaptainArrived ? 'border-t-0' : 'border-t border-slate-200'
-            }`}>
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="w-2 h-2 rounded-full bg-rose-500 inline-block shrink-0 shadow-xs" />
                 <span className="w-5 h-5 rounded-full bg-rose-500 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
@@ -1205,9 +1184,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             </div>
 
             {activeRide.comment && (
-              <p className={`flex items-center gap-1.5 pt-1.5 text-emerald-800 text-xs ${
-                isCaptainArrived ? 'border-t-0' : 'border-t border-slate-200'
-              }`}>
+              <p className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200 text-emerald-800 text-xs">
                 <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span className="truncate italic">Passenger note: "{activeRide.comment}"</span>
               </p>
@@ -1220,11 +1197,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => handleStatusChange('captain_arrived')}
-                style={{ backgroundColor: 'transparent', borderColor: '#174309', color: '#174309' }}
-                className="w-full py-3.5 rounded-2xl hover:bg-emerald-50 text-[#174309] font-black text-xs transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border-2 shadow-xs"
+                style={{ backgroundColor: '#174309', borderColor: '#174309' }}
+                className="w-full py-3.5 rounded-2xl hover:opacity-90 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border"
               >
-                <MapPin className="w-4 h-4 stroke-[2.5] text-[#174309]" />
-                <span className="text-[#174309]">I Have Arrived at Pickup</span>
+                <MapPin className="w-4 h-4 stroke-[2.5] text-white" />
+                <span className="text-white">I Have Arrived at Pickup</span>
               </button>
             )}
 
@@ -1232,8 +1209,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => handleStatusChange('trip_started')}
-                style={{ backgroundColor: '#DAA520' }}
-                className="w-full py-3.5 rounded-2xl hover:opacity-90 text-slate-950 font-black text-xs shadow-md transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border-0 outline-none ring-0"
+                style={{ backgroundColor: '#DAA520', borderColor: '#DAA520' }}
+                className="w-full py-3.5 rounded-2xl hover:opacity-90 text-slate-950 font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-amber-500/20"
               >
                 <Navigation2 className="w-4 h-4 stroke-[2.5] text-slate-950 fill-slate-950" />
                 <span className="text-slate-950">Passenger Boarded • Start Trip</span>
@@ -1255,7 +1232,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             <button
               type="button"
               onClick={handleCancelTrip}
-              className="w-full py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-xs font-semibold cursor-pointer transition-colors border-0 outline-none"
+              className="w-full py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-xs font-semibold cursor-pointer transition-colors"
             >
               Cancel Ride
             </button>
@@ -1430,8 +1407,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         </div>
       )}
     </div>
-    );
-  };
+  );
 
   const renderInspectedRideDetails = (ride: MotorideRide) => {
     const distKm = calculateDistance(captainGps.lat, captainGps.lng, ride.pickup_lat, ride.pickup_lng);
@@ -1612,82 +1588,67 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     <div className="relative w-full h-[calc(100dvh-64px)] sm:h-[calc(100vh-68px)] overflow-hidden bg-slate-950">
       {activeRide ? (
         /* Active Ride Split View: Top Half Map (50%), Bottom Half Ride Details (50%) with 50% / 100% Toggle Switch */
-        (() => {
-          const isArrived = activeRide.status === 'captain_arrived';
-          return (
-            <div className="absolute inset-0 w-full h-full flex flex-col z-0">
-              {/* Top Map: 50% height in 50% mode, hidden/0% in 100% details mode */}
-              <div
-                className={`w-full transition-all duration-300 ease-in-out relative z-0 shrink-0 ${
-                  isArrived ? 'border-b-0 outline-none ring-0' : 'border-b-2 border-black'
-                } ${
-                  is100Full ? 'h-0 overflow-hidden border-b-0 opacity-0 pointer-events-none' : 'h-[50dvh] sm:h-1/2 opacity-100'
-                }`}
-              >
-                {renderCaptainMap(true)}
+        <div className="absolute inset-0 w-full h-full flex flex-col z-0">
+          {/* Top Map: 50% height in 50% mode, hidden/0% in 100% details mode */}
+          <div
+            className={`w-full transition-all duration-300 ease-in-out relative z-0 border-b-2 border-black shrink-0 ${
+              is100Full ? 'h-0 overflow-hidden border-b-0 opacity-0 pointer-events-none' : 'h-[50dvh] sm:h-1/2 opacity-100'
+            }`}
+          >
+            {renderCaptainMap(true)}
+          </div>
+
+          {/* Bottom Active Ride Details: 50% in split mode, 100% in full mode */}
+          <div
+            className={`w-full flex-1 bg-white border-t-2 border-black shadow-[0_-12px_45px_rgba(0,0,0,0.25)] flex flex-col overflow-hidden relative z-10 transition-all duration-300 ease-in-out ${
+              is100Full ? 'h-full' : 'h-[50dvh] sm:h-1/2'
+            }`}
+          >
+            {/* Header with 50% / 100% Toggle Switch */}
+            <div className="px-3.5 sm:px-5 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between select-none shrink-0 shadow-xs">
+              <div className="flex items-center gap-2 min-w-0 pr-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                  Active Trip • #{activeRide.ride_code} ({activeRide.status.replace(/_/g, ' ')})
+                </span>
               </div>
 
-              {/* Bottom Active Ride Details: 50% in split mode, 100% in full mode */}
-              <div
-                className={`w-full flex-1 bg-white flex flex-col overflow-hidden relative z-10 transition-all duration-300 ease-in-out ${
-                  isArrived
-                    ? 'border-t-0 shadow-none ring-0 outline-none'
-                    : 'border-t-2 border-black shadow-[0_-12px_45px_rgba(0,0,0,0.25)]'
-                } ${
-                  is100Full ? 'h-full' : 'h-[50dvh] sm:h-1/2'
-                }`}
-              >
-                {/* Header with 50% / 100% Toggle Switch */}
-                <div className={`px-3.5 sm:px-5 py-2.5 bg-slate-100 flex items-center justify-between select-none shrink-0 ${
-                  isArrived ? 'border-b-0 shadow-none' : 'border-b border-slate-200 shadow-xs'
-                }`}>
-                  <div className="flex items-center gap-2 min-w-0 pr-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                    <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
-                      Active Trip • #{activeRide.ride_code} ({activeRide.status.replace(/_/g, ' ')})
-                    </span>
-                  </div>
-
-                  {/* 50% & 100% Toggle Switch Control */}
-                  <div className={`flex items-center bg-slate-200/90 p-1 rounded-xl shrink-0 ${
-                    isArrived ? 'border-0 shadow-none' : 'border border-slate-300'
-                  }`}>
-                    <button
-                      type="button"
-                      onClick={() => setIs100Full(false)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                        !is100Full
-                          ? 'bg-black text-white shadow-sm'
-                          : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/70'
-                      }`}
-                      title="50% Half Screen View (Split Map & Details)"
-                    >
-                      <Minimize2 className="w-3.5 h-3.5" />
-                      <span>50%</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIs100Full(true)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                        is100Full
-                          ? 'bg-black text-white shadow-sm'
-                          : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/70'
-                      }`}
-                      title="100% Full Screen (Expand Trip Details)"
-                    >
-                      <Maximize2 className="w-3.5 h-3.5" />
-                      <span>100%</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
-                  {renderCaptainControls()}
-                </div>
+              {/* 50% & 100% Toggle Switch Control */}
+              <div className="flex items-center bg-slate-200/90 p-1 rounded-xl border border-slate-300 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIs100Full(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                    !is100Full
+                      ? 'bg-black text-white shadow-sm'
+                      : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/70'
+                  }`}
+                  title="50% Half Screen View (Split Map & Details)"
+                >
+                  <Minimize2 className="w-3.5 h-3.5" />
+                  <span>50%</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIs100Full(true)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                    is100Full
+                      ? 'bg-black text-white shadow-sm'
+                      : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/70'
+                  }`}
+                  title="100% Full Screen (Expand Trip Details)"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>100%</span>
+                </button>
               </div>
             </div>
-          );
-        })()
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
+              {renderCaptainControls()}
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           {/* Background Street View Map filling 100% of the canvas */}
