@@ -346,17 +346,12 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
           const startIcon = L.divIcon({
             className: 'custom-origin-marker',
             html: `
-              <div style="position: relative; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">
-                <div style="background: linear-gradient(135deg, #334155, #1e293b); border: 2px solid #94a3b8; color: #f8fafc; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; box-shadow: 0 3px 8px rgba(0,0,0,0.5);">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f8fafc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-                    <line x1="4" y1="22" x2="4" y2="15" />
-                  </svg>
-                </div>
+              <div style="position: relative; width: 28px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45));">
+                <img src="/marker_green.svg" alt="Pickup Point" style="width: 28px; height: 70px; object-fit: contain; pointer-events: none;" />
               </div>
             `,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
+            iconSize: [28, 70],
+            iconAnchor: [14, 70],
           });
           startMarkerRef.current = L.marker([startLat, startLng], { icon: startIcon }).addTo(map);
         } else {
@@ -372,9 +367,13 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
         if (!endMarkerRef.current) {
           const endIcon = L.divIcon({
             className: 'custom-end-marker',
-            html: `<div style="background: linear-gradient(135deg, #e11d48, #be123c); border: 2px solid white; color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; box-shadow: 0 4px 10px rgba(225,29,72,0.6);">B</div>`,
-            iconSize: [28, 28],
-            iconAnchor: [14, 14],
+            html: `
+              <div style="position: relative; width: 28px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45));">
+                <img src="/marker_red.svg" alt="Dropoff Point" style="width: 28px; height: 70px; object-fit: contain; pointer-events: none;" />
+              </div>
+            `,
+            iconSize: [28, 70],
+            iconAnchor: [14, 70],
           });
           endMarkerRef.current = L.marker([endLocation.latitude, endLocation.longitude], { icon: endIcon }).addTo(map);
         } else {
