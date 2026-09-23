@@ -1443,27 +1443,28 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                         </div>
                       </div>
 
-                      {/* Right: Ride Distance (Above Cash Tab) -> Cash Tab -> Fare (Below Cash Tab) */}
-                      <div className="flex flex-col items-end justify-between shrink-0 pl-3 border-l border-slate-100 min-w-[95px] text-right self-stretch">
-                        {/* 1. Ride Distance ABOVE Cash Tab */}
-                        <div className="flex flex-col items-end">
-                          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Ride Distance</span>
-                          <span className="text-xs sm:text-sm font-black text-slate-900 font-mono-num">
-                            {rideDistText}
+                      {/* Right: Cash ₹234 (BOLD TEXT) -> Offered Fare -> Ride Distance 23.4 km */}
+                      <div className="flex flex-col items-end justify-between shrink-0 pl-3 border-l border-slate-100 min-w-[110px] text-right self-stretch">
+                        {/* 1. Cash ₹234 (BOLD TEXT) */}
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-300 text-xs font-black uppercase tracking-wider shadow-2xs">
+                            {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'UPI'}
+                          </span>
+                          <span className="text-xl sm:text-2xl font-black text-slate-950 font-mono-num leading-none">
+                            ₹{ride.offered_fare}
                           </span>
                         </div>
 
-                        {/* 2. Cash Tab */}
-                        <span className="my-2 px-3 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-black uppercase tracking-wider shadow-2xs">
-                          {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
+                        {/* 2. Offered Fare */}
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mt-0.5">
+                          Offered Fare
                         </span>
 
-                        {/* 3. Fare BELOW Cash Tab */}
-                        <div className="flex flex-col items-end">
-                          <span className="text-lg sm:text-xl font-black text-slate-900 font-mono-num leading-tight">
-                            ₹{ride.offered_fare}
+                        {/* 3. Ride Distance e.g. 23.4 km */}
+                        <div className="mt-2 pt-1 border-t border-slate-100 w-full flex items-center justify-end gap-1">
+                          <span className="text-xs sm:text-sm font-black text-slate-900 font-mono-num bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                            {rideDistText}
                           </span>
-                          <span className="text-[9px] text-slate-500 font-semibold">Offered Fare</span>
                         </div>
                       </div>
                     </div>
@@ -1519,27 +1520,28 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Right Stack: Ride Distance above Cash tab -> Cash Tab -> Fare below Cash tab */}
-          <div className="flex flex-col items-end justify-between shrink-0 pl-3 border-l border-slate-100 min-w-[100px] text-right">
-            {/* 1. Ride Distance ABOVE Cash Tab */}
-            <div className="flex flex-col items-end">
-              <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Ride Distance</span>
-              <span className="text-sm sm:text-base font-black text-slate-900 font-mono-num">
-                {rideDistText}
+          {/* Right Stack: Cash ₹234 (BOLD TEXT) -> Offered Fare -> Ride Distance 23.4 km */}
+          <div className="flex flex-col items-end justify-between shrink-0 pl-3 border-l border-slate-100 min-w-[120px] text-right">
+            {/* 1. Cash ₹234 (BOLD TEXT) */}
+            <div className="flex items-center gap-1.5 justify-end">
+              <span className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 border border-purple-300 text-xs font-black uppercase tracking-wider shadow-2xs">
+                {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'UPI'}
+              </span>
+              <span className="text-2xl sm:text-3xl font-black text-slate-950 font-mono-num leading-none">
+                ₹{ride.offered_fare}
               </span>
             </div>
 
-            {/* 2. Cash Tab */}
-            <span className="my-1.5 px-3 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-black uppercase tracking-wider shadow-2xs">
-              {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
+            {/* 2. Offered Fare */}
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mt-1">
+              Offered Fare
             </span>
 
-            {/* 3. Fare BELOW Cash Tab */}
-            <div className="flex flex-col items-end">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 font-mono-num leading-tight">
-                ₹{ride.offered_fare}
+            {/* 3. Ride Distance e.g. 23.4 km */}
+            <div className="mt-2 pt-1 border-t border-slate-100 w-full flex items-center justify-end gap-1">
+              <span className="text-xs sm:text-sm font-black text-slate-900 font-mono-num bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
+                {rideDistText}
               </span>
-              <span className="text-[9px] text-slate-500 font-semibold">Offered Fare</span>
             </div>
           </div>
         </div>
