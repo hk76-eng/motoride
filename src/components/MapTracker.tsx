@@ -385,33 +385,33 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
         endMarkerRef.current = null;
       }
 
-      // 4. Current Live Position Marker - ALWAYS visible with Point "A" and rotating navigator icon
+      // 4. Current Live Position Marker - ALWAYS visible with uploaded passenger icon and rotating heading indicator
       const activeLat = currentLocation?.latitude ?? startLocation?.latitude ?? 12.971598;
       const activeLng = currentLocation?.longitude ?? startLocation?.longitude ?? 77.594562;
       const heading = currentLocation?.heading || 0;
       const accuracy = currentLocation?.accuracy || 10;
 
       const liveLocationIcon = L.divIcon({
-        className: 'custom-live-location-a-marker',
+        className: 'custom-live-location-passenger-marker',
         html: `
           <div style="position: relative; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; pointer-events: auto;">
             <!-- Radar Pulse Waves -->
-            <div style="position: absolute; width: 52px; height: 52px; border-radius: 50%; background-color: rgba(16, 185, 129, 0.28); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-            <div style="position: absolute; width: 42px; height: 42px; border-radius: 50%; background-color: rgba(6, 182, 212, 0.24); animation: pulse 1.6s ease-in-out infinite;"></div>
+            <div style="position: absolute; width: 52px; height: 52px; border-radius: 50%; background-color: rgba(29, 63, 132, 0.28); animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+            <div style="position: absolute; width: 42px; height: 42px; border-radius: 50%; background-color: rgba(59, 130, 246, 0.2); animation: pulse 1.6s ease-in-out infinite;"></div>
             
             <!-- Rotating Heading Navigator Arrow Wrapper -->
             <div style="position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center; transform: rotate(${heading || 0}deg); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;">
               <!-- Directional Navigator Pointer Arrow -->
               <div style="margin-top: -7px; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.65));">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="#10b981" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#1d3f84" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <polygon points="12 2 19 21 12 17 5 21 12 2" />
                 </svg>
               </div>
             </div>
 
-            <!-- Central Badge: Location "A" with Navigator Icon Styling -->
-            <div style="position: relative; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #059669, #0d9488); border: 2.5px solid #ffffff; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.65), 0 0 0 2px rgba(16, 185, 129, 0.35); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;">
-              <span style="font-size: 15px; line-height: 1; font-weight: 900; letter-spacing: -0.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">A</span>
+            <!-- Central Badge: Uploaded Passenger Icon -->
+            <div style="position: relative; width: 36px; height: 36px; border-radius: 50%; background: #1d3f84; border: 2.5px solid #ffffff; box-shadow: 0 4px 14px rgba(29, 63, 132, 0.65), 0 0 0 2px rgba(59, 130, 246, 0.35); overflow: hidden; display: flex; align-items: center; justify-content: center;">
+              <img src="/passenger_icon.svg" alt="Passenger Live Location" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
             </div>
           </div>
         `,

@@ -175,41 +175,34 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
   };
 
-  // Custom DivIcon for Passenger Standing Location with the User's uploaded Rise-Hand Hailing Silhouette Icon
-  const createPassengerIcon = (label: string = 'Where To ?', isPickupHere: boolean = false) =>
+  // Custom DivIcon for Passenger GPS Live Location using the uploaded passenger_icon.png
+  const createPassengerIcon = (label: string = 'You', isPickupHere: boolean = false) =>
     L.divIcon({
-      className: 'passenger-standing-marker',
+      className: 'passenger-gps-live-marker',
       html: `
-        <div style="position: relative; width: 96px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; user-select: none; pointer-events: auto; cursor: pointer;" title="${isPickupHere ? 'Pickup Location (A) is set here' : 'Where To ? - Click to set Pickup & fill Drop location'}">
-          <!-- GPS Radar Ripple Pulse Rings -->
-          <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: ${isPickupHere ? '68px' : '60px'}; height: ${isPickupHere ? '68px' : '60px'}; border-radius: 50%; background: ${isPickupHere ? 'rgba(16, 185, 129, 0.28)' : 'rgba(0, 0, 0, 0.14)'}; animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
-          <div style="position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; border-radius: 50%; background: rgba(16, 185, 129, 0.22); pointer-events: none;"></div>
+        <div style="position: relative; width: 68px; height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; pointer-events: auto; cursor: pointer;" title="Passenger GPS Live Location">
+          <!-- GPS Radar Pulse Waves -->
+          <div style="position: absolute; width: 62px; height: 62px; border-radius: 50%; background: rgba(29, 63, 132, 0.28); animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
+          <div style="position: absolute; width: 48px; height: 48px; border-radius: 50%; background: rgba(29, 63, 132, 0.16); pointer-events: none;"></div>
 
-          <!-- Top Floating Label: Where To ? -->
-          <div style="position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: ${isPickupHere ? '#022c22' : '#000000'}; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 9999px; border: 1.5px solid ${isPickupHere ? '#10b981' : '#ffffff'}; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.6); pointer-events: none; letter-spacing: 0.3px; z-index: 30; display: flex; align-items: center; gap: 4px;">
-            <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block; box-shadow: 0 0 6px #10b981;"></span>
-            <span>${label || 'Where To ?'}</span>
+          <!-- Top Floating Capsule Badge -->
+          <div style="position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: #020617; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 9999px; border: 1.5px solid #3b82f6; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.6); pointer-events: none; letter-spacing: 0.3px; z-index: 30; display: flex; align-items: center; gap: 4px;">
+            <span style="width: 5px; height: 5px; border-radius: 50%; background: #3b82f6; display: inline-block; box-shadow: 0 0 6px #60a5fa;"></span>
+            <span>${label || 'You'}</span>
           </div>
 
-          <!-- Standing Passenger Pin Circle Badge with Crisp White Background & Solid Black/Emerald Border -->
-          <div style="position: relative; width: 46px; height: 46px; border-radius: 50%; background: #ffffff; border: 3px solid ${isPickupHere ? '#10b981' : '#000000'}; box-shadow: 0 6px 20px rgba(0,0,0,0.45), 0 0 0 2px ${isPickupHere ? 'rgba(16,185,129,0.7)' : 'rgba(255,255,255,0.95)'}; display: flex; align-items: center; justify-content: center; z-index: 20;">
-            <!-- Exact Silhouette of Passenger with Raised Hand (risehand icon) -->
-            <svg viewBox="0 0 200 200" width="30" height="30" style="color: #000000; display: block;">
-              <circle cx="124" cy="72" r="39" fill="currentColor" />
-              <path d="M 72,200 C 74,168 56,122 36,80 C 26,58 13,36 9,21 C 5,8 17,-1 29,4 C 38,9 47,25 58,52 C 70,82 86,112 106,124 C 114,117 128,114 142,118 C 162,124 180,152 196,200 Z" fill="currentColor" />
-            </svg>
-
-            <!-- Bottom Pointer Arrow pointing to ground coordinates -->
-            <div style="position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 10px; height: 10px; background: ${isPickupHere ? '#10b981' : '#000000'}; border-right: 2px solid #ffffff; border-bottom: 2px solid #ffffff; z-index: 15;"></div>
+          <!-- Circular Badge with Uploaded Passenger Icon -->
+          <div style="position: relative; width: 42px; height: 42px; border-radius: 50%; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 2.5px #ffffff; z-index: 20; display: flex; align-items: center; justify-content: center; background: #1d3f84;">
+            <img src="/passenger_icon.svg" alt="Passenger GPS" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none;" />
           </div>
 
-          <!-- Exact GPS Ground Contact Pinpoint -->
-          <div style="width: 6px; height: 6px; border-radius: 50%; background: ${isPickupHere ? '#10b981' : '#000000'}; margin-top: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.6); z-index: 10;"></div>
+          <!-- Ground Contact Needle Tip / Pointer Arrow -->
+          <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 8px; height: 8px; background: #1d3f84; border-right: 1.5px solid #ffffff; border-bottom: 1.5px solid #ffffff; z-index: 15;"></div>
         </div>
       `,
-      iconSize: [96, 80],
-      iconAnchor: [48, 76],
-      popupAnchor: [0, -76],
+      iconSize: [68, 68],
+      iconAnchor: [34, 62],
+      popupAnchor: [0, -62],
     });
 
 
@@ -542,21 +535,26 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       dropoffLng
     );
 
-    // Show passenger standing marker ONLY when pick & drop is not both active and passenger is away from pickup
-    const shouldShowPassengerStanding = Boolean(
-      passengerLat &&
-      passengerLng &&
-      !showLocationsABOnly &&
-      !isRideBooked &&
-      !isPickAndDropActive &&
-      (!hasPickup || !isPickupAtPassenger)
-    );
-
-    // 1. Passenger Standing Location Marker (Displayed when passenger is standing away from chosen pickup or before setting pickup)
-    if (shouldShowPassengerStanding && passengerLat && passengerLng) {
-      bounds.push([passengerLat, passengerLng]);
-      const labelText = 'Where To ?';
+    // 1. Passenger GPS Live Location Marker (Always displayed when passenger GPS coordinates are available)
+    const shouldShowPassengerGps = Boolean(passengerLat && passengerLng);
+    if (shouldShowPassengerGps && passengerLat && passengerLng) {
+      if (!isPickAndDropActive) {
+        bounds.push([passengerLat, passengerLng]);
+      }
+      const labelText = !hasPickup ? 'Where To ?' : (isPickupAtPassenger ? 'You • Pickup' : 'Live GPS');
       const pIcon = createPassengerIcon(labelText, isPickupAtPassenger);
+
+      const passengerPopupHtml = `
+        <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 170px; color: #000000; padding: 2px;">
+          <div style="font-weight: 900; color: #1d3f84; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
+            <span>📍 Your Live GPS Location</span>
+          </div>
+          <div style="color: #0f172a; font-size: 11.5px; font-weight: 600;">
+            ${passengerName || 'Passenger (Standing Here)'}
+          </div>
+          ${distToPickupMeters !== null && distToPickupMeters > 5 ? `<div style="color: #64748b; font-size: 11px; margin-top: 4px; font-weight: 500;">Distance to Pickup (A): <b>${distToPickupMeters}m</b></div>` : ''}
+        </div>
+      `;
 
       if (!passengerMarkerRef.current || !map.hasLayer(passengerMarkerRef.current)) {
         if (passengerMarkerRef.current) {
@@ -567,18 +565,23 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         passengerMarkerRef.current = L.marker([passengerLat, passengerLng], {
           icon: pIcon,
           zIndexOffset: 3000,
-        }).addTo(map);
+        })
+          .addTo(map)
+          .bindPopup(passengerPopupHtml);
       } else {
         passengerMarkerRef.current.setLatLng([passengerLat, passengerLng]);
         passengerMarkerRef.current.setIcon(pIcon);
+        passengerMarkerRef.current.setPopupContent(passengerPopupHtml);
       }
 
-      // One click on passenger icon immediately adds / sets pickup location
+      // One click on passenger icon sets pickup if not set yet, or opens details
       passengerMarkerRef.current.off('click');
       passengerMarkerRef.current.on('click', (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e);
-        if (onSetPickupToPassengerLocation && passengerLat && passengerLng) {
+        if (!hasPickup && onSetPickupToPassengerLocation && passengerLat && passengerLng) {
           onSetPickupToPassengerLocation(passengerLat, passengerLng);
+        } else {
+          passengerMarkerRef.current?.openPopup();
         }
       });
 
@@ -592,8 +595,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         }
         passengerAccuracyCircleRef.current = L.circle([passengerLat, passengerLng], {
           radius: circleRadius,
-          color: '#000000',
-          fillColor: '#10b981',
+          color: '#1d3f84',
+          fillColor: '#3b82f6',
           fillOpacity: 0.12,
           weight: 1.5,
           dashArray: '4, 4',
@@ -1061,7 +1064,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         if (captainLat && captainLng) {
           routeBounds.extend([captainLat, captainLng]);
         }
-        if (shouldShowPassengerStanding && passengerLat && passengerLng) {
+        if (shouldShowPassengerGps && passengerLat && passengerLng) {
           routeBounds.extend([passengerLat, passengerLng]);
         }
         map.invalidateSize();
