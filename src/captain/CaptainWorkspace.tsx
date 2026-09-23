@@ -427,11 +427,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     const unsubRideUpdated = realtimeSync.on('RIDE_UPDATED', (updatedRide: MotorideRide) => {
       if (updatedRide.captain_id === captainId) {
-        if (updatedRide.status === 'trip_completed' || updatedRide.status === 'completed' || updatedRide.status.includes('cancelled')) {
+        if (updatedRide.status === 'completed' || updatedRide.status.includes('cancelled')) {
           setActiveRide(null);
+          setShowPassengerRatingModal(false);
+          setCompletedRideForRating(null);
           loadCaptainData();
         } else {
           setActiveRide(updatedRide);
+          if (updatedRide.status === 'trip_completed') {
+            setCompletedRideForRating(updatedRide);
+            setShowPassengerRatingModal(true);
+          }
         }
       }
 
@@ -692,10 +698,15 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             r &&
             (r.status === 'captain_accepted' ||
               r.status === 'captain_arrived' ||
-              r.status === 'trip_started')
+              r.status === 'trip_started' ||
+              r.status === 'trip_completed')
         );
         if (current) {
           setActiveRide(current);
+          if (current.status === 'trip_completed' && !completedRideForRating) {
+            setCompletedRideForRating(current);
+            setShowPassengerRatingModal(true);
+          }
         }
       }
     } catch {}
@@ -905,10 +916,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       }
 
       if (nextStatus === 'trip_completed') {
-        // Prompt Captain to rate passenger before finishing the ride
-        setCompletedRideForRating(activeRide);
+        const completedRide = updated || { ...activeRide, status: 'trip_completed' };
+        setActiveRide(completedRide);
+        setCompletedRideForRating(completedRide);
         setShowPassengerRatingModal(true);
-        return;
       } else {
         setActiveRide(updated);
       }
@@ -1229,13 +1240,52 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={handleCancelTrip}
-              className="w-full py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-xs font-semibold cursor-pointer transition-colors"
-            >
-              Cancel Ride
-            </button>
+            {activeRide.status === 'trip_completed' && (
+              <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center">
+                      <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900">Trip Completed! 🎉</h4>
+                      <p className="text-[11px] text-slate-500 font-medium">Collect payment & rate passenger</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                      Agreed Fare
+                    </span>
+                    <span className="text-base font-black text-emerald-600 font-mono-num">
+                      ₹{activeRide.final_fare || activeRide.offered_fare}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompletedRideForRating(activeRide);
+                    setShowPassengerRatingModal(true);
+                  }}
+                  style={{ backgroundColor: '#ba1e23', borderColor: '#ba1e23' }}
+                  className="w-full py-3.5 rounded-2xl hover:opacity-90 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-rose-900/25"
+                >
+                  <Star className="w-4 h-4 fill-white text-white" />
+                  <span>Rate Passenger & Finish Ride</span>
+                </button>
+              </div>
+            )}
+
+            {activeRide.status !== 'trip_completed' && (
+              <button
+                type="button"
+                onClick={handleCancelTrip}
+                className="w-full py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Cancel Ride
+              </button>
+            )}
           </div>
         </div>
       ) : (
