@@ -19,6 +19,7 @@ import {
   Bike,
   Power,
   Navigation,
+  Navigation2,
   Phone,
   QrCode,
   RotateCw,
@@ -1092,7 +1093,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               const isArrivedOrLater = activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started';
               const navLat = isArrivedOrLater ? activeRide.dropoff_lat : activeRide.pickup_lat;
               const navLng = isArrivedOrLater ? activeRide.dropoff_lng : activeRide.pickup_lng;
-              const navTitle = isArrivedOrLater ? 'Navigate to Drop-off' : 'Navigate to Pickup';
+              const navTitle = 'Navigate';
               return (
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between gap-2">
@@ -1104,7 +1105,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black hover:bg-slate-900 text-white text-[11px] font-black transition-all shadow-md active:scale-95 cursor-pointer select-none border border-slate-800"
                         title={isArrivedOrLater ? 'Navigate to Drop-off destination' : 'Navigate to Pickup point'}
                       >
-                        <Navigation className="w-3.5 h-3.5 fill-white stroke-white text-white shrink-0" />
+                        <Navigation2 className="w-3.5 h-3.5 fill-white stroke-white text-white shrink-0" />
                         <span className="text-white">{navTitle}</span>
                       </a>
                     </div>
@@ -1168,7 +1169,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 style={{ backgroundColor: '#DAA520', borderColor: '#DAA520' }}
                 className="w-full py-3.5 rounded-2xl hover:opacity-90 text-slate-950 font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-amber-500/20"
               >
-                <Navigation className="w-4 h-4 stroke-[2.5] text-slate-950 fill-slate-950" />
+                <Navigation2 className="w-4 h-4 stroke-[2.5] text-slate-950 fill-slate-950" />
                 <span className="text-slate-950">Passenger Boarded • Start Trip</span>
               </button>
             )}

@@ -2034,49 +2034,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </div>
                 </div>
 
-                {/* Route Summary */}
-                <div className="text-xs text-black space-y-3 p-3.5 rounded-2xl bg-slate-50 border border-black">
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                        <span className="font-bold text-slate-700">From (Pickup):</span>
-                      </div>
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${activeRide.pickup_lat},${activeRide.pickup_lng}&travelmode=driving`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black text-white text-[10px] font-black shadow-xs hover:bg-slate-900 transition-all border border-slate-800"
-                        title="Navigate to Pickup"
-                      >
-                        <Navigation className="w-3 h-3 fill-white stroke-white text-white shrink-0" />
-                        <span>Navigate</span>
-                      </a>
-                    </div>
-                    <p className="truncate font-black text-slate-900 pl-3.5">{activeRide.pickup_address}</p>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 pt-2.5 border-t border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-rose-500" />
-                        <span className="font-bold text-slate-700">To (Drop-off):</span>
-                      </div>
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${activeRide.dropoff_lat},${activeRide.dropoff_lng}&travelmode=driving`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-black text-white text-[10px] font-black shadow-xs hover:bg-slate-900 transition-all border border-slate-800"
-                        title="Navigate to Drop-off"
-                      >
-                        <Navigation className="w-3 h-3 fill-white stroke-white text-white shrink-0" />
-                        <span>Navigate</span>
-                      </a>
-                    </div>
-                    <p className="truncate font-black text-slate-900 pl-3.5">{activeRide.dropoff_address}</p>
-                  </div>
-                </div>
-
                 {/* Fare and payment summary */}
                 <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-100 border border-black">
                   <span className="text-xs text-black font-bold">Agreed Fare:</span>
