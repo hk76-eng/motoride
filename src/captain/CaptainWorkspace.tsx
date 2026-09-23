@@ -935,33 +935,40 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     skipRating: boolean = false
   ) => {
     const rideToFinish = completedRideForRating || activeRide;
-    if (!rideToFinish) return;
+    if (!rideToFinish) {
+      setShowPassengerRatingModal(false);
+      return;
+    }
 
     setIsFinishingRide(true);
     try {
       const finalFare = rideToFinish.final_fare || rideToFinish.estimated_fare;
       const finalDist = rideToFinish.distance_km;
 
-      // 1. Mark ride completed in Supabase / Local storage
-      await motorideApi.updateRideStatus(rideToFinish.id, 'trip_completed', {
+      // 1. Mark ride as fully finalized and completed in Supabase / Local storage
+      await motorideApi.updateRideStatus(rideToFinish.id, 'completed', {
         final_fare: finalFare,
         final_distance_km: finalDist,
       });
 
       // 2. Submit Captain's rating for passenger
       if (!skipRating && rideToFinish.passenger_id) {
-        await motorideApi.submitRideRating({
-          ride_id: rideToFinish.id,
-          rater_role: 'captain',
-          captain_id: captainId,
-          passenger_id: rideToFinish.passenger_id,
-          score: score || 5,
-          review: review,
-          tags: tags,
-        });
+        try {
+          await motorideApi.submitRideRating({
+            ride_id: rideToFinish.id,
+            rater_role: 'captain',
+            captain_id: captainId,
+            passenger_id: rideToFinish.passenger_id,
+            score: score || 5,
+            review: review,
+            tags: tags,
+          });
+        } catch (ratingErr) {
+          console.warn('Rating save error ignored:', ratingErr);
+        }
       }
 
-      // 3. Clear active ride and refresh earnings/history
+      // 3. Instantly clear active ride and close rating modal
       setActiveRide(null);
       setCompletedRideForRating(null);
       setShowPassengerRatingModal(false);
