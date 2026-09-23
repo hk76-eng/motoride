@@ -495,13 +495,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [isRideHistoryOpen, setIsRideHistoryOpen] = useState<boolean>(false);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
 
-  // Booking Form State - Initialized with default preset location
+  // Booking Form State - Start empty so no markers show until passenger selects pickup & dropoff
   const [pickup, setPickup] = useState<{
     name: string;
     lat: number;
     lng: number;
-  }>(PRESET_LOCATIONS[0]);
-  const [dropoff, setDropoff] = useState(PRESET_LOCATIONS[1]);
+  }>({ name: '', lat: 0, lng: 0 });
+  const [dropoff, setDropoff] = useState<{
+    name: string;
+    lat: number;
+    lng: number;
+  }>({ name: '', lat: 0, lng: 0 });
   const [rideType, setRideType] = useState<RideTypeCode>('bike');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'wallet' | 'upi'>('upi');
   const [offeredFare, setOfferedFare] = useState<number>(75);
@@ -911,18 +915,37 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     return calculateRoadDistanceKm(lat1, lon1, lat2, lon2);
   };
 
-  const activePickupLat = (pickup.name === 'My Live GPS Location' || !pickup.lat) ? (passengerGps.lat || 30.704649) : pickup.lat;
-  const activePickupLng = (pickup.name === 'My Live GPS Location' || !pickup.lng) ? (passengerGps.lng || 76.717873) : pickup.lng;
-  const activePickupName = pickup.name?.trim() || (pickupMode === 'manual' ? (pickupInputText.trim() || 'My Live GPS Location') : 'My Live GPS Location');
+  const hasPickupSelected = Boolean(
+    (pickup.name === 'My Live GPS Location' && (pickup.lat > 0 || passengerGps.lat > 0)) ||
+    (pickup.name && pickup.lat && pickup.lat > 0) ||
+    (pickupMode === 'manual' && pickupInputText.trim() && pickup.lat > 0)
+  );
 
-  const activeDropoffLat = dropoff.lat;
-  const activeDropoffLng = dropoff.lng;
-  const activeDropoffName = dropoff.name?.trim() || (dropoffMode === 'manual' ? dropoffInputText.trim() : '');
+  const activePickupLat = hasPickupSelected
+    ? (pickup.name === 'My Live GPS Location' ? (passengerGps.lat || 30.704649) : pickup.lat)
+    : null;
+  const activePickupLng = hasPickupSelected
+    ? (pickup.name === 'My Live GPS Location' ? (passengerGps.lng || 76.717873) : pickup.lng)
+    : null;
+  const activePickupName = hasPickupSelected
+    ? (pickup.name?.trim() || (pickupMode === 'manual' ? pickupInputText.trim() : ''))
+    : '';
+
+  const hasDropoffSelected = Boolean(
+    (dropoff.name && dropoff.lat && dropoff.lat > 0) ||
+    (dropoffMode === 'manual' && dropoffInputText.trim() && dropoff.lat > 0)
+  );
+
+  const activeDropoffLat = hasDropoffSelected ? dropoff.lat : null;
+  const activeDropoffLng = hasDropoffSelected ? dropoff.lng : null;
+  const activeDropoffName = hasDropoffSelected
+    ? (dropoff.name?.trim() || (dropoffMode === 'manual' ? dropoffInputText.trim() : ''))
+    : '';
 
   const hasSelectedLocations = Boolean(
-    activePickupName &&
+    hasPickupSelected &&
+    hasDropoffSelected &&
     activePickupLat &&
-    activeDropoffName &&
     activeDropoffLat
   );
 
@@ -1802,15 +1825,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     // When active ride is present, ensure Location A and Location B are taken from active ride
     const currentPickupLat = activeRide
       ? activeRide.pickup_lat
-      : (pickup.name === 'My Live GPS Location' ? passengerGps.lat : (pickup.lat && pickup.lat > 0 ? pickup.lat : passengerGps.lat));
+      : (pickup.name === 'My Live GPS Location' ? (passengerGps.lat || 30.704649) : (pickup.lat && pickup.lat > 0 ? pickup.lat : null));
     const currentPickupLng = activeRide
       ? activeRide.pickup_lng
-      : (pickup.name === 'My Live GPS Location' ? passengerGps.lng : (pickup.lng && pickup.lng > 0 ? pickup.lng : passengerGps.lng));
-    const currentPickupAddress = activeRide ? activeRide.pickup_address : (pickup.name || 'My Live GPS Location');
+      : (pickup.name === 'My Live GPS Location' ? (passengerGps.lng || 76.717873) : (pickup.lng && pickup.lng > 0 ? pickup.lng : null));
+    const currentPickupAddress = activeRide
+      ? activeRide.pickup_address
+      : (pickup.lat && pickup.lat > 0 ? pickup.name : (pickup.name === 'My Live GPS Location' ? 'My Live GPS Location' : undefined));
 
-    const currentDropoffLat = activeRide ? activeRide.dropoff_lat : (dropoff.lat && dropoff.lat > 0 ? dropoff.lat : null);
-    const currentDropoffLng = activeRide ? activeRide.dropoff_lng : (dropoff.lng && dropoff.lng > 0 ? dropoff.lng : null);
-    const currentDropoffAddress = activeRide ? activeRide.dropoff_address : (dropoff.name || dropoffInputText.trim() || 'Location B (Drop-off)');
+    const currentDropoffLat = activeRide
+      ? activeRide.dropoff_lat
+      : (dropoff.lat && dropoff.lat > 0 ? dropoff.lat : null);
+    const currentDropoffLng = activeRide
+      ? activeRide.dropoff_lng
+      : (dropoff.lng && dropoff.lng > 0 ? dropoff.lng : null);
+    const currentDropoffAddress = activeRide
+      ? activeRide.dropoff_address
+      : (dropoff.lat && dropoff.lat > 0 ? (dropoff.name || dropoffInputText.trim()) : undefined);
 
     const currentCaptainLat = activeRide?.captain_id
       ? (animatedCaptainPos?.lat ?? activeRide.captain_current_lat ?? null)
@@ -2454,6 +2485,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     }}
                     className="w-full pl-9 pr-16 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-xs text-black font-semibold focus:outline-none focus:ring-2 focus:ring-black appearance-none cursor-pointer transition-colors shadow-xs"
                   >
+                    <option value="" disabled className="bg-white text-slate-500">
+                      Select Pickup Location
+                    </option>
                     <option value="My Live GPS Location" className="bg-white text-emerald-700 font-bold">
                       📍 My Live GPS Location (Current Position)
                     </option>
