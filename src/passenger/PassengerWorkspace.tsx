@@ -1917,19 +1917,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Direct Close / Cancel Button */}
-                <button
-                  type="button"
-                  onClick={handleCancelRide}
-                  disabled={isCancelling}
-                  className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-black transition-all active:scale-95 cursor-pointer shadow-xs flex items-center gap-1.5"
-                  title="Cancel or close this ride"
-                  aria-label="Cancel or close this ride"
-                >
-                  <XCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{isCancelling ? 'Closing...' : 'Cancel / Close'}</span>
-                </button>
-
                 {/* Minimize Button in Active Ride */}
                 <button
                   type="button"
