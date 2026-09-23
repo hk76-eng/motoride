@@ -1905,16 +1905,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       )}
 
       {showChatModal && activeRide && (
-        <div className="fixed inset-0 z-[2000] bg-slate-950 flex flex-col p-4 sm:p-6 md:p-8 animate-in fade-in duration-150">
-          <div className="w-full max-w-4xl mx-auto mb-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-[2000] bg-slate-900/80 backdrop-blur-md flex flex-col p-3 sm:p-6 md:p-8 animate-in fade-in duration-150">
+          <div className="w-full max-w-4xl mx-auto mb-3 sm:mb-4 flex items-center justify-between">
             <button
               onClick={() => setShowChatModal(false)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm border border-white/20 transition-all cursor-pointer shadow-lg active:scale-95"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs sm:text-sm border border-slate-200 transition-all cursor-pointer shadow-lg active:scale-95"
             >
-              <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
+              <ArrowLeft className="w-4 h-4 stroke-[2.5] text-slate-900" />
               <span>Back to Ride Details</span>
             </button>
-            <span className="text-xs text-white/70 font-mono font-semibold">Ride #{activeRide.ride_code}</span>
+            <span className="text-xs text-white font-mono font-bold bg-black/50 px-3 py-1.5 rounded-xl border border-white/20 shadow-xs">Ride #{activeRide.ride_code}</span>
           </div>
           <div className="flex-1 w-full max-w-4xl mx-auto flex flex-col overflow-hidden">
             <RideChatModal

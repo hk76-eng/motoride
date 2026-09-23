@@ -118,25 +118,25 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
   };
 
   return (
-    <div className="flex flex-col w-full h-full min-h-0 bg-slate-950 border border-white/20 rounded-3xl overflow-hidden shadow-2xl relative">
+    <div className="flex flex-col w-full h-full min-h-0 bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-2xl relative text-slate-900">
       
       {/* Top Header (Pinned at Top) */}
-      <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-slate-900/90 border-b border-white/10 shrink-0 select-none z-10">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 bg-white border-b border-slate-200 shrink-0 select-none z-10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold">
-            <MessageSquare className="w-4 h-4" />
+          <div className="w-9 h-9 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 font-bold shadow-xs">
+            <MessageSquare className="w-4 h-4 stroke-[2.5]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h4 className="text-sm font-black text-white tracking-wide">
+              <h4 className="text-sm font-black text-slate-950 tracking-tight">
                 Chat with {otherPartyName}
               </h4>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono font-bold border border-emerald-500/30">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono font-extrabold border border-emerald-300">
                 {isCaptain ? 'Passenger' : 'Captain'}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 flex items-center gap-1 font-medium mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <p className="text-[11px] text-slate-500 flex items-center gap-1 font-medium mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span>Live In-Ride Channel • #{ride.ride_code}</span>
             </p>
           </div>
@@ -146,23 +146,23 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-950 hover:bg-slate-100 transition-colors cursor-pointer"
             title="Close Chat"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5 stroke-[2.5]" />
           </button>
         )}
       </div>
 
-      {/* Messages Scroll Area (Fills entire middle space) */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 flex flex-col gap-3 bg-gradient-to-b from-slate-950 via-slate-900/60 to-slate-950 scrollbar-thin">
+      {/* Messages Scroll Area (Clean White Background) */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 flex flex-col gap-3 bg-white scrollbar-thin">
         {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center py-12 text-slate-400">
-            <div className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-3">
-              <ShieldCheck className="w-6 h-6 text-emerald-400 stroke-[1.5]" />
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-12 text-slate-500">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-3 text-emerald-600 shadow-sm">
+              <ShieldCheck className="w-6 h-6 stroke-[2]" />
             </div>
-            <p className="font-bold text-white text-sm">Direct & Secure In-Ride Chat</p>
-            <p className="text-xs text-slate-400 max-w-xs mt-1">
+            <p className="font-extrabold text-slate-900 text-sm">Direct & Secure In-Ride Chat</p>
+            <p className="text-xs text-slate-500 max-w-xs mt-1 font-medium">
               Communicate pickup location, delays, or directions with {otherPartyName}.
             </p>
           </div>
@@ -176,16 +176,16 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
                 key={`${m.id || index}-${m.created_at}`}
                 className={`flex flex-col max-w-[85%] sm:max-w-[70%] ${isMe ? 'self-end items-end' : 'self-start items-start'} animate-in fade-in slide-in-from-bottom-1 duration-150`}
               >
-                <div className="flex items-center gap-1.5 px-1 mb-1 text-[10px] text-slate-400">
-                  <span className="font-semibold">{isMe ? 'You' : m.sender_name}</span>
+                <div className="flex items-center gap-1.5 px-1 mb-1 text-[10px] text-slate-500">
+                  <span className="font-bold">{isMe ? 'You' : m.sender_name}</span>
                   <span>•</span>
                   <span>{timeStr}</span>
                 </div>
                 <div
                   className={`px-4 py-2.5 rounded-2xl text-xs sm:text-sm leading-relaxed ${
                     isMe
-                      ? 'bg-emerald-500 text-slate-950 font-semibold rounded-tr-none shadow-md shadow-emerald-500/10'
-                      : 'bg-slate-800/90 text-white border border-slate-700/80 rounded-tl-none shadow-sm'
+                      ? 'bg-emerald-600 text-white font-semibold rounded-tr-none shadow-md shadow-emerald-600/20'
+                      : 'bg-slate-100 text-slate-950 border border-slate-200 rounded-tl-none font-medium shadow-xs'
                   }`}
                 >
                   {m.message}
@@ -198,9 +198,9 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
       </div>
 
       {/* Quick Reply Suggestion Chips (Docked above the bottom input bar) */}
-      <div className="px-3 sm:px-4 py-2 bg-slate-900/90 border-t border-white/10 shrink-0 overflow-x-auto scrollbar-none flex items-center gap-1.5 z-10">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0 mr-1 flex items-center gap-1">
-          <Sparkles className="w-3 h-3 text-emerald-400" />
+      <div className="px-3 sm:px-4 py-2 bg-slate-50 border-t border-slate-200 shrink-0 overflow-x-auto scrollbar-none flex items-center gap-1.5 z-10">
+        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 shrink-0 mr-1 flex items-center gap-1">
+          <Sparkles className="w-3 h-3 text-emerald-600" />
           Quick:
         </span>
         {quickReplies.map((reply, idx) => (
@@ -209,17 +209,17 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
             type="button"
             onClick={() => sendMessage(reply)}
             disabled={isSending}
-            className="shrink-0 px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-emerald-500 hover:text-slate-950 text-slate-200 text-[11px] font-medium border border-slate-700 hover:border-emerald-400 transition-all cursor-pointer whitespace-nowrap active:scale-95 disabled:opacity-50"
+            className="shrink-0 px-2.5 py-1 rounded-xl bg-white hover:bg-emerald-50 hover:text-emerald-900 text-slate-700 text-[11px] font-bold border border-slate-300 hover:border-emerald-400 transition-all cursor-pointer whitespace-nowrap active:scale-95 disabled:opacity-50 shadow-xs"
           >
             {reply}
           </button>
         ))}
       </div>
 
-      {/* Message Typing Input Form (Pinned at the VERY LAST BOTTOM OF THE BOX) */}
+      {/* Message Typing Input Form */}
       <form
         onSubmit={handleSend}
-        className="p-3 sm:p-4 bg-slate-900 border-t border-white/10 flex items-center gap-2 sm:gap-3 shrink-0 z-10"
+        className="p-3 sm:p-4 bg-white border-t border-slate-200 flex items-center gap-2 sm:gap-3 shrink-0 z-10"
       >
         <input
           ref={inputRef}
@@ -227,16 +227,16 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder={`Type a message for ${otherPartyName}...`}
-          className="flex-1 bg-black/80 border-2 border-slate-700 focus:border-emerald-400 rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none transition-all shadow-inner"
+          className="flex-1 bg-slate-50 border-2 border-slate-200 focus:border-emerald-600 focus:bg-white rounded-2xl px-4 py-3 text-xs sm:text-sm text-slate-950 placeholder-slate-400 focus:outline-none transition-all shadow-inner"
         />
         <button
           type="submit"
           disabled={!inputText.trim() || isSending}
-          className="px-4 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-slate-950 font-black transition-all shrink-0 cursor-pointer shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+          className="px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black transition-all shrink-0 cursor-pointer shadow-lg shadow-emerald-600/25 flex items-center gap-2"
           title="Send message"
         >
-          <span className="hidden sm:inline text-xs uppercase tracking-wider font-extrabold">Send</span>
-          <Send className="w-4 h-4 stroke-[2.5]" />
+          <span className="hidden sm:inline text-xs uppercase tracking-wider font-black">Send</span>
+          <Send className="w-4 h-4 stroke-[2.5] text-white" />
         </button>
       </form>
 
