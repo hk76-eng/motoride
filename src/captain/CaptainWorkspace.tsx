@@ -1460,9 +1460,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                           Offered Fare
                         </span>
 
-                        {/* 3. Ride Distance e.g. 23.4 km */}
+                        {/* 3. Drop-off Distance in RED (e.g. 23.4 km) */}
                         <div className="mt-2 pt-1 border-t border-slate-100 w-full flex items-center justify-end gap-1">
-                          <span className="text-xs sm:text-sm font-black text-slate-900 font-mono-num bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                          <span className="text-xs sm:text-sm font-black text-rose-600 font-mono-num bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200 shadow-2xs">
                             {rideDistText}
                           </span>
                         </div>
@@ -1537,9 +1537,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               Offered Fare
             </span>
 
-            {/* 3. Ride Distance e.g. 23.4 km */}
+            {/* 3. Drop-off Distance in RED (e.g. 23.4 km) */}
             <div className="mt-2 pt-1 border-t border-slate-100 w-full flex items-center justify-end gap-1">
-              <span className="text-xs sm:text-sm font-black text-slate-900 font-mono-num bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
+              <span className="text-xs sm:text-sm font-black text-rose-600 font-mono-num bg-rose-50 px-2.5 py-0.5 rounded-md border border-rose-200 shadow-2xs">
                 {rideDistText}
               </span>
             </div>
