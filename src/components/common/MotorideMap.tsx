@@ -501,8 +501,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
 
     const bounds: L.LatLngExpression[] = [];
 
-    const hasPickup = Boolean(pickupLat && pickupLng && pickupAddress && pickupAddress.trim() !== '');
-    const hasDropoff = Boolean(dropoffLat && dropoffLng && dropoffAddress && dropoffAddress.trim() !== '');
+    const hasPickup = Boolean(pickupLat && pickupLng && pickupLat !== 0 && pickupLng !== 0);
+    const hasDropoff = Boolean(dropoffLat && dropoffLng && dropoffLat !== 0 && dropoffLng !== 0);
 
     // Calculate walking distance between passenger standing location and pickup location A
     let distToPickupMeters: number | null = null;
@@ -940,25 +940,15 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         [dropoffLat, dropoffLng],
       ];
 
-      // 5a. Stretched glow / casing polyline
-      if (!polylineGlowRef.current || !map.hasLayer(polylineGlowRef.current)) {
-        if (polylineGlowRef.current) {
-          try {
-            map.removeLayer(polylineGlowRef.current);
-          } catch {}
-        }
-        polylineGlowRef.current = L.polyline(latlngs, {
-          color: '#059669',
-          weight: 9,
-          opacity: 0.35,
-          lineCap: 'round',
-          lineJoin: 'round',
-        }).addTo(map);
-      } else {
-        polylineGlowRef.current.setLatLngs(latlngs);
+      // Remove any previous glow / casing polyline
+      if (polylineGlowRef.current) {
+        try {
+          map.removeLayer(polylineGlowRef.current);
+        } catch {}
+        polylineGlowRef.current = null;
       }
 
-      // 5b. Stretched active animated polyline
+      // Draw immediate simple blue color polyline between Location A and B
       if (!polylineRef.current || !map.hasLayer(polylineRef.current)) {
         if (polylineRef.current) {
           try {
@@ -966,16 +956,21 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           } catch {}
         }
         polylineRef.current = L.polyline(latlngs, {
-          color: '#10b981',
+          color: '#2563eb', // Simple blue color
           weight: 4.5,
-          opacity: 0.95,
-          dashArray: '12, 10',
-          className: 'stretch-polyline-dash',
+          opacity: 0.9,
           lineCap: 'round',
           lineJoin: 'round',
         }).addTo(map);
       } else {
         polylineRef.current.setLatLngs(latlngs);
+        polylineRef.current.setStyle({
+          color: '#2563eb', // Simple blue color
+          weight: 4.5,
+          opacity: 0.9,
+          dashArray: undefined,
+          className: '',
+        });
       }
 
       // Ensure no distance tooltip/tab is attached to the route polyline on map

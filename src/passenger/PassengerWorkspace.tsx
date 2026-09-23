@@ -1618,13 +1618,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   const renderMap = (isFullBackground: boolean) => {
     // When active ride is present, ensure Location A and Location B are taken from active ride
-    const currentPickupLat = activeRide ? activeRide.pickup_lat : (pickup.name && pickup.lat ? pickup.lat : null);
-    const currentPickupLng = activeRide ? activeRide.pickup_lng : (pickup.name && pickup.lat ? pickup.lng : null);
-    const currentPickupAddress = activeRide ? activeRide.pickup_address : (pickup.name && pickup.lat ? pickup.name : null);
+    const currentPickupLat = activeRide ? activeRide.pickup_lat : (pickup.lat && pickup.lat > 0 ? pickup.lat : null);
+    const currentPickupLng = activeRide ? activeRide.pickup_lng : (pickup.lng && pickup.lng > 0 ? pickup.lng : null);
+    const currentPickupAddress = activeRide ? activeRide.pickup_address : (pickup.name || 'Location A (Pickup)');
 
     const currentDropoffLat = activeRide ? activeRide.dropoff_lat : (dropoff.lat && dropoff.lat > 0 ? dropoff.lat : null);
     const currentDropoffLng = activeRide ? activeRide.dropoff_lng : (dropoff.lng && dropoff.lng > 0 ? dropoff.lng : null);
-    const currentDropoffAddress = activeRide ? activeRide.dropoff_address : (dropoff.name || dropoffInputText.trim() || null);
+    const currentDropoffAddress = activeRide ? activeRide.dropoff_address : (dropoff.name || dropoffInputText.trim() || 'Location B (Drop-off)');
 
     const currentCaptainLat = activeRide?.captain_id
       ? (animatedCaptainPos?.lat ?? activeRide.captain_current_lat ?? null)

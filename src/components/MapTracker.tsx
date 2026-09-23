@@ -244,9 +244,9 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
 
       // Create Polyline for route trail
       const polyline = L.polyline([], {
-        color: '#10b981', // emerald-500
-        weight: 5,
-        opacity: 0.85,
+        color: '#2563eb', // blue-600
+        weight: 4.5,
+        opacity: 0.9,
         lineCap: 'round',
         lineJoin: 'round',
       }).addTo(map);
