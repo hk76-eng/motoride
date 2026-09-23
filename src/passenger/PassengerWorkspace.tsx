@@ -66,20 +66,34 @@ interface PassengerWorkspaceProps {
 }
 
 const PRESET_LOCATIONS = [
+  { name: 'Teleperformance, Sector 75, Mohali', lat: 30.701124, lng: 76.702514 },
+  { name: 'Infosys Limited, IT Park, Chandigarh', lat: 30.728514, lng: 76.843124 },
+  { name: 'Kishangarh Village, Chandigarh', lat: 30.732514, lng: 76.818514 },
+  { name: 'Savitri Greens, Gazipur Road, Zirakpur', lat: 30.632514, lng: 76.834124 },
+  { name: 'Maya Garden City, Gazipur Road, Zirakpur', lat: 30.635514, lng: 76.838514 },
+  { name: 'Platinum Homes, Old Ambala Road, Zirakpur', lat: 30.651514, lng: 76.848514 },
+  { name: 'Mani Majra & Rajiv Gandhi IT Park Whole Area', lat: 30.724514, lng: 76.841514 },
   { name: 'Sector 70, Mohali Market', lat: 30.704649, lng: 76.717873 },
   { name: 'Phase 8B, Industrial & Tech Park', lat: 30.718214, lng: 76.732124 },
-  { name: 'Chandigarh Railway Station', lat: 30.704123, lng: 76.828456 },
-  { name: 'ISBT Sector 43 Bus Stand', lat: 30.722514, lng: 76.745124 },
-  { name: 'Sector 7 Panchkula, Market & Housing Board', lat: 30.706433, lng: 76.845153 },
   { name: 'Elante Mall, Phase 1', lat: 30.705514, lng: 76.801124 },
-  { name: 'Sector 5 Panchkula, Town Park & HUDA', lat: 30.697514, lng: 76.855124 },
-  { name: 'Shaheed Bhagat Singh Int. Airport Mohali', lat: 30.673523, lng: 76.788544 },
-  { name: 'Aroma Chowk, Sector 22', lat: 30.731514, lng: 76.772124 },
-  { name: 'Sukhna Lake Promenade', lat: 30.742514, lng: 76.815124 },
-  { name: 'IT Park Cyber City', lat: 30.725514, lng: 76.840124 },
 ];
 
 const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: number }[] = [
+  // Custom Requested Locations
+  { name: 'Teleperformance, Sector 75, Mohali', aliases: ['teleperformance', 'tele performance', 'sector 75 teleperformance', 'teleperformance mohali', '75 teleperformance', 'teleperformance 75'], lat: 30.701124, lng: 76.702514 },
+  { name: 'Infosys Limited, IT Park, Chandigarh', aliases: ['infosys', 'infosys it park', 'infosys chandigarh', 'infosys limited'], lat: 30.728514, lng: 76.843124 },
+  { name: 'Kishangarh Village, Chandigarh', aliases: ['kishangarh', 'kishangarh village', 'kishan garh', 'kishangarh chd'], lat: 30.732514, lng: 76.818514 },
+  { name: 'Savitri Greens, Gazipur Road, Zirakpur', aliases: ['savitri greens', 'savitri greens zirakpur', 'savitri greens gazipur', 'gazipur road savitri'], lat: 30.632514, lng: 76.834124 },
+  { name: 'Savitri Greens 2, Gazipur Road, Zirakpur', aliases: ['savitri greens 2', 'savitri 2 zirakpur'], lat: 30.628514, lng: 76.836514 },
+  { name: 'Maya Garden City, Gazipur Road, Zirakpur', aliases: ['maya garden', 'maya garden city', 'maya garden zirakpur', 'maya garden gazipur', 'gazipur road maya garden'], lat: 30.635514, lng: 76.838514 },
+  { name: 'Maya Garden Magnesia, Gazipur Road, Zirakpur', aliases: ['maya garden magnesia', 'magnesia zirakpur'], lat: 30.631214, lng: 76.841514 },
+  { name: 'Maya Garden Avenue, Gazipur Road, Zirakpur', aliases: ['maya garden avenue', 'maya avenue zirakpur'], lat: 30.634124, lng: 76.839124 },
+  { name: 'Platinum Homes, Old Ambala Road, Zirakpur', aliases: ['platinum homes', 'platinum homes zirakpur', 'platinum homes old ambala road', 'old ambala road platinum'], lat: 30.651514, lng: 76.848514 },
+  { name: 'Mani Majra & Rajiv Gandhi IT Park Whole Area', aliases: ['manimajra', 'mani majra', 'it park manimajra', 'manimajra it park', 'rajiv gandhi it park'], lat: 30.724514, lng: 76.841514 },
+  { name: 'Cosmo Mall, Zirakpur', aliases: ['cosmo mall', 'cosmo zirakpur', 'mall in zirakpur', 'cosmo mall zirakpur'], lat: 30.645514, lng: 76.822124 },
+  { name: 'Paras Downtown Square Mall, Zirakpur', aliases: ['paras mall', 'paras downtown', 'downtown square zirakpur'], lat: 30.648214, lng: 76.819514 },
+  { name: 'Global Mall, Zirakpur', aliases: ['global mall', 'global zirakpur'], lat: 30.639514, lng: 76.824514 },
+
   // Mohali Sectors & Landmarks (Punjab)
   { name: 'Sector 70, Mohali Market', aliases: ['70', 'sector 70', 'mohali 70', 'mattaur', 'sec 70', 'sec 70 mohali', 'sector 70 mohali'], lat: 30.704649, lng: 76.717873 },
   { name: 'Phase 8B, Industrial & Tech Park', aliases: ['8b', 'phase 8b', 'industrial area 8b', 'cp67', 'phase 8b mohali'], lat: 30.718214, lng: 76.732124 },

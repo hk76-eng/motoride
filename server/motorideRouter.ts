@@ -819,6 +819,19 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
   }
 
   const localPresets = [
+    { name: 'Teleperformance, Sector 75, Mohali', lat: 30.701124, lng: 76.702514 },
+    { name: 'Infosys Limited, IT Park, Chandigarh', lat: 30.728514, lng: 76.843124 },
+    { name: 'Kishangarh Village, Chandigarh', lat: 30.732514, lng: 76.818514 },
+    { name: 'Savitri Greens, Gazipur Road, Zirakpur', lat: 30.632514, lng: 76.834124 },
+    { name: 'Maya Garden City, Gazipur Road, Zirakpur', lat: 30.635514, lng: 76.838514 },
+    { name: 'Maya Garden Magnesia, Gazipur Road, Zirakpur', lat: 30.631214, lng: 76.841514 },
+    { name: 'Platinum Homes, Old Ambala Road, Zirakpur', lat: 30.651514, lng: 76.848514 },
+    { name: 'Mani Majra & Rajiv Gandhi IT Park Whole Area', lat: 30.724514, lng: 76.841514 },
+    { name: 'Cosmo Mall, Zirakpur', lat: 30.645514, lng: 76.822124 },
+    { name: 'Paras Downtown Square Mall, Zirakpur', lat: 30.648214, lng: 76.819514 },
+    { name: 'Global Mall, Zirakpur', lat: 30.639514, lng: 76.824514 },
+    { name: 'Savitri Greens 2, Gazipur Road, Zirakpur', lat: 30.628514, lng: 76.836514 },
+    { name: 'Maya Garden Avenue, Gazipur Road, Zirakpur', lat: 30.634124, lng: 76.839124 },
     { name: 'Sector 70, Mohali Market', lat: 30.704649, lng: 76.717873 },
     { name: 'Phase 8B Industrial Area, Mohali', lat: 30.718214, lng: 76.732124 },
     { name: 'Sector 62 Phase 8, Mohali City Center', lat: 30.705892, lng: 76.726418 },
