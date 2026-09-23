@@ -999,7 +999,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     }
   };
 
-  const currentRideOnMap = activeRide || inspectedRide;
+  const currentRideOnMap = activeRide || inspectedRide || (availableRides.length > 0 ? availableRides[0] : null);
   const currentPickupLat = currentRideOnMap ? currentRideOnMap.pickup_lat : null;
   const currentPickupLng = currentRideOnMap ? currentRideOnMap.pickup_lng : null;
   const currentPickupAddress = currentRideOnMap ? currentRideOnMap.pickup_address : undefined;
@@ -1011,11 +1011,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     ? (currentPickupDistKm < 1 ? `${Math.round(currentPickupDistKm * 1000)}m` : `${currentPickupDistKm.toFixed(1)} km`)
     : undefined;
 
-  const inspectedDropoffDistKm = inspectedRide
-    ? (inspectedRide.distance_km || calculateDistance(inspectedRide.pickup_lat, inspectedRide.pickup_lng, inspectedRide.dropoff_lat, inspectedRide.dropoff_lng))
+  const currentDropoffDistKm = currentRideOnMap
+    ? (currentRideOnMap.distance_km || calculateDistance(currentRideOnMap.pickup_lat, currentRideOnMap.pickup_lng, currentRideOnMap.dropoff_lat, currentRideOnMap.dropoff_lng))
     : null;
-  const inspectedDropoffDistText = inspectedDropoffDistKm !== null
-    ? (inspectedDropoffDistKm < 1 ? `${Math.round(inspectedDropoffDistKm * 1000)}m` : `${Number(inspectedDropoffDistKm).toFixed(1)} km`)
+  const currentDropoffDistText = currentDropoffDistKm !== null
+    ? (currentDropoffDistKm < 1 ? `${Math.round(currentDropoffDistKm * 1000)}m` : `${Number(currentDropoffDistKm).toFixed(1)} km`)
     : undefined;
 
   const renderCaptainMap = (isFullBackground: boolean) => (
@@ -1028,11 +1028,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       captainName={captain?.full_name || 'You (Captain)'}
       isLiveGpsActive={gpsStatus === 'live'}
       activeRideStatus={activeRide?.status}
-      passengerLat={activeRide ? undefined : (passengerLiveGps ? passengerLiveGps.latitude : (inspectedRide ? inspectedRide.pickup_lat : undefined))}
-      passengerLng={activeRide ? undefined : (passengerLiveGps ? passengerLiveGps.longitude : (inspectedRide ? inspectedRide.pickup_lng : undefined))}
-      passengerAccuracy={activeRide ? undefined : (passengerLiveGps?.accuracy ?? (inspectedRide ? 15 : undefined))}
-      passengerHeading={activeRide ? null : (passengerLiveGps?.heading ?? null)}
-      passengerName={activeRide?.passenger_name || inspectedRide?.passenger_name || 'Passenger'}
+      passengerLat={undefined}
+      passengerLng={undefined}
+      passengerAccuracy={undefined}
+      passengerHeading={null}
+      passengerName={activeRide?.passenger_name || inspectedRide?.passenger_name || availableRides[0]?.passenger_name || 'Passenger'}
       pickupLat={currentPickupLat}
       pickupLng={currentPickupLng}
       pickupAddress={currentPickupAddress}
@@ -1040,10 +1040,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       dropoffLat={currentRideOnMap ? currentRideOnMap.dropoff_lat : null}
       dropoffLng={currentRideOnMap ? currentRideOnMap.dropoff_lng : null}
       dropoffAddress={currentRideOnMap ? currentRideOnMap.dropoff_address : undefined}
-      dropoffDistanceText={inspectedDropoffDistText}
-      rideDistanceText={inspectedDropoffDistText}
-      bottomSheetPadding={inspectedRide && !activeRide ? 360 : 60}
-      showLocationsABOnly={Boolean(inspectedRide && !activeRide)}
+      dropoffDistanceText={currentDropoffDistText}
+      rideDistanceText={currentDropoffDistText}
+      bottomSheetPadding={currentRideOnMap && !activeRide ? 360 : 60}
+      showLocationsABOnly={false}
       className={`w-full h-full ${isFullBackground ? 'rounded-none border-0' : 'shadow-2xl border border-slate-800'}`}
       showOverlayControls={true}
       onLocateMe={startWatchingLocation}
