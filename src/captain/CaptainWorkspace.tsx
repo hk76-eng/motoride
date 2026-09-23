@@ -1154,7 +1154,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               {/* Call Icon on right of A */}
               <a
                 href={`tel:${activeRide.passenger_phone || '+919780012345'}`}
-                className="w-10 h-10 rounded-xl bg-black text-white hover:bg-slate-800 shadow-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-slate-800"
+                className="w-10 h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500"
                 title="Call Passenger"
                 aria-label="Call Passenger"
               >
@@ -1179,7 +1179,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => setShowChatModal(true)}
-                className="w-10 h-10 rounded-xl bg-black text-white hover:bg-slate-800 shadow-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-slate-800"
+                className="w-10 h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500"
                 title="Chat with Passenger"
                 aria-label="Chat with Passenger"
               >

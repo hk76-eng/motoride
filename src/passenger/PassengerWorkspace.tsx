@@ -2170,18 +2170,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowChatModal(true)}
-                      className="p-3 rounded-2xl bg-slate-100 text-black border border-black hover:bg-slate-200 shadow-sm transition-all active:scale-95 cursor-pointer"
+                      className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center"
                       title="Chat with Captain"
                     >
-                      <MessageSquare className="w-4 h-4 stroke-[2.5]" />
+                      <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
                     </button>
                     {(activeRide.captain_phone || safeStorage.getItem('motoride_captain_phone')) && (
                       <a
                         href={`tel:${activeRide.captain_phone || safeStorage.getItem('motoride_captain_phone')}`}
-                        className="p-3 rounded-2xl bg-black hover:bg-slate-800 text-white font-bold shadow-sm transition-all active:scale-95 border border-black"
+                        className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-sm shadow-emerald-600/25 transition-all active:scale-95 border border-emerald-500 flex items-center justify-center"
                         title="Call Captain"
                       >
-                        <Phone className="w-4 h-4 stroke-[2.5]" />
+                        <Phone className="w-4 h-4 stroke-[2.5] text-white" />
                       </a>
                     )}
                   </div>
