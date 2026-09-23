@@ -450,16 +450,19 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     const unsubRideUpdated = realtimeSync.on('RIDE_UPDATED', (updatedRide: MotorideRide) => {
       if (updatedRide.captain_id === captainId) {
         const ratedIds = getCaptainRatedRideIds(captainId);
-        if (updatedRide.status === 'completed' || updatedRide.status.includes('cancelled') || ratedIds.includes(updatedRide.id)) {
+        if (updatedRide.status.includes('cancelled') || updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
           setActiveRide(null);
           setShowPassengerRatingModal(false);
           setCompletedRideForRating(null);
           loadCaptainData();
         } else {
           setActiveRide(updatedRide);
-          if (updatedRide.status === 'trip_completed' && !ratedIds.includes(updatedRide.id)) {
+          if ((updatedRide.status === 'trip_completed' || updatedRide.status === 'completed') && !updatedRide.captain_rated && !ratedIds.includes(updatedRide.id)) {
             setCompletedRideForRating(updatedRide);
             setShowPassengerRatingModal(true);
+          } else {
+            setShowPassengerRatingModal(false);
+            setCompletedRideForRating(null);
           }
         }
       }
@@ -723,13 +726,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             (r.status === 'captain_accepted' ||
               r.status === 'captain_arrived' ||
               r.status === 'trip_started' ||
-              (r.status === 'trip_completed' && !ratedIds.includes(r.id)))
+              ((r.status === 'trip_completed' || r.status === 'completed') && !r.captain_rated && !ratedIds.includes(r.id)))
         );
         if (current) {
           setActiveRide(current);
-          if (current.status === 'trip_completed' && !completedRideForRating && !ratedIds.includes(current.id)) {
+          if ((current.status === 'trip_completed' || current.status === 'completed') && !current.captain_rated && !ratedIds.includes(current.id)) {
             setCompletedRideForRating(current);
             setShowPassengerRatingModal(true);
+          } else {
+            setCompletedRideForRating(null);
+            setShowPassengerRatingModal(false);
           }
         } else {
           setActiveRide(null);
@@ -1135,7 +1141,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               const hasCoords = navLat != null && navLng != null && !isNaN(Number(navLat)) && !isNaN(Number(navLng)) && Number(navLat) !== 0;
               const destParam = hasCoords ? `${navLat},${navLng}` : encodeURIComponent(navAddress || (isArrivedOrLater ? 'Drop-off' : 'Pickup'));
               const originParam = (captainGps.lat && captainGps.lng) ? `&origin=${captainGps.lat},${captainGps.lng}` : '';
-              const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destParam}${originParam}&travelmode=driving`;
+              const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destParam}${originParam}&travelmode=driving&dir_action=navigate`;
 
               const handleNavigateClick = (e: React.MouseEvent) => {
                 e.preventDefault();

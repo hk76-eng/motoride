@@ -779,13 +779,20 @@ motorideRouter.post('/ratings', (req: Request, res: Response) => {
   
   if (ride_id && ridesStore.has(ride_id)) {
     const ride = ridesStore.get(ride_id)!;
+    if (rater_role === 'passenger') {
+      ride.passenger_rated = true;
+    } else if (rater_role === 'captain') {
+      ride.captain_rated = true;
+    }
+
     if (ride.status === 'trip_completed') {
       ride.status = 'completed';
-      ride.updated_at = new Date().toISOString();
-      ridesStore.set(ride.id, ride);
-      broadcastEvent('RIDE_STATUS_CHANGED', { ride, status: 'completed' });
-      broadcastEvent('RIDE_UPDATED', ride);
     }
+    
+    ride.updated_at = new Date().toISOString();
+    ridesStore.set(ride.id, ride);
+    broadcastEvent('RIDE_STATUS_CHANGED', { ride, status: ride.status });
+    broadcastEvent('RIDE_UPDATED', ride);
   }
 
   // If captain was rated, update their average rating

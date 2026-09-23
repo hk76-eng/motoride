@@ -1221,7 +1221,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           setCompletedRideForRating(null);
         } else if (ride.status === 'trip_completed' || ride.status === 'completed') {
           const ratedIds = getRatedRideIds();
-          if (!ratedIds.includes(ride.id)) {
+          if (!ride.passenger_rated && !ratedIds.includes(ride.id)) {
             setActiveRide(ride);
             setCompletedRideForRating(ride);
             setShowCaptainRatingModal(true);
@@ -1354,7 +1354,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             setShowCaptainRatingModal(false);
             setCompletedRideForRating(null);
           } else if (latest.status === 'trip_completed' || latest.status === 'completed') {
-            if (!ratedIds.includes(latest.id)) {
+            if (!latest.passenger_rated && !ratedIds.includes(latest.id)) {
               setActiveRide(latest);
               setCompletedRideForRating(latest);
               setShowCaptainRatingModal(true);
@@ -1589,7 +1589,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             r.status === 'captain_accepted' ||
             r.status === 'captain_arrived' ||
             r.status === 'trip_started' ||
-            ((r.status === 'trip_completed' || r.status === 'completed') && !ratedIds.includes(r.id))
+            ((r.status === 'trip_completed' || r.status === 'completed') && !r.passenger_rated && !ratedIds.includes(r.id))
           )
       );
 
@@ -1609,9 +1609,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           };
         });
 
-        if ((active.status === 'trip_completed' || active.status === 'completed') && !ratedIds.includes(active.id)) {
+        if ((active.status === 'trip_completed' || active.status === 'completed') && !active.passenger_rated && !ratedIds.includes(active.id)) {
           setCompletedRideForRating(active);
           setShowCaptainRatingModal(true);
+        } else {
+          setCompletedRideForRating(null);
+          setShowCaptainRatingModal(false);
         }
       } else {
         if (activeRideRef.current) {

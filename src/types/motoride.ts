@@ -120,6 +120,8 @@ export interface MotorideRide {
   created_at: string;
   updated_at: string;
   offers?: RideOffer[];
+  passenger_rated?: boolean;
+  captain_rated?: boolean;
 }
 
 export interface RideOffer {
