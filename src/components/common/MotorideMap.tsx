@@ -183,10 +183,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       className: 'passenger-gps-live-marker',
       html: `
         <div style="position: relative; width: 72px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; pointer-events: auto; cursor: pointer;" title="Click 'Where To ?' to set Passenger Pickup Location A">
-          <!-- GPS Radar Pulse Waves -->
-          <div style="position: absolute; width: 66px; height: 66px; border-radius: 50%; background: rgba(29, 63, 132, 0.28); animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
-          <div style="position: absolute; width: 50px; height: 50px; border-radius: 50%; background: rgba(29, 63, 132, 0.16); pointer-events: none;"></div>
-
           <!-- Top Floating Capsule Badge: Where To ? -->
           <div class="passenger-where-to-pill" style="position: absolute; top: -16px; left: 50%; transform: translateX(-50%); background: #020617; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 900; padding: 3px 10px; border-radius: 9999px; border: 1.5px solid #3b82f6; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.7), 0 0 10px rgba(59,130,246,0.35); pointer-events: auto; cursor: pointer; letter-spacing: 0.3px; z-index: 40; display: flex; align-items: center; gap: 5px;">
             <span style="width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; display: inline-block; box-shadow: 0 0 6px #60a5fa;"></span>
@@ -596,25 +592,12 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         }
       });
 
-      // Accuracy circle around passenger live location
-      const circleRadius = Math.max(12, Math.min(passengerAccuracy || 20, 80));
-      if (!passengerAccuracyCircleRef.current || !map.hasLayer(passengerAccuracyCircleRef.current)) {
-        if (passengerAccuracyCircleRef.current) {
-          try {
-            map.removeLayer(passengerAccuracyCircleRef.current);
-          } catch {}
-        }
-        passengerAccuracyCircleRef.current = L.circle([passengerLat, passengerLng], {
-          radius: circleRadius,
-          color: '#1d3f84',
-          fillColor: '#3b82f6',
-          fillOpacity: 0.12,
-          weight: 1.5,
-          dashArray: '4, 4',
-        }).addTo(map);
-      } else {
-        passengerAccuracyCircleRef.current.setLatLng([passengerLat, passengerLng]);
-        passengerAccuracyCircleRef.current.setRadius(circleRadius);
+      // Clean up any previous accuracy circle
+      if (passengerAccuracyCircleRef.current) {
+        try {
+          map.removeLayer(passengerAccuracyCircleRef.current);
+          passengerAccuracyCircleRef.current = null;
+        } catch {}
       }
 
       // Center map initially once on passenger location without vibrating camera animation
