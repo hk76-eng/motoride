@@ -583,8 +583,12 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       dropoffLng
     );
 
-    // 1. Passenger GPS Live Location Marker (Displayed only in passenger mode when coordinates available)
-    const shouldShowPassengerGps = !isCaptainMode && Boolean(passengerLat && passengerLng);
+    // 1. Passenger GPS Live Location Marker (Displayed only in passenger mode when no active ride is in progress)
+    const isRideActiveNow = Boolean(
+      activeRideStatus &&
+      ['searching', 'captain_accepted', 'captain_arrived', 'trip_started', 'trip_completed'].includes(activeRideStatus)
+    );
+    const shouldShowPassengerGps = !isCaptainMode && !isRideActiveNow && !isRideBooked && Boolean(passengerLat && passengerLng);
     if (shouldShowPassengerGps && passengerLat && passengerLng) {
       if (!isPickAndDropActive) {
         bounds.push([passengerLat, passengerLng]);
@@ -866,9 +870,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     // 4c. Active Ride Real-Time Guidance Line:
-    // If captain is arriving to pickup (A): animated line from Captain to Location A (Emerald)
-    // If trip started to dropoff (B): animated line from Captain to Location B (Cyan/Sky)
-    if (activeRideStatus === 'captain_accepted' && captainLat && captainLng && pickupLat && pickupLng) {
+    // (Only rendered in passenger app. In captain mode, disabled so only the clean destination marker shows without animation or polylines)
+    if (!isCaptainMode && activeRideStatus === 'captain_accepted' && captainLat && captainLng && pickupLat && pickupLng) {
       const activeGuideCoords: [number, number][] = [
         [captainLat, captainLng],
         [pickupLat, pickupLng],
@@ -892,7 +895,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         captainToTargetLineRef.current.setLatLngs(activeGuideCoords);
         captainToTargetLineRef.current.setStyle({ color: '#10b981' });
       }
-    } else if ((activeRideStatus === 'captain_arrived' || activeRideStatus === 'trip_started') && captainLat && captainLng && dropoffLat && dropoffLng) {
+    } else if (!isCaptainMode && (activeRideStatus === 'captain_arrived' || activeRideStatus === 'trip_started') && captainLat && captainLng && dropoffLat && dropoffLng) {
       const activeGuideCoords: [number, number][] = [
         [captainLat, captainLng],
         [dropoffLat, dropoffLng],
