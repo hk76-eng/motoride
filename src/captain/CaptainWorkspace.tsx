@@ -1365,7 +1365,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             <div className="flex flex-col gap-3 overflow-y-auto pr-1">
               {availableRides.map((ride) => {
                 const distKm = calculateDistance(captainGps.lat, captainGps.lng, ride.pickup_lat, ride.pickup_lng);
-                const pickupDistText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`;
+                const pickupDistText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)} km`;
+                const rideDistKm = ride.distance_km || calculateDistance(ride.pickup_lat, ride.pickup_lng, ride.dropoff_lat, ride.dropoff_lng) || 3.5;
+                const rideDistText = rideDistKm < 1 ? `${Math.round(rideDistKm * 1000)}m` : `${Number(rideDistKm).toFixed(1)} km`;
                 const isSelected = inspectedRide?.id === ride.id;
                 const service = getServiceBadge(ride.ride_type);
 
@@ -1379,82 +1381,91 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                         : 'border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-md'
                     }`}
                   >
-                    {/* Top: Passenger Profile + Service Tag + Pickup Distance & Offered Fare */}
-                    <div className="flex items-center justify-between gap-3">
-                      {/* Left: Passenger Profile + Pickup Distance */}
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="relative shrink-0">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-400 via-amber-500 to-amber-600 text-slate-950 font-black text-sm flex items-center justify-center shadow-xs">
-                            {ride.passenger_name?.charAt(0)?.toUpperCase() || 'P'}
+                    <div className="flex items-start justify-between gap-3">
+                      {/* Left: Passenger Profile + Pickup Distance + Route Details */}
+                      <div className="flex-1 min-w-0 flex flex-col gap-2.5">
+                        {/* Passenger Profile + Service Badge + Pickup Distance */}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="relative shrink-0">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-400 via-amber-500 to-amber-600 text-slate-950 font-black text-sm flex items-center justify-center shadow-xs">
+                              {ride.passenger_name?.charAt(0)?.toUpperCase() || 'P'}
+                            </div>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
                           </div>
-                          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                              {ride.passenger_name}
-                            </span>
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-bold shrink-0 border border-amber-200">
-                              <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
-                              4.9
-                            </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                                {ride.passenger_name}
+                              </span>
+                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-bold shrink-0 border border-amber-200">
+                                <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500" />
+                                4.9
+                              </span>
+                              <span className={`px-2 py-0.5 rounded-md border text-[10px] font-black flex items-center gap-1 shadow-2xs shrink-0 ${service.bg}`}>
+                                <span className="text-xs leading-none">{service.icon}</span>
+                                <span>{service.label}</span>
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                                <Navigation className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                                <span>Pickup: {pickupDistText}</span>
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
-                              <Navigation className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                              <span>{pickupDistText}</span>
+                        </div>
+
+                        {/* Route Details: A pickup (Bold text) & B dropoff */}
+                        <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
+                          {/* A pickup (Bold text) */}
+                          <div className="flex items-start gap-2">
+                            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                              A
                             </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                                {ride.pickup_address}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* B dropoff */}
+                          <div className="flex items-start gap-2">
+                            <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                              B
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-medium text-slate-700 leading-snug">
+                                {ride.dropoff_address}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Right: ₹100 */}
-                      <div className="text-right shrink-0">
-                        <span className="text-xl sm:text-2xl font-black text-slate-900 font-mono-num block leading-tight">
-                          ₹{ride.offered_fare}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-semibold">Offered Fare</span>
-                      </div>
-                    </div>
+                      {/* Right: Ride Distance (Above Cash Tab) -> Cash Tab -> Fare (Below Cash Tab) */}
+                      <div className="flex flex-col items-end justify-between shrink-0 pl-3 border-l border-slate-100 min-w-[95px] text-right self-stretch">
+                        {/* 1. Ride Distance ABOVE Cash Tab */}
+                        <div className="flex flex-col items-end">
+                          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Ride Distance</span>
+                          <span className="text-xs sm:text-sm font-black text-slate-900 font-mono-num">
+                            {rideDistText}
+                          </span>
+                        </div>
 
-                    {/* A pickup (Bold text) & B dropoff */}
-                    <div className="mt-3 pt-2.5 border-t border-slate-100 flex flex-col gap-2">
-                      {/* A pickup (Bold text) */}
-                      <div className="flex items-start gap-2.5">
-                        <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                          A
+                        {/* 2. Cash Tab */}
+                        <span className="my-2 px-3 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-black uppercase tracking-wider shadow-2xs">
+                          {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
                         </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-slate-900 leading-snug">
-                            {ride.pickup_address}
-                          </p>
+
+                        {/* 3. Fare BELOW Cash Tab */}
+                        <div className="flex flex-col items-end">
+                          <span className="text-lg sm:text-xl font-black text-slate-900 font-mono-num leading-tight">
+                            ₹{ride.offered_fare}
+                          </span>
+                          <span className="text-[9px] text-slate-500 font-semibold">Offered Fare</span>
                         </div>
                       </div>
-
-                      {/* B dropoff */}
-                      <div className="flex items-start gap-2.5">
-                        <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[11px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                          B
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-slate-700 leading-snug">
-                            {ride.dropoff_address}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Footer: Service Selected by Passenger + Payment (UPI / Cash) */}
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                      {/* Selected Service Badge */}
-                      <span className={`px-2.5 py-1 rounded-lg border text-xs font-black flex items-center gap-1.5 shadow-2xs ${service.bg}`}>
-                        <span className="text-sm leading-none">{service.icon}</span>
-                        <span>{service.label}</span>
-                      </span>
-
-                      <span className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-black uppercase tracking-wider">
-                        {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
-                      </span>
                     </div>
                   </div>
                 );
@@ -1468,23 +1479,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const renderInspectedRideDetails = (ride: MotorideRide) => {
     const distKm = calculateDistance(captainGps.lat, captainGps.lng, ride.pickup_lat, ride.pickup_lng);
-    const pickupDistText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`;
-    const dropoffDistText = ride.distance_km ? `${ride.distance_km}km` : '4.8km';
+    const pickupDistText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)} km`;
+    const rideDistKm = ride.distance_km || calculateDistance(ride.pickup_lat, ride.pickup_lng, ride.dropoff_lat, ride.dropoff_lng) || 3.5;
+    const rideDistText = rideDistKm < 1 ? `${Math.round(rideDistKm * 1000)}m` : `${Number(rideDistKm).toFixed(1)} km`;
     const counterFare = counterFareInput[ride.id] || ride.offered_fare + 20;
     const service = getServiceBadge(ride.ride_type);
 
     return (
       <div className="flex flex-col gap-3.5">
-        {/* Top: (passenger profile) + Service Badge + 1km (pickup distance)                  ₹100 */}
-        <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        {/* Top: (passenger profile) + Service Badge + 1km (pickup distance) */}
+        <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <div className="relative shrink-0">
               <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-amber-400 via-amber-500 to-amber-600 text-slate-950 font-black text-sm sm:text-base flex items-center justify-center shadow-md ring-2 ring-slate-100">
                 {ride.passenger_name?.charAt(0)?.toUpperCase() || 'P'}
               </div>
               <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <span className="text-sm sm:text-base font-black text-slate-900 truncate">
                   {ride.passenger_name}
@@ -1498,20 +1510,37 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   <span>{service.label}</span>
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="flex items-center gap-1.5 mt-1">
                 <span className="text-[11px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
                   <Navigation className="w-3 h-3 text-emerald-600 shrink-0" />
-                  <span>{pickupDistText}</span>
+                  <span>Pickup: {pickupDistText}</span>
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="text-right shrink-0">
-            <span className="text-2xl sm:text-3xl font-black text-slate-900 font-mono-num block leading-tight">
-              ₹{ride.offered_fare}
+          {/* Right Stack: Ride Distance above Cash tab -> Cash Tab -> Fare below Cash tab */}
+          <div className="flex flex-col items-end justify-between shrink-0 pl-3 border-l border-slate-100 min-w-[100px] text-right">
+            {/* 1. Ride Distance ABOVE Cash Tab */}
+            <div className="flex flex-col items-end">
+              <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Ride Distance</span>
+              <span className="text-sm sm:text-base font-black text-slate-900 font-mono-num">
+                {rideDistText}
+              </span>
+            </div>
+
+            {/* 2. Cash Tab */}
+            <span className="my-1.5 px-3 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 text-xs font-black uppercase tracking-wider shadow-2xs">
+              {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
             </span>
-            <span className="text-[10px] text-slate-500 font-semibold">Offered Fare</span>
+
+            {/* 3. Fare BELOW Cash Tab */}
+            <div className="flex flex-col items-end">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 font-mono-num leading-tight">
+                ₹{ride.offered_fare}
+              </span>
+              <span className="text-[9px] text-slate-500 font-semibold">Offered Fare</span>
+            </div>
           </div>
         </div>
 
@@ -1541,20 +1570,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Payment (Upi) & Trip Info */}
-          <div className="mt-0.5 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-200 font-black uppercase tracking-wider">
-              {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'Upi'}
+          {/* Duration info */}
+          <div className="mt-0.5 pt-2 border-t border-slate-200 flex items-center justify-end text-xs">
+            <span className="text-slate-500 font-medium">
+              Estimated Duration: ~{ride.duration_minutes || 14} mins
             </span>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold flex items-center gap-1">
-                <span>Ride Distance:</span>
-                <span className="font-mono-num font-black">{ride.distance_km ? `${ride.distance_km} km` : dropoffDistText}</span>
-              </span>
-              <span className="text-slate-500 font-medium hidden xs:inline">
-                ~{ride.duration_minutes || 14} mins
-              </span>
-            </div>
           </div>
         </div>
 
