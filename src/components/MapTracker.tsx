@@ -341,26 +341,8 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
         hasMovedFromStart = (deltaLat + deltaLng) > 0.00025; // > ~25m displacement
       }
 
-      if (isRideActive && hasMovedFromStart && startLat && startLng) {
-        if (!startMarkerRef.current) {
-          const startIcon = L.divIcon({
-            className: 'custom-origin-marker',
-            html: `
-              <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-                <div style="width: 32px; height: 32px; border-radius: 50%; background: #10b981; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px; box-shadow: 0 4px 16px rgba(16, 185, 129, 0.9); border: 2.5px solid #ffffff;">
-                  A
-                </div>
-                <div style="position: absolute; bottom: -4px; width: 9px; height: 9px; background: #10b981; transform: rotate(45deg); border-right: 2px solid #ffffff; border-bottom: 2px solid #ffffff;"></div>
-              </div>
-            `,
-            iconSize: [36, 40],
-            iconAnchor: [18, 38],
-          });
-          startMarkerRef.current = L.marker([startLat, startLng], { icon: startIcon }).addTo(map);
-        } else {
-          startMarkerRef.current.setLatLng([startLat, startLng]);
-        }
-      } else if (startMarkerRef.current && (!isRideActive || !hasMovedFromStart)) {
+      // 2. Start Marker A (Removed as requested)
+      if (startMarkerRef.current) {
         startMarkerRef.current.remove();
         startMarkerRef.current = null;
       }

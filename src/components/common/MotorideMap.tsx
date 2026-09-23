@@ -535,13 +535,12 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       (distToPickupMeters !== null ? distToPickupMeters < 12 : false)
     );
 
-    // Show passenger standing marker ONLY when passenger is at a distinct position from pickup or when no pickup is set yet
+    // Show passenger standing marker with "Where To ?" before ride booking in passenger app
     const shouldShowPassengerStanding = Boolean(
       passengerLat &&
       passengerLng &&
       !showLocationsABOnly &&
-      !isRideBooked &&
-      (!hasPickup || !isPickupAtPassenger)
+      !isRideBooked
     );
 
     // 1. Passenger Standing Location Marker (Displayed when passenger is standing away from chosen pickup or before setting pickup)
@@ -613,46 +612,14 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       }
     }
 
-    // 2. Pickup Marker (Location A - Always shown when pickup location coordinates are available)
-    const shouldRenderPickupPin = Boolean(hasPickup && pickupLat && pickupLng);
-    if (shouldRenderPickupPin && pickupLat && pickupLng) {
+    // 2. Pickup Location A (Marker A icon removed as requested; coordinates kept for bounds calculation)
+    if (hasPickup && pickupLat && pickupLng) {
       bounds.push([pickupLat, pickupLng]);
-      const aIcon = createPickupIcon(pickupAddress || undefined, pickupDistanceText);
-
-      const pickupPopupHtml = `
-        <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 180px; color: #000000; padding: 2px;">
-          <div style="font-weight: 900; color: #059669; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
-            <span>🟢 To (A)${pickupDistanceText ? ` • ${pickupDistanceText}` : ''}</span>
-          </div>
-          <div style="color: #0f172a; font-size: 12px; font-weight: 700;">
-            ${pickupAddress || 'Selected Pickup Point'}
-          </div>
-          ${distToPickupMeters !== null ? `<div style="color: #64748b; font-size: 11px; margin-top: 4px; font-weight: 500;">Passenger standing <b>${distToPickupMeters}m</b> away</div>` : ''}
-        </div>
-      `;
-
-      if (!pickupMarkerRef.current || !map.hasLayer(pickupMarkerRef.current)) {
-        if (pickupMarkerRef.current) {
-          try {
-            map.removeLayer(pickupMarkerRef.current);
-          } catch {}
-        }
-        pickupMarkerRef.current = L.marker([pickupLat, pickupLng], {
-          icon: aIcon,
-          zIndexOffset: 2000,
-        })
-          .addTo(map)
-          .bindPopup(pickupPopupHtml);
-        pickupMarkerRef.current.on('click', (e) => {
-          L.DomEvent.stopPropagation(e);
-        });
-      } else {
-        pickupMarkerRef.current.setLatLng([pickupLat, pickupLng]);
-        pickupMarkerRef.current.setIcon(aIcon);
-        pickupMarkerRef.current.setPopupContent(pickupPopupHtml);
-      }
-    } else if (pickupMarkerRef.current) {
-      map.removeLayer(pickupMarkerRef.current);
+    }
+    if (pickupMarkerRef.current) {
+      try {
+        map.removeLayer(pickupMarkerRef.current);
+      } catch {}
       pickupMarkerRef.current = null;
     }
 
