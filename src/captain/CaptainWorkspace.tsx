@@ -1000,9 +1000,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   };
 
   const currentRideOnMap = activeRide || inspectedRide || (availableRides.length > 0 ? availableRides[0] : null);
-  const currentPickupLat = currentRideOnMap ? currentRideOnMap.pickup_lat : null;
-  const currentPickupLng = currentRideOnMap ? currentRideOnMap.pickup_lng : null;
-  const currentPickupAddress = currentRideOnMap ? currentRideOnMap.pickup_address : undefined;
+
+  // Marker visibility logic:
+  // 1. Before ride request accept (inspecting / incoming ride request): show BOTH Marker A and Marker B details on map
+  // 2. After captain accepts ride (captain_accepted): show pickup Marker A ONLY on map
+  // 3. When captain arrives at pickup (captain_arrived) & starts trip (trip_started): immediately show drop location Marker B ONLY on map
+  const isAcceptedPhase = activeRide && activeRide.status === 'captain_accepted';
+  const isArrivedOrTripPhase = activeRide && (activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started');
+
+  const showPickupOnMap = isAcceptedPhase || (!activeRide && Boolean(currentRideOnMap));
+  const showDropoffOnMap = isArrivedOrTripPhase || (!activeRide && Boolean(currentRideOnMap));
+
+  const currentPickupLat = showPickupOnMap && currentRideOnMap ? currentRideOnMap.pickup_lat : null;
+  const currentPickupLng = showPickupOnMap && currentRideOnMap ? currentRideOnMap.pickup_lng : null;
+  const currentPickupAddress = showPickupOnMap && currentRideOnMap ? currentRideOnMap.pickup_address : undefined;
+
+  const currentDropoffLat = showDropoffOnMap && currentRideOnMap ? currentRideOnMap.dropoff_lat : null;
+  const currentDropoffLng = showDropoffOnMap && currentRideOnMap ? currentRideOnMap.dropoff_lng : null;
+  const currentDropoffAddress = showDropoffOnMap && currentRideOnMap ? currentRideOnMap.dropoff_address : undefined;
 
   const currentPickupDistKm = currentPickupLat && currentPickupLng && captainGps.lat && captainGps.lng
     ? calculateDistance(captainGps.lat, captainGps.lng, currentPickupLat, currentPickupLng)
@@ -1037,9 +1052,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       pickupLng={currentPickupLng}
       pickupAddress={currentPickupAddress}
       pickupDistanceText={currentPickupDistText}
-      dropoffLat={currentRideOnMap ? currentRideOnMap.dropoff_lat : null}
-      dropoffLng={currentRideOnMap ? currentRideOnMap.dropoff_lng : null}
-      dropoffAddress={currentRideOnMap ? currentRideOnMap.dropoff_address : undefined}
+      dropoffLat={currentDropoffLat}
+      dropoffLng={currentDropoffLng}
+      dropoffAddress={currentDropoffAddress}
       dropoffDistanceText={currentDropoffDistText}
       rideDistanceText={currentDropoffDistText}
       bottomSheetPadding={currentRideOnMap && !activeRide ? 360 : 60}

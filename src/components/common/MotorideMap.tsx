@@ -892,7 +892,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         captainToTargetLineRef.current.setLatLngs(activeGuideCoords);
         captainToTargetLineRef.current.setStyle({ color: '#10b981' });
       }
-    } else if (activeRideStatus === 'trip_started' && captainLat && captainLng && dropoffLat && dropoffLng) {
+    } else if ((activeRideStatus === 'captain_arrived' || activeRideStatus === 'trip_started') && captainLat && captainLng && dropoffLat && dropoffLng) {
       const activeGuideCoords: [number, number][] = [
         [captainLat, captainLng],
         [dropoffLat, dropoffLng],
