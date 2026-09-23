@@ -233,22 +233,22 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     return L.divIcon({
       className: 'custom-pin-icon marker-pin-a',
       html: `
-        <div style="position: relative; width: max-content; min-width: 96px; max-width: 260px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
-          <div style="padding: 3px 8px; margin-bottom: 3px; border-radius: 8px; background: #020617; color: #34d399; font-weight: 900; font-size: 11px; border: 1.5px solid #10b981; box-shadow: 0 4px 16px rgba(0,0,0,0.75); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px;">
+        <div style="position: relative; width: 32px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
+          <div style="position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); padding: 3px 8px; border-radius: 8px; background: #020617; color: #34d399; font-weight: 900; font-size: 11px; border: 1.5px solid #10b981; box-shadow: 0 4px 16px rgba(0,0,0,0.75); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
             <span style="display: flex; align-items: center; gap: 4px;">
               <span style="background: #10b981; color: #020617; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900;">A</span>
-              <span style="max-width: 135px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>
+              <span style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>
             </span>
             ${formattedDist ? `<span style="background: #10b981; color: #020617; padding: 1px 6px; border-radius: 5px; font-size: 10px; font-weight: 900; letter-spacing: 0.3px; box-shadow: 0 1px 4px rgba(16,185,129,0.4);">${formattedDist}</span>` : ''}
           </div>
-          <div style="position: relative; width: 28px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45));">
-            <img src="/marker_green.svg" alt="Pickup A" style="width: 28px; height: 70px; object-fit: contain; pointer-events: none;" />
+          <div style="width: 28px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45)); pointer-events: none;">
+            <img src="/marker_green.svg" alt="Pickup A" style="width: 28px; height: 70px; object-fit: contain; pointer-events: none; display: block;" />
           </div>
         </div>
       `,
-      iconSize: [160, 104],
-      iconAnchor: [80, 103],
-      popupAnchor: [0, -103],
+      iconSize: [32, 72],
+      iconAnchor: [16, 70],
+      popupAnchor: [0, -70],
     });
   };
 
@@ -266,22 +266,22 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     return L.divIcon({
       className: 'custom-pin-icon marker-pin-b',
       html: `
-        <div style="position: relative; width: max-content; min-width: 96px; max-width: 260px; height: 104px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
-          <div style="padding: 3px 8px; margin-bottom: 3px; border-radius: 8px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 16px rgba(0,0,0,0.75); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px;">
+        <div style="position: relative; width: 32px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
+          <div style="position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); padding: 3px 8px; border-radius: 8px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 16px rgba(0,0,0,0.75); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
             <span style="display: flex; align-items: center; gap: 4px;">
               <span style="background: #f43f5e; color: #ffffff; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900;">B</span>
-              <span style="max-width: 135px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>
+              <span style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>
             </span>
             ${formattedDist ? `<span style="background: #f43f5e; color: #ffffff; padding: 1px 6px; border-radius: 5px; font-size: 10px; font-weight: 900; letter-spacing: 0.3px; box-shadow: 0 1px 4px rgba(244,63,94,0.4);">${formattedDist}</span>` : ''}
           </div>
-          <div style="position: relative; width: 28px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45));">
-            <img src="/marker_red.svg" alt="Destination B" style="width: 28px; height: 70px; object-fit: contain; pointer-events: none;" />
+          <div style="width: 28px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45)); pointer-events: none;">
+            <img src="/marker_red.svg" alt="Destination B" style="width: 28px; height: 70px; object-fit: contain; pointer-events: none; display: block;" />
           </div>
         </div>
       `,
-      iconSize: [160, 104],
-      iconAnchor: [80, 103],
-      popupAnchor: [0, -103],
+      iconSize: [32, 72],
+      iconAnchor: [16, 70],
+      popupAnchor: [0, -70],
     });
   };
 
@@ -532,12 +532,23 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       (distToPickupMeters !== null ? distToPickupMeters < 12 : false)
     );
 
-    // Show passenger standing marker ONLY when passenger is at a distinct position from pickup or when no pickup is set yet
+    // Active pick and drop route search mode
+    const isPickAndDropActive = Boolean(
+      hasPickup &&
+      hasDropoff &&
+      pickupLat &&
+      pickupLng &&
+      dropoffLat &&
+      dropoffLng
+    );
+
+    // Show passenger standing marker ONLY when pick & drop is not both active and passenger is away from pickup
     const shouldShowPassengerStanding = Boolean(
       passengerLat &&
       passengerLng &&
       !showLocationsABOnly &&
       !isRideBooked &&
+      !isPickAndDropActive &&
       (!hasPickup || !isPickupAtPassenger)
     );
 
@@ -656,8 +667,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       pickupMarkerRef.current = null;
     }
 
-    // Walking guide dashed line connecting Passenger Standing Location to Pickup Location A (only before ride booking when standing separately)
-    if (!isRideBooked && hasPickup && !isPickupAtPassenger && distToPickupMeters !== null && distToPickupMeters >= 4 && distToPickupMeters <= 1500 && passengerLat && passengerLng && pickupLat && pickupLng) {
+    // Walking guide dashed line connecting Passenger Standing Location to Pickup Location A (only before pick and drop search when standing separately)
+    if (!isPickAndDropActive && !isRideBooked && hasPickup && !isPickupAtPassenger && distToPickupMeters !== null && distToPickupMeters >= 4 && distToPickupMeters <= 1500 && passengerLat && passengerLng && pickupLat && pickupLng) {
       if (!passengerToPickupLineRef.current || !map.hasLayer(passengerToPickupLineRef.current)) {
         if (passengerToPickupLineRef.current) {
           try {
@@ -962,7 +973,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           } catch {}
         }
         polylineRef.current = L.polyline(latlngs, {
-          color: '#2563eb', // Simple blue color
+          color: '#00059F', // Requested deep indigo blue
           weight: 4.5,
           opacity: 0.9,
           lineCap: 'round',
@@ -971,7 +982,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       } else {
         polylineRef.current.setLatLngs(latlngs);
         polylineRef.current.setStyle({
-          color: '#2563eb', // Simple blue color
+          color: '#00059F', // Requested deep indigo blue
           weight: 4.5,
           opacity: 0.9,
           dashArray: undefined,
