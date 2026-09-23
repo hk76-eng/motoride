@@ -1706,11 +1706,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     if (!activeRide || isCancelling) return;
     setIsCancelling(true);
     const rideIdToCancel = activeRide.id;
+    const isAlreadyCompleted = activeRide.status === 'trip_completed' || activeRide.status === 'completed';
     try {
+      markRideAsRated(rideIdToCancel);
       setActiveRide(null);
-      await motorideApi.updateRideStatus(rideIdToCancel, 'cancelled_by_passenger', {
-        cancellation_reason: 'Passenger cancelled the request',
-      });
+      setCompletedRideForRating(null);
+      setShowCaptainRatingModal(false);
+
+      if (!isAlreadyCompleted) {
+        await motorideApi.updateRideStatus(rideIdToCancel, 'cancelled_by_passenger', {
+          cancellation_reason: 'Passenger cancelled/closed the active ride',
+        });
+      }
       loadRideHistory();
     } catch (err: any) {
       console.warn('Cancel ride notice:', err);
@@ -1718,6 +1725,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     } finally {
       setIsCancelling(false);
     }
+  };
+
+  // Passenger explicitly triggers completion/rating flow if captain already dropped off or ride finished
+  const handleTriggerRatingFlow = () => {
+    if (!activeRide) return;
+    const completedRide: MotorideRide = {
+      ...activeRide,
+      status: 'trip_completed',
+      final_fare: activeRide.final_fare || activeRide.offered_fare || 75,
+    };
+    setActiveRide(completedRide);
+    setCompletedRideForRating(completedRide);
+    setShowCaptainRatingModal(true);
   };
 
   // Rating Submit Handlers
@@ -1889,6 +1909,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {/* Direct Close / Cancel Button */}
+                <button
+                  type="button"
+                  onClick={handleCancelRide}
+                  disabled={isCancelling}
+                  className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-black transition-all active:scale-95 cursor-pointer shadow-xs flex items-center gap-1.5"
+                  title="Cancel or close this ride"
+                  aria-label="Cancel or close this ride"
+                >
+                  <XCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{isCancelling ? 'Closing...' : 'Cancel / Close'}</span>
+                </button>
+
                 {/* Minimize Button in Active Ride */}
                 <button
                   type="button"
@@ -2200,7 +2233,29 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </span>
                 </div>
 
-                {activeRide.status !== 'trip_started' && (
+                {activeRide.status === 'trip_started' ? (
+                  <div className="flex flex-col gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={handleTriggerRatingFlow}
+                      className="w-full py-2.5 rounded-xl bg-black hover:bg-slate-900 text-white font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-md border border-black"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>Arrived at Destination • Rate Captain</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCancelRide}
+                      disabled={isCancelling}
+                      className="w-full py-2 rounded-xl border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50"
+                      aria-label="Cancel or Close Trip"
+                    >
+                      <XCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>{isCancelling ? 'Closing...' : 'Cancel / Close Active Trip'}</span>
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
                     onClick={handleCancelRide}

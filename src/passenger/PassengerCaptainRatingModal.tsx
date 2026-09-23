@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, CheckCircle2, ThumbsUp, Sparkles, MapPin, IndianRupee, ShieldCheck, Heart, User, Bike, Car, Navigation } from 'lucide-react';
+import { Star, CheckCircle2, ThumbsUp, Sparkles, MapPin, IndianRupee, ShieldCheck, Heart, User, Bike, Car, Navigation, X } from 'lucide-react';
 import { MotorideRide } from '../types/motoride';
 
 interface PassengerCaptainRatingModalProps {
@@ -78,9 +78,19 @@ export const PassengerCaptainRatingModal: React.FC<PassengerCaptainRatingModalPr
             </div>
           </div>
 
-          <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
-            #{ride.ride_code}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
+              #{ride.ride_code}
+            </span>
+            <button
+              type="button"
+              onClick={onSkip}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Close rating modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Captain & Vehicle Card */}
