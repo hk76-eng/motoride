@@ -184,6 +184,22 @@ export const motorideApi = {
 
     const map = new Map<string, MotorideRide>();
 
+    // 0. Always sync with latest persistent localStorage store
+    try {
+      const saved = safeStorage.getItem('motoride_rides_store');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((r) => {
+            if (r && r.id) {
+              map.set(r.id, r);
+              localRidesStore.set(r.id, r);
+            }
+          });
+        }
+      }
+    } catch {}
+
     // 1. Include local & cross-tab synced in-memory rides
     localRidesStore.forEach((r) => {
       if (r && r.id) map.set(r.id, r);
@@ -271,8 +287,32 @@ export const motorideApi = {
   },
 
   async getRideById(id: string): Promise<MotorideRide | null> {
-    if (localRidesStore.has(id)) {
-      return localRidesStore.get(id)!;
+    // 0. Always sync with latest persistent localStorage store
+    try {
+      const saved = safeStorage.getItem('motoride_rides_store');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((r) => {
+            if (r && r.id) localRidesStore.set(r.id, r);
+          });
+        }
+      }
+    } catch {}
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('rides').select('*').eq('id', id).single();
+        if (!error && data) {
+          const merged = { ...localRidesStore.get(id), ...(data as MotorideRide) };
+          localRidesStore.set(id, merged);
+          saveLocalRides();
+          return merged;
+        }
+      } catch (err) {
+        console.warn('Supabase getRideById notice:', err);
+      }
     }
 
     const json = await safeFetchJson<{ ride?: MotorideRide }>(`${API_BASE}/rides/${id}`, undefined, {});
@@ -282,18 +322,8 @@ export const motorideApi = {
       return json.ride;
     }
 
-    const supabase = getSupabase();
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.from('rides').select('*').eq('id', id).single();
-        if (!error && data) {
-          localRidesStore.set(id, data as MotorideRide);
-          saveLocalRides();
-          return data as MotorideRide;
-        }
-      } catch (err) {
-        console.warn('Supabase getRideById notice:', err);
-      }
+    if (localRidesStore.has(id)) {
+      return localRidesStore.get(id)!;
     }
 
     return null;
