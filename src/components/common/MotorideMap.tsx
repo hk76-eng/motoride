@@ -299,10 +299,10 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
 
     const distText = distanceKm != null ? (distanceKm < 1 ? `${Math.round(distanceKm * 1000)}m` : `${distanceKm.toFixed(1)}km`) : '';
 
-    let borderColor = isNearest ? '#10b981' : isSelf ? '#f59e0b' : '#38bdf8';
-    let pingColor = isNearest ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.22)';
-    let pingColorInner = isNearest ? 'rgba(16, 185, 129, 0.45)' : 'rgba(245, 158, 11, 0.30)';
-    let glowShadow = isNearest ? '0 4px 18px rgba(16, 185, 129, 0.65)' : '0 4px 18px rgba(245, 158, 11, 0.55)';
+    let borderColor = isCaptainMode ? '#0f172a' : isNearest ? '#10b981' : isSelf ? '#0f172a' : '#38bdf8';
+    let pingColor = isNearest ? 'rgba(16, 185, 129, 0.35)' : 'rgba(15, 23, 42, 0.15)';
+    let pingColorInner = isNearest ? 'rgba(16, 185, 129, 0.45)' : 'rgba(15, 23, 42, 0.20)';
+    let glowShadow = isCaptainMode ? '0 4px 14px rgba(0, 0, 0, 0.4)' : isNearest ? '0 4px 18px rgba(16, 185, 129, 0.65)' : '0 4px 14px rgba(0, 0, 0, 0.4)';
     let statusPillHtml = '';
 
     if (isCaptainMode) {
@@ -366,9 +366,11 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       className: isNearest ? 'nearest-captain-icon' : 'captain-car-icon',
       html: `
         <div style="position: relative; width: ${boxWidth}px; height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; user-select: none; pointer-events: auto; cursor: pointer;">
-          <!-- Live Sonar / Radar Pulse Rings -->
-          <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: ${isGoingDropoff || isArrivingPickup ? '82px' : isNearest ? '76px' : '68px'}; height: ${isGoingDropoff || isArrivingPickup ? '82px' : isNearest ? '76px' : '68px'}; border-radius: 50%; background: ${pingColor}; animation: radar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
-          <div style="position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; border-radius: 50%; background: ${pingColorInner}; pointer-events: none;"></div>
+          ${!isCaptainMode ? `
+            <!-- Live Sonar / Radar Pulse Rings -->
+            <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: ${isGoingDropoff || isArrivingPickup ? '82px' : isNearest ? '76px' : '68px'}; height: ${isGoingDropoff || isArrivingPickup ? '82px' : isNearest ? '76px' : '68px'}; border-radius: 50%; background: ${pingColor}; animation: radar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
+            <div style="position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; border-radius: 50%; background: ${pingColorInner}; pointer-events: none;"></div>
+          ` : ''}
 
           <!-- Top Floating Pill Label -->
           <div style="position: absolute; top: 0px; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 20;">
@@ -781,25 +783,34 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         captainMarkerRef.current.setIcon(cIcon);
       }
 
-      // Accuracy circle around captain live position
-      const capRadius = Math.max(12, Math.min(captainAccuracy || 20, 80));
-      if (!captainAccuracyCircleRef.current || !map.hasLayer(captainAccuracyCircleRef.current)) {
+      // Accuracy circle around captain live position (disabled in captain mode)
+      if (isCaptainMode) {
         if (captainAccuracyCircleRef.current) {
           try {
             map.removeLayer(captainAccuracyCircleRef.current);
+            captainAccuracyCircleRef.current = null;
           } catch {}
         }
-        captainAccuracyCircleRef.current = L.circle([captainLat, captainLng], {
-          radius: capRadius,
-          color: activeRideStatus === 'trip_started' ? '#0284c7' : '#f59e0b',
-          fillColor: activeRideStatus === 'trip_started' ? '#38bdf8' : '#f59e0b',
-          fillOpacity: 0.12,
-          weight: 1.5,
-          dashArray: '4, 4',
-        }).addTo(map);
       } else {
-        captainAccuracyCircleRef.current.setLatLng([captainLat, captainLng]);
-        captainAccuracyCircleRef.current.setRadius(capRadius);
+        const capRadius = Math.max(12, Math.min(captainAccuracy || 20, 80));
+        if (!captainAccuracyCircleRef.current || !map.hasLayer(captainAccuracyCircleRef.current)) {
+          if (captainAccuracyCircleRef.current) {
+            try {
+              map.removeLayer(captainAccuracyCircleRef.current);
+            } catch {}
+          }
+          captainAccuracyCircleRef.current = L.circle([captainLat, captainLng], {
+            radius: capRadius,
+            color: activeRideStatus === 'trip_started' ? '#0284c7' : '#0f172a',
+            fillColor: activeRideStatus === 'trip_started' ? '#38bdf8' : '#0f172a',
+            fillOpacity: 0.08,
+            weight: 1.5,
+            dashArray: '4, 4',
+          }).addTo(map);
+        } else {
+          captainAccuracyCircleRef.current.setLatLng([captainLat, captainLng]);
+          captainAccuracyCircleRef.current.setRadius(capRadius);
+        }
       }
     } else {
       if (captainMarkerRef.current) {
