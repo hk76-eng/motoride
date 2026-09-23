@@ -102,6 +102,7 @@ interface MotorideMapProps {
   onSelectCaptain?: (captain: AvailableCaptainItem) => void;
   onFocusNearestCaptain?: () => void;
   activeRideStatus?: string | null;
+  focusCoords?: { lat: number; lng: number; zoom?: number; timestamp: number } | null;
 }
 
 export const MotorideMap: React.FC<MotorideMapProps> = ({
@@ -144,6 +145,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   onSelectCaptain,
   onFocusNearestCaptain,
   activeRideStatus = null,
+  focusCoords = null,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -1129,6 +1131,18 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     onSelectCaptain,
     activeRideStatus,
   ]);
+
+  // Smoothly pan & zoom to external focus coordinates when requested (e.g. Captain tapping Navigate)
+  useEffect(() => {
+    if (focusCoords && mapInstanceRef.current && focusCoords.lat && focusCoords.lng) {
+      setIsFollowingCaptain(false);
+      setIsFollowingPassenger(false);
+      mapInstanceRef.current.flyTo([focusCoords.lat, focusCoords.lng], focusCoords.zoom ?? 17, {
+        animate: true,
+        duration: 0.8,
+      });
+    }
+  }, [focusCoords]);
 
   // Center on Passenger or Captain Live Location with Navigator
   const handleNavigatorCenter = () => {

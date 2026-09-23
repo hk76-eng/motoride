@@ -161,6 +161,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [showPassengerRatingModal, setShowPassengerRatingModal] = useState<boolean>(false);
   const [completedRideForRating, setCompletedRideForRating] = useState<MotorideRide | null>(null);
   const [isFinishingRide, setIsFinishingRide] = useState<boolean>(false);
+  const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
 
   // Default to false so the map and Captain live GPS position are immediately 100% visible
   const [is100Full, setIs100Full] = useState<boolean>(false);
@@ -981,11 +982,15 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   };
 
   const currentRideOnMap = activeRide || inspectedRide;
-  const inspectedPickupDistKm = inspectedRide
-    ? calculateDistance(captainGps.lat, captainGps.lng, inspectedRide.pickup_lat, inspectedRide.pickup_lng)
+  const currentPickupLat = currentRideOnMap ? currentRideOnMap.pickup_lat : null;
+  const currentPickupLng = currentRideOnMap ? currentRideOnMap.pickup_lng : null;
+  const currentPickupAddress = currentRideOnMap ? currentRideOnMap.pickup_address : undefined;
+
+  const currentPickupDistKm = currentPickupLat && currentPickupLng && captainGps.lat && captainGps.lng
+    ? calculateDistance(captainGps.lat, captainGps.lng, currentPickupLat, currentPickupLng)
     : null;
-  const inspectedPickupDistText = inspectedPickupDistKm !== null
-    ? (inspectedPickupDistKm < 1 ? `${Math.round(inspectedPickupDistKm * 1000)}m` : `${inspectedPickupDistKm.toFixed(1)} km`)
+  const currentPickupDistText = currentPickupDistKm !== null
+    ? (currentPickupDistKm < 1 ? `${Math.round(currentPickupDistKm * 1000)}m` : `${currentPickupDistKm.toFixed(1)} km`)
     : undefined;
 
   const inspectedDropoffDistKm = inspectedRide
@@ -1010,10 +1015,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       passengerAccuracy={activeRide ? undefined : (passengerLiveGps?.accuracy ?? (inspectedRide ? 15 : undefined))}
       passengerHeading={activeRide ? null : (passengerLiveGps?.heading ?? null)}
       passengerName={activeRide?.passenger_name || inspectedRide?.passenger_name || 'Passenger'}
-      pickupLat={activeRide ? null : (inspectedRide ? inspectedRide.pickup_lat : null)}
-      pickupLng={activeRide ? null : (inspectedRide ? inspectedRide.pickup_lng : null)}
-      pickupAddress={activeRide ? undefined : (inspectedRide ? inspectedRide.pickup_address : undefined)}
-      pickupDistanceText={activeRide ? undefined : inspectedPickupDistText}
+      pickupLat={currentPickupLat}
+      pickupLng={currentPickupLng}
+      pickupAddress={currentPickupAddress}
+      pickupDistanceText={currentPickupDistText}
       dropoffLat={currentRideOnMap ? currentRideOnMap.dropoff_lat : null}
       dropoffLng={currentRideOnMap ? currentRideOnMap.dropoff_lng : null}
       dropoffAddress={currentRideOnMap ? currentRideOnMap.dropoff_address : undefined}
@@ -1024,6 +1029,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       className={`w-full h-full ${isFullBackground ? 'rounded-none border-0' : 'shadow-2xl border border-slate-800'}`}
       showOverlayControls={true}
       onLocateMe={startWatchingLocation}
+      focusCoords={mapFocusTarget}
     />
   );
 
@@ -1093,21 +1099,58 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               const isArrivedOrLater = activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started';
               const navLat = isArrivedOrLater ? activeRide.dropoff_lat : activeRide.pickup_lat;
               const navLng = isArrivedOrLater ? activeRide.dropoff_lng : activeRide.pickup_lng;
+              const navAddress = isArrivedOrLater ? activeRide.dropoff_address : activeRide.pickup_address;
               const navTitle = 'Navigate';
+
+              const hasCoords = navLat != null && navLng != null && !isNaN(Number(navLat)) && !isNaN(Number(navLng)) && Number(navLat) !== 0;
+              const destParam = hasCoords ? `${navLat},${navLng}` : encodeURIComponent(navAddress || (isArrivedOrLater ? 'Drop-off' : 'Pickup'));
+              const originParam = (captainGps.lat && captainGps.lng) ? `&origin=${captainGps.lat},${captainGps.lng}` : '';
+              const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destParam}${originParam}&travelmode=driving`;
+
+              const handleNavigateClick = (e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // 1. Instantly focus in-app map on target destination (Pickup or Dropoff)
+                if (hasCoords) {
+                  setMapFocusTarget({
+                    lat: Number(navLat),
+                    lng: Number(navLng),
+                    zoom: 17,
+                    timestamp: Date.now(),
+                  });
+                }
+
+                // 2. Open Google Maps with driving navigation reliably
+                try {
+                  const win = window.open(gMapsUrl, '_blank', 'noopener,noreferrer');
+                  if (!win || win.closed || typeof win.closed === 'undefined') {
+                    const tempLink = document.createElement('a');
+                    tempLink.href = gMapsUrl;
+                    tempLink.target = '_blank';
+                    tempLink.rel = 'noopener noreferrer';
+                    document.body.appendChild(tempLink);
+                    tempLink.click();
+                    document.body.removeChild(tempLink);
+                  }
+                } catch {
+                  window.location.href = gMapsUrl;
+                }
+              };
+
               return (
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${navLat},${navLng}&travelmode=driving`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={handleNavigateClick}
                         className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black hover:bg-slate-900 text-white text-[11px] font-black transition-all shadow-md active:scale-95 cursor-pointer select-none border border-slate-800"
                         title={isArrivedOrLater ? 'Navigate to Drop-off destination' : 'Navigate to Pickup point'}
                       >
                         <Navigation2 className="w-3.5 h-3.5 fill-white stroke-white text-white shrink-0" />
                         <span className="text-white">{navTitle}</span>
-                      </a>
+                      </button>
                     </div>
                   </div>
 
