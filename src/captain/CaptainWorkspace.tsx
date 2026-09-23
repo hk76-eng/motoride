@@ -162,6 +162,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [completedRideForRating, setCompletedRideForRating] = useState<MotorideRide | null>(null);
   const [isFinishingRide, setIsFinishingRide] = useState<boolean>(false);
   const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
+  const [showNavigationModal, setShowNavigationModal] = useState<boolean>(false);
 
   // Default to false so the map and Captain live GPS position are immediately 100% visible
   const [is100Full, setIs100Full] = useState<boolean>(false);
@@ -1149,6 +1150,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   });
                 }
 
+                setShowNavigationModal(true);
+
                 try {
                   const win = window.open(gMapsUrl, '_blank', 'noopener,noreferrer');
                   if (!win || win.closed || typeof win.closed === 'undefined') {
@@ -1980,6 +1983,36 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           onSubmit={(score, review, tags) => handleFinishRideWithRating(score, review, tags, false)}
           onSkip={() => handleFinishRideWithRating(5, '', [], true)}
         />
+      )}
+
+      {/* Navigation Return Helper Modal */}
+      {showNavigationModal && (
+        <div className="fixed inset-0 z-[2500] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-3xl bg-white border border-slate-200 shadow-2xl p-6 text-center text-slate-900 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <Navigation className="w-8 h-8 stroke-[2.5]" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 mb-2">Navigation Mode Active</h3>
+            <p className="text-xs text-slate-600 font-medium mb-4 leading-relaxed">
+              Google Maps has opened in a new tab or app to guide you to your target location.
+            </p>
+            <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-left mb-5">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">
+                How to come back:
+              </span>
+              <p className="text-[11px] text-slate-700 font-bold leading-normal">
+                📱 Swipe up / use your phone's task switcher, or switch browser tabs to return back to this <strong>MotoRide App</strong> tab anytime.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowNavigationModal(false)}
+              className="w-full py-3 rounded-2xl bg-black hover:bg-slate-900 text-white font-black text-xs sm:text-sm shadow-xl active:scale-95 transition-all cursor-pointer border border-black"
+            >
+              Back to MotoRide Dashboard
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
