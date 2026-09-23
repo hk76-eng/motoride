@@ -176,33 +176,33 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   };
 
   // Custom DivIcon for Passenger GPS Live Location using the uploaded passenger_icon.png
-  const createPassengerIcon = (label: string = 'You', isPickupHere: boolean = false) =>
+  const createPassengerIcon = (label: string = 'Where To ?', isPickupHere: boolean = false) =>
     L.divIcon({
       className: 'passenger-gps-live-marker',
       html: `
-        <div style="position: relative; width: 68px; height: 68px; display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; pointer-events: auto; cursor: pointer;" title="Passenger GPS Live Location">
+        <div style="position: relative; width: 72px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: center; user-select: none; pointer-events: auto; cursor: pointer;" title="Click 'Where To ?' to set Passenger Pickup Location A">
           <!-- GPS Radar Pulse Waves -->
-          <div style="position: absolute; width: 62px; height: 62px; border-radius: 50%; background: rgba(29, 63, 132, 0.28); animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
-          <div style="position: absolute; width: 48px; height: 48px; border-radius: 50%; background: rgba(29, 63, 132, 0.16); pointer-events: none;"></div>
+          <div style="position: absolute; width: 66px; height: 66px; border-radius: 50%; background: rgba(29, 63, 132, 0.28); animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
+          <div style="position: absolute; width: 50px; height: 50px; border-radius: 50%; background: rgba(29, 63, 132, 0.16); pointer-events: none;"></div>
 
-          <!-- Top Floating Capsule Badge -->
-          <div style="position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: #020617; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 9999px; border: 1.5px solid #3b82f6; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.6); pointer-events: none; letter-spacing: 0.3px; z-index: 30; display: flex; align-items: center; gap: 4px;">
-            <span style="width: 5px; height: 5px; border-radius: 50%; background: #3b82f6; display: inline-block; box-shadow: 0 0 6px #60a5fa;"></span>
-            <span>${label || 'You'}</span>
+          <!-- Top Floating Capsule Badge: Where To ? -->
+          <div class="passenger-where-to-pill" style="position: absolute; top: -16px; left: 50%; transform: translateX(-50%); background: #020617; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 900; padding: 3px 10px; border-radius: 9999px; border: 1.5px solid #3b82f6; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.7), 0 0 10px rgba(59,130,246,0.35); pointer-events: auto; cursor: pointer; letter-spacing: 0.3px; z-index: 40; display: flex; align-items: center; gap: 5px;">
+            <span style="width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; display: inline-block; box-shadow: 0 0 6px #60a5fa;"></span>
+            <span style="color: #ffffff; font-weight: 800;">${label || 'Where To ?'}</span>
           </div>
 
           <!-- Circular Badge with Uploaded Passenger Icon -->
-          <div style="position: relative; width: 42px; height: 42px; border-radius: 50%; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 2.5px #ffffff; z-index: 20; display: flex; align-items: center; justify-content: center; background: #1d3f84;">
+          <div style="position: relative; width: 44px; height: 44px; border-radius: 50%; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 0 2.5px #ffffff; z-index: 20; display: flex; align-items: center; justify-content: center; background: #1d3f84;">
             <img src="/passenger_icon.svg" alt="Passenger GPS" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none;" />
           </div>
 
           <!-- Ground Contact Needle Tip / Pointer Arrow -->
-          <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 8px; height: 8px; background: #1d3f84; border-right: 1.5px solid #ffffff; border-bottom: 1.5px solid #ffffff; z-index: 15;"></div>
+          <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 9px; height: 9px; background: #1d3f84; border-right: 1.5px solid #ffffff; border-bottom: 1.5px solid #ffffff; z-index: 15;"></div>
         </div>
       `,
-      iconSize: [68, 68],
-      iconAnchor: [34, 62],
-      popupAnchor: [0, -62],
+      iconSize: [72, 72],
+      iconAnchor: [36, 64],
+      popupAnchor: [0, -64],
     });
 
 
@@ -541,18 +541,20 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       if (!isPickAndDropActive) {
         bounds.push([passengerLat, passengerLng]);
       }
-      const labelText = !hasPickup ? 'Where To ?' : (isPickupAtPassenger ? 'You • Pickup' : 'Live GPS');
+      const labelText = 'Where To ?';
       const pIcon = createPassengerIcon(labelText, isPickupAtPassenger);
 
       const passengerPopupHtml = `
         <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 170px; color: #000000; padding: 2px;">
           <div style="font-weight: 900; color: #1d3f84; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
-            <span>📍 Your Live GPS Location</span>
+            <span>📍 Where To ?</span>
           </div>
           <div style="color: #0f172a; font-size: 11.5px; font-weight: 600;">
             ${passengerName || 'Passenger (Standing Here)'}
           </div>
-          ${distToPickupMeters !== null && distToPickupMeters > 5 ? `<div style="color: #64748b; font-size: 11px; margin-top: 4px; font-weight: 500;">Distance to Pickup (A): <b>${distToPickupMeters}m</b></div>` : ''}
+          <div style="color: #2563eb; font-size: 11px; margin-top: 4px; font-weight: 700;">
+            Click to set Pickup Location (A)
+          </div>
         </div>
       `;
 
@@ -574,14 +576,12 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         passengerMarkerRef.current.setPopupContent(passengerPopupHtml);
       }
 
-      // One click on passenger icon sets pickup if not set yet, or opens details
+      // On click text "Where To ?" or passenger marker: Auto set Passenger Pickup Location A on booking form
       passengerMarkerRef.current.off('click');
       passengerMarkerRef.current.on('click', (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e);
-        if (!hasPickup && onSetPickupToPassengerLocation && passengerLat && passengerLng) {
+        if (onSetPickupToPassengerLocation && passengerLat && passengerLng) {
           onSetPickupToPassengerLocation(passengerLat, passengerLng);
-        } else {
-          passengerMarkerRef.current?.openPopup();
         }
       });
 
