@@ -1072,47 +1072,15 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   );
                 })()}
               </div>
-              <h3 className="text-base font-extrabold text-slate-900 capitalize">
-                {activeRide.status.replace(/_/g, ' ')}
-              </h3>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <h3 className="text-base font-black text-slate-950 capitalize">
+                  {activeRide.status.replace(/_/g, ' ')}
+                </h3>
+                <span className="text-xs font-bold text-slate-500">• {activeRide.passenger_name}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowChatModal(true)}
-                className="p-2.5 rounded-xl bg-black text-white border border-slate-800 hover:bg-slate-900 shadow-sm transition-all active:scale-95 cursor-pointer"
-                title="Chat with Passenger"
-              >
-                <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
-              </button>
-              <a
-                href={`tel:${activeRide.passenger_phone || '+919780012345'}`}
-                className="p-2.5 rounded-xl bg-black text-white border border-slate-800 hover:bg-slate-900 shadow-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center"
-                title="Call Passenger"
-              >
-                <Phone className="w-4 h-4 stroke-[2.5] text-white" />
-              </a>
-            </div>
-          </div>
 
-          {/* Passenger Info */}
-          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-slate-900 block">
-                {activeRide.passenger_name}
-              </span>
-              <span className="text-[11px] text-slate-500">
-                {activeRide.payment_method.toUpperCase()} Payment • Agreed Fare:
-              </span>
-            </div>
-            <span className="text-lg font-black text-black font-mono-num">
-              ₹{activeRide.final_fare || activeRide.offered_fare}
-            </span>
-          </div>
-
-          {/* Route Details with Navigator Capsule on top */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2.5">
-            {/* Pickup/Dropoff Location with Smart Navigator Button */}
+            {/* Smart Navigator Button */}
             {(() => {
               const isArrivedOrLater = activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started';
               const navLat = isArrivedOrLater ? activeRide.dropoff_lat : activeRide.pickup_lat;
@@ -1129,7 +1097,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 e.preventDefault();
                 e.stopPropagation();
 
-                // 1. Instantly focus in-app map on target destination (Pickup or Dropoff)
                 if (hasCoords) {
                   setMapFocusTarget({
                     lat: Number(navLat),
@@ -1139,7 +1106,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   });
                 }
 
-                // 2. Open Google Maps with driving navigation reliably
                 try {
                   const win = window.open(gMapsUrl, '_blank', 'noopener,noreferrer');
                   if (!win || win.closed || typeof win.closed === 'undefined') {
@@ -1157,48 +1123,83 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               };
 
               return (
-                <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={handleNavigateClick}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black hover:bg-slate-900 text-white text-[11px] font-black transition-all shadow-md active:scale-95 cursor-pointer select-none border border-slate-800"
-                        title={isArrivedOrLater ? 'Navigate to Drop-off destination' : 'Navigate to Pickup point'}
-                      >
-                        <Navigation2 className="w-3.5 h-3.5 fill-white stroke-white text-white shrink-0" />
-                        <span className="text-white">{navTitle}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Pickup Address: Only green dot with A */}
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0 shadow-xs" />
-                      <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
-                        A
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-900 font-bold truncate flex-1">
-                      {activeRide.pickup_address}
-                    </p>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleNavigateClick}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-black hover:bg-slate-900 text-white text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer select-none border border-slate-800 shrink-0"
+                  title={isArrivedOrLater ? 'Navigate to Drop-off destination' : 'Navigate to Pickup point'}
+                >
+                  <Navigation2 className="w-3.5 h-3.5 fill-white stroke-white text-white shrink-0" />
+                  <span className="text-white">{navTitle}</span>
+                </button>
               );
             })()}
+          </div>
 
-            {/* Dropoff Location: Only red dot with B */}
-            <div className="flex items-center gap-2 pt-2 border-t border-slate-200">
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="w-2 h-2 rounded-full bg-rose-500 inline-block shrink-0 shadow-xs" />
-                <span className="w-5 h-5 rounded-full bg-rose-500 text-white font-black text-[10px] flex items-center justify-center shadow-xs">
+          {/* Passenger Ride Details Box: A + Call Icon, B + Message Icon, Agreed Fare */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
+            {/* A: Pickup Address + Call Icon */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                  A
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-slate-900 font-bold leading-snug break-words">
+                    {activeRide.pickup_address || 'My Live GPS Location'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Call Icon on right of A */}
+              <a
+                href={`tel:${activeRide.passenger_phone || '+919780012345'}`}
+                className="w-10 h-10 rounded-xl bg-black text-white hover:bg-slate-800 shadow-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-slate-800"
+                title="Call Passenger"
+                aria-label="Call Passenger"
+              >
+                <Phone className="w-4 h-4 stroke-[2.5] text-white" />
+              </a>
+            </div>
+
+            {/* B: Dropoff Address + Message Icon */}
+            <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-slate-200">
+              <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                <span className="w-6 h-6 rounded-full bg-rose-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs mt-0.5">
                   B
                 </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-slate-800 font-medium leading-snug break-words">
+                    {activeRide.dropoff_address || 'Phase 5 Market, Mohali'}
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-slate-800 font-medium truncate flex-1">
-                {activeRide.dropoff_address}
-              </p>
+
+              {/* Message Icon on right of B */}
+              <button
+                type="button"
+                onClick={() => setShowChatModal(true)}
+                className="w-10 h-10 rounded-xl bg-black text-white hover:bg-slate-800 shadow-sm transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-slate-800"
+                title="Chat with Passenger"
+                aria-label="Chat with Passenger"
+              >
+                <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
+              </button>
+            </div>
+
+            {/* Agreed Fare */}
+            <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs sm:text-sm font-bold text-slate-700">
+                  Agreed Fare:
+                </span>
+                <span className="text-base sm:text-lg font-black text-slate-950 font-mono-num">
+                  ₹{activeRide.final_fare || activeRide.offered_fare}
+                </span>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-300">
+                {activeRide.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'UPI'}
+              </span>
             </div>
 
             {activeRide.comment && (
