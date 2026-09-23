@@ -587,6 +587,7 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
     'captain_arrived',
     'trip_started',
     'trip_completed',
+    'completed',
     'cancelled_by_passenger',
     'cancelled_by_captain',
   ];
@@ -617,7 +618,7 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
   }
 
   if (status === 'trip_completed' || status === 'completed') {
-    ride.trip_completed_at = now;
+    ride.trip_completed_at = ride.trip_completed_at || now;
     ride.completed_at = now;
     ride.captain_current_lat = ride.dropoff_lat;
     ride.captain_current_lng = ride.dropoff_lng;
@@ -632,8 +633,12 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
     }
     ride.payment_status = 'paid';
 
-    // Credit captain earnings and deduct platform commission
-    if (ride.captain_id) {
+    // Credit captain earnings and deduct platform commission once per ride
+    const alreadyCredited = walletTransactionsStore.some(
+      (tx) => tx.reference_ride_id === ride.id && tx.category === 'ride_earning'
+    );
+
+    if (ride.captain_id && !alreadyCredited) {
       const gross = Number(ride.final_fare);
       const commPct = ride.ride_type === 'courier'
         ? (fareSettings.courier_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct)
@@ -674,6 +679,9 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
 
   broadcastEvent('RIDE_STATUS_CHANGED', { ride, status });
   broadcastEvent('RIDE_UPDATED', ride);
+  if (status === 'trip_completed' || status === 'completed') {
+    broadcastEvent('EARNINGS_UPDATED', { captain_id: ride.captain_id, ride });
+  }
 
   // Send contextual notification
   let notifMsg = `Ride status updated to ${status.replace('_', ' ')}`;
@@ -763,6 +771,37 @@ motorideRouter.post('/passenger-location', (req: Request, res: Response) => {
   broadcastEvent('PASSENGER_LOCATION_UPDATED', record);
 
   res.json({ success: true, location: record });
+});
+
+// Submit Ride Rating Endpoint
+motorideRouter.post('/ratings', (req: Request, res: Response) => {
+  const { ride_id, rater_role, score, review, tags, captain_id, passenger_id } = req.body;
+  
+  if (ride_id && ridesStore.has(ride_id)) {
+    const ride = ridesStore.get(ride_id)!;
+    if (ride.status === 'trip_completed') {
+      ride.status = 'completed';
+      ride.updated_at = new Date().toISOString();
+      ridesStore.set(ride.id, ride);
+      broadcastEvent('RIDE_STATUS_CHANGED', { ride, status: 'completed' });
+      broadcastEvent('RIDE_UPDATED', ride);
+    }
+  }
+
+  // If captain was rated, update their average rating
+  if (captain_id && rater_role === 'passenger') {
+    const cpt = captainsStore.get(captain_id);
+    if (cpt) {
+      const numScore = Number(score) || 5;
+      const currentRating = cpt.rating || 4.9;
+      const totalRides = Math.max(1, cpt.total_rides || 1);
+      cpt.rating = Number((((currentRating * totalRides) + numScore) / (totalRides + 1)).toFixed(2));
+      captainsStore.set(cpt.id, cpt);
+      broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
+    }
+  }
+
+  res.json({ success: true, message: 'Rating recorded successfully' });
 });
 
 // Proxy Geocode Search with Fallback (Prevents HTML response parse errors from Nominatim)

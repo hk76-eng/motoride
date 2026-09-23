@@ -1613,6 +1613,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           setCompletedRideForRating(active);
           setShowCaptainRatingModal(true);
         }
+      } else {
+        if (activeRideRef.current) {
+          setActiveRide(null);
+          setCompletedRideForRating(null);
+          setShowCaptainRatingModal(false);
+        }
       }
     } catch {}
   };
@@ -1783,6 +1789,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     setIsSubmittingRating(true);
     try {
       markRideAsRated(rideToFinish.id);
+
+      // Finalize status to completed in database / state
+      try {
+        await motorideApi.updateRideStatus(rideToFinish.id, 'completed', {
+          final_fare: rideToFinish.final_fare || rideToFinish.offered_fare || 75,
+          final_distance_km: rideToFinish.distance_km,
+        });
+      } catch (err) {
+        console.warn('Status update notice:', err);
+      }
+
       if (!skipRating && rideToFinish.captain_id) {
         try {
           await motorideApi.submitRideRating({

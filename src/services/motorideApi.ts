@@ -670,6 +670,16 @@ export const motorideApi = {
     review?: string;
     tags?: string[];
   }): Promise<boolean> {
+    // If local ride is currently trip_completed, finalize to completed
+    const existing = localRidesStore.get(payload.ride_id);
+    if (existing && existing.status === 'trip_completed') {
+      const finalized = { ...existing, status: 'completed' as const, updated_at: new Date().toISOString() };
+      localRidesStore.set(payload.ride_id, finalized);
+      saveLocalRides();
+      realtimeSync.broadcast('RIDE_UPDATED', finalized);
+      realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: finalized, status: 'completed' });
+    }
+
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -685,6 +695,17 @@ export const motorideApi = {
         console.warn('Supabase rating save notice:', err);
       }
     }
+
+    safeFetchJson(
+      `${API_BASE}/ratings`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+      { success: true }
+    ).catch(() => {});
+
     return true;
   },
 

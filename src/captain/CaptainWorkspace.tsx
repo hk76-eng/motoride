@@ -228,6 +228,27 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     return () => clearInterval(timer);
   }, []);
 
+  const getCaptainRatedRideIds = (cid: string): string[] => {
+    try {
+      const userSpecific = JSON.parse(safeStorage.getItem(`motoride_captain_rated_rides_${cid}`) || '[]');
+      const globalRated = JSON.parse(safeStorage.getItem('motoride_captain_rated_rides') || '[]');
+      return Array.from(new Set([...userSpecific, ...globalRated]));
+    } catch {
+      return [];
+    }
+  };
+
+  const markCaptainRideAsRated = (cid: string, rideId: string) => {
+    try {
+      const ids = getCaptainRatedRideIds(cid);
+      if (!ids.includes(rideId)) {
+        ids.push(rideId);
+        safeStorage.setItem(`motoride_captain_rated_rides_${cid}`, JSON.stringify(ids));
+        safeStorage.setItem('motoride_captain_rated_rides', JSON.stringify(ids));
+      }
+    } catch {}
+  };
+
   // Captain Live GPS Geolocation Engine (navigator.geolocation.watchPosition)
   const handlePositionSuccess = (position: GeolocationPosition) => {
     const { latitude, longitude, accuracy, heading, speed } = position.coords;
@@ -427,14 +448,15 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     const unsubRideUpdated = realtimeSync.on('RIDE_UPDATED', (updatedRide: MotorideRide) => {
       if (updatedRide.captain_id === captainId) {
-        if (updatedRide.status === 'completed' || updatedRide.status.includes('cancelled')) {
+        const ratedIds = getCaptainRatedRideIds(captainId);
+        if (updatedRide.status === 'completed' || updatedRide.status.includes('cancelled') || ratedIds.includes(updatedRide.id)) {
           setActiveRide(null);
           setShowPassengerRatingModal(false);
           setCompletedRideForRating(null);
           loadCaptainData();
         } else {
           setActiveRide(updatedRide);
-          if (updatedRide.status === 'trip_completed') {
+          if (updatedRide.status === 'trip_completed' && !ratedIds.includes(updatedRide.id)) {
             setCompletedRideForRating(updatedRide);
             setShowPassengerRatingModal(true);
           }
@@ -693,20 +715,25 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     try {
       const list = await motorideApi.getRides({ captain_id: captainId });
       if (Array.isArray(list)) {
+        const ratedIds = getCaptainRatedRideIds(captainId);
         const current = list.find(
           (r) =>
             r &&
             (r.status === 'captain_accepted' ||
               r.status === 'captain_arrived' ||
               r.status === 'trip_started' ||
-              r.status === 'trip_completed')
+              (r.status === 'trip_completed' && !ratedIds.includes(r.id)))
         );
         if (current) {
           setActiveRide(current);
-          if (current.status === 'trip_completed' && !completedRideForRating) {
+          if (current.status === 'trip_completed' && !completedRideForRating && !ratedIds.includes(current.id)) {
             setCompletedRideForRating(current);
             setShowPassengerRatingModal(true);
           }
+        } else {
+          setActiveRide(null);
+          setCompletedRideForRating(null);
+          setShowPassengerRatingModal(false);
         }
       }
     } catch {}
@@ -942,6 +969,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     setIsFinishingRide(true);
     try {
+      markCaptainRideAsRated(captainId, rideToFinish.id);
       const finalFare = rideToFinish.final_fare || rideToFinish.estimated_fare;
       const finalDist = rideToFinish.distance_km;
 
