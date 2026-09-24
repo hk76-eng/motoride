@@ -1917,7 +1917,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         dropoffLng={currentDropoffLng}
         dropoffAddress={currentDropoffAddress}
         pickupDistanceText={undefined}
-        dropoffDistanceText={activeRide?.status === 'trip_started' ? undefined : (effectiveKm > 0 ? `${effectiveKm}km` : undefined)}
+        dropoffDistanceText={effectiveKm > 0 ? `${effectiveKm}km` : undefined}
         rideDistanceText={effectiveKm > 0 ? `${effectiveKm} km (~${effectiveDuration} min)` : undefined}
         totalDistanceKm={effectiveKm > 0 ? effectiveKm : null}
         rideType={effectiveRideType}

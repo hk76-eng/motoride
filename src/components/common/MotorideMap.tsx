@@ -271,9 +271,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   };
 
   const createDropoffIcon = (destinationName?: string, distanceText?: string) => {
-    // When "trip in progress" (trip_started) in passenger app, hide distance text
-    const shouldHideDist = !isCaptainMode && activeRideStatus === 'trip_started';
-    let formattedDist = (distanceText && !shouldHideDist) ? distanceText.trim() : '';
+    let formattedDist = distanceText ? distanceText.trim() : '';
     if (formattedDist && !formattedDist.toLowerCase().endsWith('m') && !formattedDist.toLowerCase().endsWith('km')) {
       formattedDist = `${formattedDist} km`;
     }
@@ -733,10 +731,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     // 3. Dropoff Marker (Location B - Destination)
-    // When "trip in progress" (trip_started) in passenger dashboard, hide marker B on map as requested
-    const shouldHideDropoffMarker = !isCaptainMode && activeRideStatus === 'trip_started';
-
-    if (!shouldHideDropoffMarker && hasDropoff && dropoffLat && dropoffLng) {
+    if (hasDropoff && dropoffLat && dropoffLng) {
       bounds.push([dropoffLat, dropoffLng]);
       const bIcon = createDropoffIcon(dropoffAddress || undefined, dropoffDistanceText);
 
