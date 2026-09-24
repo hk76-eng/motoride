@@ -1108,6 +1108,18 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       {activeRide ? (
         /* Active Trip Execution Card */
         <div className="bg-white border border-slate-200 rounded-3xl p-5 flex flex-col gap-4 shadow-xl">
+          {/* Top Pull Down / Drop Down Handle Bar (Line - style to drop up and down) */}
+          <div
+            onClick={() => setIs100Full((prev) => !prev)}
+            className="w-full -mt-2 -mb-1 py-1 flex items-center justify-center cursor-pointer group select-none"
+            title={is100Full ? "Drop down to 70% split map view" : "Drop up to 100% full view"}
+            role="button"
+            tabIndex={0}
+            aria-label="Toggle active trip screen height"
+          >
+            <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-black transition-colors" />
+          </div>
+
           <div className="flex items-center justify-between pb-3 border-b border-slate-200">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1772,8 +1784,20 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               is100Full ? 'h-full' : 'h-[70dvh] sm:h-[70%]'
             }`}
           >
-            {/* Header with 70% / 100% Toggle Switch */}
-            <div className="px-3.5 sm:px-5 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between select-none shrink-0 shadow-xs">
+            {/* Top Center Handle Bar (Line - style to drop up and down like passenger booking form) */}
+            <div
+              onClick={() => setIs100Full((prev) => !prev)}
+              className="w-full pt-2.5 pb-1 bg-slate-100 flex items-center justify-center cursor-pointer group select-none hover:bg-slate-200/60 transition-colors"
+              title={is100Full ? "Drop down to 70% split map view" : "Drop up to 100% full view"}
+              role="button"
+              tabIndex={0}
+              aria-label="Toggle active trip screen height"
+            >
+              <div className="w-12 h-1.5 rounded-full bg-slate-400 group-hover:bg-black transition-colors" />
+            </div>
+
+            {/* Header with Title and Drop Up/Down Toggle Button */}
+            <div className="px-3.5 sm:px-5 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between select-none shrink-0 shadow-xs">
               <div className="flex items-center gap-2 min-w-0 pr-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
@@ -1781,35 +1805,20 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 </span>
               </div>
 
-              {/* 70% & 100% Toggle Switch Control */}
-              <div className="flex items-center bg-slate-200/90 p-1 rounded-xl border border-slate-300 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIs100Full(false)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                    !is100Full
-                      ? 'bg-black text-white shadow-sm'
-                      : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/70'
-                  }`}
-                  title="70% Split Screen View (30% Map & 70% Trip Details)"
-                >
-                  <Minimize2 className="w-3.5 h-3.5" />
-                  <span>70%</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIs100Full(true)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
-                    is100Full
-                      ? 'bg-black text-white shadow-sm'
-                      : 'text-slate-700 hover:text-slate-950 hover:bg-slate-300/70'
-                  }`}
-                  title="100% Full Screen (Expand Trip Details)"
-                >
-                  <Maximize2 className="w-3.5 h-3.5" />
-                  <span>100%</span>
-                </button>
-              </div>
+              {/* Right Toggle Button: Same icon-style button as passenger header (ChevronDown / ChevronUp) */}
+              <button
+                type="button"
+                onClick={() => setIs100Full((prev) => !prev)}
+                className="p-1.5 sm:p-2 rounded-xl bg-white hover:bg-slate-200 text-slate-900 border border-slate-300 text-xs font-black transition-all active:scale-95 cursor-pointer shadow-xs flex items-center justify-center"
+                title={is100Full ? "Drop down to 70% split map view" : "Drop up to 100% full view"}
+                aria-label="Toggle drop up and down"
+              >
+                {is100Full ? (
+                  <ChevronDown className="w-4 h-4 text-slate-900 stroke-[2.5]" />
+                ) : (
+                  <ChevronUp className="w-4 h-4 text-slate-900 stroke-[2.5]" />
+                )}
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
