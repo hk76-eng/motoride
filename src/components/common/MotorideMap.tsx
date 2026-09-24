@@ -271,8 +271,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   };
 
   const createDropoffIcon = (destinationName?: string, distanceText?: string) => {
-    // Format clean distance badge e.g. "23.4 km"
-    let formattedDist = distanceText ? distanceText.trim() : '';
+    // When "trip in progress" (trip_started) in passenger app, hide distance text
+    const shouldHideDist = !isCaptainMode && activeRideStatus === 'trip_started';
+    let formattedDist = (distanceText && !shouldHideDist) ? distanceText.trim() : '';
     if (formattedDist && !formattedDist.toLowerCase().endsWith('m') && !formattedDist.toLowerCase().endsWith('km')) {
       formattedDist = `${formattedDist} km`;
     }
@@ -377,13 +378,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       pingColor = 'rgba(56, 189, 248, 0.45)';
       pingColorInner = 'rgba(56, 189, 248, 0.30)';
       glowShadow = '0 4px 22px rgba(56, 189, 248, 0.85)';
-      statusPillHtml = `
-        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 9999px; background: #020617; border: 2px solid #38bdf8; box-shadow: 0 8px 24px rgba(0,0,0,0.85); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
-          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 10px #38bdf8;"></span>
-          <span style="color: #38bdf8; font-weight: 900; letter-spacing: 0.2px;">⚡ On Trip to Dropoff (B)</span>
-          ${distText ? `<span style="background: #0284c7; color: #ffffff; font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 4px;">${distText}</span>` : ''}
-        </div>
-      `;
+      // When "trip in progress" (trip_started) in passenger dashboard, hide "on trip to dropoff B 17km" text
+      statusPillHtml = '';
     } else if (isTripDone) {
       borderColor = '#10b981';
       statusPillHtml = `
@@ -402,7 +398,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       `;
     }
 
-    const boxWidth = isArrivingPickup || isGoingDropoff ? 200 : 150;
+    const boxWidth = isArrivingPickup ? 200 : 150;
 
     return L.divIcon({
       className: isNearest ? 'nearest-captain-icon' : 'captain-car-icon',
@@ -737,7 +733,10 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     // 3. Dropoff Marker (Location B - Destination)
-    if (hasDropoff && dropoffLat && dropoffLng) {
+    // When "trip in progress" (trip_started) in passenger dashboard, hide marker B on map as requested
+    const shouldHideDropoffMarker = !isCaptainMode && activeRideStatus === 'trip_started';
+
+    if (!shouldHideDropoffMarker && hasDropoff && dropoffLat && dropoffLng) {
       bounds.push([dropoffLat, dropoffLng]);
       const bIcon = createDropoffIcon(dropoffAddress || undefined, dropoffDistanceText);
 
