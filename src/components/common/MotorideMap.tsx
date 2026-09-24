@@ -341,18 +341,14 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     const distText = distanceKm != null ? (distanceKm < 1 ? `${Math.round(distanceKm * 1000)}m` : `${distanceKm.toFixed(1)}km`) : '';
 
     let borderColor = isCaptainMode ? '#0f172a' : isNearest ? '#10b981' : isSelf ? '#0f172a' : '#38bdf8';
-    let pingColor = isNearest ? 'rgba(16, 185, 129, 0.35)' : 'rgba(15, 23, 42, 0.15)';
-    let pingColorInner = isNearest ? 'rgba(16, 185, 129, 0.45)' : 'rgba(15, 23, 42, 0.20)';
-    let glowShadow = isCaptainMode ? '0 4px 14px rgba(0, 0, 0, 0.4)' : isNearest ? '0 4px 18px rgba(16, 185, 129, 0.65)' : '0 4px 14px rgba(0, 0, 0, 0.4)';
+    let glowShadow = isCaptainMode ? '0 4px 14px rgba(0, 0, 0, 0.4)' : isNearest ? '0 4px 16px rgba(16, 185, 129, 0.5)' : '0 4px 14px rgba(0, 0, 0, 0.4)';
     let statusPillHtml = '';
 
     if (isCaptainMode) {
       statusPillHtml = '';
     } else if (isArrivingPickup) {
       borderColor = '#10b981';
-      pingColor = 'rgba(16, 185, 129, 0.45)';
-      pingColorInner = 'rgba(16, 185, 129, 0.30)';
-      glowShadow = '0 4px 22px rgba(16, 185, 129, 0.85)';
+      glowShadow = '0 4px 18px rgba(16, 185, 129, 0.6)';
       statusPillHtml = `
         <div style="display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 9999px; background: #020617; border: 2px solid #10b981; box-shadow: 0 8px 24px rgba(0,0,0,0.85); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
           <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981;"></span>
@@ -362,9 +358,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       `;
     } else if (isArrivedPickup) {
       borderColor = '#10b981';
-      pingColor = 'rgba(16, 185, 129, 0.5)';
-      pingColorInner = 'rgba(16, 185, 129, 0.35)';
-      glowShadow = '0 4px 22px rgba(16, 185, 129, 0.85)';
+      glowShadow = '0 4px 18px rgba(16, 185, 129, 0.6)';
       statusPillHtml = `
         <div style="display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 9999px; background: #020617; border: 2px solid #10b981; box-shadow: 0 8px 24px rgba(0,0,0,0.85); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
           <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981;"></span>
@@ -373,9 +367,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       `;
     } else if (isGoingDropoff) {
       borderColor = '#38bdf8';
-      pingColor = 'rgba(56, 189, 248, 0.45)';
-      pingColorInner = 'rgba(56, 189, 248, 0.30)';
-      glowShadow = '0 4px 22px rgba(56, 189, 248, 0.85)';
+      glowShadow = '0 4px 18px rgba(56, 189, 248, 0.6)';
       // When "trip in progress" (trip_started) in passenger dashboard, hide "on trip to dropoff B 17km" text
       statusPillHtml = '';
     } else if (isTripDone) {
@@ -402,12 +394,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       className: isNearest ? 'nearest-captain-icon' : 'captain-car-icon',
       html: `
         <div style="position: relative; width: ${boxWidth}px; height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; user-select: none; pointer-events: auto; cursor: pointer;">
-          ${!isCaptainMode ? `
-            <!-- Live Sonar / Radar Pulse Rings -->
-            <div style="position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: ${isGoingDropoff || isArrivingPickup ? '82px' : isNearest ? '76px' : '68px'}; height: ${isGoingDropoff || isArrivingPickup ? '82px' : isNearest ? '76px' : '68px'}; border-radius: 50%; background: ${pingColor}; animation: radar-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;"></div>
-            <div style="position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; border-radius: 50%; background: ${pingColorInner}; pointer-events: none;"></div>
-          ` : ''}
-
           <!-- Top Floating Pill Label -->
           <div style="position: absolute; top: 0px; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 20;">
             ${statusPillHtml}
