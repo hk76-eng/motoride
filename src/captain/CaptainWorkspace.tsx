@@ -1108,17 +1108,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       {activeRide ? (
         /* Active Trip Execution Card */
         <div className="bg-white border border-slate-200 rounded-3xl p-5 flex flex-col gap-4 shadow-xl">
-          {/* Top Pull Down / Drop Down Handle Bar (Line - style to drop up and down) */}
-          <div
-            onClick={() => setIs100Full((prev) => !prev)}
-            className="w-full -mt-2 -mb-1 py-1 flex items-center justify-center cursor-pointer group select-none"
-            title={is100Full ? "Drop down to 70% split map view" : "Drop up to 100% full view"}
-            role="button"
-            tabIndex={0}
-            aria-label="Toggle active trip screen height"
-          >
-            <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-black transition-colors" />
-          </div>
 
           <div className="flex items-center justify-between pb-3 border-b border-slate-200">
             <div>
@@ -1771,8 +1760,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         <div className="absolute inset-0 w-full h-full flex flex-col z-0">
           {/* Top Map: 30% height in 70% mode, hidden/0% in 100% details mode */}
           <div
-            className={`w-full transition-all duration-300 ease-in-out relative z-0 border-b-2 border-black shrink-0 ${
-              is100Full ? 'h-0 overflow-hidden border-b-0 opacity-0 pointer-events-none' : 'h-[30dvh] sm:h-[30%] opacity-100'
+            className={`w-full transition-all duration-300 ease-in-out relative z-0 shrink-0 ${
+              is100Full ? 'h-0 overflow-hidden opacity-0 pointer-events-none' : 'h-[30dvh] sm:h-[30%] opacity-100'
             }`}
           >
             {renderCaptainMap(true)}
@@ -1780,24 +1769,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
           {/* Bottom Active Ride Details: 70% in split mode, 100% in full mode */}
           <div
-            className={`w-full flex-1 bg-white border-t-2 border-black shadow-[0_-12px_45px_rgba(0,0,0,0.25)] flex flex-col overflow-hidden relative z-10 transition-all duration-300 ease-in-out ${
+            className={`w-full flex-1 bg-white shadow-[0_-12px_45px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden relative z-10 transition-all duration-300 ease-in-out ${
               is100Full ? 'h-full' : 'h-[70dvh] sm:h-[70%]'
             }`}
           >
             {/* Top Center Handle Bar (Line - style to drop up and down like passenger booking form) */}
             <div
               onClick={() => setIs100Full((prev) => !prev)}
-              className="w-full pt-2.5 pb-1 bg-slate-100 flex items-center justify-center cursor-pointer group select-none hover:bg-slate-200/60 transition-colors"
+              className="w-full pt-2.5 pb-1 bg-white flex items-center justify-center cursor-pointer group select-none hover:bg-slate-50 transition-colors"
               title={is100Full ? "Drop down to 70% split map view" : "Drop up to 100% full view"}
               role="button"
               tabIndex={0}
               aria-label="Toggle active trip screen height"
             >
-              <div className="w-12 h-1.5 rounded-full bg-slate-400 group-hover:bg-black transition-colors" />
+              <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-slate-500 transition-colors" />
             </div>
 
             {/* Header with Title and Drop Up/Down Toggle Button */}
-            <div className="px-3.5 sm:px-5 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between select-none shrink-0 shadow-xs">
+            <div className="px-3.5 sm:px-5 py-2 bg-white border-b border-slate-100 flex items-center justify-between select-none shrink-0 shadow-xs">
               <div className="flex items-center gap-2 min-w-0 pr-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                 <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
