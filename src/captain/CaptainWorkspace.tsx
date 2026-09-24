@@ -1145,7 +1145,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               const originParam = (captainGps.lat && captainGps.lng) ? `&origin=${captainGps.lat},${captainGps.lng}` : '';
               const gMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destParam}${originParam}&travelmode=driving&dir_action=navigate`;
 
-               const handleNavigateClick = (e: React.MouseEvent) => {
+              const handleNavigateClick = (e: React.MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
 
@@ -1158,19 +1158,56 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   });
                 }
 
-                try {
-                  const win = window.open(gMapsUrl, '_blank', 'noopener,noreferrer');
-                  if (!win || win.closed || typeof win.closed === 'undefined') {
-                    const tempLink = document.createElement('a');
-                    tempLink.href = gMapsUrl;
-                    tempLink.target = '_blank';
-                    tempLink.rel = 'noopener noreferrer';
-                    document.body.appendChild(tempLink);
-                    tempLink.click();
-                    document.body.removeChild(tempLink);
+                const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+                const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+                const isAndroidApk = typeof window !== 'undefined' && (window.location.protocol === 'file:' || !window.location.hostname);
+
+                if (isAndroid) {
+                  // Direct Intent Link: forces immediate opening of com.google.android.apps.maps
+                  // bypasses Chrome/browser and app chooser completely. Start navigation immediately!
+                  const intentUrl = `intent://www.google.com/maps/dir/?api=1&destination=${destParam}${originParam}&travelmode=driving&dir_action=navigate#Intent;scheme=https;package=com.google.android.apps.maps;end`;
+                  try {
+                    window.location.href = intentUrl;
+                  } catch {
+                    window.location.href = gMapsUrl;
                   }
-                } catch {
-                  window.location.href = gMapsUrl;
+                } else if (isIOS) {
+                  // iOS Direct Scheme for native Google Maps turn-by-turn directions
+                  const iosUrl = `comgooglemaps://?daddr=${destParam}&directionsmode=driving&views=traffic`;
+                  const iframe = document.createElement('iframe');
+                  iframe.style.display = 'none';
+                  iframe.src = iosUrl;
+                  document.body.appendChild(iframe);
+                  
+                  setTimeout(() => {
+                    document.body.removeChild(iframe);
+                    // Fallback to web link if maps scheme didn't launch
+                    if (isAndroidApk) {
+                      window.location.href = gMapsUrl;
+                    } else {
+                      window.open(gMapsUrl, '_blank', 'noopener,noreferrer');
+                    }
+                  }, 1500);
+                } else {
+                  // Desktop Web / General Fallback
+                  if (isAndroidApk) {
+                    window.location.href = gMapsUrl;
+                  } else {
+                    try {
+                      const win = window.open(gMapsUrl, '_blank', 'noopener,noreferrer');
+                      if (!win || win.closed || typeof win.closed === 'undefined') {
+                        const tempLink = document.createElement('a');
+                        tempLink.href = gMapsUrl;
+                        tempLink.target = '_blank';
+                        tempLink.rel = 'noopener noreferrer';
+                        document.body.appendChild(tempLink);
+                        tempLink.click();
+                        document.body.removeChild(tempLink);
+                      }
+                    } catch {
+                      window.location.href = gMapsUrl;
+                    }
+                  }
                 }
               };
 
