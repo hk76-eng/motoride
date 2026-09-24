@@ -1200,9 +1200,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    startWatchingLocation();
+    const timer = setTimeout(() => {
+      startWatchingLocation();
+    }, 1200);
 
     return () => {
+      clearTimeout(timer);
       if (watchIdRef.current !== null && 'geolocation' in navigator) {
         navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;

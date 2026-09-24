@@ -371,8 +371,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    startWatchingLocation();
+    const timer = setTimeout(() => {
+      startWatchingLocation();
+    }, 1200);
     return () => {
+      clearTimeout(timer);
       if (watchIdRef.current !== null && 'geolocation' in navigator) {
         try {
           navigator.geolocation.clearWatch(watchIdRef.current);
