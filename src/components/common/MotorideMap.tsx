@@ -869,58 +869,12 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       }
     }
 
-    // 4c. Active Ride Real-Time Guidance Line:
-    // (Only rendered in passenger app. In captain mode, disabled so only the clean destination marker shows without animation or polylines)
-    if (!isCaptainMode && activeRideStatus === 'captain_accepted' && captainLat && captainLng && pickupLat && pickupLng) {
-      const activeGuideCoords: [number, number][] = [
-        [captainLat, captainLng],
-        [pickupLat, pickupLng],
-      ];
-      if (!captainToTargetLineRef.current || !map.hasLayer(captainToTargetLineRef.current)) {
-        if (captainToTargetLineRef.current) {
-          try {
-            map.removeLayer(captainToTargetLineRef.current);
-          } catch {}
-        }
-        captainToTargetLineRef.current = L.polyline(activeGuideCoords, {
-          color: '#10b981',
-          weight: 4.5,
-          opacity: 0.95,
-          dashArray: '10, 8',
-          className: 'stretch-polyline-dash',
-          lineCap: 'round',
-          lineJoin: 'round',
-        }).addTo(map);
-      } else {
-        captainToTargetLineRef.current.setLatLngs(activeGuideCoords);
-        captainToTargetLineRef.current.setStyle({ color: '#10b981' });
-      }
-    } else if (!isCaptainMode && (activeRideStatus === 'captain_arrived' || activeRideStatus === 'trip_started') && captainLat && captainLng && dropoffLat && dropoffLng) {
-      const activeGuideCoords: [number, number][] = [
-        [captainLat, captainLng],
-        [dropoffLat, dropoffLng],
-      ];
-      if (!captainToTargetLineRef.current || !map.hasLayer(captainToTargetLineRef.current)) {
-        if (captainToTargetLineRef.current) {
-          try {
-            map.removeLayer(captainToTargetLineRef.current);
-          } catch {}
-        }
-        captainToTargetLineRef.current = L.polyline(activeGuideCoords, {
-          color: '#0284c7',
-          weight: 4.5,
-          opacity: 0.95,
-          dashArray: '10, 8',
-          className: 'stretch-polyline-dash',
-          lineCap: 'round',
-          lineJoin: 'round',
-        }).addTo(map);
-      } else {
-        captainToTargetLineRef.current.setLatLngs(activeGuideCoords);
-        captainToTargetLineRef.current.setStyle({ color: '#0284c7' });
-      }
-    } else if (captainToTargetLineRef.current) {
-      map.removeLayer(captainToTargetLineRef.current);
+    // 4c. Active Ride Guidance Line:
+    // (Removed previous animated/dashed polyline style in passenger app to show only simple dark blue route between mark A and B)
+    if (captainToTargetLineRef.current) {
+      try {
+        map.removeLayer(captainToTargetLineRef.current);
+      } catch {}
       captainToTargetLineRef.current = null;
     }
 
@@ -1005,7 +959,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       nearbyCaptainMarkersRef.current.clear();
     }
 
-    // 5. Polyline Route (Connecting from pickup Location A to drop-off Location B)
+    // 5. Simple Dark Blue Polyline Route (Connecting from pickup Location A to drop-off Location B)
     if (hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
       const latlngs: [number, number][] = [
         [pickupLat, pickupLng],
@@ -1020,7 +974,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         polylineGlowRef.current = null;
       }
 
-      // Draw immediate simple blue color polyline between Location A and B
+      // Draw simple dark blue polyline between Location A and B
+      const routePolylineColor = '#002060'; // Simple Dark Blue
+
       if (!polylineRef.current || !map.hasLayer(polylineRef.current)) {
         if (polylineRef.current) {
           try {
@@ -1028,18 +984,18 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           } catch {}
         }
         polylineRef.current = L.polyline(latlngs, {
-          color: '#00059F', // Requested deep indigo blue
-          weight: 4.5,
-          opacity: 0.9,
+          color: routePolylineColor,
+          weight: 5,
+          opacity: 0.95,
           lineCap: 'round',
           lineJoin: 'round',
         }).addTo(map);
       } else {
         polylineRef.current.setLatLngs(latlngs);
         polylineRef.current.setStyle({
-          color: '#00059F', // Requested deep indigo blue
-          weight: 4.5,
-          opacity: 0.9,
+          color: routePolylineColor,
+          weight: 5,
+          opacity: 0.95,
           dashArray: undefined,
           className: '',
         });
