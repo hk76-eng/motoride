@@ -17,7 +17,9 @@ import { supabaseAuth } from '../lib/supabaseAuth';
 import { realtimeSync } from './realtimeSync';
 import { saveApkBlobToIndexedDb, getApkBlobFromIndexedDb, deleteApkBlobFromIndexedDb } from '../lib/apkStorage';
 
-const API_BASE = '/api/motoride';
+import { getApiUrl } from '../utils/apiUrl';
+
+const API_BASE = getApiUrl('/api/motoride');
 
 // Local and cross-browser memory store for resilient instant sync
 const localRidesStore: Map<string, MotorideRide> = new Map();

@@ -56,6 +56,7 @@ import {
 
 import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
+import { getApiUrl } from '../utils/apiUrl';
 
 interface PassengerWorkspaceProps {
   currentPassengerId?: string;
@@ -617,7 +618,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       setIsSearchingPickup(true);
       try {
         const q = pickupInputText.trim();
-        const res = await fetch(`/api/motoride/geocode/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(getApiUrl(`/api/motoride/geocode/search?q=${encodeURIComponent(q)}`));
         if (res.ok) {
           const text = await res.text();
           if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
@@ -663,7 +664,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       setIsSearchingDropoff(true);
       try {
         const q = dropoffInputText.trim();
-        const res = await fetch(`/api/motoride/geocode/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(getApiUrl(`/api/motoride/geocode/search?q=${encodeURIComponent(q)}`));
         if (res.ok) {
           const text = await res.text();
           if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
@@ -827,7 +828,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   // Fetch latest fare settings from server and subscribe to real-time updates
   useEffect(() => {
-    fetch('/api/motoride/fare-settings')
+    fetch(getApiUrl('/api/motoride/fare-settings'))
       .then((res) => res.json())
       .then((data) => {
         if (data?.settings) {

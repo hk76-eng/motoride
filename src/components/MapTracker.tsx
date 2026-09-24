@@ -19,6 +19,7 @@ import {
   MousePointer
 } from 'lucide-react';
 import { GPSPoint, RideLocationHistoryItem, GPSSignalStatus } from '../types';
+import { getApiUrl } from '../utils/apiUrl';
 
 interface MapTrackerProps {
   currentLocation: GPSPoint | null;
@@ -94,7 +95,7 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
     const timer = setTimeout(async () => {
       setIsReverseGeocoding(true);
       try {
-        const res = await fetch(`/api/motoride/geocode/reverse?lat=${lat}&lng=${lng}`);
+        const res = await fetch(getApiUrl(`/api/motoride/geocode/reverse?lat=${lat}&lng=${lng}`));
         if (res.ok) {
           const text = await res.text();
           if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
@@ -119,7 +120,7 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
     if (!searchQuery.trim()) return;
     setIsSearching(true);
     try {
-      const res = await fetch(`/api/motoride/geocode/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      const res = await fetch(getApiUrl(`/api/motoride/geocode/search?q=${encodeURIComponent(searchQuery.trim())}`));
       if (res.ok) {
         const text = await res.text();
         if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {

@@ -1,5 +1,6 @@
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 import { MotorideRide } from '../types/motoride';
+import { getApiUrl } from '../utils/apiUrl';
 
 type EventCallback = (payload: any) => void;
 
@@ -155,7 +156,7 @@ class RealtimeSyncManager {
     }
 
     try {
-      this.sseSource = new EventSource('/api/motoride/realtime/stream');
+      this.sseSource = new EventSource(getApiUrl('/api/motoride/realtime/stream'));
 
       this.sseSource.onopen = () => {
         this.isConnected = true;

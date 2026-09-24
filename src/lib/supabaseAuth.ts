@@ -1,6 +1,7 @@
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { safeStorage } from './safeStorage';
 import { UserRole } from '../types/motoride';
+import { getApiUrl } from '../utils/apiUrl';
 
 export interface AuthUser {
   id: string;
@@ -363,7 +364,7 @@ export const supabaseAuth = {
 
       // Asynchronously ensure backend server receives and stores this account
       try {
-        fetch('/api/motoride/auth/register', {
+        fetch(getApiUrl('/api/motoride/auth/register'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           keepalive: true, // Ensures request is completed even if page transition or redirect occurs immediately
@@ -515,7 +516,7 @@ export const supabaseAuth = {
 
     // 1. Primary: Authenticate with Backend Database API
     try {
-      const serverResp = await fetch('/api/motoride/auth/login', {
+      const serverResp = await fetch(getApiUrl('/api/motoride/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -663,7 +664,7 @@ export const supabaseAuth = {
 
     // 1. Register on backend server
     try {
-      const serverResp = await fetch('/api/motoride/auth/register', {
+      const serverResp = await fetch(getApiUrl('/api/motoride/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         keepalive: true,
