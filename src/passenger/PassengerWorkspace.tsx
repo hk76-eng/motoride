@@ -1224,20 +1224,26 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const handleRideUpdate = (ride: MotorideRide) => {
       if (!ride || !ride.id) return;
       const currentActive = activeRideRef.current;
+      const storedActiveId = safeStorage.getItem('motoride_active_passenger_ride_id');
       const isPassengerMatch =
         Boolean(ride.passenger_id && (
           ride.passenger_id === currentPassengerId ||
           (currentUser?.id && ride.passenger_id === currentUser.id) ||
           (authUser?.id && ride.passenger_id === authUser.id)
         ));
-      const isRideMatch = Boolean(currentActive && currentActive.id === ride.id);
+      const isRideMatch = Boolean(
+        (currentActive && currentActive.id === ride.id) ||
+        (storedActiveId && storedActiveId === ride.id)
+      );
 
       if (isPassengerMatch || isRideMatch) {
         if (ride.status.includes('cancelled')) {
+          safeStorage.removeItem('motoride_active_passenger_ride_id');
           setActiveRide(null);
           setShowCaptainRatingModal(false);
           setCompletedRideForRating(null);
         } else if (ride.status === 'trip_completed' || ride.status === 'completed') {
+          safeStorage.removeItem('motoride_active_passenger_ride_id');
           const ratedIds = getRatedRideIds();
           if (!ride.passenger_rated && !ratedIds.includes(ride.id)) {
             setActiveRide(ride);
@@ -1249,11 +1255,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             setCompletedRideForRating(null);
           }
         } else {
+          safeStorage.setItem('motoride_active_passenger_ride_id', ride.id);
           setActiveRide((prev) => {
             if (!prev || prev.id !== ride.id) return ride;
             return {
               ...prev,
               ...ride,
+              status: ride.status,
               captain_name: ride.captain_name || prev.captain_name,
               captain_phone: ride.captain_phone || prev.captain_phone,
               vehicle_model: ride.vehicle_model || prev.vehicle_model,
@@ -1274,7 +1282,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const unsubAccepted = realtimeSync.on('RIDE_ACCEPTED', handleRideUpdate);
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'motoride_rides_store' || e.key?.startsWith('motoride_rated_rides')) {
+      if (
+        e.key === 'motoride_rides_store' ||
+        e.key === 'motoride_active_rides_cache' ||
+        e.key === 'motoride_realtime_ping' ||
+        e.key?.startsWith('motoride_rated_rides')
+      ) {
         loadActiveRide();
       }
     };
@@ -1395,12 +1408,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     };
 
     poll();
-    const interval = setInterval(poll, 1200);
+    const interval = setInterval(poll, 1500);
     return () => {
       isCancelled = true;
       clearInterval(interval);
     };
-  }, [activeRide?.id, activeRide?.status]);
+  }, [activeRide?.id]);
 
   // Animated Captain Progression for Active Ride on Passenger Map:
   // When 'captain_accepted': smoothly animate captain arriving to Pickup Location A
@@ -1685,6 +1698,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         notes: rideComment.trim() || undefined,
       });
       setActiveRide(newRide);
+      safeStorage.setItem('motoride_active_passenger_ride_id', newRide.id);
       loadRideHistory();
 
       // Immediately link current live GPS coordinates to the new ride in Supabase
@@ -1762,6 +1776,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const rideIdToCancel = activeRide.id;
     const isAlreadyCompleted = activeRide.status === 'trip_completed' || activeRide.status === 'completed';
     try {
+      safeStorage.removeItem('motoride_active_passenger_ride_id');
       markRideAsRated(rideIdToCancel);
       setActiveRide(null);
       setCompletedRideForRating(null);

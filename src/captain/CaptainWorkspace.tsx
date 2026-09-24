@@ -1011,60 +1011,82 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     }
   };
 
-  // Advance Trip Status
+  // Advance Trip Status with immediate optimistic local update & resilient sync
   const handleStatusChange = async (nextStatus: any) => {
     if (!activeRide) return;
+
+    // 1. Instant optimistic state update - 0ms UI delay!
+    const nowIso = new Date().toISOString();
+    const optimisticRide: MotorideRide = {
+      ...activeRide,
+      status: nextStatus,
+      updated_at: nowIso,
+      ...(nextStatus === 'trip_started' ? { trip_started_at: nowIso } : {}),
+      ...(nextStatus === 'trip_completed' ? {
+        trip_completed_at: nowIso,
+        payment_status: 'paid',
+        final_fare: activeRide.final_fare || activeRide.offered_fare,
+      } : {}),
+    };
+
+    setActiveRide(optimisticRide);
+
+    if (nextStatus === 'captain_arrived') {
+      setCaptainGps((prev) => ({
+        ...prev,
+        lat: activeRide.pickup_lat,
+        lng: activeRide.pickup_lng,
+        timestamp: Date.now(),
+      }));
+      motorideApi.updateCaptainLiveLocation({
+        captain_id: captainId,
+        ride_id: activeRide.id,
+        latitude: activeRide.pickup_lat,
+        longitude: activeRide.pickup_lng,
+        heading: calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng),
+        speed: 0,
+      }).catch(() => {});
+    } else if (nextStatus === 'trip_started') {
+      const bearing = calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng);
+      setCaptainGps((prev) => ({
+        ...prev,
+        lat: activeRide.pickup_lat,
+        lng: activeRide.pickup_lng,
+        heading: bearing,
+        speed: 28,
+        timestamp: Date.now(),
+      }));
+      motorideApi.updateCaptainLiveLocation({
+        captain_id: captainId,
+        ride_id: activeRide.id,
+        latitude: activeRide.pickup_lat,
+        longitude: activeRide.pickup_lng,
+        heading: bearing,
+        speed: 28,
+      }).catch(() => {});
+    }
+
+    if (nextStatus === 'trip_completed') {
+      setCompletedRideForRating(optimisticRide);
+      setShowPassengerRatingModal(true);
+    }
+
     try {
       const updated = await motorideApi.updateRideStatus(activeRide.id, nextStatus, {
         final_distance_km: activeRide.distance_km,
         final_fare: activeRide.final_fare || activeRide.offered_fare,
+        ride: optimisticRide,
       });
 
-      if (nextStatus === 'captain_arrived') {
-        setCaptainGps((prev) => ({
-          ...prev,
-          lat: activeRide.pickup_lat,
-          lng: activeRide.pickup_lng,
-          timestamp: Date.now(),
-        }));
-        motorideApi.updateCaptainLiveLocation({
-          captain_id: captainId,
-          ride_id: activeRide.id,
-          latitude: activeRide.pickup_lat,
-          longitude: activeRide.pickup_lng,
-          heading: calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng),
-          speed: 0,
-        });
-      } else if (nextStatus === 'trip_started') {
-        const bearing = calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng);
-        setCaptainGps((prev) => ({
-          ...prev,
-          lat: activeRide.pickup_lat,
-          lng: activeRide.pickup_lng,
-          heading: bearing,
-          speed: 28,
-          timestamp: Date.now(),
-        }));
-        motorideApi.updateCaptainLiveLocation({
-          captain_id: captainId,
-          ride_id: activeRide.id,
-          latitude: activeRide.pickup_lat,
-          longitude: activeRide.pickup_lng,
-          heading: bearing,
-          speed: 28,
-        });
-      }
-
-      if (nextStatus === 'trip_completed') {
-        const completedRide = updated || { ...activeRide, status: 'trip_completed' };
-        setActiveRide(completedRide);
-        setCompletedRideForRating(completedRide);
-        setShowPassengerRatingModal(true);
-      } else {
+      if (updated) {
         setActiveRide(updated);
+        if (nextStatus === 'trip_completed') {
+          setCompletedRideForRating(updated);
+        }
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to update status');
+      console.warn('Status update warning:', err);
+      // Retain optimistic status so user is not blocked by transient network hiccups
     }
   };
 
@@ -1328,6 +1350,49 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 </button>
               );
             })()}
+          </div>
+
+          {/* Synchronized Trip Progress Tabs (Coordinated with Passenger View: 1. En Route, 2. Arrived, 3. Riding) */}
+          <div className="grid grid-cols-3 gap-2 text-center text-xs select-none">
+            <div
+              className={`p-2 rounded-xl border transition-all ${
+                activeRide.status === 'captain_accepted'
+                  ? 'bg-black text-white border-black font-black shadow-xs ring-1 ring-black'
+                  : 'bg-slate-100 border-slate-300 text-slate-500 font-semibold'
+              }`}
+            >
+              1. En Route
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (activeRide.status === 'captain_accepted') handleStatusChange('captain_arrived');
+              }}
+              style={activeRide.status === 'captain_arrived' ? { backgroundColor: '#174309', borderColor: '#174309' } : undefined}
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                activeRide.status === 'captain_arrived'
+                  ? 'text-white font-black shadow-xs ring-1 ring-emerald-600'
+                  : 'bg-slate-100 border-slate-300 text-slate-600 font-semibold hover:bg-slate-200'
+              }`}
+              title="Step 2: Arrived at Pickup"
+            >
+              2. Arrived
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (activeRide.status === 'captain_arrived') handleStatusChange('trip_started');
+              }}
+              style={activeRide.status === 'trip_started' ? { backgroundColor: '#DAA520', borderColor: '#DAA520', color: '#020617' } : undefined}
+              className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                activeRide.status === 'trip_started'
+                  ? 'text-slate-950 font-black shadow-xs ring-1 ring-amber-500'
+                  : 'bg-slate-100 border-slate-300 text-slate-600 font-semibold hover:bg-slate-200'
+              }`}
+              title="Step 3: Riding to Destination"
+            >
+              3. Riding
+            </button>
           </div>
 
           {/* Passenger Ride Details Box: A + Call Icon, B + Message Icon, Agreed Fare */}
