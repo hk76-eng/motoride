@@ -27,7 +27,7 @@ const localMessagesStore: Map<string, any[]> = new Map();
 
 // Initialize from safeStorage if available
 try {
-  const saved = safeStorage.getItem('motoride_active_rides_cache');
+  const saved = safeStorage.getItem('motoride_active_rides_cache') || safeStorage.getItem('motoride_rides_store');
   if (saved) {
     const parsed = JSON.parse(saved);
     if (Array.isArray(parsed)) {
@@ -42,10 +42,30 @@ try {
 
 const saveLocalRides = () => {
   try {
-    const arr = Array.from(localRidesStore.values()).slice(0, 30);
-    safeStorage.setItem('motoride_active_rides_cache', JSON.stringify(arr));
+    const arr = Array.from(localRidesStore.values()).slice(0, 50);
+    const json = JSON.stringify(arr);
+    safeStorage.setItem('motoride_active_rides_cache', json);
+    safeStorage.setItem('motoride_rides_store', json);
   } catch {}
 };
+
+// Listen to storage event across all tabs in this browser
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if ((e.key === 'motoride_active_rides_cache' || e.key === 'motoride_rides_store') && e.newValue) {
+      try {
+        const parsed = JSON.parse(e.newValue);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((r: MotorideRide) => {
+            if (r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100') {
+              localRidesStore.set(r.id, r);
+            }
+          });
+        }
+      } catch {}
+    }
+  });
+}
 
 realtimeSync.on('RIDE_MESSAGE_RECEIVED', (msg: any) => {
   if (msg && msg.ride_id) {
@@ -345,14 +365,29 @@ export const motorideApi = {
       updated_at: new Date().toISOString(),
     } as MotorideRide;
 
-    // 1. Store locally in memory and persistent storage
+    // 1. Store locally in memory and persistent storage immediately
     localRidesStore.set(payload.id, payload);
     saveLocalRides();
 
-    // 2. Broadcast immediately over Supabase Realtime to ALL connected captains & browsers
+    // 2. Broadcast immediately over Supabase Realtime & BroadcastChannel to ALL connected captains & browsers
     realtimeSync.broadcast('RIDE_CREATED', payload);
 
-    // 3. Post to Supabase database if tables exist
+    // 3. Post to backend and await so backend in-memory and disk store have it before any subsequent poll
+    try {
+      await safeFetchJson<{ ride?: MotorideRide }>(
+        `${API_BASE}/rides`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+        { ride: payload }
+      );
+    } catch (err) {
+      console.warn('Backend ride create warning:', err);
+    }
+
+    // 4. Post to Supabase database if tables exist
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -361,17 +396,6 @@ export const motorideApi = {
         console.warn('Supabase insert ride notice:', err);
       }
     }
-
-    // 4. Also post to backend if running
-    safeFetchJson<{ ride?: MotorideRide }>(
-      `${API_BASE}/rides`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      },
-      { ride: payload }
-    ).catch(() => {});
 
     return payload;
   },

@@ -273,6 +273,12 @@ export const walletsStore = new Map<string, { balance: number; currency: string 
 
 export const walletTransactionsStore: WalletTransaction[] = [];
 
+// 6. Motoride Rides Store
+export const ridesStore = new Map<string, MotorideRide>();
+
+// 7. Notifications Store
+export const notificationsStore: MotorideNotification[] = [];
+
 // Persistent Disk Storage helpers for server container reliability
 const DB_FILE = path.join(DATA_DIR, 'motoride_db.json');
 
@@ -286,6 +292,7 @@ export function persistDbToDisk() {
       captains: Array.from(captainsStore.entries()),
       passengers: Array.from(passengersStore.entries()),
       wallets: Array.from(walletsStore.entries()),
+      rides: Array.from(ridesStore.entries()),
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
@@ -387,6 +394,11 @@ export function loadDbFromDisk() {
           if (k && v) walletsStore.set(k, v);
         }
       }
+      if (Array.isArray(data.rides)) {
+        for (const [k, v] of data.rides) {
+          if (v && v.id) ridesStore.set(k, v);
+        }
+      }
     }
   } catch (err) {
     console.warn('Failed to load DB from disk:', err);
@@ -413,12 +425,6 @@ export function updateAccountPassword(email: string, newPasswordHash: string): b
 
 // Automatically load existing persisted records on module startup
 loadDbFromDisk();
-
-// 6. Motoride Rides Store (Starts empty for fresh rides)
-export const ridesStore = new Map<string, MotorideRide>();
-
-// 7. Notifications Store
-export const notificationsStore: MotorideNotification[] = [];
 
 // Helper: Calculate Today's Income for a captain dynamically from completed rides
 // The user prompt mandates:

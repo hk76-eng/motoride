@@ -244,6 +244,7 @@ motorideRouter.post('/rides', (req: Request, res: Response) => {
     };
 
     ridesStore.set(rideId, newRide);
+    persistDbToDisk();
 
     // Broadcast in real time to all captains and listeners
     broadcastEvent('RIDE_CREATED', newRide);
@@ -377,6 +378,7 @@ motorideRouter.post('/rides/:id/accept', (req: Request, res: Response) => {
 
   enrichRideWithRegisteredCaptainData(ride);
   ridesStore.set(ride.id, ride);
+  persistDbToDisk();
 
   // Broadcast to all connected devices immediately
   broadcastEvent('RIDE_ACCEPTED', ride);
@@ -500,6 +502,7 @@ motorideRouter.post('/rides/:id/offer', (req: Request, res: Response) => {
 
   enrichRideWithRegisteredCaptainData(ride);
   ridesStore.set(ride.id, ride);
+  persistDbToDisk();
 
   broadcastEvent('RIDE_OFFER_RECEIVED', { ride, offer });
   broadcastEvent('RIDE_UPDATED', ride);
@@ -544,6 +547,7 @@ motorideRouter.post('/rides/:id/accept-offer', (req: Request, res: Response) => 
 
   enrichRideWithRegisteredCaptainData(ride);
   ridesStore.set(ride.id, ride);
+  persistDbToDisk();
 
   broadcastEvent('RIDE_ACCEPTED', ride);
   broadcastEvent('RIDE_UPDATED', ride);
@@ -676,6 +680,7 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
   }
 
   ridesStore.set(ride.id, ride);
+  persistDbToDisk();
 
   broadcastEvent('RIDE_STATUS_CHANGED', { ride, status });
   broadcastEvent('RIDE_UPDATED', ride);

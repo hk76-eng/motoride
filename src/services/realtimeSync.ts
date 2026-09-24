@@ -10,6 +10,7 @@ class RealtimeSyncManager {
   private isConnected: boolean = false;
   private reconnectTimeout: any = null;
   private supabaseChannel: any = null;
+  private localBroadcastChannel: BroadcastChannel | null = null;
 
   constructor() {
     this.init();
@@ -120,8 +121,8 @@ class RealtimeSyncManager {
     // 3. Initialize Local BroadcastChannel for instant same-browser multi-tab synchronization
     if (typeof window !== 'undefined' && window.BroadcastChannel) {
       try {
-        const localChannel = new BroadcastChannel('motoride-local-realtime');
-        localChannel.onmessage = (event) => {
+        this.localBroadcastChannel = new BroadcastChannel('motoride-local-realtime');
+        this.localBroadcastChannel.onmessage = (event) => {
           const { type, payload } = event.data || {};
           if (type && payload) {
             this.emit(type, payload, false); // Don't broadcast it back to local channel
@@ -130,6 +131,20 @@ class RealtimeSyncManager {
       } catch (err) {
         console.warn('Local BroadcastChannel setup warning:', err);
       }
+    }
+
+    // 4. Also listen to window storage event for instant multi-tab fallback across all tabs
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (event) => {
+        if (event.key === 'motoride_realtime_ping' && event.newValue) {
+          try {
+            const data = JSON.parse(event.newValue);
+            if (data?.type && data?.payload) {
+              this.emit(data.type, data.payload, false);
+            }
+          } catch {}
+        }
+      });
     }
 
     // Reconnect on tab focus / wake up from background on mobile
@@ -212,11 +227,17 @@ class RealtimeSyncManager {
       });
     }
 
-    if (broadcastLocally && typeof window !== 'undefined' && window.BroadcastChannel && event !== 'CONNECTION_STATUS' && event !== 'PING') {
+    if (broadcastLocally && typeof window !== 'undefined' && event !== 'CONNECTION_STATUS' && event !== 'PING') {
+      if (this.localBroadcastChannel) {
+        try {
+          this.localBroadcastChannel.postMessage({ type: event, payload });
+        } catch {}
+      }
       try {
-        const bc = new BroadcastChannel('motoride-local-realtime');
-        bc.postMessage({ type: event, payload });
-        bc.close();
+        localStorage.setItem(
+          'motoride_realtime_ping',
+          JSON.stringify({ type: event, payload, ts: Date.now() })
+        );
       } catch {}
     }
   }

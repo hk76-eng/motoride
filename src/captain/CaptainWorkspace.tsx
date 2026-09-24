@@ -437,8 +437,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (!newRide || !newRide.id || newRide.id.includes('demo') || newRide.passenger_id === 'usr_demo_100') {
         return;
       }
+      if (newRide.status !== 'requested' && newRide.status !== 'captain_offered') {
+        return;
+      }
       setAvailableRides((prev) => {
-        if (prev.some((r) => r.id === newRide.id)) return prev;
+        const exists = prev.some((r) => r.id === newRide.id);
+        if (exists) {
+          return prev.map((r) => (r.id === newRide.id ? { ...r, ...newRide } : r));
+        }
         return [newRide, ...prev.filter((r) => !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100')];
       });
       // Vibrate mobile device when new ride arrives
@@ -450,6 +456,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     });
 
     const unsubRideUpdated = realtimeSync.on('RIDE_UPDATED', (updatedRide: MotorideRide) => {
+      if (!updatedRide || !updatedRide.id) return;
       if (updatedRide.captain_id === captainId) {
         const ratedIds = getCaptainRatedRideIds(captainId);
         if (updatedRide.status.includes('cancelled') || updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
@@ -473,8 +480,52 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         if (updatedRide.status !== 'requested' && updatedRide.status !== 'captain_offered') {
           return prev.filter((r) => r.id !== updatedRide.id);
         }
-        return prev.map((r) => (r.id === updatedRide.id ? updatedRide : r));
+        const exists = prev.some((r) => r.id === updatedRide.id);
+        if (exists) {
+          return prev.map((r) => (r.id === updatedRide.id ? { ...r, ...updatedRide } : r));
+        }
+        return [updatedRide, ...prev];
       });
+    });
+
+    const unsubRideAccepted = realtimeSync.on('RIDE_ACCEPTED', (acceptedRide: MotorideRide) => {
+      if (!acceptedRide || !acceptedRide.id) return;
+      if (acceptedRide.captain_id === captainId) {
+        setActiveRide(acceptedRide);
+      }
+      setAvailableRides((prev) => prev.filter((r) => r.id !== acceptedRide.id));
+    });
+
+    const unsubRideOffer = realtimeSync.on('RIDE_OFFER_RECEIVED', (payload: any) => {
+      const ride = payload?.ride;
+      if (ride && ride.id) {
+        setAvailableRides((prev) => prev.map((r) => (r.id === ride.id ? { ...r, ...ride } : r)));
+      }
+    });
+
+    const unsubRideDeleted = realtimeSync.on('RIDE_DELETED', (payload: any) => {
+      const id = payload?.id || payload?.ride_id;
+      if (id) {
+        setAvailableRides((prev) => prev.filter((r) => r.id !== id));
+      }
+    });
+
+    const unsubActiveSync = realtimeSync.on('ACTIVE_RIDES_SYNC_RECEIVED', (rides: MotorideRide[]) => {
+      if (Array.isArray(rides) && rides.length > 0) {
+        const valid = rides.filter(
+          (r) => r && (r.status === 'requested' || r.status === 'captain_offered') && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100'
+        );
+        if (valid.length > 0) {
+          setAvailableRides((prev) => {
+            const map = new Map<string, MotorideRide>();
+            prev.forEach((r) => map.set(r.id, r));
+            valid.forEach((r) => map.set(r.id, { ...(map.get(r.id) || {}), ...r }));
+            return Array.from(map.values()).sort(
+              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+          });
+        }
+      }
     });
 
     // Real-time synchronization when rides are completed and earnings update
@@ -507,7 +558,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       loadActiveRide();
     }, 2500);
 
-    // Immediate re-fetch when switching back to mobile browser tab
+    // Immediate re-fetch when switching back to mobile browser tab or storage changes
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         loadAvailableRides();
@@ -516,18 +567,36 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         loadSettings();
       }
     };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (
+        e.key === 'motoride_active_rides_cache' ||
+        e.key === 'motoride_rides_store' ||
+        e.key === 'motoride_realtime_ping'
+      ) {
+        loadAvailableRides();
+        loadActiveRide();
+      }
+    };
+
     window.addEventListener('focus', handleVisibility);
+    window.addEventListener('storage', handleStorageChange);
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       unsubRideCreated();
       unsubRideUpdated();
+      unsubRideAccepted();
+      unsubRideOffer();
+      unsubRideDeleted();
+      unsubActiveSync();
       unsubEarningsUpdated();
       unsubFareUpdated();
       unsubQrUpdated();
       clearInterval(rolloverInterval);
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleVisibility);
+      window.removeEventListener('storage', handleStorageChange);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [captainId, activeRide?.id]);
@@ -708,12 +777,47 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         const realRides = list.filter(
           (r) => r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100'
         );
-        setAvailableRides(realRides);
-      } else {
-        setAvailableRides([]);
+
+        setAvailableRides((prev) => {
+          const map = new Map<string, MotorideRide>();
+
+          // 1. Retain existing live rides in state so they never flash or vanish during polling
+          prev.forEach((r) => {
+            if (r && (r.status === 'requested' || r.status === 'captain_offered')) {
+              map.set(r.id, r);
+            }
+          });
+
+          // 2. Incorporate latest rides from server
+          realRides.forEach((r) => {
+            if (r && (r.status === 'requested' || r.status === 'captain_offered')) {
+              map.set(r.id, { ...(map.get(r.id) || {}), ...r });
+            } else if (r) {
+              map.delete(r.id);
+            }
+          });
+
+          // 3. Remove rides that server omitted ONLY if older than 45 seconds
+          // (prevents race conditions where a freshly created ride hasn't propagated to query yet)
+          const now = Date.now();
+          for (const [id, r] of map.entries()) {
+            const isFromServer = realRides.some((sr) => sr.id === id);
+            if (!isFromServer) {
+              const createdAt = new Date(r.created_at).getTime();
+              if (now - createdAt > 45000) {
+                map.delete(id);
+              }
+            }
+          }
+
+          return Array.from(map.values()).sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+        });
       }
-    } catch {
-      setAvailableRides([]);
+    } catch (err) {
+      console.warn('Captain loadAvailableRides notice:', err);
+      // DO NOT clear availableRides on temporary network hiccup or query timeout!
     }
   };
 
