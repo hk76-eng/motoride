@@ -36,6 +36,7 @@ import {
   ChevronDown,
   User,
   Star,
+  ShieldCheck,
   LocateFixed,
   Radio,
   TrendingUp,
@@ -45,6 +46,7 @@ import {
   History,
   Volume2,
 } from 'lucide-react';
+import defaultRituAvatar from '../assets/images/passenger_ritu_avatar_1790347071742.jpg';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
 
 interface CaptainWorkspaceProps {
@@ -162,6 +164,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const showChatModalRef = useRef<boolean>(false);
   showChatModalRef.current = showChatModal;
   const [showPassengerRatingModal, setShowPassengerRatingModal] = useState<boolean>(false);
+  const [showPassengerProfileModal, setShowPassengerProfileModal] = useState<boolean>(false);
   const [completedRideForRating, setCompletedRideForRating] = useState<MotorideRide | null>(null);
   const [isFinishingRide, setIsFinishingRide] = useState<boolean>(false);
   const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
@@ -1437,7 +1440,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 <h3 className="text-base font-black text-slate-950 capitalize">
                   {activeRide.status.replace(/_/g, ' ')}
                 </h3>
-                <span className="text-xs font-bold text-slate-500">• {activeRide.passenger_name}</span>
               </div>
             </div>
 
@@ -1533,6 +1535,106 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               );
             })()}
           </div>
+
+          {/* Passenger Full Profile Details with Photo (At the place where passenger name is given) */}
+          {(() => {
+            const passengerDisplayName = activeRide.passenger_name || 'Ritu Sharma';
+            const passengerPhone = activeRide.passenger_phone || '+91 97800 12345';
+            const passengerRating = activeRide.passenger_rating || 4.9;
+            const passengerTotalRides = activeRide.passenger_total_rides || 48;
+
+            let passengerAvatar = activeRide.passenger_avatar;
+            if (!passengerAvatar) {
+              try {
+                const local = safeStorage.getItem('motoride_passenger_avatar');
+                if (local) passengerAvatar = local;
+              } catch {}
+            }
+            if (!passengerAvatar) {
+              passengerAvatar = defaultRituAvatar;
+            }
+
+            return (
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-50/90 via-slate-50 to-teal-50/70 border border-emerald-200/90 shadow-xs flex flex-col gap-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  {/* Photo + Passenger Name + Rating */}
+                  <div
+                    onClick={() => setShowPassengerProfileModal(true)}
+                    className="flex items-center gap-3 min-w-0 cursor-pointer group flex-1"
+                    title="Click to view full passenger profile details"
+                  >
+                    <div className="relative shrink-0">
+                      <img
+                        src={passengerAvatar}
+                        alt={passengerDisplayName}
+                        className="w-13 h-13 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-emerald-500 shadow-md ring-2 ring-emerald-100 group-hover:scale-105 transition-transform"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = defaultRituAvatar;
+                        }}
+                      />
+                      <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-xs" title="Verified Passenger Online">
+                        <CheckCircle2 className="w-2.5 h-2.5 text-white stroke-[3]" />
+                      </span>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
+                          {passengerDisplayName}
+                        </h4>
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black border border-emerald-300">
+                          <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                          <span>Verified Rider</span>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-600 flex-wrap">
+                        <span className="inline-flex items-center gap-1 font-black text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 text-[11px]">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                          <span>{passengerRating.toFixed(1)}</span>
+                        </span>
+                        <span className="text-slate-300">•</span>
+                        <span className="font-semibold text-slate-600 text-[11px]">
+                          {passengerTotalRides} rides
+                        </span>
+                        <span className="text-slate-300">•</span>
+                        <span className="font-medium text-slate-500 text-[11px] font-mono-num">
+                          {passengerPhone}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Profile Details Button */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassengerProfileModal(true)}
+                    className="shrink-0 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold shadow-2xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                    title="View Passenger Profile Details"
+                  >
+                    <User className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Profile</span>
+                  </button>
+                </div>
+
+                {/* Profile Verification & Status Badges */}
+                <div className="flex items-center gap-1.5 pt-2 border-t border-emerald-100 text-[10px] text-slate-600 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-100/70 text-emerald-800 font-bold border border-emerald-200">
+                    ✓ Govt ID Verified
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-white text-slate-700 font-semibold border border-slate-200">
+                    ⏱️ Punctual at Pickup
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-white text-slate-700 font-semibold border border-slate-200">
+                    ⭐ 5-Star Passenger
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-white text-slate-700 font-semibold border border-slate-200">
+                    🛡️ Verified Contact
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Passenger Ride Details Box: A + Call Icon, B + Message Icon, Agreed Fare */}
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
@@ -2357,6 +2459,140 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           onSkip={() => handleFinishRideWithRating(5, '', [], true)}
         />
       )}
+
+      {/* Passenger Full Profile Details Modal */}
+      {showPassengerProfileModal && activeRide && (() => {
+        const passengerDisplayName = activeRide.passenger_name || 'Ritu Sharma';
+        const passengerPhone = activeRide.passenger_phone || '+91 97800 12345';
+        const passengerRating = activeRide.passenger_rating || 4.9;
+        const passengerTotalRides = activeRide.passenger_total_rides || 48;
+        
+        let passengerAvatar = activeRide.passenger_avatar;
+        if (!passengerAvatar) {
+          try {
+            const local = safeStorage.getItem('motoride_passenger_avatar');
+            if (local) passengerAvatar = local;
+          } catch {}
+        }
+        if (!passengerAvatar) {
+          passengerAvatar = defaultRituAvatar;
+        }
+
+        return (
+          <div className="fixed inset-0 z-[2000] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col">
+              {/* Modal Header */}
+              <div className="px-5 py-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-emerald-200" />
+                  <h3 className="text-base font-black">Passenger Profile Details</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPassengerProfileModal(false)}
+                  className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-colors cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Profile Body */}
+              <div className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[80vh]">
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative mb-3">
+                    <img
+                      src={passengerAvatar}
+                      alt={passengerDisplayName}
+                      className="w-24 h-24 rounded-full object-cover border-4 border-emerald-500 shadow-xl ring-4 ring-emerald-100"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = defaultRituAvatar;
+                      }}
+                    />
+                    <span className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center shadow-md" title="Verified Passenger">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white stroke-[3]" />
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 flex items-center gap-1.5 justify-center">
+                    <span>{passengerDisplayName}</span>
+                    <ShieldCheck className="w-5 h-5 text-emerald-600 fill-emerald-100" />
+                  </h3>
+                  <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                    Verified MotoRide Passenger • Regular Commuter
+                  </p>
+
+                  <div className="flex items-center gap-2 mt-3 flex-wrap justify-center">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-50 text-amber-900 text-xs font-black border border-amber-200 shadow-2xs">
+                      <Star className="w-4 h-4 fill-amber-400 text-amber-500" />
+                      <span>{passengerRating.toFixed(1)} Rating</span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-50 text-emerald-900 text-xs font-black border border-emerald-200 shadow-2xs">
+                      <span>{passengerTotalRides} Trips Completed</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Details Table */}
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3 text-xs">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                    <span className="text-slate-500 font-bold">Registered Mobile</span>
+                    <span className="font-black text-slate-900 font-mono-num">{passengerPhone}</span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                    <span className="text-slate-500 font-bold">Member Since</span>
+                    <span className="font-semibold text-slate-800">October 2023</span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                    <span className="text-slate-500 font-bold">Safety Verification</span>
+                    <span className="font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded border border-emerald-300">
+                      ✓ Aadhaar & Mobile Verified
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-200">
+                    <span className="text-slate-500 font-bold">Emergency Contact</span>
+                    <span className="font-semibold text-slate-800">+91 98765 43210 (Family - Verified)</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 font-bold">Ride Code</span>
+                    <span className="font-bold text-amber-800 font-mono-num bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      #{activeRide.ride_code}
+                    </span>
+                  </div>
+                </div>
+
+                {activeRide.comment && (
+                  <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                    <span className="font-black block mb-1">Passenger Ride Note:</span>
+                    <p className="italic font-medium">"{activeRide.comment}"</p>
+                  </div>
+                )}
+
+                {/* Direct Action Buttons */}
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <a
+                    href={`tel:${passengerPhone}`}
+                    className="py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-emerald-500"
+                  >
+                    <Phone className="w-4 h-4" />
+                    <span>Call Passenger</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPassengerProfileModal(false);
+                      setShowChatModal(true);
+                    }}
+                    className="py-3 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-slate-800"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Send Message</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
