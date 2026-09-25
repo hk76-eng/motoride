@@ -92,7 +92,37 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     }
   });
 
-  const ridesTaken = totalRides ?? 0;
+  const [actualRidesCount, setActualRidesCount] = useState<number>(totalRides ?? 0);
+
+  // Sync state and fetch true actual rides taken whenever props or drawer open state changes
+  useEffect(() => {
+    const current = currentUser || supabaseAuth.getCurrentUser();
+    const effectiveName = (passengerName && passengerName !== 'Passenger') ? passengerName : (current?.name || '');
+    const currentId = current?.id || '';
+
+    const fetchActualCompletedRides = async () => {
+      try {
+        const allRides = await motorideApi.getRides();
+        const userCompleted = allRides.filter((r) => {
+          const isUser = (currentId && r.passenger_id === currentId) ||
+            (effectiveName && r.passenger_name && r.passenger_name.toLowerCase() === effectiveName.toLowerCase());
+          const isCompleted = r.status === 'completed' || r.status === 'trip_completed';
+          return isUser && isCompleted;
+        });
+        setActualRidesCount(userCompleted.length);
+      } catch {
+        if (totalRides !== undefined) {
+          setActualRidesCount(totalRides);
+        }
+      }
+    };
+
+    if (isOpen) {
+      fetchActualCompletedRides();
+    }
+  }, [passengerName, currentUser, totalRides, isOpen]);
+
+  const ridesTaken = actualRidesCount;
   const rating = 5.0;
 
   const fileInputRef = useRef<HTMLInputElement>(null);

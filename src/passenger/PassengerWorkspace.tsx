@@ -1954,7 +1954,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   const loadRideHistory = async () => {
     try {
-      const rides = await motorideApi.getRides({ passenger_id: currentPassengerId });
+      const allRides = await motorideApi.getRides();
+      const psgId = currentPassengerId || authUser?.id;
+      const psgName = effectivePassengerName;
+      const rides = allRides.filter((r) => 
+        (psgId && r.passenger_id === psgId) ||
+        (psgName && r.passenger_name && r.passenger_name.toLowerCase() === psgName.toLowerCase())
+      );
       setRideHistory(rides);
     } catch {}
   };
@@ -1972,6 +1978,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       const calcDistance = distanceKm > 0 ? distanceKm : 3.5;
       const calcDuration = durationMin > 0 ? durationMin : 10;
       const calcFare = offeredFare > 0 ? offeredFare : (estimatedFare > 0 ? estimatedFare : 75);
+      const actualCompletedCount = rideHistory.filter((r) => r.status === 'trip_completed' || r.status === 'completed').length;
 
       const newRide = await motorideApi.createRide({
         passenger_id: currentPassengerId || authUser?.id || '',
@@ -1979,7 +1986,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         passenger_phone: authUser?.phone || '+91 97800 12345',
         passenger_avatar: authUser?.avatarUrl || safeStorage.getItem('motoride_passenger_avatar') || '/passenger_avatar_default.jpg',
         passenger_rating: 5.0,
-        passenger_total_rides: 24,
+        passenger_total_rides: actualCompletedCount,
         pickup_address: activePickup.name,
         pickup_lat: activePickup.lat,
         pickup_lng: activePickup.lng,

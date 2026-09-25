@@ -1539,7 +1539,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           {(() => {
             const passengerDisplayName = activeRide.passenger_name || 'Ritu Sharma';
             const passengerRating = activeRide.passenger_rating || 4.9;
-            const passengerTotalRides = activeRide.passenger_total_rides || 48;
+            const passengerTotalRides = activeRide.passenger_total_rides ?? 0;
 
             let passengerAvatar = activeRide.passenger_avatar;
             if (!passengerAvatar) {
