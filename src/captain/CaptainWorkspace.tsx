@@ -492,6 +492,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (!acceptedRide || !acceptedRide.id) return;
       if (acceptedRide.captain_id === captainId) {
         setActiveRide(acceptedRide);
+        playRideAcceptedTune();
       }
       setAvailableRides((prev) => prev.filter((r) => r.id !== acceptedRide.id));
     });
@@ -737,6 +738,42 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     }
   };
 
+  // Play triumphant sound alert when ride is accepted
+  const playRideAcceptedTune = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      
+      const notes = [659.25, 783.99, 1046.50, 1318.51]; // E5, G5, C6, E6
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.1);
+        
+        gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.1);
+        gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + idx * 0.1 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.3);
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(ctx.currentTime + idx * 0.1);
+        osc.stop(ctx.currentTime + idx * 0.1 + 0.35);
+      });
+
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([150, 75, 150]);
+      }
+    } catch (e) {
+      console.warn('Audio playback notice:', e);
+    }
+  };
+
   const prevRideIdsRef = useRef<Set<string>>(new Set());
   const isInitializedRef = useRef<boolean>(false);
 
@@ -908,6 +945,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         accepted_fare: ride.offered_fare,
       });
       setActiveRide(updated);
+      playRideAcceptedTune();
       setAvailableRides((prev) => prev.filter((r) => r.id !== ride.id));
     } catch (err: any) {
       alert(err.message || 'Ride was already accepted by another captain.');
