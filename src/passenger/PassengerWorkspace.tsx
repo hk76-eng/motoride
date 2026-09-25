@@ -2499,20 +2499,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                           {/* Captain Info */}
                           <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-2">
                               <span className="font-black text-sm text-black truncate">
                                 {offer.captain_name}
                               </span>
-                              <span className="flex items-center text-[10px] text-black bg-slate-200 px-1.5 py-0.5 rounded border border-black/30 font-bold shrink-0">
-                                <Star className="w-3 h-3 fill-black text-black mr-0.5" />
-                                {offer.rating}
-                              </span>
-                              {(offer.captain_total_rides !== undefined || offer.total_rides !== undefined) && (
-                                <span className="flex items-center gap-0.5 text-[10px] text-emerald-900 bg-emerald-100 border border-emerald-400 px-1.5 py-0.5 rounded font-black font-mono-num shrink-0">
-                                  <TrendingUp className="w-3 h-3 text-emerald-700 stroke-[2.5]" />
-                                  <span>{offer.captain_total_rides ?? offer.total_rides ?? 0} trips</span>
+                              <div className="flex flex-col items-center leading-none shrink-0">
+                                <span className="flex items-center text-[10px] text-black bg-slate-200 px-1.5 py-0.5 rounded border border-black/30 font-bold leading-none">
+                                  <Star className="w-3 h-3 fill-black text-black mr-0.5" />
+                                  {offer.rating}
                                 </span>
-                              )}
+                                {(offer.captain_total_rides !== undefined || offer.total_rides !== undefined) && (
+                                  <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-0.5">
+                                    ({offer.captain_total_rides ?? offer.total_rides ?? 0})
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <p className="text-[11px] text-slate-700 mt-0.5 font-medium truncate">
                               {offer.vehicle_model} • {offer.plate_number}
@@ -2623,20 +2624,22 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       </span>
                     </div>
                     <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-2">
                         <span className="font-black text-black text-sm">
                           {activeRide.captain_name && activeRide.captain_name !== 'Captain'
                             ? activeRide.captain_name
                             : (safeStorage.getItem('motoride_captain_name') || 'Assigned Captain')}
                         </span>
-                        <span className="flex items-center text-[10px] text-black bg-slate-200 border border-black/30 px-1.5 py-0.5 rounded font-bold">
-                          <Star className="w-3 h-3 fill-black text-black mr-0.5" />
-                          {activeRide.captain_rating !== undefined ? Number(activeRide.captain_rating).toFixed(1) : '5.0'}
-                        </span>
-                        <span className="flex items-center gap-1 text-[10px] text-emerald-900 bg-emerald-100 border border-emerald-400 px-2 py-0.5 rounded-md font-black font-mono-num shadow-xs">
-                          <TrendingUp className="w-3 h-3 text-emerald-700 shrink-0 stroke-[2.5]" />
-                          <span>{captainActualTrips} {captainActualTrips === 1 ? 'trip' : 'trips'} done</span>
-                        </span>
+                        {/* Rating Tab with Trips Count in Parenthesis Directly Below */}
+                        <div className="flex flex-col items-center leading-none shrink-0">
+                          <span className="flex items-center text-[10px] text-black bg-slate-200 border border-black/30 px-1.5 py-0.5 rounded font-bold leading-none">
+                            <Star className="w-3 h-3 fill-black text-black mr-0.5" />
+                            {activeRide.captain_rating !== undefined ? Number(activeRide.captain_rating).toFixed(1) : '5.0'}
+                          </span>
+                          <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-0.5">
+                            ({captainActualTrips})
+                          </span>
+                        </div>
                       </div>
                       <p className="text-xs text-slate-600 font-mono-num mt-0.5 font-medium">
                         {(activeRide.vehicle_model || safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle')}{' '}
