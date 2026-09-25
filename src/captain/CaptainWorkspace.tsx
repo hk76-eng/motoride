@@ -1666,8 +1666,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   ₹{activeRide.final_fare || activeRide.offered_fare}
                 </span>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-300">
-                {activeRide.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'UPI'}
+              <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-black px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 shadow-2xs">
+                {activeRide.payment_method?.toUpperCase() === 'CASH' ? 'CASH' : 'UPI'}
               </span>
             </div>
 
