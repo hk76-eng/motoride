@@ -349,13 +349,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     } else if (isArrivingPickup) {
       borderColor = '#10b981';
       glowShadow = '0 4px 18px rgba(16, 185, 129, 0.6)';
-      statusPillHtml = `
-        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 9999px; background: #020617; border: 2px solid #10b981; box-shadow: 0 8px 24px rgba(0,0,0,0.85); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
-          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981;"></span>
-          <span style="color: #34d399; font-weight: 900; letter-spacing: 0.2px;">🏍️ Captain Arriving to (A)</span>
-          ${distText ? `<span style="background: #10b981; color: #020617; font-size: 10px; font-weight: 900; padding: 1px 6px; border-radius: 4px;">${distText}</span>` : ''}
-        </div>
-      `;
+      // Do not show text on map in passenger dashboard Captain arriving to A
+      statusPillHtml = '';
     } else if (isArrivedPickup) {
       borderColor = '#10b981';
       glowShadow = '0 4px 18px rgba(16, 185, 129, 0.6)';
