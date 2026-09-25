@@ -3,6 +3,7 @@ import { Send, MessageSquare, X, ShieldCheck, CornerDownLeft, Sparkles, CheckChe
 import { MotorideRide, RideMessage } from '../../types/motoride';
 import { motorideApi } from '../../services/motorideApi';
 import { realtimeSync } from '../../services/realtimeSync';
+import { safeStorage } from '../../lib/safeStorage';
 
 interface RideChatModalProps {
   ride: MotorideRide;
@@ -50,6 +51,7 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
     try {
       const list = await motorideApi.getRideMessages(ride.id);
       setMessages(list);
+      safeStorage.setItem(`motoride_last_read_chat_${ride.id}`, Date.now().toString());
     } catch (err) {
       console.warn('Failed to load chat messages:', err);
     }
@@ -57,6 +59,7 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
 
   useEffect(() => {
     fetchMessages();
+    safeStorage.setItem(`motoride_last_read_chat_${ride.id}`, Date.now().toString());
     const interval = setInterval(fetchMessages, 3000);
 
     const unsub = realtimeSync.on('RIDE_MESSAGE_RECEIVED', (payload: RideMessage) => {
@@ -65,12 +68,14 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
           if (prev.some((m) => m.id === payload.id)) return prev;
           return [...prev, payload];
         });
+        safeStorage.setItem(`motoride_last_read_chat_${ride.id}`, Date.now().toString());
       }
     });
 
     return () => {
       clearInterval(interval);
       unsub();
+      safeStorage.setItem(`motoride_last_read_chat_${ride.id}`, Date.now().toString());
     };
   }, [ride.id]);
 

@@ -158,6 +158,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isRideHistoryOpen, setIsRideHistoryOpen] = useState<boolean>(false);
   const [showChatModal, setShowChatModal] = useState<boolean>(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState<boolean>(false);
+  const showChatModalRef = useRef<boolean>(false);
+  showChatModalRef.current = showChatModal;
   const [showPassengerRatingModal, setShowPassengerRatingModal] = useState<boolean>(false);
   const [completedRideForRating, setCompletedRideForRating] = useState<MotorideRide | null>(null);
   const [isFinishingRide, setIsFinishingRide] = useState<boolean>(false);
@@ -810,6 +813,108 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       console.warn('Audio playback notice:', e);
     }
   };
+
+  // Play subtle sound alert when passenger sends a chat message
+  const playMessageNotificationChime = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') ctx.resume();
+
+      const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(659.25, now);
+      gain1.gain.setValueAtTime(0, now);
+      gain1.gain.linearRampToValueAtTime(0.18, now + 0.02);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.22);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, now + 0.1);
+      gain2.gain.setValueAtTime(0, now + 0.1);
+      gain2.gain.linearRampToValueAtTime(0.22, now + 0.12);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.1);
+      osc2.stop(now + 0.37);
+
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([100, 50, 100]);
+      }
+    } catch (e) {
+      console.warn('Audio playback notice:', e);
+    }
+  };
+
+  // Track unread passenger chat messages after ride is accepted
+  useEffect(() => {
+    const isAcceptedRide = activeRide && ['captain_accepted', 'captain_arrived', 'trip_started'].includes(activeRide.status);
+    if (!isAcceptedRide || !activeRide.id) {
+      setHasUnreadMessages(false);
+      return;
+    }
+
+    const rideId = activeRide.id;
+
+    // Check existing unread messages on mount / ride status change
+    const checkUnread = async () => {
+      try {
+        const msgs = await motorideApi.getRideMessages(rideId);
+        const lastRead = Number(safeStorage.getItem(`motoride_last_read_chat_${rideId}`) || '0');
+        const hasUnread = msgs.some(
+          (m) => m.sender_role === 'passenger' && new Date(m.created_at).getTime() > lastRead
+        );
+        if (hasUnread && !showChatModalRef.current) {
+          setHasUnreadMessages(true);
+        }
+      } catch {}
+    };
+    checkUnread();
+
+    // Periodic check interval (every 3s)
+    const interval = setInterval(async () => {
+      if (showChatModalRef.current) return;
+      try {
+        const msgs = await motorideApi.getRideMessages(rideId);
+        const lastRead = Number(safeStorage.getItem(`motoride_last_read_chat_${rideId}`) || '0');
+        const hasUnread = msgs.some(
+          (m) => m.sender_role === 'passenger' && new Date(m.created_at).getTime() > lastRead
+        );
+        if (hasUnread) {
+          setHasUnreadMessages((prev) => {
+            if (!prev) playMessageNotificationChime();
+            return true;
+          });
+        }
+      } catch {}
+    }, 3000);
+
+    // Instant real-time listener for passenger message
+    const unsub = realtimeSync.on('RIDE_MESSAGE_RECEIVED', (payload: any) => {
+      if (payload && payload.ride_id === rideId && payload.sender_role === 'passenger') {
+        if (!showChatModalRef.current) {
+          setHasUnreadMessages(true);
+          playMessageNotificationChime();
+        } else {
+          safeStorage.setItem(`motoride_last_read_chat_${rideId}`, Date.now().toString());
+        }
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      unsub();
+    };
+  }, [activeRide?.id, activeRide?.status]);
 
   const prevRideIdsRef = useRef<Set<string>>(new Set());
   const isInitializedRef = useRef<boolean>(false);
@@ -1514,12 +1619,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               {/* Message Icon on right of B */}
               <button
                 type="button"
-                onClick={() => setShowChatModal(true)}
-                className="w-10 h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500"
+                onClick={() => {
+                  setShowChatModal(true);
+                  setHasUnreadMessages(false);
+                  if (activeRide?.id) {
+                    safeStorage.setItem(`motoride_last_read_chat_${activeRide.id}`, Date.now().toString());
+                  }
+                }}
+                className="w-10 h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500 relative"
                 title="Chat with Passenger"
                 aria-label="Chat with Passenger"
               >
                 <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
+                {hasUnreadMessages && (
+                  <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 z-10" title="New message received">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-80"></span>
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600 border-2 border-white shadow-md"></span>
+                  </span>
+                )}
               </button>
             </div>
 
@@ -2241,7 +2358,13 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         <div className="fixed inset-0 z-[2000] bg-slate-900/80 backdrop-blur-md flex flex-col p-3 sm:p-6 md:p-8 animate-in fade-in duration-150">
           <div className="w-full max-w-4xl mx-auto mb-3 sm:mb-4 flex items-center justify-between">
             <button
-              onClick={() => setShowChatModal(false)}
+              onClick={() => {
+                setShowChatModal(false);
+                setHasUnreadMessages(false);
+                if (activeRide?.id) {
+                  safeStorage.setItem(`motoride_last_read_chat_${activeRide.id}`, Date.now().toString());
+                }
+              }}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-xs sm:text-sm border border-slate-200 transition-all cursor-pointer shadow-lg active:scale-95"
             >
               <ArrowLeft className="w-4 h-4 stroke-[2.5] text-slate-900" />
@@ -2255,7 +2378,13 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               currentUserId={captainId}
               currentUserRole="captain"
               currentUserName={captain?.full_name || 'Captain'}
-              onClose={() => setShowChatModal(false)}
+              onClose={() => {
+                setShowChatModal(false);
+                setHasUnreadMessages(false);
+                if (activeRide?.id) {
+                  safeStorage.setItem(`motoride_last_read_chat_${activeRide.id}`, Date.now().toString());
+                }
+              }}
             />
           </div>
         </div>
