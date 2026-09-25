@@ -2679,10 +2679,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       onClick={handleCancelRide}
                       disabled={isCancelling}
                       className="w-full py-2 rounded-xl border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50"
-                      aria-label="Cancel or Close Trip"
+                      aria-label="Cancel Trip"
                     >
                       <XCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                      <span>{isCancelling ? 'Closing...' : 'Cancel / Close Active Trip'}</span>
+                      <span>{isCancelling ? 'Cancelling...' : 'Cancel'}</span>
                     </button>
                   </div>
                 ) : (
