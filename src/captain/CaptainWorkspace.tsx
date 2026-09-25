@@ -1568,7 +1568,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 {/* Main Row: Left Passenger Profile | Right A & B Locations */}
                 <div className="flex items-center gap-3.5 sm:gap-4">
                   {/* Left Side: Passenger Profile (Photo, Full Name, ⭐ 5.0, (10)) */}
-                  <div className="flex flex-col items-center shrink-0 w-24 sm:w-28 text-center pr-3 sm:pr-4 border-r border-slate-200">
+                  <div className="flex flex-col items-center shrink-0 w-24 sm:w-28 text-center">
                     <div className="relative">
                       <img
                         src={passengerAvatar}
