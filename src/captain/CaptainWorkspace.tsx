@@ -447,6 +447,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         }
         return [newRide, ...prev.filter((r) => !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100')];
       });
+      setIs100Full(true);
       // Vibrate mobile device when new ride arrives
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         try {
@@ -835,6 +836,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     }
     if (hasNew) {
       playIncomingCallTune();
+      setIs100Full(true);
     }
     prevRideIdsRef.current = currentIds;
   }, [availableRides, isOnline]);
