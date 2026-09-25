@@ -270,3 +270,13 @@ export interface RideMessage {
   message: string;
   created_at: string;
 }
+
+export interface AppHyperlinkConfig {
+  url: string;
+  title: string;
+  version?: string;
+  openInNewTab?: boolean;
+  notes?: string;
+  updatedAt?: string;
+}
+

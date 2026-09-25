@@ -10,6 +10,7 @@ import {
   MotorideRideStatus,
   RideOffer,
   PassengerLiveLocation,
+  AppHyperlinkConfig,
 } from '../types/motoride';
 import { getSupabase } from '../lib/supabase';
 import { safeStorage } from '../lib/safeStorage';
@@ -1643,6 +1644,44 @@ export const motorideApi = {
       method: 'POST',
     });
     return Boolean(json?.success);
+  },
+
+  // App Hyperlink & Web2Apk Download URL Management
+  getAppHyperlinkConfig(): AppHyperlinkConfig {
+    const defaultConfig: AppHyperlinkConfig = {
+      url: 'https://web2apkpro.com/download/E95FB02/Motoride',
+      title: 'Motoride App',
+      version: 'v2.4.2',
+      openInNewTab: true,
+      notes: 'Official Android APK download link via Web2Apk Pro.',
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      const saved = safeStorage.getItem('motoride_app_hyperlink_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && parsed.url) {
+          return { ...defaultConfig, ...parsed };
+        }
+      }
+    } catch {}
+    return defaultConfig;
+  },
+
+  async saveAppHyperlinkConfig(config: Partial<AppHyperlinkConfig>): Promise<AppHyperlinkConfig> {
+    const current = this.getAppHyperlinkConfig();
+    const updated: AppHyperlinkConfig = {
+      ...current,
+      ...config,
+      updatedAt: new Date().toISOString(),
+    };
+    safeStorage.setItem('motoride_app_hyperlink_config', JSON.stringify(updated));
+    safeStorage.setItem('motoride_app_download_url', updated.url);
+    safeStorage.setItem('motoride_app_download_title', updated.title);
+    try {
+      realtimeSync.broadcast('APP_HYPERLINK_UPDATED', updated);
+    } catch {}
+    return updated;
   },
 
   // 10. APK App Release Management

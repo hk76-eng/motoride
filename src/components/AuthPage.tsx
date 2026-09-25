@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bike,
   Shield,
@@ -26,7 +26,7 @@ import {
   Compass,
   Download,
 } from 'lucide-react';
-import { UserRole, RideTypeCode } from '../types/motoride';
+import { UserRole, RideTypeCode, AppHyperlinkConfig } from '../types/motoride';
 import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { motorideApi } from '../services/motorideApi';
@@ -43,6 +43,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>(defaultRole);
   const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
+  const [appLinkConfig, setAppLinkConfig] = useState<AppHyperlinkConfig>(() => motorideApi.getAppHyperlinkConfig());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setAppLinkConfig(motorideApi.getAppHyperlinkConfig());
+    };
+    window.addEventListener('storage', handleUpdate);
+    const unsub = realtimeSync.on('APP_HYPERLINK_UPDATED', () => {
+      handleUpdate();
+    });
+    return () => {
+      window.removeEventListener('storage', handleUpdate);
+      unsub?.();
+    };
+  }, []);
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -334,14 +349,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             <span>Captain</span>
           </button>
           <a
-            href="https://web2apkpro.com/download/E95FB02/Motoride"
-            target="_blank"
+            href={appLinkConfig.url || "https://web2apkpro.com/download/E95FB02/Motoride"}
+            target={appLinkConfig.openInNewTab !== false ? "_blank" : "_self"}
             rel="noopener noreferrer"
-            className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 text-white hover:text-white/80 bg-black border border-white/25 hover:border-white/50"
-            title="Download Motoride Android App"
+            className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 text-white hover:text-white/80 bg-black border border-white/25 hover:border-white/50 shadow-sm"
+            title={`Download ${appLinkConfig.title || 'Motoride App'}`}
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Motoride App</span>
+            <span>{appLinkConfig.title || 'Motoride App'}</span>
           </a>
           </div>
         </div>

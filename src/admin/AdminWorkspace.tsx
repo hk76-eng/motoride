@@ -8,6 +8,7 @@ import {
   RideChargeSettings,
   CourierChargeSettings,
   QRCodeSetting,
+  AppHyperlinkConfig,
 } from '../types/motoride';
 import { motorideApi } from '../services/motorideApi';
 import { SUPABASE_SQL_SCHEMA } from '../lib/sqlSchema';
@@ -60,6 +61,8 @@ import {
   RotateCcw,
   Sparkles,
   Percent,
+  Link2,
+  Globe,
 } from 'lucide-react';
 
 const DEFAULT_RIDE_CHARGES: RideChargeSettings = {
@@ -113,7 +116,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   onSignOut,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'captains' | 'passengers' | 'rides' | 'ride_charges' | 'courier_charges' | 'qr' | 'supabase'
+    'overview' | 'captains' | 'passengers' | 'rides' | 'ride_charges' | 'courier_charges' | 'qr' | 'app_link' | 'supabase'
   >('overview');
 
   const [stats, setStats] = useState<AdminDashboardStats>({
@@ -177,6 +180,26 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const [bucketStatus, setBucketStatus] = useState<StorageStatus | null>(null);
   const [isCheckingBucket, setIsCheckingBucket] = useState(false);
   const [testUploadUrl, setTestUploadUrl] = useState<string | null>(null);
+
+  // Motoride App Hyperlink & Download URL Configuration
+  const [appLinkConfig, setAppLinkConfig] = useState<AppHyperlinkConfig>(() => motorideApi.getAppHyperlinkConfig());
+  const [appLinkSaveStatus, setAppLinkSaveStatus] = useState<string | null>(null);
+  const [isSavingAppLink, setIsSavingAppLink] = useState(false);
+
+  const handleSaveAppLink = async () => {
+    setIsSavingAppLink(true);
+    setAppLinkSaveStatus(null);
+    try {
+      await motorideApi.saveAppHyperlinkConfig(appLinkConfig);
+      setAppLinkSaveStatus('Motoride App hyperlink updated and broadcasted successfully!');
+      showToast('Motoride App link updated across all user apps!');
+      setTimeout(() => setAppLinkSaveStatus(null), 5000);
+    } catch {
+      setAppLinkSaveStatus('Failed to update app hyperlink.');
+    } finally {
+      setIsSavingAppLink(false);
+    }
+  };
 
   const handleCheckBucket = async () => {
     setIsCheckingBucket(true);
@@ -871,6 +894,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           { key: 'ride_charges', label: 'Ride Charges / KM', icon: Bike },
           { key: 'courier_charges', label: 'Courier Charges / KM', icon: Settings },
           { key: 'qr', label: 'Official QR Code', icon: QrCode },
+          { key: 'app_link', label: 'Motoride App Link', icon: Smartphone },
           { key: 'supabase', label: 'Supabase SQL Setup', icon: Database },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -1979,6 +2003,279 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 <Save className="w-4 h-4" />
                 <span>Save QR Code Setting</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW: MOTORIDE APP HYPERLINK & DOWNLOAD MANAGER */}
+      {activeTab === 'app_link' && (
+        <div className="flex flex-col gap-5">
+          <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-4 shadow-xl">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                  <Smartphone className="w-5 h-5 text-indigo-400" />
+                  <span>Motoride App Hyperlink & Download URL Manager</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Update and customize the official Motoride Android APK / Web2Apk hyperlink. Any changes immediately update the download button across the Auth screen and user portals.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={appLinkConfig.url || 'https://web2apkpro.com/download/E95FB02/Motoride'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700 cursor-pointer shadow-sm"
+                  title="Test current hyperlink in new window"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Test Link</span>
+                </a>
+              </div>
+            </div>
+
+            {appLinkSaveStatus && (
+              <div className="p-3 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{appLinkSaveStatus}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAppLinkSaveStatus(null)}
+                  className="text-emerald-400 hover:text-white text-xs font-bold cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Left 2 Cols: Form Config */}
+              <div className="lg:col-span-2 flex flex-col gap-4">
+                {/* Hyperlink URL Input */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                      <Link2 className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Motoride App Download / Web Hyperlink URL *</span>
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-mono">Must start with https:// or http://</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={appLinkConfig.url}
+                      onChange={(e) =>
+                        setAppLinkConfig({ ...appLinkConfig, url: e.target.value })
+                      }
+                      placeholder="https://web2apkpro.com/download/E95FB02/Motoride"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-indigo-500 text-xs text-white font-mono placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-inner"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (appLinkConfig.url) {
+                          window.open(appLinkConfig.url, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                      className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-indigo-300 hover:text-white flex items-center gap-1 cursor-pointer shrink-0"
+                      title="Test URL in new window"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      <span>Test</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex flex-col gap-2">
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                    Quick Preset Links:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAppLinkConfig({
+                          ...appLinkConfig,
+                          url: 'https://web2apkpro.com/download/E95FB02/Motoride',
+                          title: 'Motoride App',
+                          version: 'v2.4.2',
+                        })
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-indigo-950/50 hover:bg-indigo-900/60 border border-indigo-500/30 text-indigo-300 text-xs font-semibold cursor-pointer transition-all"
+                    >
+                      Web2Apk Pro (Current)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAppLinkConfig({
+                          ...appLinkConfig,
+                          url: 'https://play.google.com/store/apps/details?id=com.motoride.app',
+                          title: 'Google Play Store',
+                          version: 'v2.4.2 Production',
+                        })
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold cursor-pointer transition-all"
+                    >
+                      Google Play Store Link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAppLinkConfig({
+                          ...appLinkConfig,
+                          url: '/api/motoride/download/apk',
+                          title: 'Direct APK Download',
+                          version: 'v2.4.2 Internal',
+                        })
+                      }
+                      className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold cursor-pointer transition-all"
+                    >
+                      Self-Hosted Direct APK
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Button Label Text */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1.5">
+                      Button / Tab Display Label
+                    </label>
+                    <input
+                      type="text"
+                      value={appLinkConfig.title}
+                      onChange={(e) =>
+                        setAppLinkConfig({ ...appLinkConfig, title: e.target.value })
+                      }
+                      placeholder="Motoride App"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-indigo-500 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Version Tag */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1.5">
+                      App Version Tag
+                    </label>
+                    <input
+                      type="text"
+                      value={appLinkConfig.version || ''}
+                      onChange={(e) =>
+                        setAppLinkConfig({ ...appLinkConfig, version: e.target.value })
+                      }
+                      placeholder="v2.4.2"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-indigo-500 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Release Notes */}
+                <div>
+                  <label className="text-xs font-bold text-slate-300 block mb-1.5">
+                    Release Notes / Instructions
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={appLinkConfig.notes || ''}
+                    onChange={(e) =>
+                      setAppLinkConfig({ ...appLinkConfig, notes: e.target.value })
+                    }
+                    placeholder="Official Android APK release with real-time GPS tracking and instant fare matching."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-indigo-500 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Checkbox: Open In New Tab */}
+                <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-slate-300 font-medium">
+                  <input
+                    type="checkbox"
+                    checked={appLinkConfig.openInNewTab !== false}
+                    onChange={(e) =>
+                      setAppLinkConfig({ ...appLinkConfig, openInNewTab: e.target.checked })
+                    }
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-700 bg-slate-950"
+                  />
+                  <span>Open link in new window / external browser tab (target=&quot;_blank&quot;)</span>
+                </label>
+
+                {/* Save Button */}
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveAppLink}
+                    disabled={isSavingAppLink || !appLinkConfig.url}
+                    className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs sm:text-sm shadow-xl shadow-indigo-600/25 transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSavingAppLink ? (
+                      <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                    ) : (
+                      <Save className="w-4 h-4 stroke-[2.5] text-white" />
+                    )}
+                    <span>{isSavingAppLink ? 'Updating App Link...' : 'Save & Update Motoride App Hyperlink'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Col: Live Preview & Status */}
+              <div className="flex flex-col gap-4">
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3">
+                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                    Live UI Button Preview:
+                  </span>
+                  <p className="text-xs text-slate-400">
+                    This is how the link tab will render in the top navigation bar of the application:
+                  </p>
+
+                  <div className="p-4 rounded-2xl bg-black border border-white/20 flex items-center justify-center">
+                    <a
+                      href={appLinkConfig.url || '#'}
+                      target={appLinkConfig.openInNewTab !== false ? '_blank' : '_self'}
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 text-white hover:text-white/80 bg-black border border-white/25 hover:border-white/50 shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5 text-white" />
+                      <span>{appLinkConfig.title || 'Motoride App'}</span>
+                    </a>
+                  </div>
+
+                  <div className="mt-2 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex flex-col gap-1">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Destination:</span>
+                      <span className="text-slate-300 font-mono truncate max-w-[160px]" title={appLinkConfig.url}>
+                        {appLinkConfig.url}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Version:</span>
+                      <span className="text-indigo-400 font-bold">{appLinkConfig.version || 'v2.4.2'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Status:</span>
+                      <span className="text-emerald-400 font-bold flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Active & Connected
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-500/20 text-xs text-indigo-300 flex flex-col gap-2">
+                  <span className="font-bold flex items-center gap-1.5 text-indigo-200">
+                    <Smartphone className="w-4 h-4 text-indigo-400" />
+                    <span>Cross-Platform Sync</span>
+                  </span>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    When you change this link, all browser sessions and newly opened screens update in real-time through the storage broadcast pipeline without requiring a redeploy.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
