@@ -544,15 +544,18 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
               </div>
 
               {/* Rides Taken Card - Clickable to open Trip History */}
-              <div
-                onClick={() => {
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose();
                   if (onOpenRideHistory) {
-                    onClose();
                     onOpenRideHistory();
                   }
                 }}
-                className="p-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 flex items-center gap-2.5 cursor-pointer transition-all active:scale-95 group"
-                title="View Trip History"
+                className="p-2.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 flex items-center gap-2.5 cursor-pointer transition-all active:scale-95 group text-left w-full focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                title="View All Total Rides History"
               >
                 <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                   <TrendingUp className="w-4 h-4 stroke-[2.5]" />
@@ -560,7 +563,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                 <div className="flex flex-col">
                   <span className="text-[10px] text-emerald-300/80 font-bold uppercase tracking-wider group-hover:text-emerald-300 transition-colors flex items-center gap-0.5">
                     <span>Total Rides</span>
-                    <ChevronRight className="w-3 h-3 text-emerald-400" />
+                    <ChevronRight className="w-3 h-3 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
                   </span>
                   <div className="flex items-baseline gap-1">
                     <span className="font-black text-sm text-emerald-400 font-mono-num">
@@ -569,7 +572,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                     <span className="text-[10px] text-slate-400">trips</span>
                   </div>
                 </div>
-              </div>
+              </button>
 
             </div>
 

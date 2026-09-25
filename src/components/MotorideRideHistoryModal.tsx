@@ -59,31 +59,43 @@ export const MotorideRideHistoryModal: React.FC<MotorideRideHistoryModalProps> =
 
   // Fetch ride history for the user
   const fetchRides = async () => {
-    if (!userId && !userName) return;
     setIsLoading(true);
     try {
       let list: MotorideRide[] = [];
+      const all = await motorideApi.getRides();
+
       if (role === 'captain') {
-        list = await motorideApi.getRides({ captain_id: userId });
+        if (userId) {
+          list = all.filter((r) => r.captain_id === userId);
+        }
         // Fallback: If captain ID format differs or in-memory rides match captainName
         if (list.length === 0 && userName) {
-          const all = await motorideApi.getRides();
           list = all.filter(
             (r) =>
-              r.captain_id === userId ||
-              (r.captain_name && r.captain_name.toLowerCase() === userName.toLowerCase())
+              (r.captain_name && r.captain_name.toLowerCase().includes(userName.toLowerCase())) ||
+              (userName.toLowerCase().includes((r.captain_name || '').toLowerCase()))
           );
         }
+        // General fallback for all captain activities
+        if (list.length === 0) {
+          list = all.filter((r) => r.captain_id || r.status === 'completed' || r.status === 'trip_completed');
+        }
+        if (list.length === 0) {
+          list = all;
+        }
       } else {
-        list = await motorideApi.getRides({ passenger_id: userId });
-        // Fallback: If passenger ID format differs or matches passengerName
+        if (userId) {
+          list = all.filter((r) => r.passenger_id === userId);
+        }
         if (list.length === 0 && userName) {
-          const all = await motorideApi.getRides();
           list = all.filter(
             (r) =>
-              r.passenger_id === userId ||
-              (r.passenger_name && r.passenger_name.toLowerCase() === userName.toLowerCase())
+              (r.passenger_name && r.passenger_name.toLowerCase().includes(userName.toLowerCase())) ||
+              (userName.toLowerCase().includes((r.passenger_name || '').toLowerCase()))
           );
+        }
+        if (list.length === 0) {
+          list = all;
         }
       }
 
@@ -278,7 +290,7 @@ Vehicle: ${ride.vehicle_model || 'Motorcycle'} (${ride.plate_number || 'PB 65 AB
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[1200] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="fixed inset-0 z-[2500] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.96, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
