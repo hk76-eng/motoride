@@ -2608,40 +2608,42 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 {/* Captain Details Box */}
                 <div className="p-4 rounded-2xl bg-slate-50 border border-black flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="relative shrink-0">
-                      <img
-                        src={getCaptainAvatarUrl(activeRide.captain_name || undefined, (activeRide as any).captain_avatar || (activeRide as any).avatar_url)}
-                        alt={activeRide.captain_name || 'Captain'}
-                        referrerPolicy="no-referrer"
-                        className="w-12 h-12 rounded-full object-cover border-2 border-black bg-slate-200 shadow-xs"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src =
-                            `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRide.captain_name || 'Captain')}&background=0284c7&color=fff&bold=true`;
-                        }}
-                      />
-                      <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-black border border-white">
-                        ✓
-                      </span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-black text-sm">
-                          {activeRide.captain_name && activeRide.captain_name !== 'Captain'
-                            ? activeRide.captain_name
-                            : (safeStorage.getItem('motoride_captain_name') || 'Assigned Captain')}
+                    {/* Photo with Rating & Trips below */}
+                    <div className="flex flex-col items-center shrink-0">
+                      <div className="relative">
+                        <img
+                          src={getCaptainAvatarUrl(activeRide.captain_name || undefined, (activeRide as any).captain_avatar || (activeRide as any).avatar_url)}
+                          alt={activeRide.captain_name || 'Captain'}
+                          referrerPolicy="no-referrer"
+                          className="w-12 h-12 rounded-full object-cover border-2 border-black bg-slate-200 shadow-xs"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src =
+                              `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRide.captain_name || 'Captain')}&background=0284c7&color=fff&bold=true`;
+                          }}
+                        />
+                        <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-black border border-white">
+                          ✓
                         </span>
-                        {/* Rating Tab with Trips Count in Parenthesis Directly Below */}
-                        <div className="flex flex-col items-center leading-none shrink-0">
-                          <span className="flex items-center text-[10px] text-black bg-slate-200 border border-black/30 px-1.5 py-0.5 rounded font-bold leading-none">
-                            <Star className="w-3 h-3 fill-black text-black mr-0.5" />
-                            {activeRide.captain_rating !== undefined ? Number(activeRide.captain_rating).toFixed(1) : '5.0'}
-                          </span>
-                          <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-0.5">
-                            ({captainActualTrips})
-                          </span>
-                        </div>
                       </div>
-                      <p className="text-xs text-slate-600 font-mono-num mt-0.5 font-medium">
+                      {/* Rating Tab & (Trips) just below photo */}
+                      <div className="flex flex-col items-center mt-1.5 leading-none">
+                        <span className="flex items-center text-[10px] text-black bg-slate-200 border border-black/30 px-1.5 py-0.5 rounded font-bold leading-none">
+                          <Star className="w-2.5 h-2.5 fill-black text-black mr-0.5" />
+                          {activeRide.captain_rating !== undefined ? Number(activeRide.captain_rating).toFixed(1) : '5.0'}
+                        </span>
+                        <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-1">
+                          ({captainActualTrips})
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="font-black text-black text-sm block">
+                        {activeRide.captain_name && activeRide.captain_name !== 'Captain'
+                          ? activeRide.captain_name
+                          : (safeStorage.getItem('motoride_captain_name') || 'Assigned Captain')}
+                      </span>
+                      <p className="text-xs text-slate-600 font-mono-num mt-1 font-medium">
                         {(activeRide.vehicle_model || safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle')}{' '}
                         •{' '}
                         <span className="text-black font-black">

@@ -1566,38 +1566,37 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             return (
               <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-2xs">
                 <div className="flex items-center gap-3">
-                  {/* Passenger Photo */}
-                  <img
-                    src={passengerAvatar}
-                    alt={passengerDisplayName}
-                    className="w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = defaultRituAvatar;
-                    }}
-                  />
+                  {/* Passenger Photo with Rating & Rides directly below */}
+                  <div className="flex flex-col items-center shrink-0">
+                    <img
+                      src={passengerAvatar}
+                      alt={passengerDisplayName}
+                      className="w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = defaultRituAvatar;
+                      }}
+                    />
+                    {/* Rating Tab & (Trips) just below photo */}
+                    <div className="flex flex-col items-center mt-1.5 leading-none">
+                      <span className="flex items-center text-[10px] text-amber-900 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded font-bold leading-none">
+                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 mr-0.5" />
+                        {passengerRating.toFixed(1)}
+                      </span>
+                      <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-1">
+                        ({passengerTotalRides})
+                      </span>
+                    </div>
+                  </div>
 
-                  {/* Passenger Details: Full Name, Rating, Rides */}
+                  {/* Passenger Details: Full Name */}
                   <div className="min-w-0 flex-1">
                     {/* Full Name */}
                     <h4 className="text-sm sm:text-base font-black text-slate-900 truncate">
                       {passengerDisplayName}
                     </h4>
-
-                    {/* Rating & Rides */}
-                    <div className="flex items-center gap-2 mt-1 text-xs">
-                      {/* Rating */}
-                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 text-xs">
-                        <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-                        <span>{passengerRating.toFixed(1)}</span>
-                      </span>
-
-                      <span className="text-slate-300">•</span>
-
-                      {/* Rides */}
-                      <span className="font-semibold text-slate-600 text-xs">
-                        {passengerTotalRides} rides
-                      </span>
-                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Passenger
+                    </p>
                   </div>
                 </div>
               </div>
