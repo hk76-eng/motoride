@@ -1546,10 +1546,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             })()}
           </div>
 
-          {/* Passenger Profile: Photo, Full Name, Rating, Rides Only */}
+          {/* Combined Passenger Ride Details Box: Left Passenger Profile | Right A & B Location Points */}
           {(() => {
             const passengerDisplayName = activeRide.passenger_name || 'Ritu Sharma';
-            const passengerRating = activeRide.passenger_rating || 4.9;
+            const passengerRating = activeRide.passenger_rating || 5.0;
             const passengerTotalRides = activeRide.passenger_total_rides ?? 0;
 
             let passengerAvatar = activeRide.passenger_avatar;
@@ -1564,130 +1564,120 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             }
 
             return (
-              <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-2xs">
-                <div className="flex items-center gap-3">
-                  {/* Passenger Photo with Rating & Rides directly below */}
-                  <div className="flex flex-col items-center shrink-0">
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-2xs flex flex-col gap-3">
+                {/* Main Row: Left Passenger Profile | Right A & B Locations */}
+                <div className="flex items-start gap-3">
+                  {/* Left Side: Passenger Profile (Photo, Full Name, ⭐ 5.0, (10)) */}
+                  <div className="flex flex-col items-center shrink-0 w-20 text-center pr-3 border-r border-slate-200">
                     <img
                       src={passengerAvatar}
                       alt={passengerDisplayName}
-                      className="w-12 h-12 sm:w-13 sm:h-13 rounded-full object-cover border border-slate-200 shadow-xs shrink-0"
+                      className="w-12 h-12 rounded-full object-cover border border-slate-300 shadow-xs shrink-0 bg-slate-200"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = defaultRituAvatar;
                       }}
                     />
-                    {/* Rating Tab & (Trips) just below photo */}
-                    <div className="flex flex-col items-center mt-1.5 leading-none">
-                      <span className="flex items-center text-[10px] text-amber-900 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded font-bold leading-none">
-                        <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 mr-0.5" />
-                        {passengerRating.toFixed(1)}
-                      </span>
-                      <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-1">
-                        ({passengerTotalRides})
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Passenger Details: Full Name */}
-                  <div className="min-w-0 flex-1">
-                    {/* Full Name */}
-                    <h4 className="text-sm sm:text-base font-black text-slate-900 truncate">
+                    <h4 className="text-xs font-black text-slate-900 mt-1.5 line-clamp-1 w-full" title={passengerDisplayName}>
                       {passengerDisplayName}
                     </h4>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      Passenger
-                    </p>
+                    <span className="flex items-center text-[10px] text-amber-900 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded font-bold leading-none mt-1">
+                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 mr-0.5" />
+                      {passengerRating.toFixed(1)}
+                    </span>
+                    <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-1">
+                      ({passengerTotalRides})
+                    </span>
+                  </div>
+
+                  {/* Right Side: A & B Location Points with Call & Message buttons */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-2.5">
+                    {/* A: Pickup Address + Call Icon */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-start gap-2 min-w-0 flex-1">
+                        <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                          A
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-slate-900 font-bold leading-snug line-clamp-2">
+                            {activeRide.pickup_address || 'My Live GPS Location'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Call Icon on right of A */}
+                      <a
+                        href={`tel:${activeRide.passenger_phone || '+919780012345'}`}
+                        className="w-8 h-8 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500"
+                        title="Call Passenger"
+                        aria-label="Call Passenger"
+                      >
+                        <Phone className="w-3.5 h-3.5 stroke-[2.5] text-white" />
+                      </a>
+                    </div>
+
+                    {/* B: Dropoff Address + Message Icon */}
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
+                      <div className="flex items-start gap-2 min-w-0 flex-1">
+                        <span className="w-5 h-5 rounded-full bg-rose-500 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                          B
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-slate-800 font-medium leading-snug line-clamp-2">
+                            {activeRide.dropoff_address || 'Phase 5 Market, Mohali'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Message Icon on right of B */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowChatModal(true);
+                          setHasUnreadMessages(false);
+                          if (activeRide?.id) {
+                            safeStorage.setItem(`motoride_last_read_chat_${activeRide.id}`, Date.now().toString());
+                          }
+                        }}
+                        className="w-8 h-8 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500 relative"
+                        title="Chat with Passenger"
+                        aria-label="Chat with Passenger"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 stroke-[2.5] text-white" />
+                        {hasUnreadMessages && (
+                          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 z-10" title="New message received">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-80"></span>
+                            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600 border-2 border-white shadow-md"></span>
+                          </span>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                {/* Agreed Fare */}
+                <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs sm:text-sm font-bold text-slate-700">
+                      Agreed Fare:
+                    </span>
+                    <span className="text-base sm:text-lg font-black text-slate-950 font-mono-num">
+                      ₹{activeRide.final_fare || activeRide.offered_fare}
+                    </span>
+                  </div>
+                  <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-black px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 shadow-2xs">
+                    {activeRide.payment_method?.toUpperCase() === 'CASH' ? 'CASH' : 'UPI'}
+                  </span>
+                </div>
+
+                {activeRide.comment && (
+                  <p className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200 text-emerald-800 text-xs">
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate italic">Passenger note: "{activeRide.comment}"</span>
+                  </p>
+                )}
               </div>
             );
           })()}
-
-          {/* Passenger Ride Details Box: A + Call Icon, B + Message Icon, Agreed Fare */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
-            {/* A: Pickup Address + Call Icon */}
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-                  A
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-slate-900 font-bold leading-snug break-words">
-                    {activeRide.pickup_address || 'My Live GPS Location'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Call Icon on right of A */}
-              <a
-                href={`tel:${activeRide.passenger_phone || '+919780012345'}`}
-                className="w-10 h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500"
-                title="Call Passenger"
-                aria-label="Call Passenger"
-              >
-                <Phone className="w-4 h-4 stroke-[2.5] text-white" />
-              </a>
-            </div>
-
-            {/* B: Dropoff Address + Message Icon */}
-            <div className="flex items-center justify-between gap-3 pt-2.5 border-t border-slate-200">
-              <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                <span className="w-6 h-6 rounded-full bg-rose-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-                  B
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-slate-800 font-medium leading-snug break-words">
-                    {activeRide.dropoff_address || 'Phase 5 Market, Mohali'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Message Icon on right of B */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowChatModal(true);
-                  setHasUnreadMessages(false);
-                  if (activeRide?.id) {
-                    safeStorage.setItem(`motoride_last_read_chat_${activeRide.id}`, Date.now().toString());
-                  }
-                }}
-                className="w-10 h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500 relative"
-                title="Chat with Passenger"
-                aria-label="Chat with Passenger"
-              >
-                <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
-                {hasUnreadMessages && (
-                  <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 z-10" title="New message received">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-80"></span>
-                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600 border-2 border-white shadow-md"></span>
-                  </span>
-                )}
-              </button>
-            </div>
-
-            {/* Agreed Fare */}
-            <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs sm:text-sm font-bold text-slate-700">
-                  Agreed Fare:
-                </span>
-                <span className="text-base sm:text-lg font-black text-slate-950 font-mono-num">
-                  ₹{activeRide.final_fare || activeRide.offered_fare}
-                </span>
-              </div>
-              <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-black px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 shadow-2xs">
-                {activeRide.payment_method?.toUpperCase() === 'CASH' ? 'CASH' : 'UPI'}
-              </span>
-            </div>
-
-            {activeRide.comment && (
-              <p className="flex items-center gap-1.5 pt-1.5 border-t border-slate-200 text-emerald-800 text-xs">
-                <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span className="truncate italic">Passenger note: "{activeRide.comment}"</span>
-              </p>
-            )}
-          </div>
 
           {/* Workflow Step Action Buttons */}
           <div className="flex flex-col gap-2 pt-2">
