@@ -2216,9 +2216,21 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 is100Full ? 'rounded-none border-x-0' : 'rounded-t-3xl sm:border-x sm:border-slate-200'
               }`}
             >
+              {/* Top Center Pull Handle Bar */}
+              <div
+                onClick={() => setIs100Full((prev) => !prev)}
+                className="w-full pt-2 pb-0.5 bg-white flex items-center justify-center cursor-pointer group select-none hover:bg-slate-50 transition-colors shrink-0"
+                title={is100Full ? "Drop down to view map" : "Drop up full requests view"}
+                role="button"
+                tabIndex={0}
+                aria-label="Toggle live requests screen height"
+              >
+                <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-slate-600 transition-colors" />
+              </div>
+
               {/* Header Bar */}
               {inspectedRide && !activeRide && !is100Full ? (
-                <div className="px-4 sm:px-5 py-2.5 sm:py-3 bg-white border-b border-slate-200 flex items-center justify-between select-none shadow-xs">
+                <div className="px-4 sm:px-5 py-2 sm:py-2.5 bg-white border-b border-slate-200 flex items-center justify-between select-none shadow-xs">
                   {/* Left: Location A & B Route Indicator */}
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
@@ -2256,24 +2268,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               ) : (
                 <div
                   onClick={(e) => {
-                    // If minimized and user clicks on empty bar area, maximize to 100%
+                    // If minimized and user clicks on empty bar area, maximize to full
                     if (!is100Full && (e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
                       setIs100Full(true);
                     }
                   }}
-                  className={`px-3.5 sm:px-5 py-2.5 sm:py-3 bg-white flex items-center justify-between relative select-none shadow-sm ${
+                  className={`px-3.5 sm:px-5 py-2 bg-white flex items-center justify-between relative select-none shadow-sm ${
                     is100Full ? 'border-b border-slate-200' : 'cursor-pointer hover:bg-slate-50 transition-colors'
                   }`}
                 >
                   {/* Left: Live Requests Count */}
-                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono-num">
                       <Bike className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <span>{availableRides.length} Live Requests</span>
                     </div>
                   </div>
 
-                  {/* Right: 100% Full / Minimize Tab Button */}
+                  {/* Center/Right: Toggle - Type Drop Up Full and Down Button (Passenger Booking Form Style) */}
                   <div className="flex items-center justify-end min-w-0">
                     <button
                       type="button"
@@ -2281,23 +2293,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                         e.stopPropagation();
                         setIs100Full((prev) => !prev);
                       }}
-                      className={`flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer border shadow-sm ${
-                        is100Full
-                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-amber-500/20 hover:bg-amber-400'
-                          : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border-amber-300'
-                      }`}
-                      title={is100Full ? 'Click to Minimize to Bottom of Page' : 'Click to Maximize to 100% Full'}
+                      className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-black text-xs font-black transition-all active:scale-95 cursor-pointer group shadow-xs flex items-center gap-1.5"
+                      title={is100Full ? "Drop down to view full map" : "Drop up full requests view"}
+                      aria-label={is100Full ? "Drop down" : "Drop up full"}
                     >
                       {is100Full ? (
-                        <>
-                          <Minimize2 className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span className="hidden xs:inline font-mono-num">Minimize</span>
-                        </>
+                        <ChevronDown className="w-4 h-4 text-black group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
                       ) : (
-                        <>
-                          <Maximize2 className="w-3.5 h-3.5 stroke-[2.5]" />
-                          <span className="font-mono-num">100% Full</span>
-                        </>
+                        <ChevronUp className="w-4 h-4 text-black group-hover:-translate-y-0.5 transition-transform stroke-[2.5]" />
                       )}
                     </button>
                   </div>
