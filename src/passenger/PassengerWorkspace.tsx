@@ -2106,42 +2106,44 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* Passenger Live GPS Sharing Status in Active Ride */}
-            {gpsErrorMessage ? (
-              <div className="p-3 rounded-2xl bg-rose-50 border border-black text-rose-900 text-xs flex items-center justify-between gap-3 font-semibold">
-                <div className="flex items-center gap-2 min-w-0">
-                  <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />
-                  <span className="font-bold">{gpsErrorMessage}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={startWatchingLocation}
-                  className="px-2.5 py-1 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs shrink-0 active:scale-95 cursor-pointer shadow border border-black"
-                >
-                  Enable GPS
-                </button>
-              </div>
-            ) : (
-              <div className="px-3 py-2 rounded-2xl bg-slate-50 border border-black flex items-center justify-between text-xs text-black">
-                <div className="flex items-center gap-2">
-                  <div className="relative flex items-center justify-center w-2.5 h-2.5">
-                    <span className="absolute w-full h-full rounded-full bg-black/40 animate-ping opacity-75" />
-                    <span className="relative w-2 h-2 rounded-full bg-black" />
+            {/* Passenger Live GPS Sharing Status in Active Ride - Hidden once captain accepts ride */}
+            {(activeRide.status === 'requested' || activeRide.status === 'captain_offered') && (
+              gpsErrorMessage ? (
+                <div className="p-3 rounded-2xl bg-rose-50 border border-black text-rose-900 text-xs flex items-center justify-between gap-3 font-semibold">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AlertCircle className="w-4 h-4 text-rose-700 shrink-0" />
+                    <span className="font-bold">{gpsErrorMessage}</span>
                   </div>
-                  <span className="text-slate-800 font-bold">Live GPS Sharing:</span>
-                  <span className="text-black font-black">Active</span>
+                  <button
+                    type="button"
+                    onClick={startWatchingLocation}
+                    className="px-2.5 py-1 rounded-xl bg-black hover:bg-slate-800 text-white font-bold text-xs shrink-0 active:scale-95 cursor-pointer shadow border border-black"
+                  >
+                    Enable GPS
+                  </button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-700 font-mono-num font-bold">
-                    {passengerGps.accuracy ? `±${Math.round(passengerGps.accuracy)}m` : 'High Precision'}
-                  </span>
-                  {nowTick - passengerGps.timestamp > 30000 && (
-                    <span className="text-[10px] text-black bg-slate-200 px-1.5 py-0.5 rounded border border-black/30 font-black">
-                      Stale (&gt;30s)
+              ) : (
+                <div className="px-3 py-2 rounded-2xl bg-slate-50 border border-black flex items-center justify-between text-xs text-black">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex items-center justify-center w-2.5 h-2.5">
+                      <span className="absolute w-full h-full rounded-full bg-black/40 animate-ping opacity-75" />
+                      <span className="relative w-2 h-2 rounded-full bg-black" />
+                    </div>
+                    <span className="text-slate-800 font-bold">Live GPS Sharing:</span>
+                    <span className="text-black font-black">Active</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-700 font-mono-num font-bold">
+                      {passengerGps.accuracy ? `±${Math.round(passengerGps.accuracy)}m` : 'High Precision'}
                     </span>
-                  )}
+                    {nowTick - passengerGps.timestamp > 30000 && (
+                      <span className="text-[10px] text-black bg-slate-200 px-1.5 py-0.5 rounded border border-black/30 font-black">
+                        Stale (&gt;30s)
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )
             )}
 
             {/* Case 1: Searching Nearby Captains Radar - White Background with Black Text and Icons */}
