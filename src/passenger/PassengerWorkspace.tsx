@@ -1226,17 +1226,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       const currentActive = activeRideRef.current;
       const storedActiveId = safeStorage.getItem('motoride_active_passenger_ride_id');
       const isPassengerMatch =
-        Boolean(ride.passenger_id && (
+        Boolean(!ride.passenger_id ||
           ride.passenger_id === currentPassengerId ||
           (currentUser?.id && ride.passenger_id === currentUser.id) ||
           (authUser?.id && ride.passenger_id === authUser.id)
-        ));
+        );
       const isRideMatch = Boolean(
         (currentActive && currentActive.id === ride.id) ||
         (storedActiveId && storedActiveId === ride.id)
       );
 
-      if (isPassengerMatch || isRideMatch) {
+      if (isRideMatch || (isPassengerMatch && (currentActive || storedActiveId || ride.status === 'captain_accepted' || ride.status === 'captain_offered' || ride.status === 'requested'))) {
         if (ride.status.includes('cancelled')) {
           safeStorage.removeItem('motoride_active_passenger_ride_id');
           setActiveRide(null);
@@ -1781,6 +1781,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       setActiveRide(null);
       setCompletedRideForRating(null);
       setShowCaptainRatingModal(false);
+      setDropoff({ name: '', lat: 0, lng: 0 });
+      setDropoffInputText('');
 
       if (!isAlreadyCompleted) {
         await motorideApi.updateRideStatus(rideIdToCancel, 'cancelled_by_passenger', {
@@ -1854,12 +1856,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       setActiveRide(null);
       setCompletedRideForRating(null);
       setShowCaptainRatingModal(false);
+      setDropoff({ name: '', lat: 0, lng: 0 });
+      setDropoffInputText('');
       loadRideHistory();
     } catch (err) {
       console.error('Rating completion error:', err);
       setActiveRide(null);
       setCompletedRideForRating(null);
       setShowCaptainRatingModal(false);
+      setDropoff({ name: '', lat: 0, lng: 0 });
+      setDropoffInputText('');
     } finally {
       setIsSubmittingRating(false);
     }
