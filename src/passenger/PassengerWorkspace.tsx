@@ -581,6 +581,95 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [lastUploadedAt, setLastUploadedAt] = useState<number | null>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
 
+  // Real-time Current GPS Named Location & Active Map Target
+  const [currentGpsLocationName, setCurrentGpsLocationName] = useState<string>('Sector 70, Mohali Market');
+  const currentGpsLocationNameRef = useRef<string>('Sector 70, Mohali Market');
+  currentGpsLocationNameRef.current = currentGpsLocationName;
+  const [activeMapTarget, setActiveMapTarget] = useState<'pickup' | 'dropoff'>('pickup');
+  const coordsNameCacheRef = useRef<Map<string, string>>(new Map());
+
+  // Fast synchronous location name resolver from PRESET_LOCATIONS
+  const getFastLocationName = (lat: number, lng: number): string => {
+    let closest: { name: string; dist: number } | null = null;
+    for (const loc of PRESET_LOCATIONS) {
+      const dist = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
+      if (!closest || dist < closest.dist) {
+        closest = { name: loc.name, dist };
+      }
+    }
+    if (closest) {
+      if (closest.dist <= 400) {
+        return closest.name;
+      }
+      if (closest.dist <= 1500) {
+        return `Near ${closest.name}`;
+      }
+    }
+    return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+  };
+
+  // Precise reverse geocoding via OpenStreetMap / backend geocode endpoint
+  const resolveLocationNameAsync = async (lat: number, lng: number): Promise<string> => {
+    const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    const cached = coordsNameCacheRef.current.get(key);
+    if (cached) return cached;
+
+    let closestPreset: { name: string; dist: number } | null = null;
+    for (const loc of PRESET_LOCATIONS) {
+      const dist = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
+      if (!closestPreset || dist < closestPreset.dist) {
+        closestPreset = { name: loc.name, dist };
+      }
+    }
+    if (closestPreset && closestPreset.dist <= 300) {
+      coordsNameCacheRef.current.set(key, closestPreset.name);
+      return closestPreset.name;
+    }
+
+    try {
+      const res = await fetch(getApiUrl(`/api/motoride/geocode/reverse?lat=${lat}&lng=${lng}`));
+      if (res.ok) {
+        const text = await res.text();
+        if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
+          const data = JSON.parse(text);
+          if (data && data.address && typeof data.address === 'string' && data.address.trim()) {
+            if (!data.address.startsWith('Location (')) {
+              const formatted = data.address.trim();
+              coordsNameCacheRef.current.set(key, formatted);
+              return formatted;
+            }
+          }
+        }
+      }
+    } catch {}
+
+    const fallback = closestPreset && closestPreset.dist <= 1500
+      ? `Near ${closestPreset.name}`
+      : `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    coordsNameCacheRef.current.set(key, fallback);
+    return fallback;
+  };
+
+  // Keep currentGpsLocationName resolved whenever passenger GPS updates
+  useEffect(() => {
+    if (passengerGps.lat && passengerGps.lng) {
+      const fast = getFastLocationName(passengerGps.lat, passengerGps.lng);
+      setCurrentGpsLocationName(fast);
+      resolveLocationNameAsync(passengerGps.lat, passengerGps.lng).then((name) => {
+        if (name) {
+          setCurrentGpsLocationName(name);
+          setPickup((prev) => {
+            if (prev.name === 'My Live GPS Location' || prev.name === fast) {
+              return { ...prev, name };
+            }
+            return prev;
+          });
+          setPickupInputText((prev) => (prev === 'My Live GPS Location' || prev === fast ? name : prev));
+        }
+      });
+    }
+  }, [passengerGps.lat, passengerGps.lng]);
+
   // Manual Typing & Live Address Search State
   const [pickupMode, setPickupMode] = useState<'preset' | 'manual'>('preset');
   const [dropoffMode, setDropoffMode] = useState<'preset' | 'manual'>('manual');
@@ -785,15 +874,20 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   });
 
   // Handler: 1-click set pickup to passenger standing position & open drop location fill box
-  const handleSetPickupFromPassengerPosition = (lat?: number, lng?: number) => {
+  const handleSetPickupFromPassengerPosition = async (lat?: number, lng?: number) => {
     const targetLat = lat ?? passengerGps.lat;
     const targetLng = lng ?? passengerGps.lng;
+
+    // Fast 0ms location name from closest landmarks
+    const initialName = getFastLocationName(targetLat, targetLng);
     setPickup({
-      name: 'My Live GPS Location',
+      name: initialName,
       lat: targetLat,
       lng: targetLng,
     });
-    setPickupInputText('My Live GPS Location');
+    setPickupInputText(initialName);
+    setCurrentGpsLocationName(initialName);
+    setActiveMapTarget('dropoff');
 
     // Automatically expand card, switch to drop location search, and focus input
     setIsCardMinimized(false);
@@ -804,9 +898,20 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       dropoffContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
 
-    setPickupToastMessage('Live GPS location set! Fill destination.');
+    setPickupToastMessage(`📍 Pickup set to ${initialName}`);
     setShowPickupToast(true);
     setTimeout(() => setShowPickupToast(false), 3500);
+
+    // Refine with accurate reverse geocoding in background
+    try {
+      const accurateName = await resolveLocationNameAsync(targetLat, targetLng);
+      if (accurateName && accurateName !== initialName) {
+        setPickup((prev) => (prev.lat === targetLat && prev.lng === targetLng ? { ...prev, name: accurateName } : prev));
+        setPickupInputText((prev) => (prev === initialName ? accurateName : prev));
+        setCurrentGpsLocationName(accurateName);
+        setPickupToastMessage(`📍 Pickup: ${accurateName}`);
+      }
+    } catch {}
   };
   const [fareSettings, setFareSettings] = useState<FareSettings>(() => {
     try {
@@ -1078,10 +1183,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       if (
         !prev.name ||
         prev.name === 'My Live GPS Location' ||
-        prev.name === 'Sector 70, Mohali Market'
+        prev.name === 'Sector 70, Mohali Market' ||
+        prev.name === currentGpsLocationNameRef.current
       ) {
+        const resolved = getFastLocationName(latitude, longitude);
+        setCurrentGpsLocationName(resolved);
         return {
-          name: 'My Live GPS Location',
+          name: resolved,
           lat: latitude,
           lng: longitude,
         };
@@ -2006,7 +2114,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         passengerLng={passengerGps.lng}
         passengerAccuracy={passengerGps.accuracy}
         passengerHeading={passengerGps.heading}
-        passengerName="Standing Here"
+        passengerName={currentGpsLocationName || 'Standing Here'}
         showPassengerOnly={false}
         nearbyCaptains={activeRide ? [] : nearbyCaptains}
         nearestCaptain={activeRide ? null : nearestCaptain}
@@ -2032,21 +2140,54 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         bottomSheetPadding={activeRide ? (isCardMinimized ? 90 : 380) : 180}
         interactive={!activeRide}
         onSetPickupToPassengerLocation={(lat, lng) => handleSetPickupFromPassengerPosition(lat, lng)}
-        onMapClick={(lat, lng) => {
+        onMapClick={async (lat, lng) => {
           if (activeRide) return;
-          // If clicking map during booking, update pickup if empty, otherwise dropoff
-          if (!pickup.name) {
+
+          const isTargetingPickup = activeMapTarget === 'pickup' || !pickup.name || !pickup.lat;
+
+          if (isTargetingPickup) {
+            const initialName = getFastLocationName(lat, lng);
             setPickup({
-              name: `Pinned Pickup (${lat.toFixed(3)}, ${lng.toFixed(3)})`,
+              name: initialName,
               lat,
               lng,
             });
+            setPickupInputText(initialName);
+            setActiveMapTarget('dropoff');
+
+            setPickupToastMessage(`📍 From: ${initialName}`);
+            setShowPickupToast(true);
+            setTimeout(() => setShowPickupToast(false), 3500);
+
+            try {
+              const accurateName = await resolveLocationNameAsync(lat, lng);
+              if (accurateName) {
+                setPickup((prev) => (prev.lat === lat && prev.lng === lng ? { ...prev, name: accurateName } : prev));
+                setPickupInputText((prev) => (prev === initialName ? accurateName : prev));
+                setPickupToastMessage(`📍 From: ${accurateName}`);
+              }
+            } catch {}
           } else {
+            const initialName = getFastLocationName(lat, lng);
             setDropoff({
-              name: `Pinned Destination (${lat.toFixed(3)}, ${lng.toFixed(3)})`,
+              name: initialName,
               lat,
               lng,
             });
+            setDropoffInputText(initialName);
+
+            setPickupToastMessage(`🎯 Destination: ${initialName}`);
+            setShowPickupToast(true);
+            setTimeout(() => setShowPickupToast(false), 3500);
+
+            try {
+              const accurateName = await resolveLocationNameAsync(lat, lng);
+              if (accurateName) {
+                setDropoff((prev) => (prev.lat === lat && prev.lng === lng ? { ...prev, name: accurateName } : prev));
+                setDropoffInputText((prev) => (prev === initialName ? accurateName : prev));
+                setPickupToastMessage(`🎯 Destination: ${accurateName}`);
+              }
+            } catch {}
           }
         }}
         className={`w-full h-full ${isFullBackground ? 'rounded-none border-0' : 'shadow-2xl border border-slate-800'}`}
@@ -2578,6 +2719,24 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      setActiveMapTarget('pickup');
+                      setPickupToastMessage('📍 Tap anywhere on map to set pickup location');
+                      setShowPickupToast(true);
+                      setTimeout(() => setShowPickupToast(false), 3000);
+                    }}
+                    className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                      activeMapTarget === 'pickup'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-400'
+                        : 'bg-slate-100 hover:bg-slate-200 text-black border-transparent'
+                    }`}
+                    title="Tap on map to select pickup location"
+                  >
+                    <MapPin className="w-3 h-3 text-emerald-600" />
+                    <span>Map</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       if (pickupMode === 'preset') {
                         setPickupMode('manual');
                         setPickupInputText(pickup.name || '');
@@ -2616,7 +2775,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         setShowPickupSuggestions(true);
                         return;
                       }
-                      if (val === 'My Live GPS Location') {
+                      if (val === 'My Live GPS Location' || val === currentGpsLocationName) {
                         handleSetPickupFromPassengerPosition();
                         requestLiveLocation();
                         return;
@@ -2631,9 +2790,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <option value="" disabled className="bg-white text-slate-500">
                       Select Pickup Location
                     </option>
-                    <option value="My Live GPS Location" className="bg-white text-emerald-700 font-bold">
-                      📍 My Live GPS Location (Current Position)
+                    <option value={currentGpsLocationName} className="bg-white text-emerald-700 font-bold">
+                      📍 {currentGpsLocationName} (Current Location)
                     </option>
+                    {pickup.name && pickup.name !== currentGpsLocationName && !PRESET_LOCATIONS.some((loc) => loc.name === pickup.name) && (
+                      <option value={pickup.name} className="bg-white text-emerald-700 font-bold">
+                        📍 {pickup.name}
+                      </option>
+                    )}
                     {PRESET_LOCATIONS.map((loc) => (
                       <option key={loc.name} value={loc.name} className="bg-white text-black">
                         {loc.name}
@@ -2654,8 +2818,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                           e.stopPropagation();
                           handleSetPickupFromPassengerPosition();
                         }}
-                        title="Reset to Live GPS Location"
-                        aria-label="Reset to Live GPS Location"
+                        title="Reset to current location"
+                        aria-label="Reset to current location"
                         className="p-1 rounded-md bg-slate-200 hover:bg-slate-300 text-black transition-all cursor-pointer flex items-center justify-center active:scale-95 shadow-xs"
                       >
                         <X className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -2672,7 +2836,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       value={pickupInputText}
                       onChange={(e) => handleManualPickupChange(e.target.value)}
                       onKeyDown={handlePickupKeyDown}
-                      onFocus={() => setShowPickupSuggestions(true)}
+                      onFocus={() => {
+                        setShowPickupSuggestions(true);
+                        setActiveMapTarget('pickup');
+                      }}
                       placeholder="Type custom pickup location or landmark..."
                       className="w-full pl-9 pr-24 py-2.5 rounded-xl bg-slate-100 text-xs text-black placeholder-slate-500 font-semibold focus:outline-none focus:ring-2 focus:ring-black shadow-xs"
                     />
@@ -2745,32 +2912,52 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   <span className="w-2 h-2 rounded-full bg-rose-500" />
                   <span className="font-black">To</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (dropoffMode === 'preset') {
-                      setDropoffMode('manual');
-                      setDropoffInputText(dropoff.name || '');
-                      setShowDropoffSuggestions(true);
-                    } else {
-                      setDropoffMode('preset');
-                      setShowDropoffSuggestions(false);
-                    }
-                  }}
-                  className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-black transition-colors cursor-pointer"
-                >
-                  {dropoffMode === 'preset' ? (
-                    <>
-                      <PenLine className="w-3 h-3 text-black" />
-                      <span className="text-black">Write Manually</span>
-                    </>
-                  ) : (
-                    <>
-                      <List className="w-3 h-3 text-black" />
-                      <span className="text-black">Select Preset</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveMapTarget('dropoff');
+                      setPickupToastMessage('🎯 Tap anywhere on map to set destination');
+                      setShowPickupToast(true);
+                      setTimeout(() => setShowPickupToast(false), 3000);
+                    }}
+                    className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                      activeMapTarget === 'dropoff'
+                        ? 'bg-blue-100 text-blue-800 border-blue-400'
+                        : 'bg-slate-100 hover:bg-slate-200 text-black border-transparent'
+                    }`}
+                    title="Tap on map to select destination"
+                  >
+                    <Navigation className="w-3 h-3 text-blue-600" />
+                    <span>Map</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dropoffMode === 'preset') {
+                        setDropoffMode('manual');
+                        setDropoffInputText(dropoff.name || '');
+                        setShowDropoffSuggestions(true);
+                      } else {
+                        setDropoffMode('preset');
+                        setShowDropoffSuggestions(false);
+                      }
+                    }}
+                    className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-black transition-colors cursor-pointer"
+                  >
+                    {dropoffMode === 'preset' ? (
+                      <>
+                        <PenLine className="w-3 h-3 text-black" />
+                        <span className="text-black">Write Manually</span>
+                      </>
+                    ) : (
+                      <>
+                        <List className="w-3 h-3 text-black" />
+                        <span className="text-black">Select Preset</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {dropoffMode === 'preset' ? (
@@ -2793,6 +2980,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <option value="" disabled className="bg-white text-slate-500">
                       Select Dropoff Location
                     </option>
+                    {dropoff.name && !PRESET_LOCATIONS.some((loc) => loc.name === dropoff.name) && (
+                      <option value={dropoff.name} className="bg-white text-blue-700 font-bold">
+                        🎯 {dropoff.name}
+                      </option>
+                    )}
                     {PRESET_LOCATIONS.map((loc) => (
                       <option key={loc.name} value={loc.name} className="bg-white text-black">
                         {loc.name}
