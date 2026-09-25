@@ -1534,49 +1534,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             })()}
           </div>
 
-          {/* Synchronized Trip Progress Tabs (Coordinated with Passenger View: 1. En Route, 2. Arrived, 3. Riding) */}
-          <div className="grid grid-cols-3 gap-2 text-center text-xs select-none">
-            <div
-              className={`p-2 rounded-xl border transition-all ${
-                activeRide.status === 'captain_accepted'
-                  ? 'bg-black text-white border-black font-black shadow-xs ring-1 ring-black'
-                  : 'bg-slate-100 border-slate-300 text-slate-500 font-semibold'
-              }`}
-            >
-              1. En Route
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (activeRide.status === 'captain_accepted') handleStatusChange('captain_arrived');
-              }}
-              style={activeRide.status === 'captain_arrived' ? { backgroundColor: '#174309', borderColor: '#174309' } : undefined}
-              className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                activeRide.status === 'captain_arrived'
-                  ? 'text-white font-black shadow-xs ring-1 ring-emerald-600'
-                  : 'bg-slate-100 border-slate-300 text-slate-600 font-semibold hover:bg-slate-200'
-              }`}
-              title="Step 2: Arrived at Pickup"
-            >
-              2. Arrived
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (activeRide.status === 'captain_arrived') handleStatusChange('trip_started');
-              }}
-              style={activeRide.status === 'trip_started' ? { backgroundColor: '#DAA520', borderColor: '#DAA520', color: '#020617' } : undefined}
-              className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                activeRide.status === 'trip_started'
-                  ? 'text-slate-950 font-black shadow-xs ring-1 ring-amber-500'
-                  : 'bg-slate-100 border-slate-300 text-slate-600 font-semibold hover:bg-slate-200'
-              }`}
-              title="Step 3: Riding to Destination"
-            >
-              3. Riding
-            </button>
-          </div>
-
           {/* Passenger Ride Details Box: A + Call Icon, B + Message Icon, Agreed Fare */}
           <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-3">
             {/* A: Pickup Address + Call Icon */}
