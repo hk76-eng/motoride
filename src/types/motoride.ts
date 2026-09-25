@@ -93,6 +93,8 @@ export interface MotorideRide {
   captain_name?: string | null;
   captain_avatar?: string | null;
   captain_phone?: string | null;
+  captain_rating?: number;
+  captain_total_rides?: number;
   vehicle_model?: string | null;
   plate_number?: string | null;
   pickup_address: string;
@@ -138,6 +140,8 @@ export interface RideOffer {
   vehicle_model?: string;
   plate_number?: string;
   rating: number;
+  total_rides?: number;
+  captain_total_rides?: number;
   counter_fare: number;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;

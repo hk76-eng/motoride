@@ -1080,11 +1080,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const resolvedPlate = savedPlate || captain?.vehicle?.plate_number || authUser?.plateNumber || '';
       const captainSavedAvatar = savedAvatar || captain?.avatar_url || authUser?.avatarUrl || undefined;
 
+      const resolvedRating = captain?.rating !== undefined ? captain.rating : ((authUser as any)?.rating || 5.0);
+      const resolvedTotalRides = captain?.total_rides ?? 0;
+
       const updated = await motorideApi.acceptRide(ride.id, {
         captain_id: captain?.id || captainId,
         captain_name: resolvedName,
         captain_avatar: captainSavedAvatar,
         captain_phone: resolvedPhone,
+        captain_rating: resolvedRating,
+        captain_total_rides: resolvedTotalRides,
         vehicle_model: resolvedModel,
         plate_number: resolvedPlate,
         accepted_fare: ride.offered_fare,
@@ -1123,11 +1128,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const resolvedPlate = savedPlate || captain?.vehicle?.plate_number || authUser?.plateNumber || '';
       const captainSavedAvatar = savedAvatar || captain?.avatar_url || authUser?.avatarUrl || undefined;
 
+      const resolvedRating = captain?.rating !== undefined ? captain.rating : ((authUser as any)?.rating || 5.0);
+      const resolvedTotalRides = captain?.total_rides ?? 0;
+
       await motorideApi.sendCounterOffer(rideId, {
         captain_id: captain?.id || captainId,
         captain_name: resolvedName,
         captain_avatar: captainSavedAvatar,
         captain_phone: resolvedPhone,
+        rating: resolvedRating,
+        captain_total_rides: resolvedTotalRides,
+        total_rides: resolvedTotalRides,
         vehicle_model: resolvedModel,
         plate_number: resolvedPlate,
         counter_fare: proposedFare,

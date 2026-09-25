@@ -470,6 +470,8 @@ export const motorideApi = {
       captain_name: string;
       captain_avatar?: string;
       captain_phone?: string;
+      captain_rating?: number;
+      captain_total_rides?: number;
       vehicle_model?: string;
       plate_number?: string;
       accepted_fare?: number;
@@ -484,6 +486,8 @@ export const motorideApi = {
       captain_name: captainData.captain_name,
       captain_avatar: (captainData as any).captain_avatar || safeStorage.getItem('motoride_captain_avatar') || undefined,
       captain_phone: captainData.captain_phone,
+      captain_rating: captainData.captain_rating !== undefined ? captainData.captain_rating : (existing.captain_rating ?? 5.0),
+      captain_total_rides: captainData.captain_total_rides !== undefined ? captainData.captain_total_rides : (existing.captain_total_rides ?? 0),
       vehicle_model: captainData.vehicle_model,
       plate_number: captainData.plate_number,
       final_fare: captainData.accepted_fare || existing.final_fare || 75,
@@ -551,6 +555,9 @@ export const motorideApi = {
       captain_avatar?: string;
       avatar_url?: string;
       captain_phone?: string;
+      rating?: number;
+      captain_total_rides?: number;
+      total_rides?: number;
       vehicle_model?: string;
       plate_number?: string;
       counter_fare: number;
@@ -569,7 +576,9 @@ export const motorideApi = {
       ride_id: rideId,
       ...offerData,
       status: 'pending',
-      rating: 4.9,
+      rating: offerData.rating !== undefined ? offerData.rating : 5.0,
+      captain_total_rides: offerData.captain_total_rides !== undefined ? offerData.captain_total_rides : (offerData.total_rides ?? 0),
+      total_rides: offerData.captain_total_rides !== undefined ? offerData.captain_total_rides : (offerData.total_rides ?? 0),
       created_at: new Date().toISOString(),
     };
 

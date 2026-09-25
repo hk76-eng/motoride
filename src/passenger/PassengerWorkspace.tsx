@@ -52,6 +52,7 @@ import {
   Loader2,
   ArrowLeft,
   History,
+  TrendingUp,
 } from 'lucide-react';
 
 import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
@@ -537,6 +538,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   // Available Captains & Nearest Captain State for Passenger Map
   const [nearbyCaptains, setNearbyCaptains] = useState<AvailableCaptainItem[]>([]);
   const [nearestCaptain, setNearestCaptain] = useState<AvailableCaptainItem | null>(null);
+  const [captainActualTrips, setCaptainActualTrips] = useState<number>(0);
 
   // Animated Captain Progression for Active Ride on Passenger Map
   const [animatedCaptainPos, setAnimatedCaptainPos] = useState<{
@@ -1893,6 +1895,45 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     } catch {}
   };
 
+  // Sync and calculate true completed trips done by the assigned captain
+  useEffect(() => {
+    if (!activeRide || (!activeRide.captain_id && !activeRide.captain_name)) {
+      setCaptainActualTrips(0);
+      return;
+    }
+
+    if (activeRide.captain_total_rides !== undefined && activeRide.captain_total_rides > 0) {
+      setCaptainActualTrips(activeRide.captain_total_rides);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchCaptainCompletedTrips = async () => {
+      try {
+        const allRides = await motorideApi.getRides();
+        if (!isMounted) return;
+        const cptId = activeRide.captain_id;
+        const cptName = activeRide.captain_name;
+        const trips = allRides.filter((r) => {
+          const isCaptain = (cptId && r.captain_id === cptId) ||
+            (cptName && r.captain_name && r.captain_name.toLowerCase() === cptName.toLowerCase());
+          const isCompleted = r.status === 'completed' || r.status === 'trip_completed';
+          return isCaptain && isCompleted;
+        });
+        setCaptainActualTrips(trips.length);
+      } catch {
+        if (isMounted) {
+          setCaptainActualTrips(activeRide.captain_total_rides ?? 0);
+        }
+      }
+    };
+
+    fetchCaptainCompletedTrips();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeRide?.id, activeRide?.captain_id, activeRide?.captain_name, activeRide?.captain_total_rides]);
+
   const loadActiveRide = async () => {
     try {
       const pid = currentPassengerId || currentUser?.id || authUser?.id || '';
@@ -2466,6 +2507,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                                 <Star className="w-3 h-3 fill-black text-black mr-0.5" />
                                 {offer.rating}
                               </span>
+                              {(offer.captain_total_rides !== undefined || offer.total_rides !== undefined) && (
+                                <span className="flex items-center gap-0.5 text-[10px] text-emerald-900 bg-emerald-100 border border-emerald-400 px-1.5 py-0.5 rounded font-black font-mono-num shrink-0">
+                                  <TrendingUp className="w-3 h-3 text-emerald-700 stroke-[2.5]" />
+                                  <span>{offer.captain_total_rides ?? offer.total_rides ?? 0} trips</span>
+                                </span>
+                              )}
                             </div>
                             <p className="text-[11px] text-slate-700 mt-0.5 font-medium truncate">
                               {offer.vehicle_model} • {offer.plate_number}
@@ -2576,14 +2623,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       </span>
                     </div>
                     <div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-black text-black text-sm">
                           {activeRide.captain_name && activeRide.captain_name !== 'Captain'
                             ? activeRide.captain_name
                             : (safeStorage.getItem('motoride_captain_name') || 'Assigned Captain')}
                         </span>
                         <span className="flex items-center text-[10px] text-black bg-slate-200 border border-black/30 px-1.5 py-0.5 rounded font-bold">
-                          <Star className="w-3 h-3 fill-black text-black mr-0.5" /> 4.92
+                          <Star className="w-3 h-3 fill-black text-black mr-0.5" />
+                          {activeRide.captain_rating !== undefined ? Number(activeRide.captain_rating).toFixed(1) : '5.0'}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] text-emerald-900 bg-emerald-100 border border-emerald-400 px-2 py-0.5 rounded-md font-black font-mono-num shadow-xs">
+                          <TrendingUp className="w-3 h-3 text-emerald-700 shrink-0 stroke-[2.5]" />
+                          <span>{captainActualTrips} {captainActualTrips === 1 ? 'trip' : 'trips'} done</span>
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 font-mono-num mt-0.5 font-medium">
