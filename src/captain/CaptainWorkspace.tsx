@@ -1564,41 +1564,43 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             }
 
             return (
-              <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-200 shadow-2xs flex flex-col gap-3">
+              <div className="p-4 sm:p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex flex-col gap-3.5 transition-all">
                 {/* Main Row: Left Passenger Profile | Right A & B Locations */}
-                <div className="flex items-start gap-3">
+                <div className="flex items-center gap-3.5 sm:gap-4">
                   {/* Left Side: Passenger Profile (Photo, Full Name, ⭐ 5.0, (10)) */}
-                  <div className="flex flex-col items-center shrink-0 w-20 text-center pr-3 border-r border-slate-200">
-                    <img
-                      src={passengerAvatar}
-                      alt={passengerDisplayName}
-                      className="w-12 h-12 rounded-full object-cover border border-slate-300 shadow-xs shrink-0 bg-slate-200"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = defaultRituAvatar;
-                      }}
-                    />
-                    <h4 className="text-xs font-black text-slate-900 mt-1.5 line-clamp-1 w-full" title={passengerDisplayName}>
+                  <div className="flex flex-col items-center shrink-0 w-24 sm:w-28 text-center pr-3 sm:pr-4 border-r border-slate-200">
+                    <div className="relative">
+                      <img
+                        src={passengerAvatar}
+                        alt={passengerDisplayName}
+                        className="w-13 h-13 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-white ring-2 ring-slate-200 shadow-sm shrink-0 bg-slate-100"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = defaultRituAvatar;
+                        }}
+                      />
+                    </div>
+                    <h4 className="text-xs sm:text-sm font-black text-slate-900 mt-2 leading-tight break-words text-center line-clamp-2 w-full" title={passengerDisplayName}>
                       {passengerDisplayName}
                     </h4>
-                    <span className="flex items-center text-[10px] text-amber-900 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded font-bold leading-none mt-1">
-                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 mr-0.5" />
+                    <span className="flex items-center gap-0.5 text-[11px] text-amber-950 bg-amber-100/90 border border-amber-300/80 px-2 py-0.5 rounded-md font-black leading-none mt-1.5 shadow-2xs">
+                      <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 mr-0.5 shrink-0" />
                       {passengerRating.toFixed(1)}
                     </span>
-                    <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-1">
+                    <span className="text-[11px] text-slate-700 font-bold font-mono-num leading-none mt-1">
                       ({passengerTotalRides})
                     </span>
                   </div>
 
                   {/* Right Side: A & B Location Points with Call & Message buttons */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-2.5">
+                  <div className="flex-1 min-w-0 flex flex-col gap-3 justify-center">
                     {/* A: Pickup Address + Call Icon */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-start gap-2 min-w-0 flex-1">
-                        <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                    <div className="flex items-center justify-between gap-2.5">
+                      <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                        <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs mt-0.5">
                           A
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs text-slate-900 font-bold leading-snug line-clamp-2">
+                          <p className="text-xs sm:text-sm text-slate-900 font-bold leading-snug break-words">
                             {activeRide.pickup_address || 'My Live GPS Location'}
                           </p>
                         </div>
@@ -1607,22 +1609,22 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       {/* Call Icon on right of A */}
                       <a
                         href={`tel:${activeRide.passenger_phone || '+919780012345'}`}
-                        className="w-8 h-8 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500"
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500"
                         title="Call Passenger"
                         aria-label="Call Passenger"
                       >
-                        <Phone className="w-3.5 h-3.5 stroke-[2.5] text-white" />
+                        <Phone className="w-4 h-4 stroke-[2.5] text-white" />
                       </a>
                     </div>
 
                     {/* B: Dropoff Address + Message Icon */}
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200">
-                      <div className="flex items-start gap-2 min-w-0 flex-1">
-                        <span className="w-5 h-5 rounded-full bg-rose-500 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-xs mt-0.5">
+                    <div className="flex items-center justify-between gap-2.5 pt-2.5 border-t border-slate-100">
+                      <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                        <span className="w-6 h-6 rounded-full bg-rose-500 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs mt-0.5">
                           B
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs text-slate-800 font-medium leading-snug line-clamp-2">
+                          <p className="text-xs sm:text-sm text-slate-800 font-medium leading-snug break-words">
                             {activeRide.dropoff_address || 'Phase 5 Market, Mohali'}
                           </p>
                         </div>
@@ -1638,11 +1640,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                             safeStorage.setItem(`motoride_last_read_chat_${activeRide.id}`, Date.now().toString());
                           }
                         }}
-                        className="w-8 h-8 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500 relative"
+                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-600 text-white hover:bg-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0 border border-emerald-500 relative"
                         title="Chat with Passenger"
                         aria-label="Chat with Passenger"
                       >
-                        <MessageSquare className="w-3.5 h-3.5 stroke-[2.5] text-white" />
+                        <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
                         {hasUnreadMessages && (
                           <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 z-10" title="New message received">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-80"></span>
@@ -1655,8 +1657,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 </div>
 
                 {/* Agreed Fare */}
-                <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">
-                  <div className="flex items-center gap-1.5">
+                <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+                  <div className="flex items-center gap-2">
                     <span className="text-xs sm:text-sm font-bold text-slate-700">
                       Agreed Fare:
                     </span>
@@ -1664,7 +1666,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       ₹{activeRide.final_fare || activeRide.offered_fare}
                     </span>
                   </div>
-                  <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-black px-2.5 py-0.5 rounded-md bg-slate-100 border border-slate-300 shadow-2xs">
+                  <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-black px-2.5 py-0.5 rounded-lg bg-slate-100 border border-slate-300 shadow-2xs">
                     {activeRide.payment_method?.toUpperCase() === 'CASH' ? 'CASH' : 'UPI'}
                   </span>
                 </div>

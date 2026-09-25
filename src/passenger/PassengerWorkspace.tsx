@@ -2606,8 +2606,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 )}
 
                 {/* Captain Details Box */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-black flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="p-4 sm:p-4.5 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-3.5">
                     {/* Photo with Rating & Trips below */}
                     <div className="flex flex-col items-center shrink-0">
                       <div className="relative">
@@ -2615,7 +2615,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                           src={getCaptainAvatarUrl(activeRide.captain_name || undefined, (activeRide as any).captain_avatar || (activeRide as any).avatar_url)}
                           alt={activeRide.captain_name || 'Captain'}
                           referrerPolicy="no-referrer"
-                          className="w-12 h-12 rounded-full object-cover border-2 border-black bg-slate-200 shadow-xs"
+                          className="w-13 h-13 rounded-full object-cover border-2 border-white ring-2 ring-slate-200 shadow-sm bg-slate-100"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src =
                               `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRide.captain_name || 'Captain')}&background=0284c7&color=fff&bold=true`;
@@ -2627,23 +2627,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       </div>
                       {/* Rating Tab & (Trips) just below photo */}
                       <div className="flex flex-col items-center mt-1.5 leading-none">
-                        <span className="flex items-center text-[10px] text-black bg-slate-200 border border-black/30 px-1.5 py-0.5 rounded font-bold leading-none">
-                          <Star className="w-2.5 h-2.5 fill-black text-black mr-0.5" />
+                        <span className="flex items-center gap-0.5 text-[11px] text-amber-950 bg-amber-100/90 border border-amber-300/80 px-2 py-0.5 rounded-md font-black leading-none shadow-2xs">
+                          <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 mr-0.5 shrink-0" />
                           {activeRide.captain_rating !== undefined ? Number(activeRide.captain_rating).toFixed(1) : '5.0'}
                         </span>
-                        <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-1">
+                        <span className="text-[11px] text-slate-700 font-bold font-mono-num leading-none mt-1">
                           ({captainActualTrips})
                         </span>
                       </div>
                     </div>
 
                     <div>
-                      <span className="font-black text-black text-sm block">
+                      <span className="font-black text-slate-900 text-sm sm:text-base block">
                         {activeRide.captain_name && activeRide.captain_name !== 'Captain'
                           ? activeRide.captain_name
                           : (safeStorage.getItem('motoride_captain_name') || 'Assigned Captain')}
                       </span>
-                      <p className="text-xs text-slate-600 font-mono-num mt-1 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-600 font-mono-num mt-1 font-medium">
                         {(activeRide.vehicle_model || safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle')}{' '}
                         •{' '}
                         <span className="text-black font-black">
