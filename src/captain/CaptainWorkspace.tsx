@@ -1962,7 +1962,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     return (
       <div className="flex flex-col gap-3.5">
         {/* Inspection Request Details Header Card - Matching Layout */}
-        <div className="p-4 rounded-2xl bg-white border border-amber-500 ring-2 ring-amber-400/30 bg-amber-50/20 shadow-sm">
+        <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
           <div className="flex items-start gap-3 sm:gap-4">
             {/* Left Column: Photo of Passenger | Full Name | Rating */}
             <div className="flex flex-col items-center shrink-0 w-20 sm:w-24 text-center pt-0.5">
@@ -2033,9 +2033,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 </div>
               </div>
 
-              {/* Bottom Row Badges: UPI / CASH | Motorbike / Ride Type | Trip Distance */}
+              {/* Bottom Row Badges: UPI / CASH | Motorbike / Ride Type */}
               <div className="flex items-center gap-2 pt-1.5 border-t border-slate-200/80 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-black uppercase tracking-wider shadow-2xs">
+                <span className="px-2.5 py-0.5 rounded-md bg-emerald-600 text-white border border-emerald-500 text-[11px] font-black uppercase tracking-wider shadow-2xs">
                   {ride.payment_method?.toUpperCase() === 'CASH' ? 'CASH' : 'UPI'}
                 </span>
 
@@ -2043,10 +2043,13 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   <span className="text-xs leading-none">{service.icon}</span>
                   <span>{service.label}</span>
                 </span>
+              </div>
 
-                <span className="ml-auto text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
-                  {rideDistText} (~{ride.duration_minutes || 14} mins)
-                </span>
+              {/* Total Distance & Duration directly below the tab UPI */}
+              <div className="pt-1 flex items-center gap-1.5 text-xs">
+                <span className="text-slate-500 font-bold">Total distance:</span>
+                <span className="font-black text-slate-900 font-mono-num">{rideDistText}</span>
+                <span className="text-slate-600 font-medium">({ride.duration_minutes || 54}mins)</span>
               </div>
             </div>
           </div>
