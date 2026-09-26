@@ -103,6 +103,8 @@ interface MotorideMapProps {
   onFocusNearestCaptain?: () => void;
   activeRideStatus?: string | null;
   focusCoords?: { lat: number; lng: number; zoom?: number; timestamp: number } | null;
+  onMapMoveStart?: () => void;
+  onMapMoveEnd?: (lat: number, lng: number) => void;
 }
 
 export const MotorideMap: React.FC<MotorideMapProps> = ({
@@ -146,6 +148,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   onFocusNearestCaptain,
   activeRideStatus = null,
   focusCoords = null,
+  onMapMoveStart,
+  onMapMoveEnd,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -453,6 +457,19 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     map.on('dragstart', () => {
       setIsFollowingPassenger(false);
       setIsFollowingCaptain(false);
+    });
+
+    map.on('movestart', () => {
+      if (onMapMoveStart) {
+        onMapMoveStart();
+      }
+    });
+
+    map.on('moveend', () => {
+      if (interactive && onMapMoveEnd) {
+        const center = map.getCenter();
+        onMapMoveEnd(center.lat, center.lng);
+      }
     });
 
     mapInstanceRef.current = map;

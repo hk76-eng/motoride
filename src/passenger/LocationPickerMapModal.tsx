@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Navigation, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Navigation, Plus, Minus, Move } from 'lucide-react';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { getApiUrl } from '../utils/apiUrl';
 
@@ -51,6 +51,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearchingServer, setIsSearchingServer] = useState(false);
   const [isResolvingName, setIsResolvingName] = useState(false);
+  const [isDraggingMap, setIsDraggingMap] = useState(false);
   const [currentZoom, setCurrentZoom] = useState<number>(15);
   const [mapFocusCoords, setMapFocusCoords] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
 
@@ -129,9 +130,8 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     setSelectedLocation(loc);
     setSearchQuery(loc.name);
     setShowSearchResults(false);
-    // Area searches (e.g. Dhakoli, Sector 17, Zirakpur) get zoom 14 so whole area map is in view
     const isAreaSearch = /\b(dhakoli|zirakpur|sector|mohali|panchkula|mullanpur|kharar|baltana|peer muchalla)\b/i.test(loc.name);
-    const zoomLevel = isAreaSearch ? 14 : 16;
+    const zoomLevel = isAreaSearch ? 15 : 16;
     setCurrentZoom(zoomLevel);
     setMapFocusCoords({ lat: loc.lat, lng: loc.lng, zoom: zoomLevel, timestamp: Date.now() });
   };
@@ -142,6 +142,27 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     const targetZoom = Math.max(currentZoom, 15);
     setCurrentZoom(targetZoom);
     setMapFocusCoords({ lat, lng, zoom: targetZoom, timestamp: Date.now() });
+    setIsResolvingName(true);
+
+    try {
+      const accurateName = await resolveLocationNameAsync(lat, lng);
+      if (accurateName) {
+        setSelectedLocation({ name: accurateName, lat, lng });
+      }
+    } catch {} finally {
+      setIsResolvingName(false);
+    }
+  };
+
+  // Center Drag / Finger Swiping Map Listener
+  const handleMapMoveStart = () => {
+    setIsDraggingMap(true);
+  };
+
+  const handleMapMoveEnd = async (lat: number, lng: number) => {
+    setIsDraggingMap(false);
+    const fastName = getFastLocationName(lat, lng);
+    setSelectedLocation({ name: fastName, lat, lng });
     setIsResolvingName(true);
 
     try {
@@ -207,7 +228,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               <span>{targetType === 'pickup' ? 'Select Pickup Location' : 'Select Destination Location'}</span>
             </h2>
             <p className="text-[11px] text-slate-400 font-medium truncate">
-              Type place name or tap anywhere on map
+              Drag map or type place name to pinpoint
             </p>
           </div>
         </div>
@@ -321,8 +342,40 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           showOverlayControls={false}
           interactive={true}
           onMapClick={(lat, lng) => handleMapClick(lat, lng)}
+          onMapMoveStart={handleMapMoveStart}
+          onMapMoveEnd={handleMapMoveEnd}
           className="w-full h-full"
         />
+
+        {/* Center Target Pushpin Overlay (Uber/Ola/InDrive Style Pinpoint) */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full pointer-events-none z-[500] flex flex-col items-center">
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-2xl transition-all duration-200 border ${
+            targetType === 'pickup'
+              ? 'bg-emerald-500 text-slate-950 font-black border-white'
+              : 'bg-rose-600 text-white font-black border-white'
+          } ${isDraggingMap ? '-translate-y-3 scale-110 shadow-emerald-500/50' : 'translate-y-0 scale-100'}`}>
+            <MapPin className="w-4 h-4 stroke-[3]" />
+            <span className="text-xs tracking-tight whitespace-nowrap">
+              {isDraggingMap
+                ? 'Dragging to pinpoint...'
+                : (targetType === 'pickup' ? 'Set Pickup Here' : 'Set Destination Here')}
+            </span>
+          </div>
+
+          {/* Pin Arrow Tip & Ground Shadow */}
+          <div className={`w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] transition-all duration-200 ${
+            targetType === 'pickup' ? 'border-t-emerald-500' : 'border-t-rose-600'
+          }`} />
+          <div className={`w-3 h-1.5 rounded-full bg-slate-950/40 blur-[1px] transition-all duration-200 ${
+            isDraggingMap ? 'scale-75 opacity-30' : 'scale-100 opacity-80'
+          }`} />
+        </div>
+
+        {/* Floating Instruction Banner when dragging */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[450] bg-slate-900/90 text-slate-200 border border-slate-700/80 px-3 py-1.5 rounded-full text-[11px] font-bold shadow-xl backdrop-blur-md pointer-events-none flex items-center gap-2">
+          <Move className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
+          <span>Drag map with finger to set exact pinpoint</span>
+        </div>
 
         {/* Floating Vertical Map Zoom In (+) & Zoom Out (-) Control Bar */}
         <div className="absolute right-4 bottom-24 z-[450] flex flex-col gap-2">
@@ -365,10 +418,10 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
             <div className="min-w-0 flex flex-col">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <span>Selected {targetType === 'pickup' ? 'Pickup' : 'Destination'}</span>
-                {isResolvingName && <Loader2 className="w-3 h-3 text-emerald-400 animate-spin ml-1" />}
+                {(isResolvingName || isDraggingMap) && <Loader2 className="w-3 h-3 text-emerald-400 animate-spin ml-1" />}
               </span>
               <span className="text-xs sm:text-sm font-black text-white truncate">
-                {selectedLocation.name || 'Tap on map to pick location'}
+                {selectedLocation.name || 'Drag map to set location pinpoint'}
               </span>
             </div>
           </div>
