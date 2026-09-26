@@ -2296,7 +2296,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         captainHeading={currentCaptainHeading}
         captainName={activeRide?.captain_name || 'Captain'}
         activeRideStatus={activeRide?.status}
-        bottomSheetPadding={activeRide ? (isCardMinimized ? 90 : 380) : (isCardMinimized ? 80 : 280)}
+        bottomSheetPadding={activeRide ? (isCardMinimized ? 90 : 380) : (isCardMinimized ? 80 : 320)}
         focusCoords={mapFocusCoords}
         showOverlayControls={false}
         interactive={!activeRide}
@@ -3546,7 +3546,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         /* Minimized Floating Bar (Drop Down Condition) */
         <div className="fixed sm:absolute bottom-1 sm:bottom-2 md:bottom-3 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-1rem)] sm:w-[420px] md:w-[380px] animate-in fade-in slide-in-from-bottom-3 duration-200">
           <div
-            onClick={() => setIsCardMinimized(false)}
+            onClick={() => {
+              setIsCardMinimized(false);
+              const targetLat = passengerGps.lat > 0 ? passengerGps.lat : (pickup.lat > 0 ? pickup.lat : 30.704649);
+              const targetLng = passengerGps.lng > 0 ? passengerGps.lng : (pickup.lng > 0 ? pickup.lng : 76.717873);
+              setMapFocusCoords({ lat: targetLat, lng: targetLng, zoom: 16, timestamp: Date.now() });
+            }}
             className="p-2.5 sm:p-3 rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl flex items-center justify-between gap-3 hover:border-slate-700 transition-all cursor-pointer"
           >
             <div className="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
@@ -3617,6 +3622,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 setIsCardMinimized(false);
+                const targetLat = passengerGps.lat > 0 ? passengerGps.lat : (pickup.lat > 0 ? pickup.lat : 30.704649);
+                const targetLng = passengerGps.lng > 0 ? passengerGps.lng : (pickup.lng > 0 ? pickup.lng : 76.717873);
+                setMapFocusCoords({ lat: targetLat, lng: targetLng, zoom: 16, timestamp: Date.now() });
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer transition-all shrink-0"
               title={activeRide ? 'Expand Active Ride Details' : 'Open booking form'}

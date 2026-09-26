@@ -1059,18 +1059,17 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           animate: true,
         });
       }
-    } else if (!hasPickup && passengerLat && passengerLng && isFollowingPassenger) {
-      const pad = bottomSheetPadding || 0;
-      if (pad > 0) {
-        map.fitBounds(L.latLngBounds([[passengerLat, passengerLng], [passengerLat, passengerLng]]), {
-          paddingBottomRight: [40, pad],
-          paddingTopLeft: [70, 40],
-          maxZoom: 16,
-          animate: false,
-        });
-      } else {
-        map.setView([passengerLat, passengerLng], 16, { animate: false });
-      }
+    } else if (!isCaptainMode && !hasDropoff && (pickupLat || passengerLat) && (pickupLng || passengerLng)) {
+      const focusLat = pickupLat || passengerLat!;
+      const focusLng = pickupLng || passengerLng!;
+      const pad = bottomSheetPadding || 280;
+      map.invalidateSize();
+      map.fitBounds(L.latLngBounds([[focusLat, focusLng], [focusLat, focusLng]]), {
+        paddingBottomRight: [40, pad],
+        paddingTopLeft: [70, 40],
+        maxZoom: 16,
+        animate: true,
+      });
     } else if (bounds.length > 1 && !isFollowingPassenger) {
       map.invalidateSize();
       map.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 16, animate: false });
