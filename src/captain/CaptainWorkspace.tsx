@@ -1946,108 +1946,97 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const renderInspectedRideDetails = (ride: MotorideRide) => {
     const distKm = calculateDistance(captainGps.lat, captainGps.lng, ride.pickup_lat, ride.pickup_lng);
-    const pickupDistText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)} km`;
+    const pickupDistText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`;
     const rideDistKm = ride.distance_km || calculateDistance(ride.pickup_lat, ride.pickup_lng, ride.dropoff_lat, ride.dropoff_lng) || 3.5;
-    const rideDistText = rideDistKm < 1 ? `${Math.round(rideDistKm * 1000)}m` : `${Number(rideDistKm).toFixed(1)} km`;
+    const rideDistText = rideDistKm < 1 ? `${Math.round(rideDistKm * 1000)}m` : `${Number(rideDistKm).toFixed(1)}km`;
     const counterFare = counterFareInput[ride.id] || ride.offered_fare + 20;
     const service = getServiceBadge(ride.ride_type);
+    const passengerAvatar = ride.passenger_avatar || defaultRituAvatar;
 
     return (
       <div className="flex flex-col gap-3.5">
-        {/* Top: (passenger profile) + Service Badge + 1km (pickup distance) */}
-        <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-            <div className="relative shrink-0">
-              <img
-                src={ride.passenger_avatar || defaultRituAvatar}
-                alt={ride.passenger_name || 'Passenger'}
-                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-white ring-2 ring-slate-100 shadow-md bg-slate-100"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = defaultRituAvatar;
-                }}
-              />
-              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white" />
+        {/* Inspection Request Details Header Card - Matching Layout */}
+        <div className="p-4 rounded-2xl bg-white border border-amber-500 ring-2 ring-amber-400/30 bg-amber-50/20 shadow-sm">
+          <div className="flex items-start gap-3 sm:gap-4">
+            {/* Left Column: Photo of Passenger | Full Name | Rating */}
+            <div className="flex flex-col items-center shrink-0 w-20 sm:w-24 text-center pt-0.5">
+              <div className="relative">
+                <img
+                  src={passengerAvatar}
+                  alt={ride.passenger_name || 'Passenger'}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-full object-cover border-2 border-white ring-2 ring-slate-200 shadow-sm bg-slate-100"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = defaultRituAvatar;
+                  }}
+                />
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white" />
+              </div>
+
+              <h4 className="text-xs sm:text-sm font-black text-slate-900 mt-1.5 leading-tight break-words line-clamp-2 w-full text-center" title={ride.passenger_name}>
+                {ride.passenger_name || 'Passenger'}
+              </h4>
+
+              <span className="inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] font-black text-amber-800 bg-amber-100/90 border border-amber-300/80 px-2 py-0.5 rounded-md mt-1 shadow-2xs">
+                <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500 shrink-0" />
+                {(ride.passenger_rating || 4.9).toFixed(1)}
+              </span>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                <span className="text-sm sm:text-base font-black text-slate-900 truncate">
-                  {ride.passenger_name}
+
+            {/* Right Column: 2km Pickup Distance | ₹ 100 Fare | A & B Locations | UPI & Motorbike Badges */}
+            <div className="flex-1 min-w-0 flex flex-col gap-2">
+              {/* Top Row: Pickup Distance (e.g. 2km) & Offered Fare (e.g. ₹ 100) */}
+              <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-1.5">
+                <span className="text-xs sm:text-sm font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                  <Navigation className="w-3 h-3 text-emerald-600 shrink-0" />
+                  <span>{pickupDistText} away</span>
                 </span>
-                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] sm:text-[11px] font-bold border border-amber-200 shrink-0">
-                  <Star className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-amber-500 text-amber-500" />
-                  4.9
+
+                <div className="text-right">
+                  <span className="text-xl sm:text-2xl font-black text-slate-950 font-mono-num leading-none">
+                    ₹{ride.offered_fare}
+                  </span>
+                </div>
+              </div>
+
+              {/* Route Details: A Pickup Address & B Dropoff Address */}
+              <div className="flex flex-col gap-1.5">
+                {/* A: Pickup Location */}
+                <div className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                    A
+                  </span>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug break-words flex-1 min-w-0">
+                    {ride.pickup_address}
+                  </p>
+                </div>
+
+                {/* B: Dropoff Location */}
+                <div className="flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                    B
+                  </span>
+                  <p className="text-xs sm:text-sm font-medium text-slate-700 leading-snug break-words flex-1 min-w-0">
+                    {ride.dropoff_address}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bottom Row Badges: UPI / CASH | Motorbike / Ride Type | Trip Distance */}
+              <div className="flex items-center gap-2 pt-1.5 border-t border-slate-200/80 flex-wrap">
+                <span className="px-2.5 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-black uppercase tracking-wider shadow-2xs">
+                  {ride.payment_method?.toUpperCase() === 'CASH' ? 'CASH' : 'UPI'}
                 </span>
-                <span className={`px-2 py-0.5 rounded-md border text-[11px] font-black flex items-center gap-1 shadow-2xs shrink-0 ${service.badgeBg}`}>
+
+                <span className={`px-2.5 py-0.5 rounded-md border text-[11px] font-black flex items-center gap-1 shadow-2xs ${service.bg}`}>
                   <span className="text-xs leading-none">{service.icon}</span>
                   <span>{service.label}</span>
                 </span>
-              </div>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className="text-[11px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
-                  <Navigation className="w-3 h-3 text-emerald-600 shrink-0" />
-                  <span>{pickupDistText}</span>
+
+                <span className="ml-auto text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                  {rideDistText} (~{ride.duration_minutes || 14} mins)
                 </span>
               </div>
             </div>
-          </div>
-
-          {/* Right Stack: Cash ₹234 (BOLD TEXT) -> Offered Fare -> Ride Distance 23.4 km */}
-          <div className="flex flex-col items-end justify-between shrink-0 pl-3 border-l border-slate-100 min-w-[120px] text-right">
-            {/* 1. Cash ₹234 (BOLD TEXT) */}
-            <div className="flex items-center gap-1.5 justify-end">
-              <span className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 border border-purple-300 text-xs font-black uppercase tracking-wider shadow-2xs">
-                {ride.payment_method?.toUpperCase() === 'CASH' ? 'Cash' : 'UPI'}
-              </span>
-              <span className="text-2xl sm:text-3xl font-black text-slate-950 font-mono-num leading-none">
-                ₹{ride.offered_fare}
-              </span>
-            </div>
-
-            {/* 2. Offered Fare */}
-            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mt-1">
-              Offered Fare
-            </span>
-
-            {/* 3. Drop-off Distance in RED (e.g. 23.4 km) */}
-            <div className="mt-2 pt-1 border-t border-slate-100 w-full flex items-center justify-end gap-1">
-              <span className="text-xs sm:text-sm font-black text-rose-600 font-mono-num bg-rose-50 px-2.5 py-0.5 rounded-md border border-rose-200 shadow-2xs">
-                {rideDistText}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Route Details: A pickup (Bold text) & B dropoff */}
-        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col gap-2.5">
-          {/* A pickup (Bold text) */}
-          <div className="flex items-start gap-2.5">
-            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-black flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-              A
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold text-slate-900 leading-snug">
-                {ride.pickup_address}
-              </p>
-            </div>
-          </div>
-
-          {/* B dropoff */}
-          <div className="flex items-start gap-2.5">
-            <span className="w-6 h-6 rounded-full bg-rose-500 text-white text-xs font-black flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-              B
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-slate-700 leading-snug">
-                {ride.dropoff_address}
-              </p>
-            </div>
-          </div>
-
-          {/* Duration info */}
-          <div className="mt-0.5 pt-2 border-t border-slate-200 flex items-center justify-end text-xs">
-            <span className="text-slate-500 font-medium">
-              Estimated Duration: ~{ride.duration_minutes || 14} mins
-            </span>
           </div>
         </div>
 
