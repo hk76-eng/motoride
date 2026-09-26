@@ -1039,8 +1039,21 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           map.panTo([captainLat, captainLng], { animate: true, duration: 0.4 });
         }
       } else {
-        // Active ride or inspecting route in captain mode: fit route bounds to show Location A and B
-        if (bounds.length > 1) {
+        // Active ride or inspecting route in captain mode: fit route bounds to show Location A and B clearly
+        if (hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
+          const routeBounds = L.latLngBounds([
+            [pickupLat, pickupLng],
+            [dropoffLat, dropoffLng],
+          ]);
+          map.invalidateSize();
+          const bottomPad = bottomSheetPadding || 380;
+          map.fitBounds(routeBounds, {
+            paddingTopLeft: [80, 50],
+            paddingBottomRight: [50, bottomPad],
+            maxZoom: 16,
+            animate: true,
+          });
+        } else if (bounds.length > 1) {
           map.invalidateSize();
           const bottomPad = bottomSheetPadding || 60;
           map.fitBounds(L.latLngBounds(bounds), {
