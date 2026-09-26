@@ -2608,7 +2608,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             {(activeRide.status === 'captain_accepted' ||
               activeRide.status === 'captain_arrived' ||
               activeRide.status === 'trip_started') && (
-              <div className="flex flex-col gap-4 text-black">
+              <div className="flex flex-col gap-2.5 text-black">
                 {/* Digital Watch on Top of Ride Details (Shown ONLY when captain is on the way to pickup) */}
                 {activeRide.status === 'captain_accepted' && (
                   <DigitalWatchETA
@@ -2621,14 +2621,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                 {/* When Captain has arrived, show arrival banner */}
                 {activeRide.status === 'captain_arrived' && (
-                  <div className="w-full rounded-2xl bg-emerald-500 text-slate-950 px-4 py-3 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-3 h-3 rounded-full bg-slate-950 animate-ping shrink-0" />
+                  <div className="w-full rounded-2xl bg-emerald-500 text-slate-950 px-3.5 py-2.5 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-950 animate-ping shrink-0" />
                       <span className="text-xs sm:text-sm font-black uppercase tracking-wide">
                         Captain has arrived at pickup location!
                       </span>
                     </div>
-                    <span className="text-[11px] bg-slate-950 text-white px-2.5 py-1 rounded-xl font-bold shrink-0">
+                    <span className="text-[10px] bg-slate-950 text-white px-2 py-0.5 rounded-lg font-bold shrink-0">
                       Waiting for you
                     </span>
                   </div>
@@ -2636,27 +2636,27 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                 {/* When Trip has started, show on-trip banner */}
                 {activeRide.status === 'trip_started' && (
-                  <div className="w-full rounded-2xl bg-slate-950 text-white px-4 py-3 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <div className="w-full rounded-2xl bg-slate-950 text-white px-3.5 py-2.5 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                       <div>
                         <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white block">
                           Trip in Progress
                         </span>
-                        <span className="text-[11px] text-slate-300 font-normal block truncate max-w-[220px] sm:max-w-xs">
+                        <span className="text-[10px] text-slate-300 font-normal block truncate max-w-[220px] sm:max-w-xs">
                           En route to: {activeRide.dropoff_address || 'Destination (Location B)'}
                         </span>
                       </div>
                     </div>
-                    <span className="text-[11px] bg-emerald-500 text-slate-950 px-2.5 py-1 rounded-xl font-bold shrink-0">
+                    <span className="text-[10px] bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-lg font-bold shrink-0">
                       On Trip
                     </span>
                   </div>
                 )}
 
                 {/* Captain Details Box */}
-                <div className="p-4 sm:p-4.5 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex items-center justify-between">
-                  <div className="flex items-center gap-3.5">
+                <div className="p-3 sm:p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-3">
                     {/* Photo with Rating & Trips below */}
                     <div className="flex flex-col items-center shrink-0">
                       <div className="relative">
@@ -2664,35 +2664,35 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                           src={getCaptainAvatarUrl(activeRide.captain_name || undefined, (activeRide as any).captain_avatar || (activeRide as any).avatar_url)}
                           alt={activeRide.captain_name || 'Captain'}
                           referrerPolicy="no-referrer"
-                          className="w-13 h-13 rounded-full object-cover border-2 border-white ring-2 ring-slate-200 shadow-sm bg-slate-100"
+                          className="w-11 h-11 rounded-full object-cover border-2 border-white ring-2 ring-slate-200 shadow-sm bg-slate-100"
                           onError={(e) => {
                             (e.currentTarget as HTMLImageElement).src =
                               `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRide.captain_name || 'Captain')}&background=0284c7&color=fff&bold=true`;
                           }}
                         />
-                        <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-black border border-white">
+                        <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-black text-white flex items-center justify-center text-[8px] font-black border border-white">
                           ✓
                         </span>
                       </div>
                       {/* Rating Tab & (Trips) just below photo */}
-                      <div className="flex flex-col items-center mt-1.5 leading-none">
-                        <span className="flex items-center gap-0.5 text-[11px] text-amber-950 bg-amber-100/90 border border-amber-300/80 px-2 py-0.5 rounded-md font-black leading-none shadow-2xs">
+                      <div className="flex flex-col items-center mt-1 leading-none">
+                        <span className="flex items-center gap-0.5 text-[10px] text-amber-950 bg-amber-100/90 border border-amber-300/80 px-1.5 py-0.5 rounded font-black leading-none shadow-2xs">
                           <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-500 mr-0.5 shrink-0" />
                           {activeRide.captain_rating !== undefined ? Number(activeRide.captain_rating).toFixed(1) : '5.0'}
                         </span>
-                        <span className="text-[11px] text-slate-700 font-bold font-mono-num leading-none mt-1">
+                        <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-0.5">
                           ({captainActualTrips})
                         </span>
                       </div>
                     </div>
 
                     <div>
-                      <span className="font-black text-slate-900 text-sm sm:text-base block">
+                      <span className="font-black text-slate-900 text-xs sm:text-sm block">
                         {activeRide.captain_name && activeRide.captain_name !== 'Captain'
                           ? activeRide.captain_name
                           : (safeStorage.getItem('motoride_captain_name') || 'Assigned Captain')}
                       </span>
-                      <p className="text-xs sm:text-sm text-slate-600 font-mono-num mt-1 font-medium">
+                      <p className="text-[11px] text-slate-600 font-mono-num mt-0.5 font-medium">
                         {(activeRide.vehicle_model || safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle')}{' '}
                         •{' '}
                         <span className="text-black font-black">
@@ -2702,7 +2702,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -2712,21 +2712,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                           safeStorage.setItem(`motoride_last_read_chat_${activeRide.id}`, Date.now().toString());
                         }
                       }}
-                      className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center relative"
+                      className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 shadow-sm shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer flex items-center justify-center relative"
                       title="Chat with Captain"
                     >
                       <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
                       {hasUnreadMessages && (
-                        <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 z-10" title="New message received">
+                        <span className="absolute -top-1 -right-1 flex h-3 w-3 z-10" title="New message received">
                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-80"></span>
-                          <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600 border-2 border-white shadow-md"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-600 border-2 border-white shadow-md"></span>
                         </span>
                       )}
                     </button>
                     {(activeRide.captain_phone || safeStorage.getItem('motoride_captain_phone')) && (
                       <a
                         href={`tel:${activeRide.captain_phone || safeStorage.getItem('motoride_captain_phone')}`}
-                        className="p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-sm shadow-emerald-600/25 transition-all active:scale-95 border border-emerald-500 flex items-center justify-center"
+                        className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-sm shadow-emerald-600/25 transition-all active:scale-95 border border-emerald-500 flex items-center justify-center"
                         title="Call Captain"
                       >
                         <Phone className="w-4 h-4 stroke-[2.5] text-white" />
@@ -2736,9 +2736,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 </div>
 
                 {/* Progress Indicators */}
-                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="grid grid-cols-3 gap-1.5 text-center text-[11px]">
                   <div
-                    className={`p-2 rounded-xl border ${
+                    className={`p-1.5 rounded-xl border ${
                       activeRide.status === 'captain_accepted'
                         ? 'bg-black text-white border-black font-black'
                         : 'bg-slate-100 border-black/30 text-slate-600 font-semibold'
@@ -2748,7 +2748,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </div>
                   <div
                     style={activeRide.status === 'captain_arrived' ? { backgroundColor: '#174309', borderColor: '#174309' } : undefined}
-                    className={`p-2 rounded-xl border ${
+                    className={`p-1.5 rounded-xl border ${
                       activeRide.status === 'captain_arrived'
                         ? 'text-white font-black shadow-xs'
                         : 'bg-slate-100 border-black/30 text-slate-600 font-semibold'
@@ -2758,7 +2758,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </div>
                   <div
                     style={activeRide.status === 'trip_started' ? { backgroundColor: '#DAA520', borderColor: '#DAA520', color: '#020617' } : undefined}
-                    className={`p-2 rounded-xl border ${
+                    className={`p-1.5 rounded-xl border ${
                       activeRide.status === 'trip_started'
                         ? 'text-slate-950 font-black shadow-xs'
                         : 'bg-slate-100 border-black/30 text-slate-600 font-semibold'
@@ -2769,9 +2769,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 </div>
 
                 {/* Fare and payment summary */}
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-100 border border-black">
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-100 border border-black">
                   <span className="text-xs text-black font-bold">Agreed Fare:</span>
-                  <span className="font-mono-num font-black text-base text-black">
+                  <span className="font-mono-num font-black text-sm text-black">
                     ₹{activeRide.final_fare || activeRide.offered_fare}
                   </span>
                 </div>

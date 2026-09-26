@@ -66,17 +66,14 @@ export const DigitalWatchETA: React.FC<DigitalWatchETAProps> = ({
   }
 
   // ----------------------------------------------------
-  // Variant 2: Digital Timer Box on Ride Details Card (No Background Color)
+  // Variant 2: Digital Timer ONLY (No Container, No Tab, No Text)
   // ----------------------------------------------------
-  return (
-    <div className="w-full rounded-2xl bg-transparent text-slate-900 px-4 py-3 border-2 border-emerald-500/60 select-none flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-        <span className="text-xs font-black text-slate-900 uppercase tracking-wider">Captain Arriving In</span>
-      </div>
+  const displayMinutes = String(minutes);
 
-      <div className="font-mono text-2xl sm:text-3xl font-black tracking-widest text-emerald-600">
-        {formattedMinutes}
+  return (
+    <div className="flex items-center justify-center py-1 select-none">
+      <div className="font-mono text-3xl sm:text-4xl font-black tracking-widest text-emerald-600">
+        {displayMinutes}
         <span className={colonBlink ? 'opacity-100' : 'opacity-20'}>:</span>
         {formattedSeconds}
       </div>
