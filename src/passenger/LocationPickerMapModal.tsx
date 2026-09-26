@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Navigation, Compass } from 'lucide-react';
+import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Navigation, Plus, Minus } from 'lucide-react';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { getApiUrl } from '../utils/apiUrl';
 
@@ -156,6 +156,26 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     setMapFocusCoords({ lat: effectivePassengerLat, lng: effectivePassengerLng, zoom: 17, timestamp: Date.now() });
   };
 
+  const handleZoomIn = () => {
+    setMapFocusCoords((prev) => {
+      const currentZoom = prev?.zoom || 15;
+      const targetZoom = Math.min(currentZoom + 1, 19);
+      const targetLat = prev?.lat || selectedLocation.lat || effectivePassengerLat;
+      const targetLng = prev?.lng || selectedLocation.lng || effectivePassengerLng;
+      return { lat: targetLat, lng: targetLng, zoom: targetZoom, timestamp: Date.now() };
+    });
+  };
+
+  const handleZoomOut = () => {
+    setMapFocusCoords((prev) => {
+      const currentZoom = prev?.zoom || 15;
+      const targetZoom = Math.max(currentZoom - 1, 10);
+      const targetLat = prev?.lat || selectedLocation.lat || effectivePassengerLat;
+      const targetLng = prev?.lng || selectedLocation.lng || effectivePassengerLng;
+      return { lat: targetLat, lng: targetLng, zoom: targetZoom, timestamp: Date.now() };
+    });
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -276,7 +296,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         )}
       </div>
 
-      {/* Main Map View Area (No passenger icon shown!) */}
+      {/* Main Map View Area */}
       <div className="relative flex-1 w-full h-full overflow-hidden">
         <MotorideMap
           passengerLat={undefined}
@@ -295,16 +315,33 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           className="w-full h-full"
         />
 
-        {/* Floating Recenter GPS Button inside Map Modal */}
-        <button
-          type="button"
-          onClick={handleUseLiveGpsLocation}
-          title="Center on My Live Location"
-          className="absolute right-4 bottom-24 z-[400] p-3 rounded-full bg-slate-900/95 hover:bg-slate-800 text-white border border-slate-700 shadow-2xl backdrop-blur-xl flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group"
-        >
-          <LocateFixed className="w-5 h-5 text-emerald-400 stroke-[2.5] group-hover:rotate-12 transition-transform" />
-          <span className="text-xs font-bold hidden sm:inline text-white">Live GPS</span>
-        </button>
+        {/* Floating Vertical Map Zoom In (+) & Zoom Out (-) Control Bar */}
+        <div className="absolute right-4 bottom-24 z-[450] flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            title="Zoom In (+)"
+            className="w-11 h-11 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-white border border-slate-700/80 shadow-2xl backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer hover:border-emerald-500 hover:text-emerald-400"
+          >
+            <Plus className="w-6 h-6 stroke-[3]" />
+          </button>
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            title="Zoom Out (-)"
+            className="w-11 h-11 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-white border border-slate-700/80 shadow-2xl backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer hover:border-emerald-500 hover:text-emerald-400"
+          >
+            <Minus className="w-6 h-6 stroke-[3]" />
+          </button>
+          <button
+            type="button"
+            onClick={handleUseLiveGpsLocation}
+            title="Center on My Live Location"
+            className="w-11 h-11 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-emerald-400 border border-emerald-500/50 shadow-2xl backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer hover:bg-emerald-500 hover:text-slate-950"
+          >
+            <LocateFixed className="w-5 h-5 stroke-[2.5]" />
+          </button>
+        </div>
       </div>
 
       {/* Bottom Confirmation Bar */}

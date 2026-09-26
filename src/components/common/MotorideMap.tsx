@@ -441,7 +441,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }).addTo(map);
     tileLayerRef.current = tiles;
 
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
     if (interactive && onMapClick) {
       map.on('click', (e) => {
