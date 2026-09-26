@@ -2953,15 +2953,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveMapTarget('pickup');
-                      setPickerTargetType('pickup');
-                      setPickerModalOpen(true);
+                      if (pickup.lat && pickup.lng) {
+                        setMapFocusCoords({ lat: pickup.lat, lng: pickup.lng, zoom: 16, timestamp: Date.now() });
+                      } else if (passengerGps.lat && passengerGps.lng) {
+                        setMapFocusCoords({ lat: passengerGps.lat, lng: passengerGps.lng, zoom: 16, timestamp: Date.now() });
+                      }
+                      setPickupToastMessage('📍 Click anywhere on the map to set Pickup location A');
+                      setShowPickupToast(true);
+                      setTimeout(() => setShowPickupToast(false), 3500);
                     }}
                     className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
                       activeMapTarget === 'pickup'
                         ? 'bg-emerald-100 text-emerald-800 border-emerald-400'
                         : 'bg-slate-100 hover:bg-slate-200 text-black border-transparent'
                     }`}
-                    title="Open map window to select pickup location"
+                    title="Focus map to select pickup location"
                   >
                     <MapPin className="w-2.5 h-2.5 text-emerald-600" />
                     <span>Map</span>
@@ -3149,15 +3155,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveMapTarget('dropoff');
-                      setPickerTargetType('dropoff');
-                      setPickerModalOpen(true);
+                      if (dropoff.lat && dropoff.lng) {
+                        setMapFocusCoords({ lat: dropoff.lat, lng: dropoff.lng, zoom: 16, timestamp: Date.now() });
+                      } else if (pickup.lat && pickup.lng) {
+                        setMapFocusCoords({ lat: pickup.lat, lng: pickup.lng, zoom: 16, timestamp: Date.now() });
+                      }
+                      setPickupToastMessage('📍 Click anywhere on the map to set Destination location B');
+                      setShowPickupToast(true);
+                      setTimeout(() => setShowPickupToast(false), 3500);
                     }}
                     className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
                       activeMapTarget === 'dropoff'
                         ? 'bg-blue-100 text-blue-800 border-blue-400'
                         : 'bg-slate-100 hover:bg-slate-200 text-black border-transparent'
                     }`}
-                    title="Open map window to select destination location"
+                    title="Focus map to select destination location"
                   >
                     <Navigation className="w-2.5 h-2.5 text-blue-600" />
                     <span>Map</span>
