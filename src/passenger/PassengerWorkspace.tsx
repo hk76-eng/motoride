@@ -209,6 +209,33 @@ const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: numb
   { name: 'Sector 47 Market', aliases: ['sector 47', 'sec 47'], lat: 30.704514, lng: 76.776124 },
   { name: 'Zirakpur VIP Road & Metro Wholesale', aliases: ['zirakpur', 'vip road', 'metro zirakpur', 'zirakpur flyover'], lat: 30.642514, lng: 76.818124 },
   { name: 'GMCH Hospital Sector 32', aliases: ['gmch', 'gmch 32', 'sector 32 hospital', '32 hospital'], lat: 30.712514, lng: 76.779124 },
+
+  // Popular Hotels & Hospitality Landmarks
+  { name: 'Hotel JW Marriott, Sector 35, Chandigarh', aliases: ['jw marriott', 'marriott', 'jw marriott chandigarh', 'marriott sector 35'], lat: 30.725124, lng: 76.764514 },
+  { name: 'Aroma Hotel & Food Court, Sector 22, Chandigarh', aliases: ['aroma hotel', 'aroma', 'aroma 22', 'aroma food court'], lat: 30.731514, lng: 76.772124 },
+  { name: 'Taj Chandigarh, Sector 17', aliases: ['taj hotel', 'taj chandigarh', 'taj 17'], lat: 30.742514, lng: 76.781124 },
+  { name: 'Hyatt Regency, Industrial Area Phase 1, Chandigarh', aliases: ['hyatt', 'hyatt regency', 'hyatt chandigarh'], lat: 30.706514, lng: 76.802124 },
+  { name: 'Hotel Mountview, Sector 10, Chandigarh', aliases: ['mountview', 'hotel mountview'], lat: 30.751514, lng: 76.789124 },
+  { name: 'Hotel Parkview, Sector 24, Chandigarh', aliases: ['parkview', 'hotel parkview'], lat: 30.741514, lng: 76.761124 },
+  { name: 'Hotel Radisson RED, Mohali', aliases: ['radisson red', 'radisson mohali'], lat: 30.701514, lng: 76.731124 },
+  { name: 'Ramada Plaza, Zirakpur', aliases: ['ramada', 'ramada zirakpur', 'ramada plaza'], lat: 30.641514, lng: 76.821124 },
+  { name: 'Best Western Hotel, Zirakpur', aliases: ['best western zirakpur', 'best western'], lat: 30.643514, lng: 76.823124 },
+
+  // Popular Petrol Pumps & Energy Stations
+  { name: 'Indian Oil Petrol Pump, Sector 22, Chandigarh', aliases: ['indian oil sector 22', 'petrol pump sector 22', 'sector 22 petrol pump'], lat: 30.730514, lng: 76.773124 },
+  { name: 'HP Petrol Pump, Sector 35, Chandigarh', aliases: ['hp petrol pump sector 35', 'hp pump 35', 'sector 35 petrol pump'], lat: 30.723514, lng: 76.763124 },
+  { name: 'Bharat Petroleum Pump, Sector 17, Chandigarh', aliases: ['bpcl sector 17', 'petrol pump sector 17'], lat: 30.738514, lng: 76.784124 },
+  { name: 'Indian Oil Petrol Pump, Phase 7 Mohali', aliases: ['indian oil phase 7', 'phase 7 petrol pump'], lat: 30.711514, lng: 76.722124 },
+  { name: 'HP Petrol Pump, Phase 3B2 Mohali', aliases: ['hp pump 3b2', '3b2 petrol pump'], lat: 30.717514, lng: 76.712124 },
+  { name: 'HP Petrol Pump, VIP Road Zirakpur', aliases: ['vip road petrol pump', 'zirakpur petrol pump'], lat: 30.643124, lng: 76.817124 },
+  { name: 'Indian Oil Petrol Pump, Sector 7 Panchkula', aliases: ['sector 7 panchkula petrol pump', 'panchkula petrol pump'], lat: 30.705124, lng: 76.846124 },
+
+  // Residential Societies & Gated Complexes
+  { name: 'Homeland Heights, Sector 70, Mohali', aliases: ['homeland', 'homeland heights', 'homeland mohali'], lat: 30.706124, lng: 76.716124 },
+  { name: 'JLPL Falcon View, Sector 66A, Mohali', aliases: ['falcon view', 'jlpl falcon view'], lat: 30.688124, lng: 76.738124 },
+  { name: 'Hero Homes, Sector 88, Mohali', aliases: ['hero homes', 'hero homes mohali'], lat: 30.672124, lng: 76.702124 },
+  { name: 'Purvanchal Royal City, Sector 85, Mohali', aliases: ['purvanchal', 'purvanchal royal city'], lat: 30.678124, lng: 76.712124 },
+  { name: 'Gillco Valley, Sector 127 Kharar', aliases: ['gillco', 'gillco valley', 'gillco kharar'], lat: 30.748124, lng: 76.658124 },
 ];
 
 // Helper: High-Accuracy Instant Matching Suggestions for Drop-off / Pickup
@@ -596,10 +623,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [activeMapTarget, setActiveMapTarget] = useState<'pickup' | 'dropoff'>('pickup');
   const coordsNameCacheRef = useRef<Map<string, string>>(new Map());
 
-  // Fast synchronous location name resolver from PRESET_LOCATIONS
+  // Fast synchronous location name resolver from ALL KNOWN_LOCATIONS & PRESET_LOCATIONS
   const getFastLocationName = (lat: number, lng: number): string => {
+    const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
     let closest: { name: string; dist: number } | null = null;
-    for (const loc of PRESET_LOCATIONS) {
+    for (const loc of allPool) {
       const dist = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
       if (!closest || dist < closest.dist) {
         closest = { name: loc.name, dist };
@@ -609,11 +637,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       if (closest.dist <= 400) {
         return closest.name;
       }
-      if (closest.dist <= 1500) {
+      if (closest.dist <= 1800) {
         return `Near ${closest.name}`;
       }
+      return closest.name;
     }
-    return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    return `Sector 70, Mohali Market`;
   };
 
   // Precise reverse geocoding via OpenStreetMap / backend geocode endpoint
@@ -622,14 +651,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const cached = coordsNameCacheRef.current.get(key);
     if (cached) return cached;
 
+    const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
     let closestPreset: { name: string; dist: number } | null = null;
-    for (const loc of PRESET_LOCATIONS) {
+    for (const loc of allPool) {
       const dist = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
       if (!closestPreset || dist < closestPreset.dist) {
         closestPreset = { name: loc.name, dist };
       }
     }
-    if (closestPreset && closestPreset.dist <= 300) {
+    if (closestPreset && closestPreset.dist <= 250) {
       coordsNameCacheRef.current.set(key, closestPreset.name);
       return closestPreset.name;
     }
@@ -641,19 +671,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
           const data = JSON.parse(text);
           if (data && data.address && typeof data.address === 'string' && data.address.trim()) {
-            if (!data.address.startsWith('Location (')) {
-              const formatted = data.address.trim();
-              coordsNameCacheRef.current.set(key, formatted);
-              return formatted;
+            const cleanAddr = data.address.trim();
+            if (!cleanAddr.startsWith('Location (') && !/\b30\.\d+\b/.test(cleanAddr) && !/\b76\.\d+\b/.test(cleanAddr)) {
+              coordsNameCacheRef.current.set(key, cleanAddr);
+              return cleanAddr;
             }
           }
         }
       }
     } catch {}
 
-    const fallback = closestPreset && closestPreset.dist <= 1500
-      ? `Near ${closestPreset.name}`
-      : `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    const fallback = closestPreset
+      ? (closestPreset.dist <= 1500 ? `Near ${closestPreset.name}` : closestPreset.name)
+      : 'Sector 70, Mohali Area';
     coordsNameCacheRef.current.set(key, fallback);
     return fallback;
   };
