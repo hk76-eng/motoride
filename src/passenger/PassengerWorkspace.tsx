@@ -240,7 +240,7 @@ const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: numb
 ];
 
 // Helper: High-Accuracy Instant Matching Suggestions for Drop-off / Pickup
-const getInstantMatchingSuggestions = (query: string): { name: string; lat: number; lng: number }[] => {
+const getInstantMatchingSuggestions = (query: string): { name: string; lat: number; lng: number; score?: number }[] => {
   const raw = query.trim();
   const q = raw.toLowerCase();
   if (!q) return [];
@@ -345,10 +345,11 @@ const getInstantMatchingSuggestions = (query: string): { name: string; lat: numb
   // Sort descending by relevance score
   scored.sort((a, b) => b.score - a.score);
 
-  const results = scored.slice(0, 7).map((s) => ({
+  const results = scored.slice(0, 8).map((s) => ({
     name: s.name,
     lat: s.lat,
     lng: s.lng,
+    score: s.score,
   }));
 
   // If user entered a specific sector number not in KNOWN_LOCATIONS
@@ -360,6 +361,7 @@ const getInstantMatchingSuggestions = (query: string): { name: string; lat: numb
         name: `Sector ${targetSecNum}, Panchkula`,
         lat: Number((30.6950 + latOffset).toFixed(6)),
         lng: Number((76.8550 + lngOffset).toFixed(6)),
+        score: 250,
       });
     } else if (isMohali) {
       const latOffset = ((targetSecNum % 10) - 5) * 0.006;
@@ -368,6 +370,7 @@ const getInstantMatchingSuggestions = (query: string): { name: string; lat: numb
         name: `Sector ${targetSecNum}, Mohali`,
         lat: Number((30.7050 + latOffset).toFixed(6)),
         lng: Number((76.7150 + lngOffset).toFixed(6)),
+        score: 250,
       });
     } else {
       const latOffset = ((targetSecNum % 10) - 5) * 0.008;
@@ -376,6 +379,7 @@ const getInstantMatchingSuggestions = (query: string): { name: string; lat: numb
         name: `Sector ${targetSecNum}, Chandigarh`,
         lat: Number((30.7350 + latOffset).toFixed(6)),
         lng: Number((76.7750 + lngOffset).toFixed(6)),
+        score: 250,
       });
     }
   }
@@ -836,6 +840,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     setPickup({ name: item.name, lat: item.lat, lng: item.lng });
     setPickupInputText(item.name);
     setShowPickupSuggestions(false);
+    setMapFocusCoords({ lat: item.lat, lng: item.lng, zoom: 16, timestamp: Date.now() });
   };
 
   const handleManualPickupChange = (text: string) => {
@@ -846,13 +851,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       setPickupSuggestions([]);
       return;
     }
-    // 1. Instant local matching
     const instantMatches = getInstantMatchingSuggestions(text);
     setPickupSuggestions(instantMatches);
 
-    // 2. Immediately resolve coordinates so map pin A and route update in 0ms!
-    const resolved = instantMatches.length > 0 ? instantMatches[0] : resolveLocationFromText(text, passengerGps.lat ? passengerGps : null);
-    setPickup(resolved);
+    // If exact or high-confidence match found, update pickup location
+    if (instantMatches.length > 0 && (instantMatches[0].name.toLowerCase() === text.trim().toLowerCase() || instantMatches[0].score >= 180)) {
+      setPickup(instantMatches[0]);
+    }
   };
 
   const handlePickupKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -864,6 +869,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         const resolved = resolveLocationFromText(pickupInputText, passengerGps.lat ? passengerGps : null);
         setPickup(resolved);
         setShowPickupSuggestions(false);
+        setMapFocusCoords({ lat: resolved.lat, lng: resolved.lng, zoom: 16, timestamp: Date.now() });
       }
     }
   };
@@ -872,6 +878,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     setDropoff({ name: item.name, lat: item.lat, lng: item.lng });
     setDropoffInputText(item.name);
     setShowDropoffSuggestions(false);
+    setMapFocusCoords({ lat: item.lat, lng: item.lng, zoom: 16, timestamp: Date.now() });
   };
 
   const handleManualDropoffChange = (text: string) => {
@@ -886,13 +893,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     setDropoffSuggestions(instant);
     setShowDropoffSuggestions(true);
 
-    // Immediately resolve coordinates so Marker B, route, and fare update in 0ms!
-    const resolved = instant.length > 0 ? instant[0] : resolveLocationFromText(text, pickup);
-    setDropoff({
-      name: text.trim(),
-      lat: resolved.lat,
-      lng: resolved.lng,
-    });
+    // If exact or high-confidence match found, update dropoff location
+    if (instant.length > 0 && (instant[0].name.toLowerCase() === text.trim().toLowerCase() || instant[0].score >= 180)) {
+      setDropoff(instant[0]);
+    }
   };
 
   const handleDropoffKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -904,6 +908,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         const resolved = resolveLocationFromText(dropoffInputText, pickup);
         setDropoff(resolved);
         setShowDropoffSuggestions(false);
+        setMapFocusCoords({ lat: resolved.lat, lng: resolved.lng, zoom: 16, timestamp: Date.now() });
       }
     }
   };

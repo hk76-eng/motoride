@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Sparkles, Navigation } from 'lucide-react';
+import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Navigation } from 'lucide-react';
 import { MotorideMap } from '../components/common/MotorideMap';
+import { getApiUrl } from '../utils/apiUrl';
 
 interface LocationPickerMapModalProps {
   isOpen: boolean;
@@ -25,36 +26,41 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   resolveLocationNameAsync,
   getInstantMatchingSuggestions,
 }) => {
+  // Reliable passenger position fallbacks
+  const effectivePassengerLat = (passengerGps && passengerGps.lat > 0)
+    ? passengerGps.lat
+    : (initialLocation?.lat > 0 ? initialLocation.lat : 30.704649);
+
+  const effectivePassengerLng = (passengerGps && passengerGps.lng > 0)
+    ? passengerGps.lng
+    : (initialLocation?.lng > 0 ? initialLocation.lng : 76.717873);
+
   const [selectedLocation, setSelectedLocation] = useState<{ name: string; lat: number; lng: number }>(() => {
     if (initialLocation && initialLocation.lat > 0 && initialLocation.lng > 0) {
       return initialLocation;
     }
-    if (passengerGps && passengerGps.lat > 0) {
-      return {
-        name: 'My Live Location',
-        lat: passengerGps.lat,
-        lng: passengerGps.lng,
-      };
-    }
-    return { name: 'Sector 17 Plaza, Chandigarh', lat: 30.739834, lng: 76.782702 };
+    return {
+      name: 'My Live GPS Location',
+      lat: effectivePassengerLat,
+      lng: effectivePassengerLng,
+    };
   });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ name: string; lat: number; lng: number }[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isSearchingServer, setIsSearchingServer] = useState(false);
   const [isResolvingName, setIsResolvingName] = useState(false);
   const [mapFocusCoords, setMapFocusCoords] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync state on open
+  // Sync modal state on open
   useEffect(() => {
     if (isOpen) {
       const startLoc = (initialLocation && initialLocation.lat > 0 && initialLocation.lng > 0)
         ? initialLocation
-        : (passengerGps && passengerGps.lat > 0
-            ? { name: 'My Live GPS Location', lat: passengerGps.lat, lng: passengerGps.lng }
-            : { name: 'Sector 17 Plaza, Chandigarh', lat: 30.739834, lng: 76.782702 });
+        : { name: 'My Live GPS Location', lat: effectivePassengerLat, lng: effectivePassengerLng };
 
       setSelectedLocation(startLoc);
       setSearchQuery('');
@@ -62,20 +68,56 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
       setShowSearchResults(false);
       setMapFocusCoords({ lat: startLoc.lat, lng: startLoc.lng, zoom: 16, timestamp: Date.now() });
     }
-  }, [isOpen, initialLocation, passengerGps]);
+  }, [isOpen, initialLocation, effectivePassengerLat, effectivePassengerLng]);
 
-  // Real-time search handler
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-    if (query.trim().length > 0) {
-      const matches = getInstantMatchingSuggestions(query);
-      setSearchResults(matches);
-      setShowSearchResults(true);
-    } else {
+  // Live Geocoding Search (Combining local 120+ landmark pool + OpenStreetMap API)
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
       setSearchResults([]);
       setShowSearchResults(false);
+      return;
     }
-  };
+
+    // 1. Instant local matching
+    const instant = getInstantMatchingSuggestions(q);
+    setSearchResults(instant);
+    setShowSearchResults(true);
+
+    // 2. Debounced online geocode search for high-accuracy remote results
+    const timer = setTimeout(async () => {
+      if (q.length < 2) return;
+      setIsSearchingServer(true);
+      try {
+        const res = await fetch(getApiUrl(`/api/motoride/geocode/search?q=${encodeURIComponent(q)}`));
+        if (res.ok) {
+          const text = await res.text();
+          if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
+            const data = JSON.parse(text);
+            if (data.results && Array.isArray(data.results)) {
+              const merged = [...instant];
+              for (const r of data.results) {
+                if (!merged.some((m) => m.name.toLowerCase() === r.name.toLowerCase())) {
+                  merged.push({
+                    name: r.name,
+                    lat: r.lat,
+                    lng: r.lng,
+                  });
+                }
+              }
+              setSearchResults(merged.slice(0, 8));
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Location picker server geocode search warning:', err);
+      } finally {
+        setIsSearchingServer(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const handleSelectSearchResult = (loc: { name: string; lat: number; lng: number }) => {
     setSelectedLocation(loc);
@@ -101,13 +143,11 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   };
 
   const handleRecenterPassengerGps = () => {
-    if (passengerGps && passengerGps.lat > 0) {
-      const fastName = getFastLocationName(passengerGps.lat, passengerGps.lng);
-      const nameToUse = fastName.includes('Location (') ? 'My Live Location' : fastName;
-      const loc = { name: nameToUse, lat: passengerGps.lat, lng: passengerGps.lng };
-      setSelectedLocation(loc);
-      setMapFocusCoords({ lat: passengerGps.lat, lng: passengerGps.lng, zoom: 17, timestamp: Date.now() });
-    }
+    const fastName = getFastLocationName(effectivePassengerLat, effectivePassengerLng);
+    const nameToUse = fastName.includes('Location (') ? 'My Live Location' : fastName;
+    const loc = { name: nameToUse, lat: effectivePassengerLat, lng: effectivePassengerLng };
+    setSelectedLocation(loc);
+    setMapFocusCoords({ lat: effectivePassengerLat, lng: effectivePassengerLng, zoom: 17, timestamp: Date.now() });
   };
 
   if (!isOpen) return null;
@@ -155,7 +195,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
             ref={searchInputRef}
             type="text"
             value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => {
               if (searchQuery.trim()) setShowSearchResults(true);
             }}
@@ -166,23 +206,26 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
             }
             className="w-full pl-10 pr-20 py-3 rounded-2xl bg-slate-900/95 border-2 border-slate-700 focus:border-emerald-500 text-white placeholder-slate-400 text-xs sm:text-sm font-bold shadow-2xl backdrop-blur-xl focus:outline-none transition-all"
           />
-          {searchQuery ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                setSearchResults([]);
-                setShowSearchResults(false);
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5 stroke-[2.5]" />
-            </button>
-          ) : (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/30">
-              Live Search
-            </span>
-          )}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {isSearchingServer && <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />}
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchResults([]);
+                  setShowSearchResults(false);
+                }}
+                className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5 stroke-[2.5]" />
+              </button>
+            ) : (
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+                Live Search
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Real-time Search Autocomplete Dropdown */}
@@ -218,9 +261,10 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
       {/* Main Map View Area */}
       <div className="relative flex-1 w-full h-full overflow-hidden">
         <MotorideMap
-          passengerLat={passengerGps.lat}
-          passengerLng={passengerGps.lng}
-          passengerAccuracy={passengerGps.accuracy}
+          passengerLat={effectivePassengerLat}
+          passengerLng={effectivePassengerLng}
+          passengerAccuracy={passengerGps?.accuracy || null}
+          passengerName="Your Live Position"
           pickupLat={targetType === 'pickup' ? selectedLocation.lat : undefined}
           pickupLng={targetType === 'pickup' ? selectedLocation.lng : undefined}
           pickupAddress={targetType === 'pickup' ? selectedLocation.name : undefined}
