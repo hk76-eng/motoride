@@ -10,6 +10,7 @@ import { RideChatModal } from '../components/common/RideChatModal';
 import { PassengerProfileDrawer } from './PassengerProfileDrawer';
 import { DigitalWatchETA } from './DigitalWatchETA';
 import { PassengerCaptainRatingModal } from './PassengerCaptainRatingModal';
+import { LocationPickerMapModal } from './LocationPickerMapModal';
 import { motorideApi } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
@@ -574,8 +575,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     heading: number;
   } | null>(null);
 
-  // Map Recenter & Smooth Focus State
+  // Location Picker Map Modal & Smooth Focus State
   const [mapFocusCoords, setMapFocusCoords] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
+  const [pickerModalOpen, setPickerModalOpen] = useState<boolean>(false);
+  const [pickerTargetType, setPickerTargetType] = useState<'pickup' | 'dropoff'>('pickup');
 
   // Real-Time Passenger GPS Location State (matching user icon)
   const [passengerGps, setPassengerGps] = useState<{
@@ -2939,16 +2942,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveMapTarget('pickup');
-                      setPickupToastMessage('📍 Tap anywhere on map to set pickup location');
-                      setShowPickupToast(true);
-                      setTimeout(() => setShowPickupToast(false), 3000);
+                      setPickerTargetType('pickup');
+                      setPickerModalOpen(true);
                     }}
                     className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
                       activeMapTarget === 'pickup'
                         ? 'bg-emerald-100 text-emerald-800 border-emerald-400'
                         : 'bg-slate-100 hover:bg-slate-200 text-black border-transparent'
                     }`}
-                    title="Tap on map to select pickup location"
+                    title="Open map window to select pickup location"
                   >
                     <MapPin className="w-2.5 h-2.5 text-emerald-600" />
                     <span>Map</span>
@@ -3136,16 +3138,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="button"
                     onClick={() => {
                       setActiveMapTarget('dropoff');
-                      setPickupToastMessage('🎯 Tap anywhere on map to set destination');
-                      setShowPickupToast(true);
-                      setTimeout(() => setShowPickupToast(false), 3000);
+                      setPickerTargetType('dropoff');
+                      setPickerModalOpen(true);
                     }}
                     className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
                       activeMapTarget === 'dropoff'
                         ? 'bg-blue-100 text-blue-800 border-blue-400'
                         : 'bg-slate-100 hover:bg-slate-200 text-black border-transparent'
                     }`}
-                    title="Tap on map to select destination"
+                    title="Open map window to select destination location"
                   >
                     <Navigation className="w-2.5 h-2.5 text-blue-600" />
                     <span>Map</span>
@@ -3716,6 +3717,30 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           onSkip={() => handleFinishPassengerRating(5, '', [], true)}
         />
       )}
+
+      {/* Interactive Location Picker Map Modal ("New Window" overlay) */}
+      <LocationPickerMapModal
+        isOpen={pickerModalOpen}
+        onClose={() => setPickerModalOpen(false)}
+        targetType={pickerTargetType}
+        initialLocation={pickerTargetType === 'pickup' ? pickup : dropoff}
+        passengerGps={passengerGps}
+        onConfirmLocation={(loc) => {
+          if (pickerTargetType === 'pickup') {
+            setPickup(loc);
+            setPickupInputText(loc.name);
+            setPickupMode('preset');
+          } else {
+            setDropoff(loc);
+            setDropoffInputText(loc.name);
+            setDropoffMode('preset');
+          }
+          setMapFocusCoords({ lat: loc.lat, lng: loc.lng, zoom: 16, timestamp: Date.now() });
+        }}
+        getFastLocationName={getFastLocationName}
+        resolveLocationNameAsync={resolveLocationNameAsync}
+        getInstantMatchingSuggestions={getInstantMatchingSuggestions}
+      />
     </div>
   );
 };
