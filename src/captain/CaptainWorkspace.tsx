@@ -97,8 +97,8 @@ export function getServiceBadge(rideType?: string) {
         label: 'Motobike',
         shortLabel: 'Motobike',
         icon: '🏍️',
-        bg: 'bg-slate-100 text-slate-900 border-slate-300',
-        badgeBg: 'bg-slate-200 text-slate-900 border-slate-400',
+        bg: 'bg-emerald-600 text-white border-emerald-500',
+        badgeBg: 'bg-emerald-600 text-white border-emerald-500',
       };
   }
 }
