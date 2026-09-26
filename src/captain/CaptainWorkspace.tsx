@@ -1876,18 +1876,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                           <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500 shrink-0" />
                           {(ride.passenger_rating || 4.9).toFixed(1)}
                         </span>
+                        <span className="text-[11px] text-slate-700 font-bold font-mono-num leading-none mt-1">
+                          ({ride.passenger_total_rides ?? 5})
+                        </span>
                       </div>
 
-                      {/* Right Column: 2km Pickup Distance | ₹ 100 Fare | A & B Locations | UPI & Motorbike Badges */}
+                      {/* Right Column: 2km Pickup Distance | Offered Fare ₹202 | A & B Locations | UPI & Motorbike Badges */}
                       <div className="flex-1 min-w-0 flex flex-col gap-2">
-                        {/* Top Row: Pickup Distance (e.g. 2km) & Offered Fare (e.g. ₹ 100) */}
+                        {/* Top Row: Pickup Distance (e.g. 2km) & Offered Fare (e.g. Offered Fare ₹202) */}
                         <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
                           <span className="text-xs sm:text-sm font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shadow-2xs">
                             <Navigation className="w-3 h-3 text-emerald-600 shrink-0" />
                             <span>{pickupDistText}</span>
                           </span>
 
-                          <div className="text-right">
+                          <div className="text-right flex flex-col items-end">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider leading-none mb-1">
+                              Offered Fare
+                            </span>
                             <span className="text-xl sm:text-2xl font-black text-slate-950 font-mono-num leading-none">
                               ₹{ride.offered_fare}
                             </span>
@@ -1980,18 +1986,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 <Star className="w-2.5 h-2.5 fill-amber-500 text-amber-500 shrink-0" />
                 {(ride.passenger_rating || 4.9).toFixed(1)}
               </span>
+              <span className="text-[11px] text-slate-700 font-bold font-mono-num leading-none mt-1">
+                ({ride.passenger_total_rides ?? 5})
+              </span>
             </div>
 
-            {/* Right Column: 2km Pickup Distance | ₹ 100 Fare | A & B Locations | UPI & Motorbike Badges */}
+            {/* Right Column: 2km Pickup Distance | Offered Fare ₹202 | A & B Locations | UPI & Motorbike Badges */}
             <div className="flex-1 min-w-0 flex flex-col gap-2">
-              {/* Top Row: Pickup Distance (e.g. 2km) & Offered Fare (e.g. ₹ 100) */}
+              {/* Top Row: Pickup Distance (e.g. 2km) & Offered Fare (e.g. Offered Fare ₹202) */}
               <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-1.5">
                 <span className="text-xs sm:text-sm font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shadow-2xs">
                   <Navigation className="w-3 h-3 text-emerald-600 shrink-0" />
                   <span>{pickupDistText} away</span>
                 </span>
 
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider leading-none mb-1">
+                    Offered Fare
+                  </span>
                   <span className="text-xl sm:text-2xl font-black text-slate-950 font-mono-num leading-none">
                     ₹{ride.offered_fare}
                   </span>
