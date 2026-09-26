@@ -52,6 +52,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   const [isSearchingServer, setIsSearchingServer] = useState(false);
   const [isResolvingName, setIsResolvingName] = useState(false);
   const [currentZoom, setCurrentZoom] = useState<number>(15);
+  const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
   const [mapFocusCoords, setMapFocusCoords] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +71,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
       setSearchResults([]);
       setShowSearchResults(false);
       setCurrentZoom(15);
+      setHasSelectedLocation(false);
       setMapFocusCoords({ lat: startLoc.lat, lng: startLoc.lng, zoom: 15, timestamp: Date.now() });
     } else if (!isOpen) {
       wasOpenRef.current = false;
@@ -129,6 +131,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     setSelectedLocation(loc);
     setSearchQuery(loc.name);
     setShowSearchResults(false);
+    setHasSelectedLocation(true);
     const isAreaSearch = /\b(dhakoli|zirakpur|sector|mohali|panchkula|mullanpur|kharar|baltana|peer muchalla)\b/i.test(loc.name);
     const zoomLevel = isAreaSearch ? 15 : 16;
     setCurrentZoom(zoomLevel);
@@ -138,6 +141,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   const handleMapClick = async (lat: number, lng: number) => {
     const instantName = getFastLocationName(lat, lng);
     setSelectedLocation({ name: instantName, lat, lng });
+    setHasSelectedLocation(true);
     const targetZoom = Math.max(currentZoom, 15);
     setCurrentZoom(targetZoom);
     setMapFocusCoords({ lat, lng, zoom: targetZoom, timestamp: Date.now() });
@@ -299,12 +303,12 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         <MotorideMap
           passengerLat={undefined}
           passengerLng={undefined}
-          pickupLat={targetType === 'pickup' ? selectedLocation.lat : undefined}
-          pickupLng={targetType === 'pickup' ? selectedLocation.lng : undefined}
-          pickupAddress={targetType === 'pickup' ? selectedLocation.name : undefined}
-          dropoffLat={targetType === 'dropoff' ? selectedLocation.lat : undefined}
-          dropoffLng={targetType === 'dropoff' ? selectedLocation.lng : undefined}
-          dropoffAddress={targetType === 'dropoff' ? selectedLocation.name : undefined}
+          pickupLat={targetType === 'pickup' && hasSelectedLocation ? selectedLocation.lat : undefined}
+          pickupLng={targetType === 'pickup' && hasSelectedLocation ? selectedLocation.lng : undefined}
+          pickupAddress={targetType === 'pickup' && hasSelectedLocation ? selectedLocation.name : undefined}
+          dropoffLat={targetType === 'dropoff' && hasSelectedLocation ? selectedLocation.lat : undefined}
+          dropoffLng={targetType === 'dropoff' && hasSelectedLocation ? selectedLocation.lng : undefined}
+          dropoffAddress={targetType === 'dropoff' && hasSelectedLocation ? selectedLocation.name : undefined}
           focusCoords={mapFocusCoords}
           bottomSheetPadding={0}
           showOverlayControls={false}
