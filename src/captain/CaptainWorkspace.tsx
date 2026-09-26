@@ -1923,9 +1923,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                           </div>
                         </div>
 
-                        {/* Bottom Row Badges: UPI / CASH | Motorbike / Ride Type | Trip Distance */}
+                        {/* Bottom Row Badges: UPI / CASH | Motorbike / Ride Type */}
                         <div className="flex items-center gap-2 pt-1.5 border-t border-slate-100 flex-wrap">
-                          <span className="px-2.5 py-0.5 rounded-md bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-black uppercase tracking-wider shadow-2xs">
+                          <span className="px-2.5 py-0.5 rounded-md bg-emerald-600 text-white border border-emerald-500 text-[11px] font-black uppercase tracking-wider shadow-2xs">
                             {ride.payment_method?.toUpperCase() === 'CASH' ? 'CASH' : 'UPI'}
                           </span>
 
@@ -1933,8 +1933,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                             <span className="text-xs leading-none">{service.icon}</span>
                             <span>{service.label}</span>
                           </span>
+                        </div>
 
-                          <span className="ml-auto text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                        {/* Distance in red color directly below the UPI tab */}
+                        <div className="pt-0.5 flex items-center gap-1">
+                          <span className="text-xs sm:text-sm font-black text-rose-600 font-mono-num">
                             {rideDistText}
                           </span>
                         </div>
@@ -2045,11 +2048,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 </span>
               </div>
 
-              {/* Total Distance & Duration directly below the tab UPI */}
-              <div className="pt-1 flex items-center gap-1.5 text-xs">
-                <span className="text-slate-500 font-bold">Total distance:</span>
-                <span className="font-black text-slate-900 font-mono-num">{rideDistText}</span>
-                <span className="text-slate-600 font-medium">({ride.duration_minutes || 54}mins)</span>
+              {/* Distance and duration in red color directly below the UPI tab */}
+              <div className="pt-0.5 flex items-center gap-1">
+                <span className="text-xs sm:text-sm font-black text-rose-600 font-mono-num">
+                  {rideDistText}({ride.duration_minutes || 54}mins)
+                </span>
               </div>
             </div>
           </div>
