@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Navigation } from 'lucide-react';
+import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Navigation, Compass } from 'lucide-react';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { getApiUrl } from '../utils/apiUrl';
 
@@ -54,10 +54,12 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   const [mapFocusCoords, setMapFocusCoords] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const wasOpenRef = useRef<boolean>(false);
 
-  // Sync modal state on open
+  // Sync modal state ONLY when modal opens (prevent clearing text while typing!)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpenRef.current) {
+      wasOpenRef.current = true;
       const startLoc = (initialLocation && initialLocation.lat > 0 && initialLocation.lng > 0)
         ? initialLocation
         : { name: 'My Live GPS Location', lat: effectivePassengerLat, lng: effectivePassengerLng };
@@ -67,8 +69,10 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
       setSearchResults([]);
       setShowSearchResults(false);
       setMapFocusCoords({ lat: startLoc.lat, lng: startLoc.lng, zoom: 16, timestamp: Date.now() });
+    } else if (!isOpen) {
+      wasOpenRef.current = false;
     }
-  }, [isOpen, initialLocation, effectivePassengerLat, effectivePassengerLng]);
+  }, [isOpen]);
 
   // Live Geocoding Search (Combining local 120+ landmark pool + OpenStreetMap API)
   useEffect(() => {
@@ -105,7 +109,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
                   });
                 }
               }
-              setSearchResults(merged.slice(0, 8));
+              setSearchResults(merged.slice(0, 10));
             }
           }
         }
@@ -123,7 +127,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     setSelectedLocation(loc);
     setSearchQuery(loc.name);
     setShowSearchResults(false);
-    setMapFocusCoords({ lat: loc.lat, lng: loc.lng, zoom: 17, timestamp: Date.now() });
+    setMapFocusCoords({ lat: loc.lat, lng: loc.lng, zoom: 15, timestamp: Date.now() });
   };
 
   const handleMapClick = async (lat: number, lng: number) => {
@@ -142,11 +146,13 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     }
   };
 
-  const handleRecenterPassengerGps = () => {
+  const handleUseLiveGpsLocation = () => {
     const fastName = getFastLocationName(effectivePassengerLat, effectivePassengerLng);
     const nameToUse = fastName.includes('Location (') ? 'My Live Location' : fastName;
     const loc = { name: nameToUse, lat: effectivePassengerLat, lng: effectivePassengerLng };
     setSelectedLocation(loc);
+    setSearchQuery(nameToUse);
+    setShowSearchResults(false);
     setMapFocusCoords({ lat: effectivePassengerLat, lng: effectivePassengerLng, zoom: 17, timestamp: Date.now() });
   };
 
@@ -172,7 +178,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               <span>{targetType === 'pickup' ? 'Select Pickup Location' : 'Select Destination Location'}</span>
             </h2>
             <p className="text-[11px] text-slate-400 font-medium truncate">
-              Search hotel, petrol pump, society, or tap on map
+              Type place name or tap anywhere on map
             </p>
           </div>
         </div>
@@ -187,8 +193,8 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         </button>
       </div>
 
-      {/* Floating Search Bar Overlay on top of Map */}
-      <div className="relative z-30 px-3 sm:px-6 pt-3 pb-2 max-w-2xl w-full mx-auto">
+      {/* Floating Search Bar Overlay & Live GPS Pill on top of Map */}
+      <div className="relative z-30 px-3 sm:px-6 pt-3 pb-2 max-w-2xl w-full mx-auto flex flex-col gap-2">
         <div className="relative flex items-center shadow-2xl">
           <Search className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
           <input
@@ -201,8 +207,8 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
             }}
             placeholder={
               targetType === 'pickup'
-                ? 'Search pickup place (e.g. JW Marriott, HP Petrol Pump, Sector 17)...'
-                : 'Search destination place (e.g. Elante Mall, PGI, Homeland Heights)...'
+                ? 'Search place (e.g. Dhakoli, JW Marriott, Sector 17, VIP Road)...'
+                : 'Search place (e.g. Dhakoli, Elante Mall, PGI, Homeland Heights)...'
             }
             className="w-full pl-10 pr-20 py-3 rounded-2xl bg-slate-900/95 border-2 border-slate-700 focus:border-emerald-500 text-white placeholder-slate-400 text-xs sm:text-sm font-bold shadow-2xl backdrop-blur-xl focus:outline-none transition-all"
           />
@@ -222,15 +228,25 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               </button>
             ) : (
               <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/30">
-                Live Search
+                Search
               </span>
             )}
           </div>
         </div>
 
+        {/* Live GPS Condition Pill inside Search Bar overlay */}
+        <button
+          type="button"
+          onClick={handleUseLiveGpsLocation}
+          className="self-start flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 shadow-lg backdrop-blur-md text-xs font-bold transition-all active:scale-95 cursor-pointer"
+        >
+          <LocateFixed className="w-3.5 h-3.5 stroke-[2.5] text-emerald-400" />
+          <span>📍 Use My Live GPS Location (Current Standing Position)</span>
+        </button>
+
         {/* Real-time Search Autocomplete Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
-          <div className="absolute top-full left-3 sm:left-6 right-3 sm:right-6 mt-1 bg-slate-900/95 border-2 border-emerald-500/80 rounded-2xl shadow-2xl backdrop-blur-2xl max-h-64 overflow-y-auto divide-y divide-slate-800 z-50 animate-in fade-in duration-150">
+          <div className="absolute top-14 left-3 sm:left-6 right-3 sm:right-6 mt-1 bg-slate-900/95 border-2 border-emerald-500/80 rounded-2xl shadow-2xl backdrop-blur-2xl max-h-72 overflow-y-auto divide-y divide-slate-800 z-50 animate-in fade-in duration-150">
             {searchResults.map((item, idx) => (
               <button
                 key={`${item.name}-${idx}`}
@@ -246,11 +262,13 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
                     <span className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 block truncate">
                       {item.name}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium">Tap to pinpoint on map</span>
+                    <span className="text-[10px] text-slate-400 font-medium block truncate">
+                      Tap to view {item.name} area map with hotels, societies & landmarks
+                    </span>
                   </div>
                 </div>
                 <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors shrink-0">
-                  Select
+                  Select Area
                 </span>
               </button>
             ))}
@@ -258,13 +276,11 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         )}
       </div>
 
-      {/* Main Map View Area */}
+      {/* Main Map View Area (No passenger icon shown!) */}
       <div className="relative flex-1 w-full h-full overflow-hidden">
         <MotorideMap
-          passengerLat={effectivePassengerLat}
-          passengerLng={effectivePassengerLng}
-          passengerAccuracy={passengerGps?.accuracy || null}
-          passengerName="Your Live Position"
+          passengerLat={undefined}
+          passengerLng={undefined}
           pickupLat={targetType === 'pickup' ? selectedLocation.lat : undefined}
           pickupLng={targetType === 'pickup' ? selectedLocation.lng : undefined}
           pickupAddress={targetType === 'pickup' ? selectedLocation.name : undefined}
@@ -282,12 +298,12 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         {/* Floating Recenter GPS Button inside Map Modal */}
         <button
           type="button"
-          onClick={handleRecenterPassengerGps}
+          onClick={handleUseLiveGpsLocation}
           title="Center on My Live Location"
           className="absolute right-4 bottom-24 z-[400] p-3 rounded-full bg-slate-900/95 hover:bg-slate-800 text-white border border-slate-700 shadow-2xl backdrop-blur-xl flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer group"
         >
           <LocateFixed className="w-5 h-5 text-emerald-400 stroke-[2.5] group-hover:rotate-12 transition-transform" />
-          <span className="text-xs font-bold hidden sm:inline text-white">My Position</span>
+          <span className="text-xs font-bold hidden sm:inline text-white">Live GPS</span>
         </button>
       </div>
 
