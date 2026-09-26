@@ -51,6 +51,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [isSearchingServer, setIsSearchingServer] = useState(false);
   const [isResolvingName, setIsResolvingName] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState<number>(15);
   const [mapFocusCoords, setMapFocusCoords] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -68,7 +69,8 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
       setSearchQuery('');
       setSearchResults([]);
       setShowSearchResults(false);
-      setMapFocusCoords({ lat: startLoc.lat, lng: startLoc.lng, zoom: 16, timestamp: Date.now() });
+      setCurrentZoom(15);
+      setMapFocusCoords({ lat: startLoc.lat, lng: startLoc.lng, zoom: 15, timestamp: Date.now() });
     } else if (!isOpen) {
       wasOpenRef.current = false;
     }
@@ -127,13 +129,19 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     setSelectedLocation(loc);
     setSearchQuery(loc.name);
     setShowSearchResults(false);
-    setMapFocusCoords({ lat: loc.lat, lng: loc.lng, zoom: 15, timestamp: Date.now() });
+    // Area searches (e.g. Dhakoli, Sector 17, Zirakpur) get zoom 14 so whole area map is in view
+    const isAreaSearch = /\b(dhakoli|zirakpur|sector|mohali|panchkula|mullanpur|kharar|baltana|peer muchalla)\b/i.test(loc.name);
+    const zoomLevel = isAreaSearch ? 14 : 16;
+    setCurrentZoom(zoomLevel);
+    setMapFocusCoords({ lat: loc.lat, lng: loc.lng, zoom: zoomLevel, timestamp: Date.now() });
   };
 
   const handleMapClick = async (lat: number, lng: number) => {
     const instantName = getFastLocationName(lat, lng);
     setSelectedLocation({ name: instantName, lat, lng });
-    setMapFocusCoords({ lat, lng, zoom: 16, timestamp: Date.now() });
+    const targetZoom = Math.max(currentZoom, 15);
+    setCurrentZoom(targetZoom);
+    setMapFocusCoords({ lat, lng, zoom: targetZoom, timestamp: Date.now() });
     setIsResolvingName(true);
 
     try {
@@ -153,26 +161,27 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     setSelectedLocation(loc);
     setSearchQuery(nameToUse);
     setShowSearchResults(false);
-    setMapFocusCoords({ lat: effectivePassengerLat, lng: effectivePassengerLng, zoom: 17, timestamp: Date.now() });
+    setCurrentZoom(16);
+    setMapFocusCoords({ lat: effectivePassengerLat, lng: effectivePassengerLng, zoom: 16, timestamp: Date.now() });
   };
 
   const handleZoomIn = () => {
-    setMapFocusCoords((prev) => {
-      const currentZoom = prev?.zoom || 15;
-      const targetZoom = Math.min(currentZoom + 1, 19);
-      const targetLat = prev?.lat || selectedLocation.lat || effectivePassengerLat;
-      const targetLng = prev?.lng || selectedLocation.lng || effectivePassengerLng;
-      return { lat: targetLat, lng: targetLng, zoom: targetZoom, timestamp: Date.now() };
+    setCurrentZoom((prevZoom) => {
+      const nextZoom = Math.min(prevZoom + 1, 19);
+      const targetLat = selectedLocation.lat || effectivePassengerLat;
+      const targetLng = selectedLocation.lng || effectivePassengerLng;
+      setMapFocusCoords({ lat: targetLat, lng: targetLng, zoom: nextZoom, timestamp: Date.now() });
+      return nextZoom;
     });
   };
 
   const handleZoomOut = () => {
-    setMapFocusCoords((prev) => {
-      const currentZoom = prev?.zoom || 15;
-      const targetZoom = Math.max(currentZoom - 1, 10);
-      const targetLat = prev?.lat || selectedLocation.lat || effectivePassengerLat;
-      const targetLng = prev?.lng || selectedLocation.lng || effectivePassengerLng;
-      return { lat: targetLat, lng: targetLng, zoom: targetZoom, timestamp: Date.now() };
+    setCurrentZoom((prevZoom) => {
+      const nextZoom = Math.max(prevZoom - 1, 11);
+      const targetLat = selectedLocation.lat || effectivePassengerLat;
+      const targetLng = selectedLocation.lng || effectivePassengerLng;
+      setMapFocusCoords({ lat: targetLat, lng: targetLng, zoom: nextZoom, timestamp: Date.now() });
+      return nextZoom;
     });
   };
 
@@ -308,7 +317,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           dropoffLng={targetType === 'dropoff' ? selectedLocation.lng : undefined}
           dropoffAddress={targetType === 'dropoff' ? selectedLocation.name : undefined}
           focusCoords={mapFocusCoords}
-          bottomSheetPadding={160}
+          bottomSheetPadding={0}
           showOverlayControls={false}
           interactive={true}
           onMapClick={(lat, lng) => handleMapClick(lat, lng)}

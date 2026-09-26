@@ -1119,31 +1119,18 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     bottomSheetPadding,
   ]);
 
-  // Smoothly pan & zoom to external focus coordinates when requested (e.g. Captain tapping Navigate)
+  // Smoothly pan & zoom to external focus coordinates when requested
   useEffect(() => {
     if (focusCoords && mapInstanceRef.current && focusCoords.lat && focusCoords.lng) {
       setIsFollowingCaptain(false);
       setIsFollowingPassenger(false);
-      const pad = bottomSheetPadding || 0;
-      if (pad > 0) {
-        mapInstanceRef.current.fitBounds(
-          L.latLngBounds([[focusCoords.lat, focusCoords.lng], [focusCoords.lat, focusCoords.lng]]),
-          {
-            paddingBottomRight: [40, pad],
-            paddingTopLeft: [70, 40],
-            maxZoom: focusCoords.zoom ?? 16,
-            animate: true,
-            duration: 0.8,
-          }
-        );
-      } else {
-        mapInstanceRef.current.flyTo([focusCoords.lat, focusCoords.lng], focusCoords.zoom ?? 17, {
-          animate: true,
-          duration: 0.8,
-        });
-      }
+      const targetZoom = focusCoords.zoom ?? 16;
+      mapInstanceRef.current.flyTo([focusCoords.lat, focusCoords.lng], targetZoom, {
+        animate: true,
+        duration: 0.6,
+      });
     }
-  }, [focusCoords, bottomSheetPadding]);
+  }, [focusCoords]);
 
   // Center on Passenger or Captain Live Location with Navigator
   const handleNavigatorCenter = () => {
