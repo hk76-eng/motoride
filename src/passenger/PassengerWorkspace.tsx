@@ -547,6 +547,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     heading: number;
   } | null>(null);
 
+  // Map Recenter & Smooth Focus State
+  const [mapFocusCoords, setMapFocusCoords] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
+
   // Real-Time Passenger GPS Location State (matching user icon)
   const [passengerGps, setPassengerGps] = useState<{
     lat: number;
@@ -2293,7 +2296,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         captainHeading={currentCaptainHeading}
         captainName={activeRide?.captain_name || 'Captain'}
         activeRideStatus={activeRide?.status}
-        bottomSheetPadding={activeRide ? (isCardMinimized ? 90 : 380) : 180}
+        bottomSheetPadding={activeRide ? (isCardMinimized ? 90 : 380) : (isCardMinimized ? 80 : 280)}
+        focusCoords={mapFocusCoords}
+        showOverlayControls={true}
         interactive={!activeRide}
         onSetPickupToPassengerLocation={(lat, lng) => handleSetPickupFromPassengerPosition(lat, lng)}
         onMapClick={async (lat, lng) => {
@@ -3517,21 +3522,40 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         }}
       />
 
+      {/* Floating Recenter Button on Map Right Side */}
+      <button
+        type="button"
+        onClick={() => {
+          requestLiveLocation();
+          const targetLat = passengerGps.lat > 0 ? passengerGps.lat : (pickup.lat > 0 ? pickup.lat : 30.704649);
+          const targetLng = passengerGps.lng > 0 ? passengerGps.lng : (pickup.lng > 0 ? pickup.lng : 76.717873);
+          setMapFocusCoords({ lat: targetLat, lng: targetLng, zoom: 16, timestamp: Date.now() });
+        }}
+        title="Recenter Map on My Location"
+        aria-label="Recenter Map on My Location"
+        className={`fixed sm:absolute right-3 sm:right-4 z-[950] p-2.5 sm:p-3 rounded-full bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 shadow-2xl backdrop-blur-md flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer group ${
+          isCardMinimized ? 'bottom-20 sm:bottom-24' : 'bottom-[270px] sm:bottom-[290px]'
+        }`}
+      >
+        <LocateFixed className="w-5 h-5 text-emerald-600 stroke-[2.5] group-hover:rotate-12 transition-transform" />
+        <span className="text-xs font-black text-slate-900 hidden sm:inline">Recenter</span>
+      </button>
+
       {/* Bottom / Sidebar Booking Form & Active Trip Card Controls */}
       {isCardMinimized ? (
         /* Minimized Floating Bar (Drop Down Condition) */
-        <div className="fixed sm:absolute bottom-3 sm:bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-1.25rem)] sm:w-[460px] md:w-[420px] animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="fixed sm:absolute bottom-1 sm:bottom-2 md:bottom-3 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-1rem)] sm:w-[420px] md:w-[380px] animate-in fade-in slide-in-from-bottom-3 duration-200">
           <div
             onClick={() => setIsCardMinimized(false)}
-            className="p-3 sm:p-3.5 rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl flex items-center justify-between gap-3 hover:border-slate-700 transition-all cursor-pointer"
+            className="p-2.5 sm:p-3 rounded-3xl bg-slate-950 border border-slate-800 shadow-2xl flex items-center justify-between gap-3 hover:border-slate-700 transition-all cursor-pointer"
           >
-            <div className="flex items-center gap-3 min-w-0 pr-2 flex-1">
+            <div className="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
               {activeRide?.captain_name ? (
                 <div className="relative shrink-0">
                   <img
                     src={getCaptainAvatarUrl(activeRide.captain_name || undefined, (activeRide as any).captain_avatar || (activeRide as any).avatar_url)}
                     alt={activeRide.captain_name}
-                    className="w-10 h-10 rounded-2xl object-cover border-2 border-emerald-400 bg-slate-200 shadow-md"
+                    className="w-9 h-9 rounded-2xl object-cover border-2 border-emerald-400 bg-slate-200 shadow-md"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src =
                         `https://ui-avatars.com/api/?name=${encodeURIComponent(activeRide.captain_name || 'Captain')}&background=0284c7&color=fff&bold=true`;
@@ -3542,7 +3566,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </span>
                 </div>
               ) : (
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-lg shadow-md shrink-0">
+                <div className="w-9 h-9 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-base shadow-md shrink-0">
                   🏍️
                 </div>
               )}
@@ -3574,7 +3598,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   setHasUnreadMessages(false);
                   safeStorage.setItem(`motoride_last_read_chat_${activeRide.id}`, Date.now().toString());
                 }}
-                className="p-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 active:scale-95 cursor-pointer flex items-center justify-center relative shrink-0 shadow-sm"
+                className="p-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 active:scale-95 cursor-pointer flex items-center justify-center relative shrink-0 shadow-sm"
                 title="Chat with Captain"
               >
                 <MessageSquare className="w-4 h-4 stroke-[2.5] text-white" />
@@ -3594,7 +3618,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 e.stopPropagation();
                 setIsCardMinimized(false);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer transition-all shrink-0"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer transition-all shrink-0"
               title={activeRide ? 'Expand Active Ride Details' : 'Open booking form'}
             >
               <span>{activeRide ? 'Expand Ride' : 'Book Ride'}</span>
@@ -3603,8 +3627,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           </div>
         </div>
       ) : (
-        /* Expanded Booking Form */
-        <div className="fixed sm:absolute bottom-3 sm:bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-1.25rem)] sm:w-[400px] md:w-[380px] max-h-[82dvh] sm:max-h-[calc(100vh-90px)] overflow-y-auto flex flex-col gap-2 pb-1 scrollbar-thin animate-in fade-in slide-in-from-bottom-4 duration-200">
+        /* Expanded Booking Form - Anchored to Bottom Line */
+        <div className="fixed sm:absolute bottom-0 sm:bottom-1 md:bottom-2 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-0.75rem)] sm:w-[350px] md:w-[330px] max-h-[80dvh] sm:max-h-[calc(100vh-80px)] overflow-y-auto flex flex-col gap-1.5 pb-1 scrollbar-thin animate-in fade-in slide-in-from-bottom-4 duration-200">
           {renderControlPanel()}
         </div>
       )}

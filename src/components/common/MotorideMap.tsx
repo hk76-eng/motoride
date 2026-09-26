@@ -1060,7 +1060,17 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         });
       }
     } else if (!hasPickup && passengerLat && passengerLng && isFollowingPassenger) {
-      map.setView([passengerLat, passengerLng], 16, { animate: false });
+      const pad = bottomSheetPadding || 0;
+      if (pad > 0) {
+        map.fitBounds(L.latLngBounds([[passengerLat, passengerLng], [passengerLat, passengerLng]]), {
+          paddingBottomRight: [40, pad],
+          paddingTopLeft: [70, 40],
+          maxZoom: 16,
+          animate: false,
+        });
+      } else {
+        map.setView([passengerLat, passengerLng], 16, { animate: false });
+      }
     } else if (bounds.length > 1 && !isFollowingPassenger) {
       map.invalidateSize();
       map.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 16, animate: false });
@@ -1068,7 +1078,17 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       map.setView(bounds[0], 15, { animate: false });
     } else if (passengerLat && passengerLng && !hasInitiallyCenteredPassengerRef.current) {
       hasInitiallyCenteredPassengerRef.current = true;
-      map.setView([passengerLat, passengerLng], 16, { animate: false });
+      const pad = bottomSheetPadding || 0;
+      if (pad > 0) {
+        map.fitBounds(L.latLngBounds([[passengerLat, passengerLng], [passengerLat, passengerLng]]), {
+          paddingBottomRight: [40, pad],
+          paddingTopLeft: [70, 40],
+          maxZoom: 16,
+          animate: false,
+        });
+      } else {
+        map.setView([passengerLat, passengerLng], 16, { animate: false });
+      }
     }
   }, [
     mapReady,
@@ -1097,6 +1117,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     nearestCaptain,
     onSelectCaptain,
     activeRideStatus,
+    bottomSheetPadding,
   ]);
 
   // Smoothly pan & zoom to external focus coordinates when requested (e.g. Captain tapping Navigate)
@@ -1104,12 +1125,26 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     if (focusCoords && mapInstanceRef.current && focusCoords.lat && focusCoords.lng) {
       setIsFollowingCaptain(false);
       setIsFollowingPassenger(false);
-      mapInstanceRef.current.flyTo([focusCoords.lat, focusCoords.lng], focusCoords.zoom ?? 17, {
-        animate: true,
-        duration: 0.8,
-      });
+      const pad = bottomSheetPadding || 0;
+      if (pad > 0) {
+        mapInstanceRef.current.fitBounds(
+          L.latLngBounds([[focusCoords.lat, focusCoords.lng], [focusCoords.lat, focusCoords.lng]]),
+          {
+            paddingBottomRight: [40, pad],
+            paddingTopLeft: [70, 40],
+            maxZoom: focusCoords.zoom ?? 16,
+            animate: true,
+            duration: 0.8,
+          }
+        );
+      } else {
+        mapInstanceRef.current.flyTo([focusCoords.lat, focusCoords.lng], focusCoords.zoom ?? 17, {
+          animate: true,
+          duration: 0.8,
+        });
+      }
     }
-  }, [focusCoords]);
+  }, [focusCoords, bottomSheetPadding]);
 
   // Center on Passenger or Captain Live Location with Navigator
   const handleNavigatorCenter = () => {
@@ -1124,7 +1159,21 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       const targetLat = passengerLat || pickupLat;
       const targetLng = passengerLng || pickupLng;
       if (targetLat && targetLng) {
-        mapInstanceRef.current.flyTo([targetLat, targetLng], 16, { animate: true, duration: 0.8 });
+        const pad = bottomSheetPadding || 0;
+        if (pad > 0) {
+          mapInstanceRef.current.fitBounds(
+            L.latLngBounds([[targetLat, targetLng], [targetLat, targetLng]]),
+            {
+              paddingBottomRight: [40, pad],
+              paddingTopLeft: [70, 40],
+              maxZoom: 16,
+              animate: true,
+              duration: 0.8,
+            }
+          );
+        } else {
+          mapInstanceRef.current.flyTo([targetLat, targetLng], 16, { animate: true, duration: 0.8 });
+        }
       }
     }
     if (onLocateMe) {
@@ -1164,7 +1213,21 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       const targetLat = passengerLat || pickupLat;
       const targetLng = passengerLng || pickupLng;
       if (targetLat && targetLng) {
-        mapInstanceRef.current.flyTo([targetLat, targetLng], 16, { animate: true, duration: 0.9 });
+        const pad = bottomSheetPadding || 0;
+        if (pad > 0) {
+          mapInstanceRef.current.fitBounds(
+            L.latLngBounds([[targetLat, targetLng], [targetLat, targetLng]]),
+            {
+              paddingBottomRight: [40, pad],
+              paddingTopLeft: [70, 40],
+              maxZoom: 16,
+              animate: true,
+              duration: 0.9,
+            }
+          );
+        } else {
+          mapInstanceRef.current.flyTo([targetLat, targetLng], 16, { animate: true, duration: 0.9 });
+        }
       }
     }
     if (onLocateMe) {
@@ -1177,12 +1240,26 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     if (isCaptainMode && captainLat && captainLng) {
       setIsFollowingCaptain(true);
       mapInstanceRef.current.flyTo([captainLat, captainLng], 15, { animate: true, duration: 0.8 });
-    } else if (pickupLat && pickupLng) {
-      mapInstanceRef.current.flyTo([pickupLat, pickupLng], 15, { animate: true, duration: 0.8 });
-    } else if (passengerLat && passengerLng) {
-      mapInstanceRef.current.flyTo([passengerLat, passengerLng], 15, { animate: true, duration: 0.8 });
-    } else if (captainLat && captainLng) {
-      mapInstanceRef.current.flyTo([captainLat, captainLng], 15, { animate: true, duration: 0.8 });
+    } else {
+      const targetLat = passengerLat || pickupLat || captainLat;
+      const targetLng = passengerLng || pickupLng || captainLng;
+      if (targetLat && targetLng) {
+        const pad = bottomSheetPadding || 0;
+        if (pad > 0) {
+          mapInstanceRef.current.fitBounds(
+            L.latLngBounds([[targetLat, targetLng], [targetLat, targetLng]]),
+            {
+              paddingBottomRight: [40, pad],
+              paddingTopLeft: [70, 40],
+              maxZoom: 16,
+              animate: true,
+              duration: 0.8,
+            }
+          );
+        } else {
+          mapInstanceRef.current.flyTo([targetLat, targetLng], 16, { animate: true, duration: 0.8 });
+        }
+      }
     }
   };
 
