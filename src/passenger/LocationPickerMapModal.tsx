@@ -262,16 +262,6 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           </div>
         </div>
 
-        {/* Live GPS Condition Pill inside Search Bar overlay */}
-        <button
-          type="button"
-          onClick={handleUseLiveGpsLocation}
-          className="self-start flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 shadow-lg backdrop-blur-md text-xs font-bold transition-all active:scale-95 cursor-pointer"
-        >
-          <LocateFixed className="w-3.5 h-3.5 stroke-[2.5] text-emerald-400" />
-          <span>📍 Use My Live GPS Location (Current Standing Position)</span>
-        </button>
-
         {/* Real-time Search Autocomplete Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
           <div className="absolute top-14 left-3 sm:left-6 right-3 sm:right-6 mt-1 bg-slate-900/95 border-2 border-emerald-500/80 rounded-2xl shadow-2xl backdrop-blur-2xl max-h-72 overflow-y-auto divide-y divide-slate-800 z-50 animate-in fade-in duration-150">
@@ -340,14 +330,6 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
             className="w-11 h-11 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-white border border-slate-700/80 shadow-2xl backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer hover:border-emerald-500 hover:text-emerald-400"
           >
             <Minus className="w-6 h-6 stroke-[3]" />
-          </button>
-          <button
-            type="button"
-            onClick={handleUseLiveGpsLocation}
-            title="Center on My Live Location"
-            className="w-11 h-11 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-emerald-400 border border-emerald-500/50 shadow-2xl backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer hover:bg-emerald-500 hover:text-slate-950"
-          >
-            <LocateFixed className="w-5 h-5 stroke-[2.5]" />
           </button>
         </div>
       </div>
