@@ -2298,7 +2298,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         activeRideStatus={activeRide?.status}
         bottomSheetPadding={activeRide ? (isCardMinimized ? 90 : 380) : (isCardMinimized ? 80 : 280)}
         focusCoords={mapFocusCoords}
-        showOverlayControls={true}
+        showOverlayControls={false}
         interactive={!activeRide}
         onSetPickupToPassengerLocation={(lat, lng) => handleSetPickupFromPassengerPosition(lat, lng)}
         onMapClick={async (lat, lng) => {
