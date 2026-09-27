@@ -1122,11 +1122,66 @@ motorideRouter.get('/route/distance', async (req: Request, res: Response) => {
   });
 });
 
+function getRegionalAreaNameHelper(lat: number, lng: number): string {
+  if (!lat || !lng || isNaN(lat) || isNaN(lng)) return 'Tricity Area';
+
+  // Dhakoli, Gazipur, Peer Muchalla, Baltana, Zirakpur
+  if (lat >= 30.6100 && lat <= 30.6680 && lng >= 76.8100 && lng <= 76.8650) {
+    if (lng >= 76.8380) {
+      if (lat <= 30.6340) return 'Peer Muchalla, Zirakpur';
+      if (lat <= 30.6450) return 'Dhakoli, Zirakpur Area';
+      return 'Baltana, Zirakpur';
+    }
+    return 'VIP Road, Zirakpur';
+  }
+
+  // Panchkula Sectors
+  if (lat >= 30.6600 && lat <= 30.7300 && lng >= 76.8380 && lng <= 76.8900) {
+    if (lat >= 30.7150) return 'Mansa Devi Complex (MDC), Panchkula';
+    if (lat >= 30.7020) return 'Sector 7, Panchkula Market';
+    if (lat >= 30.6900) return 'Sector 5 / Town Park, Panchkula';
+    if (lat >= 30.6780) return 'Sector 11 / 15, Panchkula';
+    return 'Sector 20, Panchkula Highrise Area';
+  }
+
+  // Chandigarh City Sectors
+  if (lat >= 30.7000 && lat <= 30.7850 && lng >= 76.7500 && lng <= 76.8350) {
+    if (lat >= 30.7500 && lng >= 76.7900) return 'Sector 1 / Sukhna Lake, Chandigarh';
+    if (lat >= 30.7500) return 'Panjab University / PGI, Sector 14 Chandigarh';
+    if (lat >= 30.7350 && lng >= 76.7750) return 'Sector 17 City Center, Chandigarh';
+    if (lat >= 30.7280 && lng >= 76.7650) return 'Sector 22 / Aroma Chowk, Chandigarh';
+    if (lat >= 30.7150 && lng >= 76.7900) return 'Sector 34 / 20, Chandigarh';
+    if (lat >= 30.7000 && lng >= 76.7950) return 'Elante Mall / Industrial Area, Chandigarh';
+    return 'Chandigarh Area';
+  }
+
+  // Mohali (SAS Nagar) Phases & Sectors
+  if (lat >= 30.6600 && lat <= 30.7350 && lng >= 76.6900 && lng <= 76.7480) {
+    if (lat >= 30.7150 && lng <= 76.7200) return 'Phase 3B2 Market, Mohali';
+    if (lat >= 30.7100 && lng >= 76.7250) return 'Phase 8B Industrial & Tech Park, Mohali';
+    if (lat >= 30.7000 && lng <= 76.7200) return 'Sector 70 / Mattaur, Mohali';
+    if (lat >= 30.6900) return 'Sector 66 / Bestech Mall, Mohali';
+    if (lat >= 30.6700) return 'Sector 82 / IT City, Mohali';
+    return 'SAS Nagar (Mohali) Area';
+  }
+
+  // Kharar & New Chandigarh
+  if (lat >= 30.7350 && lat <= 30.8300 && lng >= 76.6000 && lng <= 76.7500) {
+    if (lat >= 30.8000) return 'Mullanpur, New Chandigarh';
+    if (lng <= 76.6600) return 'Kharar City & Bus Stand Area';
+    return 'Sunny Enclave / Sector 125, Kharar';
+  }
+
+  return 'Tricity Region';
+}
+
 // Proxy Reverse Geocode
 motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
-  const { lat, lng } = req.query;
-  if (!lat || !lng) {
-    return res.json({ success: true, address: 'Current Location' });
+  const lat = parseFloat(req.query.lat as string);
+  const lng = parseFloat(req.query.lng as string);
+
+  if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) {
+    return res.json({ success: true, address: 'Selected Area' });
   }
 
   try {
@@ -1142,14 +1197,28 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
     const text = await response.text();
     if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
       const parsed = JSON.parse(text);
-      if (parsed && parsed.display_name) {
-        const shortName = parsed.display_name.split(',').slice(0, 3).join(', ').trim();
-        return res.json({ success: true, address: shortName });
+      if (parsed) {
+        const addrObj = parsed.address || {};
+        const explicitPlace = parsed.name || addrObj.hotel || addrObj.building || addrObj.amenity || addrObj.shop || addrObj.residential || addrObj.tourism || addrObj.suburb || addrObj.neighbourhood;
+        
+        if (explicitPlace && typeof explicitPlace === 'string' && explicitPlace.trim()) {
+          const roadOrSector = addrObj.road || addrObj.suburb || addrObj.city_district || addrObj.city || '';
+          const fullPlace = roadOrSector && !explicitPlace.toLowerCase().includes(roadOrSector.toLowerCase())
+            ? `${explicitPlace.trim()}, ${roadOrSector.trim()}`
+            : explicitPlace.trim();
+          return res.json({ success: true, address: fullPlace, name: explicitPlace.trim() });
+        }
+
+        if (parsed.display_name) {
+          const shortName = parsed.display_name.split(',').slice(0, 3).join(', ').trim();
+          return res.json({ success: true, address: shortName });
+        }
       }
     }
   } catch {}
 
-  res.json({ success: true, address: `Location (${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)})` });
+  const fallbackArea = getRegionalAreaNameHelper(lat, lng);
+  res.json({ success: true, address: fallbackArea });
 });
 
 // Get Latest Passenger Live Location
