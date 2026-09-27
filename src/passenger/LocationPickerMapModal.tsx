@@ -58,6 +58,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   const [isResolvingName, setIsResolvingName] = useState(false);
   const [currentZoom, setCurrentZoom] = useState<number>(15);
   const [hasSelectedLocation, setHasSelectedLocation] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [mapFocusCoords, setMapFocusCoords] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -187,20 +188,36 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     }
   };
 
-  const handleMapClick = async (lat: number, lng: number) => {
+  const handleMapClick = (lat: number, lng: number) => {
+    setMapFocusCoords({ lat, lng, zoom: currentZoom, timestamp: Date.now() });
+  };
+
+  const handleMapMoveEnd = async (lat: number, lng: number) => {
+    setIsDragging(false);
+
+    if (isSelectingRef.current) {
+      isSelectingRef.current = false;
+      return;
+    }
+
+    setIsResolvingName(true);
+    setHasSelectedLocation(true);
+
     const instantName = getFastLocationName(lat, lng);
     setSelectedLocation({ name: instantName, lat, lng });
     setCustomPlaceName(instantName);
-    setHasSelectedLocation(true);
-    setIsResolvingName(true);
+    setSearchQuery(instantName);
 
     try {
       const accurateName = await resolveLocationNameAsync(lat, lng);
       if (accurateName) {
         setSelectedLocation({ name: accurateName, lat, lng });
         setCustomPlaceName(accurateName);
+        setSearchQuery(accurateName);
       }
-    } catch {} finally {
+    } catch {
+      // fallback preserved
+    } finally {
       setIsResolvingName(false);
     }
   };
@@ -255,11 +272,11 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
 
           <div className="min-w-0 flex flex-col">
             <h2 className="text-sm sm:text-base font-black text-white truncate flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${targetType === 'pickup' ? 'bg-cyan-400' : 'bg-rose-500'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ${targetType === 'pickup' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
               <span>{targetType === 'pickup' ? 'Set Pickup Location' : 'Set Drop-off Location'}</span>
             </h2>
             <p className="text-[11px] text-slate-400 font-medium truncate">
-              {targetType === 'pickup' ? 'Drag passenger icon 👤 or tap map to set pickup' : 'Drag red flag icon 🚩 or tap map to set drop-off'}
+              {targetType === 'pickup' ? 'Drag map to align green pin 🟢 with pickup' : 'Drag map to align red pin 🔴 with drop-off'}
             </p>
           </div>
         </div>
@@ -282,33 +299,91 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               ? 'border-emerald-500/50 text-emerald-300 shadow-emerald-950/50'
               : 'border-rose-500/50 text-rose-300 shadow-rose-950/50'
           }`}>
-            <span className={`w-2 h-2 rounded-full animate-pulse ${targetType === 'pickup' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+            <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${targetType === 'pickup' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
             <span>
               {targetType === 'pickup'
-                ? 'Drag green marker 🟢 to set pickup location'
-                : 'Drag red marker 🔴 to set drop-off location'}
+                ? 'Drag map to align green pin 🟢 with pickup location'
+                : 'Drag map to align red pin 🔴 with drop-off location'}
             </span>
           </div>
+        </div>
+
+        {/* ─── FIXED CENTER PIN OVERLAY ─── */}
+        {/* Subtle ground shadow exactly at 50% / 50% map center */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[998] rounded-full bg-slate-950/55 blur-[2px] transition-all duration-200"
+          style={{
+            width: isDragging ? '10px' : '20px',
+            height: isDragging ? '4px' : '8px',
+            opacity: isDragging ? 0.35 : 0.75,
+            marginTop: '34px', // Aligns ground shadow perfectly with the bottom needle point of /marker_green.svg / /marker_red.svg (which is 72px high with anchor at 70px)
+          }}
+        />
+
+        {/* Center marker lifting up during drag */}
+        <div 
+          className="absolute top-1/2 left-1/2 pointer-events-none z-[999] flex flex-col items-center justify-end"
+          style={{
+            width: '120px',
+            height: '140px',
+            left: '50%',
+            top: '50%',
+            transform: `translate(-50%, ${isDragging ? '-112px' : '-98px'})`,
+            transition: 'transform 0.18s cubic-bezier(0.25, 1, 0.5, 1.25)',
+          }}
+        >
+          {targetType === 'pickup' ? (
+            <div className="flex flex-col items-center">
+              {/* Floating Confirmation Tag */}
+              <div className="bg-slate-950/95 text-emerald-400 border border-emerald-500/50 text-[10px] font-black px-3 py-1 rounded-full shadow-2xl mb-1.5 whitespace-nowrap tracking-wider uppercase flex items-center gap-1.5 backdrop-blur-xs scale-90 sm:scale-100 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span>Align Pickup Here</span>
+              </div>
+              <img 
+                src="/marker_green.svg" 
+                alt="Center Pickup A" 
+                className="w-8.5 h-18 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.6)]"
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center">
+              {/* Floating Confirmation Tag */}
+              <div className="bg-slate-950/95 text-rose-400 border border-rose-500/50 text-[10px] font-black px-3 py-1 rounded-full shadow-2xl mb-1.5 whitespace-nowrap tracking-wider uppercase flex items-center gap-1.5 backdrop-blur-xs scale-90 sm:scale-100 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
+                <span>Align Drop-off Here</span>
+              </div>
+              <img 
+                src="/marker_red.svg" 
+                alt="Center Dropoff B" 
+                className="w-8.5 h-18 object-contain drop-shadow-[0_8px_16px_rgba(0,0,0,0.6)]"
+              />
+            </div>
+          )}
         </div>
 
         <MotorideMap
           passengerLat={undefined}
           passengerLng={undefined}
-          pickupLat={targetType === 'pickup' ? (hasSelectedLocation || selectedLocation.lat > 0 ? selectedLocation.lat : undefined) : (referencePickup && referencePickup.lat > 0 ? referencePickup.lat : undefined)}
-          pickupLng={targetType === 'pickup' ? (hasSelectedLocation || selectedLocation.lng > 0 ? selectedLocation.lng : undefined) : (referencePickup && referencePickup.lng > 0 ? referencePickup.lng : undefined)}
-          pickupAddress={targetType === 'pickup' ? (hasSelectedLocation || selectedLocation.lat > 0 ? (customPlaceName || selectedLocation.name) : undefined) : (referencePickup && referencePickup.lat > 0 ? referencePickup.name : undefined)}
+          
+          // Show Pickup only if it is the passive reference (i.e., targetType is dropoff)
+          pickupLat={targetType === 'dropoff' && referencePickup && referencePickup.lat > 0 ? referencePickup.lat : undefined}
+          pickupLng={targetType === 'dropoff' && referencePickup && referencePickup.lng > 0 ? referencePickup.lng : undefined}
+          pickupAddress={targetType === 'dropoff' && referencePickup && referencePickup.lat > 0 ? referencePickup.name : undefined}
           pickupMarkerType="marker"
-          onPickupDragEnd={targetType === 'pickup' ? (lat, lng) => handleMapClick(lat, lng) : undefined}
-          dropoffLat={targetType === 'dropoff' ? (hasSelectedLocation || selectedLocation.lat > 0 ? selectedLocation.lat : undefined) : (referenceDropoff && referenceDropoff.lat > 0 ? referenceDropoff.lat : undefined)}
-          dropoffLng={targetType === 'dropoff' ? (hasSelectedLocation || selectedLocation.lng > 0 ? selectedLocation.lng : undefined) : (referenceDropoff && referenceDropoff.lng > 0 ? referenceDropoff.lng : undefined)}
-          dropoffAddress={targetType === 'dropoff' ? (hasSelectedLocation || selectedLocation.lat > 0 ? (customPlaceName || selectedLocation.name) : undefined) : (referenceDropoff && referenceDropoff.lat > 0 ? referenceDropoff.name : undefined)}
+          
+          // Show Dropoff only if it is the passive reference (i.e., targetType is pickup)
+          dropoffLat={targetType === 'pickup' && referenceDropoff && referenceDropoff.lat > 0 ? referenceDropoff.lat : undefined}
+          dropoffLng={targetType === 'pickup' && referenceDropoff && referenceDropoff.lng > 0 ? referenceDropoff.lng : undefined}
+          dropoffAddress={targetType === 'pickup' && referenceDropoff && referenceDropoff.lat > 0 ? referenceDropoff.name : undefined}
           dropoffMarkerType="marker"
-          onDropoffDragEnd={targetType === 'dropoff' ? (lat, lng) => handleMapClick(lat, lng) : undefined}
+          
           focusCoords={mapFocusCoords}
           bottomSheetPadding={0}
           showOverlayControls={false}
           interactive={true}
           onMapClick={(lat, lng) => handleMapClick(lat, lng)}
+          onMapMoveStart={() => setIsDragging(true)}
+          onMapMoveEnd={handleMapMoveEnd}
           className="w-full h-full"
         />
       </div>
