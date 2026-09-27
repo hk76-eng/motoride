@@ -56,6 +56,7 @@ import {
   ArrowLeft,
   History,
   TrendingUp,
+  Radar,
 } from 'lucide-react';
 
 import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
@@ -2561,22 +2562,40 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
             )}
 
-            {/* Case 1: Searching Nearby Captains Radar - White Background with Black Text and Icons */}
+            {/* Case 1: Searching Nearby Captains Radar - Prominent Center Radar Icon and Pulsing Scanner */}
             {(activeRide.status === 'requested' || activeRide.status === 'captain_offered') && (
-              <div className="flex flex-col items-center justify-center py-6 text-center text-black">
-                <div className="relative flex items-center justify-center w-28 h-28 my-2">
-                  <div className="absolute inset-0 rounded-full bg-slate-200/80 animate-ping border border-black/10" />
-                  <div className="absolute w-20 h-20 rounded-full bg-slate-200 animate-pulse border border-black/20" />
-                  <div className="w-14 h-14 rounded-full bg-black flex items-center justify-center text-white font-black shadow-lg border border-black">
-                    <Bike className="w-7 h-7 text-white stroke-[2.5]" />
+              <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-8 text-center text-black my-auto">
+                {/* Center Radar Scanner Icon with Multi-ring Pulsing Waves */}
+                <div className="relative flex items-center justify-center w-36 h-36 sm:w-40 sm:h-40 my-3 select-none">
+                  {/* Outer Radar Waves with ping and pulse animations */}
+                  <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping border border-emerald-500/20" />
+                  <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-emerald-500/15 animate-pulse border border-emerald-500/30" />
+                  <div className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-emerald-500/40 animate-spin" style={{ animationDuration: '10s' }} />
+
+                  {/* Sweeping Radar Conic Gradient Beam */}
+                  <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden pointer-events-none opacity-60">
+                    <div
+                      className="w-full h-full origin-center animate-spin"
+                      style={{
+                        animationDuration: '3s',
+                        background: 'conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(16, 185, 129, 0.5) 360deg)'
+                      }}
+                    />
+                  </div>
+
+                  {/* Central Radar Target Icon */}
+                  <div className="relative z-10 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-emerald-400 flex items-center justify-center shadow-xl border-2 border-emerald-400 ring-4 ring-emerald-500/20">
+                    <Radar className="w-8 h-8 sm:w-9 sm:h-9 text-emerald-400 animate-pulse stroke-[2.5]" />
                   </div>
                 </div>
-                <h3 className="text-base font-black text-black mt-2">
-                  Radar Active • Contacting Captains
+
+                <h3 className="text-base sm:text-lg font-black text-black mt-2 flex items-center justify-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                  <span>Radar Active • Contacting Captains</span>
                 </h3>
-                <p className="text-xs text-slate-700 font-medium max-w-xs mt-1">
+                <p className="text-xs sm:text-sm text-slate-700 font-medium max-w-xs mt-1">
                   Broadcasting your offer of{' '}
-                  <span className="text-black font-black font-mono-num">
+                  <span className="text-black font-black font-mono-num text-sm sm:text-base">
                     ₹{activeRide.offered_fare}
                   </span>{' '}
                   to all nearby active captains in real time.
