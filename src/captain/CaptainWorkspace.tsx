@@ -171,6 +171,60 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   // Default to false so the map and Captain live GPS position are immediately 100% visible
   const [is100Full, setIs100Full] = useState<boolean>(false);
 
+  // Component refs to ensure real-time callbacks never miss updates due to stale closures
+  const activeRideRef = useRef<MotorideRide | null>(null);
+  activeRideRef.current = activeRide;
+
+  const captainRef = useRef<Captain | null>(null);
+  captainRef.current = captain;
+
+  const captainIdRef = useRef<string>(captainId);
+  captainIdRef.current = captainId;
+
+  const authUserRef = useRef<any>(authUser);
+  authUserRef.current = authUser;
+
+  const isRideForThisCaptain = (ride: MotorideRide): boolean => {
+    if (!ride || !ride.id) return false;
+    const currentActive = activeRideRef.current;
+    const currentCaptain = captainRef.current;
+    const currentCaptainId = captainIdRef.current;
+    const currentAuth = authUserRef.current;
+
+    // 1. Matches active ride currently on captain's screen
+    if (currentActive && currentActive.id === ride.id) return true;
+
+    // 2. Matches stored active captain ride ID in localStorage
+    const storedActiveId = safeStorage.getItem('motoride_active_captain_ride_id');
+    if (storedActiveId && storedActiveId === ride.id) return true;
+
+    // 3. Matches captain_id to any known identifier for this captain session
+    const targetCaptainId = ride.captain_id;
+    if (targetCaptainId) {
+      if (
+        targetCaptainId === currentCaptainId ||
+        (currentCaptain && targetCaptainId === currentCaptain.id) ||
+        (currentAuth && targetCaptainId === currentAuth.id)
+      ) {
+        return true;
+      }
+    }
+
+    // 4. Matches if this captain created an offer in this ride
+    if (Array.isArray(ride.offers) && ride.offers.length > 0) {
+      const hasMyOffer = ride.offers.some(
+        (o) =>
+          o.captain_id &&
+          (o.captain_id === currentCaptainId ||
+            (currentCaptain && o.captain_id === currentCaptain.id) ||
+            (currentAuth && o.captain_id === currentAuth.id))
+      );
+      if (hasMyOffer) return true;
+    }
+
+    return false;
+  };
+
   // Captain Real-Time GPS Tracking State (Immediate restore from localStorage + live watchPosition)
   const [captainGps, setCaptainGps] = useState<{
     lat: number;
@@ -463,14 +517,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     const unsubRideUpdated = realtimeSync.on('RIDE_UPDATED', (updatedRide: MotorideRide) => {
       if (!updatedRide || !updatedRide.id) return;
-      if (updatedRide.captain_id === captainId) {
-        const ratedIds = getCaptainRatedRideIds(captainId);
+      if (isRideForThisCaptain(updatedRide)) {
+        const ratedIds = getCaptainRatedRideIds(captainIdRef.current || captainRef.current?.id || '');
         if (updatedRide.status.includes('cancelled') || updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
+          safeStorage.removeItem('motoride_active_captain_ride_id');
           setActiveRide(null);
           setShowPassengerRatingModal(false);
           setCompletedRideForRating(null);
           loadCaptainData();
         } else {
+          safeStorage.setItem('motoride_active_captain_ride_id', updatedRide.id);
           setActiveRide(updatedRide);
           if ((updatedRide.status === 'trip_completed' || updatedRide.status === 'completed') && !updatedRide.captain_rated && !ratedIds.includes(updatedRide.id)) {
             setCompletedRideForRating(updatedRide);
@@ -496,7 +552,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     const unsubRideAccepted = realtimeSync.on('RIDE_ACCEPTED', (acceptedRide: MotorideRide) => {
       if (!acceptedRide || !acceptedRide.id) return;
-      if (acceptedRide.captain_id === captainId) {
+      if (isRideForThisCaptain(acceptedRide)) {
+        safeStorage.setItem('motoride_active_captain_ride_id', acceptedRide.id);
         setActiveRide(acceptedRide);
         playRideAcceptedTune();
       }
@@ -1005,20 +1062,50 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const loadActiveRide = async () => {
     try {
-      const list = await motorideApi.getRides({ captain_id: captainId });
+      const storedActiveId = safeStorage.getItem('motoride_active_captain_ride_id');
+      const list = await motorideApi.getRides();
       if (Array.isArray(list)) {
-        const ratedIds = getCaptainRatedRideIds(captainId);
-        const current = list.find(
-          (r) =>
-            r &&
-            (r.status === 'captain_accepted' ||
-              r.status === 'captain_arrived' ||
-              r.status === 'trip_started' ||
-              ((r.status === 'trip_completed' || r.status === 'completed') && !r.captain_rated && !ratedIds.includes(r.id)))
-        );
+        const ratedIds = getCaptainRatedRideIds(captainId || captain?.id || authUser?.id || '');
+        const current = list.find((r) => {
+          if (!r) return false;
+          const isActiveStatus =
+            r.status === 'captain_accepted' ||
+            r.status === 'captain_arrived' ||
+            r.status === 'trip_started' ||
+            ((r.status === 'trip_completed' || r.status === 'completed') && !r.captain_rated && !ratedIds.includes(r.id));
+          if (!isActiveStatus) return false;
+
+          if (storedActiveId && r.id === storedActiveId) return true;
+          if (
+            r.captain_id &&
+            (r.captain_id === captainId ||
+              (captain && r.captain_id === captain.id) ||
+              (authUser && r.captain_id === authUser.id))
+          ) {
+            return true;
+          }
+          if (
+            Array.isArray(r.offers) &&
+            r.offers.some(
+              (o) =>
+                o.captain_id === captainId ||
+                (captain && o.captain_id === captain.id) ||
+                (authUser && o.captain_id === authUser.id)
+            )
+          ) {
+            return true;
+          }
+          return false;
+        });
+
         if (current) {
+          safeStorage.setItem('motoride_active_captain_ride_id', current.id);
           setActiveRide(current);
-          if ((current.status === 'trip_completed' || current.status === 'completed') && !current.captain_rated && !ratedIds.includes(current.id)) {
+          if (
+            (current.status === 'trip_completed' || current.status === 'completed') &&
+            !current.captain_rated &&
+            !ratedIds.includes(current.id)
+          ) {
             setCompletedRideForRating(current);
             setShowPassengerRatingModal(true);
           } else {
@@ -1026,9 +1113,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             setShowPassengerRatingModal(false);
           }
         } else {
-          setActiveRide(null);
-          setCompletedRideForRating(null);
-          setShowPassengerRatingModal(false);
+          if (!storedActiveId) {
+            setActiveRide(null);
+            setCompletedRideForRating(null);
+            setShowPassengerRatingModal(false);
+          }
         }
       }
     } catch {}

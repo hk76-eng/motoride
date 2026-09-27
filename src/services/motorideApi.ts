@@ -45,16 +45,27 @@ export function mergeRideSafely(local?: MotorideRide | null, remote?: MotorideRi
   // Never revert a ride's status to an earlier workflow step
   const effectiveStatus = localRank > remoteRank ? local.status : remote.status;
 
+  // Prioritize negotiated and accepted fare fields from remote
+  const finalFare = remote.final_fare || local.final_fare || remote.offered_fare || local.offered_fare || 0;
+  const offeredFare = remote.offered_fare || local.offered_fare || remote.final_fare || local.final_fare || 0;
+  const agreedFare = remote.agreed_fare || local.agreed_fare || finalFare;
+  const acceptedFare = remote.accepted_fare || local.accepted_fare || finalFare;
+  const fareAmount = remote.fare_amount || local.fare_amount || finalFare;
+
   return {
-    ...remote,
     ...local,
+    ...remote,
     status: effectiveStatus,
-    captain_name: local.captain_name || remote.captain_name,
-    captain_phone: local.captain_phone || remote.captain_phone,
-    vehicle_model: local.vehicle_model || remote.vehicle_model,
-    plate_number: local.plate_number || remote.plate_number,
-    captain_avatar: (local as any).captain_avatar || (remote as any).captain_avatar,
-    final_fare: local.final_fare || remote.final_fare || local.offered_fare || remote.offered_fare,
+    captain_name: remote.captain_name || local.captain_name,
+    captain_phone: remote.captain_phone || local.captain_phone,
+    vehicle_model: remote.vehicle_model || local.vehicle_model,
+    plate_number: remote.plate_number || local.plate_number,
+    captain_avatar: (remote as any).captain_avatar || (local as any).captain_avatar,
+    final_fare: finalFare,
+    offered_fare: offeredFare,
+    agreed_fare: agreedFare,
+    accepted_fare: acceptedFare,
+    fare_amount: fareAmount,
     updated_at: new Date(
       Math.max(
         new Date(local.updated_at || 0).getTime(),

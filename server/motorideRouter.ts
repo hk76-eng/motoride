@@ -535,6 +535,10 @@ motorideRouter.post('/rides/:id/accept-offer', (req: Request, res: Response) => 
   ride.vehicle_model = offer.vehicle_model;
   ride.plate_number = offer.plate_number;
   ride.final_fare = offer.counter_fare;
+  ride.offered_fare = offer.counter_fare;
+  ride.agreed_fare = offer.counter_fare;
+  ride.accepted_fare = offer.counter_fare;
+  ride.fare_amount = offer.counter_fare;
   ride.status = 'captain_accepted';
   ride.updated_at = new Date().toISOString();
 
