@@ -712,7 +712,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closest = { name: loc.name, dist };
       }
     }
-    if (closest && closest.dist <= 300) {
+    if (closest && closest.dist <= 80) {
       return closest.name;
     }
     return getRegionalAreaName(lat, lng);
@@ -747,7 +747,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       }
     } catch {}
 
-    // 2. Fallback to closest preset landmark (Hotels, Malls, Societies, Markets, Sectors) ONLY if within 300m
+    // 2. Fallback to closest preset landmark ONLY if within 80m
     const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
     let closestPreset: { name: string; dist: number } | null = null;
     for (const loc of allPool) {
@@ -756,7 +756,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closestPreset = { name: loc.name, dist };
       }
     }
-    if (closestPreset && closestPreset.dist <= 300) {
+    if (closestPreset && closestPreset.dist <= 80) {
       coordsNameCacheRef.current.set(key, closestPreset.name);
       return closestPreset.name;
     }
