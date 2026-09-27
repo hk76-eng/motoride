@@ -679,6 +679,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         </div>
       `;
 
+      const isDraggablePin = Boolean(interactive && onMapClick);
+
       if (!pickupMarkerRef.current || !map.hasLayer(pickupMarkerRef.current)) {
         if (pickupMarkerRef.current) {
           try {
@@ -688,16 +690,27 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         pickupMarkerRef.current = L.marker([pickupLat, pickupLng], {
           icon: aIcon,
           zIndexOffset: 2000,
+          draggable: isDraggablePin,
         })
           .addTo(map)
           .bindPopup(pickupPopupHtml);
         pickupMarkerRef.current.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
         });
+        pickupMarkerRef.current.on('dragend', (e: any) => {
+          const latlng = e.target.getLatLng();
+          if (onMapClick) {
+            onMapClick(latlng.lat, latlng.lng);
+          }
+        });
       } else {
         pickupMarkerRef.current.setLatLng([pickupLat, pickupLng]);
         pickupMarkerRef.current.setIcon(aIcon);
         pickupMarkerRef.current.setPopupContent(pickupPopupHtml);
+        if (pickupMarkerRef.current.dragging) {
+          if (isDraggablePin) pickupMarkerRef.current.dragging.enable();
+          else pickupMarkerRef.current.dragging.disable();
+        }
       }
     } else if (pickupMarkerRef.current) {
       try {
@@ -746,6 +759,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         </div>
       `;
 
+      const isDraggableDropoff = Boolean(interactive && onMapClick);
+
       if (!dropoffMarkerRef.current || !map.hasLayer(dropoffMarkerRef.current)) {
         if (dropoffMarkerRef.current) {
           try {
@@ -755,17 +770,28 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         dropoffMarkerRef.current = L.marker([dropoffLat, dropoffLng], {
           icon: bIcon,
           zIndexOffset: 2500,
+          draggable: isDraggableDropoff,
         })
           .addTo(map)
           .bindPopup(dropoffPopupHtml);
         dropoffMarkerRef.current.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
         });
+        dropoffMarkerRef.current.on('dragend', (e: any) => {
+          const latlng = e.target.getLatLng();
+          if (onMapClick) {
+            onMapClick(latlng.lat, latlng.lng);
+          }
+        });
       } else {
         dropoffMarkerRef.current.setLatLng([dropoffLat, dropoffLng]);
         dropoffMarkerRef.current.setIcon(bIcon);
         dropoffMarkerRef.current.setZIndexOffset(2500);
         dropoffMarkerRef.current.setPopupContent(dropoffPopupHtml);
+        if (dropoffMarkerRef.current.dragging) {
+          if (isDraggableDropoff) dropoffMarkerRef.current.dragging.enable();
+          else dropoffMarkerRef.current.dragging.disable();
+        }
       }
     } else if (dropoffMarkerRef.current) {
       map.removeLayer(dropoffMarkerRef.current);

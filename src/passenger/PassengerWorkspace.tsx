@@ -656,31 +656,20 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closest = { name: loc.name, dist };
       }
     }
-    if (closest) {
+    // Only use preset landmark if within 120m of the exact clicked point
+    if (closest && closest.dist <= 120) {
       return closest.name;
     }
-    return `Sector 70, Mohali Market`;
+    return `Pin Point (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
   };
 
   // Precise reverse geocoding via OpenStreetMap / backend geocode endpoint
   const resolveLocationNameAsync = async (lat: number, lng: number): Promise<string> => {
-    const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
     const cached = coordsNameCacheRef.current.get(key);
     if (cached) return cached;
 
-    const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
-    let closestPreset: { name: string; dist: number } | null = null;
-    for (const loc of allPool) {
-      const dist = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
-      if (!closestPreset || dist < closestPreset.dist) {
-        closestPreset = { name: loc.name, dist };
-      }
-    }
-    if (closestPreset && closestPreset.dist <= 1500) {
-      coordsNameCacheRef.current.set(key, closestPreset.name);
-      return closestPreset.name;
-    }
-
+    // 1. Try exact pinpoint reverse geocoding first
     try {
       const res = await fetch(getApiUrl(`/api/motoride/geocode/reverse?lat=${lat}&lng=${lng}`));
       if (res.ok) {
@@ -703,7 +692,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       }
     } catch {}
 
-    const fallback = closestPreset ? closestPreset.name : 'Sector 70, Mohali Market';
+    // 2. Fallback to closest preset ONLY if within 250m
+    const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
+    let closestPreset: { name: string; dist: number } | null = null;
+    for (const loc of allPool) {
+      const dist = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
+      if (!closestPreset || dist < closestPreset.dist) {
+        closestPreset = { name: loc.name, dist };
+      }
+    }
+    if (closestPreset && closestPreset.dist <= 250) {
+      coordsNameCacheRef.current.set(key, closestPreset.name);
+      return closestPreset.name;
+    }
+
+    const fallback = `Pin Point Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
     coordsNameCacheRef.current.set(key, fallback);
     return fallback;
   };

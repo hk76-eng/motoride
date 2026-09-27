@@ -164,9 +164,6 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     const instantName = getFastLocationName(lat, lng);
     setSelectedLocation({ name: instantName, lat, lng });
     setHasSelectedLocation(true);
-    const targetZoom = Math.max(currentZoom, 15);
-    setCurrentZoom(targetZoom);
-    setMapFocusCoords({ lat, lng, zoom: targetZoom, timestamp: Date.now() });
     setIsResolvingName(true);
 
     try {
