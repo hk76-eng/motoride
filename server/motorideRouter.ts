@@ -1122,60 +1122,88 @@ motorideRouter.get('/route/distance', async (req: Request, res: Response) => {
   });
 });
 
+// Sector and Regional Centroids for precise nearest-area fallback
+const TRICITY_CENTROIDS = [
+  { name: 'Sector 1, Chandigarh', lat: 30.7585, lng: 76.8015 },
+  { name: 'Sector 2, Chandigarh', lat: 30.7545, lng: 76.7955 },
+  { name: 'Sector 3, Chandigarh', lat: 30.7515, lng: 76.7885 },
+  { name: 'Sector 4, Chandigarh', lat: 30.7485, lng: 76.7825 },
+  { name: 'Sector 5, Chandigarh', lat: 30.7455, lng: 76.7765 },
+  { name: 'Sector 7, Chandigarh', lat: 30.7325, lng: 76.8045 },
+  { name: 'Sector 8, Chandigarh', lat: 30.7385, lng: 76.7991 },
+  { name: 'Sector 9, Chandigarh', lat: 30.7445, lng: 76.7931 },
+  { name: 'Sector 10, Chandigarh', lat: 30.7515, lng: 76.7891 },
+  { name: 'Sector 11, Chandigarh', lat: 30.7565, lng: 76.7815 },
+  { name: 'Sector 14 (Panjab University), Chandigarh', lat: 30.7595, lng: 76.7681 },
+  { name: 'Sector 15, Chandigarh', lat: 30.7545, lng: 76.7741 },
+  { name: 'Sector 16, Chandigarh', lat: 30.7465, lng: 76.7841 },
+  { name: 'Sector 17 City Center, Chandigarh', lat: 30.7398, lng: 76.7827 },
+  { name: 'Sector 18, Chandigarh', lat: 30.7355, lng: 76.7891 },
+  { name: 'Sector 19, Chandigarh', lat: 30.7315, lng: 76.7961 },
+  { name: 'Sector 20, Chandigarh', lat: 30.7245, lng: 76.7911 },
+  { name: 'Sector 21, Chandigarh', lat: 30.7275, lng: 76.7811 },
+  { name: 'Sector 22, Chandigarh', lat: 30.7315, lng: 76.7721 },
+  { name: 'Sector 23, Chandigarh', lat: 30.7375, lng: 76.7661 },
+  { name: 'Sector 26, Chandigarh', lat: 30.7285, lng: 76.8041 },
+  { name: 'Sector 27, Chandigarh', lat: 30.7225, lng: 76.8015 },
+  { name: 'Sector 28, Chandigarh', lat: 30.7165, lng: 76.8085 },
+  { name: 'Sector 34, Chandigarh', lat: 30.7215, lng: 76.7681 },
+  { name: 'Sector 35, Chandigarh', lat: 30.7245, lng: 76.7641 },
+  { name: 'Sector 43, Chandigarh', lat: 30.7225, lng: 76.7456 },
+  { name: 'Sector 44, Chandigarh', lat: 30.7185, lng: 76.7551 },
+  { name: 'Sector 45, Chandigarh', lat: 30.7145, lng: 76.7621 },
+  { name: 'Industrial Area Phase 1, Chandigarh', lat: 30.7055, lng: 76.8011 },
+  { name: 'IT Park, Chandigarh', lat: 30.7285, lng: 76.8431 },
+  { name: 'Mani Majra, Chandigarh', lat: 30.7185, lng: 76.8385 },
+  { name: 'Sector 70, Mohali', lat: 30.7046, lng: 76.7178 },
+  { name: 'Phase 7, Mohali', lat: 30.7104, lng: 76.7214 },
+  { name: 'Phase 3B2, Mohali', lat: 30.7189, lng: 76.7112 },
+  { name: 'Phase 5, Mohali', lat: 30.7224, lng: 76.7182 },
+  { name: 'Phase 8B, Industrial Area, Mohali', lat: 30.7182, lng: 76.7321 },
+  { name: 'Sector 62, Mohali', lat: 30.7058, lng: 76.7264 },
+  { name: 'Sector 66, Mohali', lat: 30.6905, lng: 76.7361 },
+  { name: 'Sector 67, Mohali', lat: 30.6952, lng: 76.7189 },
+  { name: 'Sector 68, Mohali', lat: 30.6998, lng: 76.7145 },
+  { name: 'Sector 71, Mohali', lat: 30.7089, lng: 76.7092 },
+  { name: 'Sector 82 (IT City), Mohali', lat: 30.6655, lng: 76.7455 },
+  { name: 'VIP Road, Zirakpur', lat: 30.6425, lng: 76.8181 },
+  { name: 'Dhakoli, Zirakpur', lat: 30.6385, lng: 76.8425 },
+  { name: 'Gazipur Road, Zirakpur', lat: 30.6325, lng: 76.8341 },
+  { name: 'Baltana, Zirakpur', lat: 30.6625, lng: 76.8455 },
+  { name: 'Peer Muchalla, Zirakpur', lat: 30.6315, lng: 76.8525 },
+  { name: 'Sector 7, Panchkula', lat: 30.7064, lng: 76.8451 },
+  { name: 'Sector 5, Panchkula', lat: 30.6975, lng: 76.8551 },
+  { name: 'Sector 6, Panchkula', lat: 30.7122, lng: 76.8525 },
+  { name: 'Sector 8, Panchkula', lat: 30.6998, lng: 76.8488 },
+  { name: 'Sector 9, Panchkula', lat: 30.7088, lng: 76.8598 },
+  { name: 'Sector 20, Panchkula', lat: 30.6725, lng: 76.8681 },
+  { name: 'MDC Sector 5, Panchkula', lat: 30.7245, lng: 76.8455 },
+  { name: 'Kharar City & Bus Stand Area', lat: 30.7451, lng: 76.6482 },
+  { name: 'Sunny Enclave, Kharar', lat: 30.7525, lng: 76.6625 },
+  { name: 'Sector 126, Kharar', lat: 30.7491, lng: 76.6541 },
+  { name: 'Mullanpur, New Chandigarh', lat: 30.8145, lng: 76.7455 },
+];
+
 function getRegionalAreaNameHelper(lat: number, lng: number): string {
   if (!lat || !lng || isNaN(lat) || isNaN(lng)) return 'Tricity Area';
 
-  // Dhakoli, Gazipur, Peer Muchalla, Baltana, Zirakpur
-  if (lat >= 30.6100 && lat <= 30.6680 && lng >= 76.8100 && lng <= 76.8650) {
-    if (lng >= 76.8380) {
-      if (lat <= 30.6340) return 'Peer Muchalla, Zirakpur';
-      if (lat <= 30.6450) return 'Dhakoli, Zirakpur Area';
-      return 'Baltana, Zirakpur';
+  let closest: { name: string; dist: number } | null = null;
+  for (const c of TRICITY_CENTROIDS) {
+    const dLat = (c.lat - lat) * 111;
+    const dLng = (c.lng - lng) * 96;
+    const distKm = Math.sqrt(dLat * dLat + dLng * dLng);
+    if (!closest || distKm < closest.dist) {
+      closest = { name: c.name, dist: distKm };
     }
-    return 'VIP Road, Zirakpur';
   }
 
-  // Panchkula Sectors
-  if (lat >= 30.6600 && lat <= 30.7300 && lng >= 76.8380 && lng <= 76.8900) {
-    if (lat >= 30.7150) return 'Mansa Devi Complex (MDC), Panchkula';
-    if (lat >= 30.7020) return 'Sector 7, Panchkula Market';
-    if (lat >= 30.6900) return 'Sector 5 / Town Park, Panchkula';
-    if (lat >= 30.6780) return 'Sector 11 / 15, Panchkula';
-    return 'Sector 20, Panchkula Highrise Area';
+  if (closest && closest.dist <= 3.5) {
+    return closest.name;
   }
-
-  // Chandigarh City Sectors
-  if (lat >= 30.7000 && lat <= 30.7850 && lng >= 76.7500 && lng <= 76.8350) {
-    if (lat >= 30.7500 && lng >= 76.7900) return 'Sector 1 / Sukhna Lake, Chandigarh';
-    if (lat >= 30.7500) return 'Panjab University / PGI, Sector 14 Chandigarh';
-    if (lat >= 30.7350 && lng >= 76.7750) return 'Sector 17 City Center, Chandigarh';
-    if (lat >= 30.7280 && lng >= 76.7650) return 'Sector 22 / Aroma Chowk, Chandigarh';
-    if (lat >= 30.7150 && lng >= 76.7900) return 'Sector 34 / 20, Chandigarh';
-    if (lat >= 30.7000 && lng >= 76.7950) return 'Elante Mall / Industrial Area, Chandigarh';
-    return 'Chandigarh Area';
-  }
-
-  // Mohali (SAS Nagar) Phases & Sectors
-  if (lat >= 30.6600 && lat <= 30.7350 && lng >= 76.6900 && lng <= 76.7480) {
-    if (lat >= 30.7150 && lng <= 76.7200) return 'Phase 3B2 Market, Mohali';
-    if (lat >= 30.7100 && lng >= 76.7250) return 'Phase 8B Industrial & Tech Park, Mohali';
-    if (lat >= 30.7000 && lng <= 76.7200) return 'Sector 70 / Mattaur, Mohali';
-    if (lat >= 30.6900) return 'Sector 66 / Bestech Mall, Mohali';
-    if (lat >= 30.6700) return 'Sector 82 / IT City, Mohali';
-    return 'SAS Nagar (Mohali) Area';
-  }
-
-  // Kharar & New Chandigarh
-  if (lat >= 30.7350 && lat <= 30.8300 && lng >= 76.6000 && lng <= 76.7500) {
-    if (lat >= 30.8000) return 'Mullanpur, New Chandigarh';
-    if (lng <= 76.6600) return 'Kharar City & Bus Stand Area';
-    return 'Sunny Enclave / Sector 125, Kharar';
-  }
-
-  return 'Tricity Region';
+  return 'Chandigarh Tricity Area';
 }
 
-// Proxy Reverse Geocode
+// Proxy Reverse Geocode with Multi-source POI and Address Discovery
 motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
@@ -1184,6 +1212,27 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
     return res.json({ success: true, address: 'Selected Area' });
   }
 
+  // 1. Try Photon POI reverse search first (specialized in named places, hotels, shops, amenities)
+  try {
+    const photonUrl = `https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`;
+    const pResponse = await fetch(photonUrl, { signal: AbortSignal.timeout(2500) });
+    if (pResponse.ok) {
+      const pData = await pResponse.json();
+      if (pData && Array.isArray(pData.features) && pData.features.length > 0) {
+        const prop = pData.features[0].properties || {};
+        if (prop.name && typeof prop.name === 'string' && prop.name.trim().length > 1) {
+          const placeName = prop.name.trim();
+          const sub = prop.district || prop.street || prop.city || '';
+          const fullPlace = sub && !placeName.toLowerCase().includes(sub.toLowerCase())
+            ? `${placeName}, ${sub}`
+            : placeName;
+          return res.json({ success: true, address: fullPlace, name: placeName });
+        }
+      }
+    }
+  } catch {}
+
+  // 2. Try Nominatim with full address details
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
     const response = await fetch(url, {
@@ -1199,14 +1248,19 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
       const parsed = JSON.parse(text);
       if (parsed) {
         const addrObj = parsed.address || {};
-        const explicitPlace = parsed.name || addrObj.hotel || addrObj.building || addrObj.amenity || addrObj.shop || addrObj.residential || addrObj.tourism || addrObj.suburb || addrObj.neighbourhood;
+        const explicitPlace = parsed.name || addrObj.hotel || addrObj.building || addrObj.amenity || addrObj.shop || addrObj.residential || addrObj.tourism;
         
         if (explicitPlace && typeof explicitPlace === 'string' && explicitPlace.trim()) {
-          const roadOrSector = addrObj.road || addrObj.suburb || addrObj.city_district || addrObj.city || '';
-          const fullPlace = roadOrSector && !explicitPlace.toLowerCase().includes(roadOrSector.toLowerCase())
-            ? `${explicitPlace.trim()}, ${roadOrSector.trim()}`
+          const area = addrObj.suburb || addrObj.road || addrObj.city_district || addrObj.city || '';
+          const fullPlace = area && !explicitPlace.toLowerCase().includes(area.toLowerCase())
+            ? `${explicitPlace.trim()}, ${area.trim()}`
             : explicitPlace.trim();
           return res.json({ success: true, address: fullPlace, name: explicitPlace.trim() });
+        }
+
+        if (addrObj.suburb) {
+          const roadOrCity = addrObj.road ? `${addrObj.suburb}, ${addrObj.road}` : `${addrObj.suburb}, ${addrObj.city || 'Chandigarh'}`;
+          return res.json({ success: true, address: roadOrCity, name: addrObj.suburb });
         }
 
         if (parsed.display_name) {
@@ -1217,6 +1271,7 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
     }
   } catch {}
 
+  // 3. Fallback to nearest genuine Tricity sector/centroid
   const fallbackArea = getRegionalAreaNameHelper(lat, lng);
   res.json({ success: true, address: fallbackArea });
 });

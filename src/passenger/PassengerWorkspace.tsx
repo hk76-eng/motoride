@@ -105,7 +105,9 @@ const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: numb
   { name: 'Cozy Homes, Gazipur Road & Dhakoli, Zirakpur', aliases: ['cozy homes', 'cozy homes zirakpur', 'cozy homes dhakoli', 'cozy homes society', 'cozy homes gazipur'], lat: 30.636814, lng: 76.844514 },
   { name: 'Cozy Homes, Sector 126 Kharar Road, Mohali', aliases: ['cozy homes kharar', 'cozy homes sector 126', 'cozy homes mohali'], lat: 30.749124, lng: 76.654124 },
   { name: 'Hotel Suraj & Restaurant, Sector 22, Chandigarh', aliases: ['hotel suraj', 'suraj hotel', 'suraj hotel sector 22', 'suraj hotel chandigarh'], lat: 30.732814, lng: 76.772514 },
-  { name: 'Hotel Paradise, Sector 22, Chandigarh', aliases: ['hotel paradise', 'paradise hotel', 'hotel paradise chandigarh', 'paradise hotel sector 22'], lat: 30.731514, lng: 76.772124 },
+  { name: 'Hotel Paradise, Sector 7C, Chandigarh', aliases: ['hotel paradise', 'paradise hotel', 'hotel paradise 7c', 'hotel paradise sector 7', 'hotel paradise madhya marg', 'paradise sector 7'], lat: 30.732514, lng: 76.804514 },
+  { name: 'Hotel Paradise, Sector 22, Chandigarh', aliases: ['hotel paradise sector 22', 'paradise hotel sector 22'], lat: 30.731514, lng: 76.772124 },
+  { name: 'Hotel Paradise, Sector 52, Chandigarh', aliases: ['hotel paradise sector 52', 'paradise hotel sector 52'], lat: 30.718514, lng: 76.726514 },
   { name: 'Mani Majra & Rajiv Gandhi IT Park Whole Area', aliases: ['manimajra', 'mani majra', 'it park manimajra', 'manimajra it park', 'rajiv gandhi it park'], lat: 30.724514, lng: 76.841514 },
   { name: 'Cosmo Mall, Zirakpur', aliases: ['cosmo mall', 'cosmo zirakpur', 'mall in zirakpur', 'cosmo mall zirakpur'], lat: 30.645514, lng: 76.822124 },
   { name: 'Paras Downtown Square Mall, Zirakpur', aliases: ['paras mall', 'paras downtown', 'downtown square zirakpur'], lat: 30.648214, lng: 76.819514 },
@@ -653,54 +655,32 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const getRegionalAreaName = (lat: number, lng: number): string => {
     if (!lat || !lng || isNaN(lat) || isNaN(lng)) return 'Tricity Area';
 
-    // Dhakoli, Gazipur, Peer Muchalla, Baltana, Zirakpur
-    if (lat >= 30.6100 && lat <= 30.6680 && lng >= 76.8100 && lng <= 76.8650) {
-      if (lng >= 76.8380) {
-        if (lat <= 30.6340) return 'Peer Muchalla, Zirakpur';
-        if (lat <= 30.6450) return 'Dhakoli, Zirakpur Area';
-        return 'Baltana, Zirakpur';
+    // Find the nearest sector or area centroid from all known locations
+    const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
+    let closest: { name: string; dist: number } | null = null;
+    for (const loc of allPool) {
+      const dist = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
+      if (!closest || dist < closest.dist) {
+        closest = { name: loc.name, dist };
       }
-      return 'VIP Road, Zirakpur';
     }
 
-    // Panchkula Sectors
-    if (lat >= 30.6600 && lat <= 30.7300 && lng >= 76.8380 && lng <= 76.8900) {
-      if (lat >= 30.7150) return 'Mansa Devi Complex (MDC), Panchkula';
-      if (lat >= 30.7020) return 'Sector 7, Panchkula Market';
-      if (lat >= 30.6900) return 'Sector 5 / Town Park, Panchkula';
-      if (lat >= 30.6780) return 'Sector 11 / 15, Panchkula';
-      return 'Sector 20, Panchkula Highrise Area';
+    if (closest) {
+      // If within 250m, return full landmark name
+      if (closest.dist <= 250) {
+        return closest.name;
+      }
+      // If within 2.5km, return the sector or area part
+      if (closest.dist <= 2500) {
+        const parts = closest.name.split(',');
+        if (parts.length >= 2) {
+          return `${parts[0].trim()}, ${parts[parts.length - 1].trim()}`;
+        }
+        return closest.name;
+      }
     }
 
-    // Chandigarh City Sectors
-    if (lat >= 30.7000 && lat <= 30.7850 && lng >= 76.7500 && lng <= 76.8350) {
-      if (lat >= 30.7500 && lng >= 76.7900) return 'Sector 1 / Sukhna Lake, Chandigarh';
-      if (lat >= 30.7500) return 'Panjab University / PGI, Sector 14 Chandigarh';
-      if (lat >= 30.7350 && lng >= 76.7750) return 'Sector 17 City Center, Chandigarh';
-      if (lat >= 30.7280 && lng >= 76.7650) return 'Sector 22 / Aroma Chowk, Chandigarh';
-      if (lat >= 30.7150 && lng >= 76.7900) return 'Sector 34 / 20, Chandigarh';
-      if (lat >= 30.7000 && lng >= 76.7950) return 'Elante Mall / Industrial Area, Chandigarh';
-      return 'Chandigarh Area';
-    }
-
-    // Mohali (SAS Nagar) Phases & Sectors
-    if (lat >= 30.6600 && lat <= 30.7350 && lng >= 76.6900 && lng <= 76.7480) {
-      if (lat >= 30.7150 && lng <= 76.7200) return 'Phase 3B2 Market, Mohali';
-      if (lat >= 30.7100 && lng >= 76.7250) return 'Phase 8B Industrial & Tech Park, Mohali';
-      if (lat >= 30.7000 && lng <= 76.7200) return 'Sector 70 / Mattaur, Mohali';
-      if (lat >= 30.6900) return 'Sector 66 / Bestech Mall, Mohali';
-      if (lat >= 30.6700) return 'Sector 82 / IT City, Mohali';
-      return 'SAS Nagar (Mohali) Area';
-    }
-
-    // Kharar & New Chandigarh
-    if (lat >= 30.7350 && lat <= 30.8300 && lng >= 76.6000 && lng <= 76.7500) {
-      if (lat >= 30.8000) return 'Mullanpur, New Chandigarh';
-      if (lng <= 76.6600) return 'Kharar City & Bus Stand Area';
-      return 'Sunny Enclave / Sector 125, Kharar';
-    }
-
-    return 'Tricity Region';
+    return 'Chandigarh Tricity Area';
   };
 
   // Fast synchronous location name resolver from ALL KNOWN_LOCATIONS & PRESET_LOCATIONS
@@ -713,7 +693,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closest = { name: loc.name, dist };
       }
     }
-    if (closest && closest.dist <= 80) {
+    if (closest && closest.dist <= 180) {
       return closest.name;
     }
     return getRegionalAreaName(lat, lng);
@@ -725,7 +705,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const cached = coordsNameCacheRef.current.get(key);
     if (cached) return cached;
 
-    // 1. Try exact reverse geocoding first to find explicit hotel, building, shop, or landmark name
+    // 1. Try exact reverse geocoding first (Photon POI discovery + Nominatim address resolution)
     try {
       const res = await fetch(getApiUrl(`/api/motoride/geocode/reverse?lat=${lat}&lng=${lng}`));
       if (res.ok) {
@@ -748,7 +728,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       }
     } catch {}
 
-    // 2. Fallback to closest preset landmark ONLY if within 80m
+    // 2. Fallback to closest preset landmark if within 180m
     const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
     let closestPreset: { name: string; dist: number } | null = null;
     for (const loc of allPool) {
@@ -757,7 +737,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closestPreset = { name: loc.name, dist };
       }
     }
-    if (closestPreset && closestPreset.dist <= 80) {
+    if (closestPreset && closestPreset.dist <= 180) {
       coordsNameCacheRef.current.set(key, closestPreset.name);
       return closestPreset.name;
     }
