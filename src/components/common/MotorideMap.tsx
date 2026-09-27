@@ -664,23 +664,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     let displayDropoffLat = dropoffLat;
     let displayDropoffLng = dropoffLng;
 
-    if (!activeRideStatus && dropoffLat && dropoffLng) {
-      const baseLat = (pickupLat && pickupLat !== 0) ? pickupLat : passengerLat;
-      const baseLng = (pickupLng && pickupLng !== 0) ? pickupLng : passengerLng;
-
-      if (baseLat && baseLng) {
-        const dLat = dropoffLat - baseLat;
-        const dLng = dropoffLng - baseLng;
-        const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-        // Pull selected drop location towards pickup / passenger location (max ~0.0035 degrees, about 350 meters)
-        if (dist > 0.0035) {
-          const ratio = 0.0035 / dist;
-          displayDropoffLat = baseLat + dLat * ratio;
-          displayDropoffLng = baseLng + dLng * ratio;
-        }
-      }
-    }
-
     // Calculate walking distance between passenger standing location and pickup location A
     let distToPickupMeters: number | null = null;
     if (passengerLat && passengerLng && hasPickup && pickupLat && pickupLng) {
@@ -1185,10 +1168,15 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
 
     // 5. Simple Dark Blue Polyline Route (Connecting from pickup Location A to drop-off Location B)
     if (hasPickup && hasDropoff && pickupLat && pickupLng && displayDropoffLat && displayDropoffLng) {
-      const latlngs: [number, number][] = [
-        [pickupLat, pickupLng],
-        [displayDropoffLat, displayDropoffLng],
-      ];
+      const latlngs: [number, number][] = !activeRideStatus && passengerLat && passengerLng
+        ? [
+            [passengerLat, passengerLng],
+            [displayDropoffLat, displayDropoffLng],
+          ]
+        : [
+            [pickupLat, pickupLng],
+            [displayDropoffLat, displayDropoffLng],
+          ];
 
       // Remove any previous glow / casing polyline
       if (polylineGlowRef.current) {
