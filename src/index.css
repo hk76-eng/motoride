@@ -65,6 +65,27 @@
   transform: scale(0.94);
 }
 
+/* Draggable Passenger Pickup Marker */
+.custom-draggable-passenger-icon {
+  background: transparent !important;
+  border: none !important;
+  overflow: visible !important;
+  pointer-events: auto !important;
+  cursor: grab !important;
+  transition: transform 0.15s ease-out;
+}
+
+.custom-draggable-passenger-icon:hover {
+  filter: drop-shadow(0 8px 20px rgba(2, 132, 199, 0.45));
+}
+
+.custom-draggable-passenger-icon:active,
+.leaflet-dragging .custom-draggable-passenger-icon {
+  cursor: grabbing !important;
+  transform: scale(1.12) translateY(-8px);
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.65));
+}
+
 /* Pulse beacon animations */
 @keyframes radar-ping {
   0% {

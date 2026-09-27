@@ -105,6 +105,8 @@ interface MotorideMapProps {
   focusCoords?: { lat: number; lng: number; zoom?: number; timestamp: number } | null;
   onMapMoveStart?: () => void;
   onMapMoveEnd?: (lat: number, lng: number) => void;
+  pickupMarkerType?: 'marker' | 'passenger';
+  onPickupDragEnd?: (lat: number, lng: number) => void;
 }
 
 export const MotorideMap: React.FC<MotorideMapProps> = ({
@@ -150,6 +152,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   focusCoords = null,
   onMapMoveStart,
   onMapMoveEnd,
+  pickupMarkerType = 'marker',
+  onPickupDragEnd,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -207,6 +211,59 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       popupAnchor: [0, -64],
     });
 
+  // Draggable Passenger Icon specifically for setting pickup location in modal map
+  const createDraggablePassengerPickupIcon = (pickupLocationName?: string, distanceText?: string) => {
+    const rawName = pickupLocationName && pickupLocationName.trim() ? pickupLocationName.trim() : '';
+    const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
+    const displayName = shortName ? (shortName.length > 20 ? `${shortName.slice(0, 18)}…` : shortName) : 'Drag to Set Pickup';
+
+    return L.divIcon({
+      className: 'custom-draggable-passenger-icon marker-pin-a',
+      html: `
+        <div style="position: relative; width: 84px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: grab; user-select: none; pointer-events: auto;" title="Drag passenger icon to adjust your pickup location">
+          <!-- Top Floating Capsule Badge -->
+          <div style="position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 9999px; background: #020617; color: #38bdf8; font-weight: 900; font-size: 11px; border: 1.5px solid #0284c7; box-shadow: 0 4px 18px rgba(0,0,0,0.8), 0 0 12px rgba(56,189,248,0.4); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
+            <span style="background: #0284c7; color: #ffffff; width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; box-shadow: 0 0 8px rgba(56,189,248,0.7);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="7" r="4"></circle>
+                <path d="M5.5 21a8.38 8.38 0 0 1 13 0"></path>
+              </svg>
+            </span>
+            <span style="color: #ffffff; font-weight: 800; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${displayName}
+            </span>
+            <span style="background: #0284c7; color: #ffffff; padding: 1px 5px; border-radius: 9999px; font-size: 9px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">
+              DRAG
+            </span>
+          </div>
+
+          <!-- Base Ground Radar Glow -->
+          <div style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 28px; height: 10px; border-radius: 50%; background: rgba(56,189,248,0.35); box-shadow: 0 0 12px rgba(56,189,248,0.8); z-index: 5; pointer-events: none;"></div>
+
+          <!-- Circular Passenger Avatar with Move Badge -->
+          <div style="position: relative; width: 50px; height: 50px; border-radius: 50%; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.65), 0 0 0 3px #ffffff, 0 0 0 5px #0284c7; z-index: 20; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, #2563eb, #1d3f84); transition: transform 0.15s ease;">
+            <img src="/passenger_icon.svg" alt="Passenger Pickup" style="width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none;" />
+            <div style="position: absolute; bottom: 0px; right: 0px; background: #0284c7; border: 1.5px solid #ffffff; width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.5);">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="5 9 2 12 5 15"></polyline>
+                <polyline points="9 5 12 2 15 5"></polyline>
+                <polyline points="15 19 12 22 9 19"></polyline>
+                <polyline points="19 9 22 12 19 15"></polyline>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="12" y1="2" x2="12" y2="22"></line>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Ground Contact Needle Tip -->
+          <div style="position: relative; margin-top: -3px; width: 10px; height: 10px; background: #0284c7; border-right: 2px solid #ffffff; border-bottom: 2px solid #ffffff; transform: rotate(45deg); z-index: 15; box-shadow: 2px 2px 4px rgba(0,0,0,0.3);"></div>
+        </div>
+      `,
+      iconSize: [84, 90],
+      iconAnchor: [42, 88],
+      popupAnchor: [0, -88],
+    });
+  };
 
   // Custom DivIcons for Location A and Location B
   const createPickupIcon = (pickupLocationName?: string, distanceText?: string, hideLabel: boolean = false) => {
@@ -664,9 +721,27 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         isPickupAtPassenger ||
         (distToPickupMeters !== null && distToPickupMeters < 80)
       );
-      const aIcon = createPickupIcon(pickupAddress || undefined, pickupDistanceText, isNearWhereTo);
+      const isPassengerPickupIcon = pickupMarkerType === 'passenger';
+      const aIcon = isPassengerPickupIcon
+        ? createDraggablePassengerPickupIcon(pickupAddress || undefined, pickupDistanceText)
+        : createPickupIcon(pickupAddress || undefined, pickupDistanceText, isNearWhereTo);
 
-      const pickupPopupHtml = `
+      const pickupPopupHtml = isPassengerPickupIcon
+        ? `
+        <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 190px; color: #000000; padding: 2px;">
+          <div style="font-weight: 900; color: #0284c7; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
+            <img src="/passenger_icon.svg" alt="Pickup" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; vertical-align: middle;" />
+            <span>Passenger Pickup Location</span>
+          </div>
+          <div style="color: #0f172a; font-size: 12px; font-weight: 700;">
+            ${pickupAddress || 'Selected Pickup Point'}
+          </div>
+          <div style="color: #0284c7; font-size: 11px; margin-top: 4px; font-weight: 700;">
+            🖐️ Drag icon to adjust exact pickup spot
+          </div>
+        </div>
+      `
+        : `
         <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 180px; color: #000000; padding: 2px;">
           <div style="font-weight: 900; color: #059669; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
             <img src="/marker_green.svg" alt="A" style="width: 12px; height: 26px; object-fit: contain; vertical-align: middle;" />
@@ -679,7 +754,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         </div>
       `;
 
-      const isDraggablePin = Boolean(interactive && onMapClick);
+      const isDraggablePin = Boolean(interactive && (onMapClick || onPickupDragEnd));
 
       if (!pickupMarkerRef.current || !map.hasLayer(pickupMarkerRef.current)) {
         if (pickupMarkerRef.current) {
@@ -689,7 +764,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         }
         pickupMarkerRef.current = L.marker([pickupLat, pickupLng], {
           icon: aIcon,
-          zIndexOffset: 2000,
+          zIndexOffset: isPassengerPickupIcon ? 3500 : 2000,
           draggable: isDraggablePin,
         })
           .addTo(map)
@@ -699,6 +774,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         });
         pickupMarkerRef.current.on('dragend', (e: any) => {
           const latlng = e.target.getLatLng();
+          if (onPickupDragEnd) {
+            onPickupDragEnd(latlng.lat, latlng.lng);
+          }
           if (onMapClick) {
             onMapClick(latlng.lat, latlng.lng);
           }
@@ -707,10 +785,21 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         pickupMarkerRef.current.setLatLng([pickupLat, pickupLng]);
         pickupMarkerRef.current.setIcon(aIcon);
         pickupMarkerRef.current.setPopupContent(pickupPopupHtml);
+        pickupMarkerRef.current.setZIndexOffset(isPassengerPickupIcon ? 3500 : 2000);
         if (pickupMarkerRef.current.dragging) {
           if (isDraggablePin) pickupMarkerRef.current.dragging.enable();
           else pickupMarkerRef.current.dragging.disable();
         }
+        pickupMarkerRef.current.off('dragend');
+        pickupMarkerRef.current.on('dragend', (e: any) => {
+          const latlng = e.target.getLatLng();
+          if (onPickupDragEnd) {
+            onPickupDragEnd(latlng.lat, latlng.lng);
+          }
+          if (onMapClick) {
+            onMapClick(latlng.lat, latlng.lng);
+          }
+        });
       }
     } else if (pickupMarkerRef.current) {
       try {
