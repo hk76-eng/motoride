@@ -275,14 +275,14 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
           <div className={`px-3.5 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border text-xs font-bold shadow-xl flex items-center gap-2 ${
             targetType === 'pickup'
-              ? 'border-cyan-500/50 text-cyan-300 shadow-cyan-950/50'
+              ? 'border-emerald-500/50 text-emerald-300 shadow-emerald-950/50'
               : 'border-rose-500/50 text-rose-300 shadow-rose-950/50'
           }`}>
-            <span className={`w-2 h-2 rounded-full animate-pulse ${targetType === 'pickup' ? 'bg-cyan-400' : 'bg-rose-500'}`} />
+            <span className={`w-2 h-2 rounded-full animate-pulse ${targetType === 'pickup' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
             <span>
               {targetType === 'pickup'
-                ? 'Drag passenger icon 👤 to set pickup location'
-                : 'Drag red flag icon 🚩 to set drop-off location'}
+                ? 'Drag green marker 🟢 to set pickup location'
+                : 'Drag red marker 🔴 to set drop-off location'}
             </span>
           </div>
         </div>
@@ -293,12 +293,12 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           pickupLat={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
           pickupLng={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
           pickupAddress={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? (customPlaceName || selectedLocation.name) : undefined}
-          pickupMarkerType={targetType === 'pickup' ? 'passenger' : 'marker'}
+          pickupMarkerType="marker"
           onPickupDragEnd={(lat, lng) => handleMapClick(lat, lng)}
           dropoffLat={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
           dropoffLng={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
           dropoffAddress={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? (customPlaceName || selectedLocation.name) : undefined}
-          dropoffMarkerType={targetType === 'dropoff' ? 'destination' : 'marker'}
+          dropoffMarkerType="marker"
           onDropoffDragEnd={(lat, lng) => handleMapClick(lat, lng)}
           focusCoords={mapFocusCoords}
           bottomSheetPadding={0}
@@ -314,13 +314,13 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         <div className="flex flex-col gap-2.5 bg-slate-950/85 p-3 sm:p-3.5 rounded-2xl border border-slate-800 shadow-inner">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
-              <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
-                targetType === 'pickup' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                targetType === 'pickup' ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-rose-500/10 border border-rose-500/20'
               }`}>
                 {targetType === 'pickup' ? (
-                  <img src="/passenger_icon.svg" alt="Passenger" className="w-4 h-4 rounded-full object-cover" />
+                  <img src="/marker_green.svg" alt="Pickup A" className="w-4 h-5.5 object-contain" />
                 ) : (
-                  <span className="text-sm select-none leading-none">🚩</span>
+                  <img src="/marker_red.svg" alt="Dropoff B" className="w-4 h-5.5 object-contain" />
                 )}
               </div>
               <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5 truncate">
