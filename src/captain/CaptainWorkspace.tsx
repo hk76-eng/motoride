@@ -1219,7 +1219,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       ...(nextStatus === 'trip_completed' ? {
         trip_completed_at: nowIso,
         payment_status: 'paid',
-        final_fare: activeRide.final_fare || activeRide.offered_fare,
+        final_fare: activeRide.final_fare || (activeRide as any).accepted_fare || (activeRide as any).agreed_fare || (activeRide as any).fare_amount || activeRide.offered_fare,
       } : {}),
     };
 
@@ -1269,7 +1269,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     try {
       const updated = await motorideApi.updateRideStatus(activeRide.id, nextStatus, {
         final_distance_km: activeRide.distance_km,
-        final_fare: activeRide.final_fare || activeRide.offered_fare,
+        final_fare: activeRide.final_fare || (activeRide as any).accepted_fare || (activeRide as any).agreed_fare || (activeRide as any).fare_amount || activeRide.offered_fare,
         ride: optimisticRide,
       });
 
@@ -1663,7 +1663,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       Agreed Fare:
                     </span>
                     <span className="text-base sm:text-lg font-black text-slate-950 font-mono-num">
-                      ₹{activeRide.final_fare || activeRide.offered_fare}
+                      ₹{activeRide.final_fare || (activeRide as any).accepted_fare || (activeRide as any).agreed_fare || (activeRide as any).fare_amount || activeRide.offered_fare}
                     </span>
                   </div>
                   <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-white px-2.5 py-0.5 rounded-lg bg-emerald-600 border border-emerald-500 shadow-2xs">
@@ -1735,7 +1735,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       Agreed Fare
                     </span>
                     <span className="text-base font-black text-emerald-600 font-mono-num">
-                      ₹{activeRide.final_fare || activeRide.offered_fare}
+                      ₹{activeRide.final_fare || (activeRide as any).accepted_fare || (activeRide as any).agreed_fare || (activeRide as any).fare_amount || activeRide.offered_fare}
                     </span>
                   </div>
                 </div>

@@ -32,7 +32,7 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
   const [reviewText, setReviewText] = useState<string>('');
 
   const passengerName = ride.passenger_name || 'Passenger';
-  const fareEarned = ride.final_fare || ride.estimated_fare || 0;
+  const fareEarned = Number(ride.final_fare || (ride as any).accepted_fare || (ride as any).agreed_fare || (ride as any).fare_amount || ride.offered_fare || ride.estimated_fare || 0);
   const distanceKm = ride.distance_km || 1.4;
 
   const toggleTag = (tag: string) => {

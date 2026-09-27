@@ -2309,7 +2309,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const handleAcceptOffer = async (offerId: string) => {
     if (!activeRide) return;
     try {
-      const updated = await motorideApi.acceptCounterOffer(activeRide.id, offerId);
+      const targetOffer = activeRide.offers?.find((o) => o.id === offerId);
+      const updated = await motorideApi.acceptCounterOffer(activeRide.id, offerId, targetOffer);
       setActiveRide(updated);
 
       // Re-affirm live location on counter-offer acceptance

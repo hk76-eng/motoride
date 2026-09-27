@@ -622,9 +622,17 @@ export const motorideApi = {
     return { ride: finalRide, offer: finalOffer };
   },
 
-  async acceptCounterOffer(rideId: string, offerId: string): Promise<MotorideRide> {
+  async acceptCounterOffer(rideId: string, offerId: string, customOffer?: RideOffer): Promise<MotorideRide> {
     const existing = localRidesStore.get(rideId) || ({ id: rideId } as MotorideRide);
-    const acceptedOffer = (existing.offers || []).find((o) => o.id === offerId);
+    const acceptedOffer = (existing.offers || []).find((o) => o.id === offerId) || customOffer;
+    const agreedFare = Number(
+      acceptedOffer?.counter_fare ??
+      (acceptedOffer as any)?.fare ??
+      existing.final_fare ??
+      existing.offered_fare ??
+      0
+    );
+
     const updatedRide: MotorideRide = {
       ...existing,
       id: rideId,
@@ -635,7 +643,11 @@ export const motorideApi = {
       captain_phone: acceptedOffer?.captain_phone || existing.captain_phone,
       vehicle_model: acceptedOffer?.vehicle_model || existing.vehicle_model,
       plate_number: acceptedOffer?.plate_number || existing.plate_number,
-      final_fare: acceptedOffer?.counter_fare || existing.final_fare || existing.offered_fare,
+      final_fare: agreedFare,
+      offered_fare: agreedFare,
+      agreed_fare: agreedFare,
+      accepted_fare: agreedFare,
+      fare_amount: agreedFare,
       updated_at: new Date().toISOString(),
     };
 
@@ -656,7 +668,10 @@ export const motorideApi = {
           captain_phone: updatedRide.captain_phone,
           vehicle_model: updatedRide.vehicle_model,
           plate_number: updatedRide.plate_number,
-          final_fare: updatedRide.final_fare,
+          final_fare: agreedFare,
+          offered_fare: agreedFare,
+          agreed_fare: agreedFare,
+          accepted_fare: agreedFare,
         }).eq('id', rideId);
         await supabase.from('ride_offers').update({ status: 'accepted' }).eq('id', offerId);
       } catch (err) {
@@ -669,7 +684,7 @@ export const motorideApi = {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offer_id: offerId }),
+        body: JSON.stringify({ offer_id: offerId, counter_fare: agreedFare }),
       },
       { ride: updatedRide }
     );

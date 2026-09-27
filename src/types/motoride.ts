@@ -108,6 +108,8 @@ export interface MotorideRide {
   estimated_fare: number;
   offered_fare: number;
   final_fare: number;
+  accepted_fare?: number;
+  agreed_fare?: number;
   fare_amount?: number;
   ride_type: RideTypeCode;
   status: MotorideRideStatus;
