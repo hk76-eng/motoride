@@ -232,7 +232,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               <span>{targetType === 'pickup' ? 'Select Pickup Location' : 'Select Destination Location'}</span>
             </h2>
             <p className="text-[11px] text-slate-400 font-medium truncate">
-              Search place name or tap anywhere on map
+              Tap anywhere on map to set marker point
             </p>
           </div>
         </div>
@@ -247,115 +247,6 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         </button>
       </div>
 
-      {/* Floating Search Bar Overlay & Live GPS Pill on top of Map */}
-      <form onSubmit={handleSearchSubmit} className="relative z-30 px-3 sm:px-6 pt-3 pb-2 max-w-2xl w-full mx-auto flex flex-col gap-2">
-        <div className="relative flex items-center shadow-2xl">
-          <Search className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onFocus={() => {
-              if (searchQuery.trim()) setShowSearchResults(true);
-            }}
-            placeholder={
-              targetType === 'pickup'
-                ? 'Search place (e.g. Dhakoli, Chandigarh, Panchkula, Kharar, SAS Nagar)...'
-                : 'Search place (e.g. Dhakoli, Chandigarh, Panchkula, Kharar, SAS Nagar)...'
-            }
-            className="w-full pl-10 pr-20 py-3 rounded-2xl bg-slate-900/95 border-2 border-slate-700 focus:border-emerald-500 text-white placeholder-slate-400 text-xs sm:text-sm font-bold shadow-2xl backdrop-blur-xl focus:outline-none transition-all"
-          />
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-            {isSearchingServer && <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin" />}
-            {searchQuery ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchQuery('');
-                  setSearchResults([]);
-                  setShowSearchResults(false);
-                }}
-                className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5 stroke-[2.5]" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500 hover:text-slate-950 px-2 py-0.5 rounded-lg border border-emerald-500/30 transition-all cursor-pointer"
-              >
-                Search
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Real-time Search Autocomplete Dropdown */}
-        {showSearchResults && searchQuery.trim().length > 0 && (
-          <div className="absolute top-14 left-3 sm:left-6 right-3 sm:right-6 mt-1 bg-slate-900/95 border-2 border-emerald-500/80 rounded-2xl shadow-2xl backdrop-blur-2xl max-h-72 overflow-y-auto divide-y divide-slate-800 z-50 animate-in fade-in duration-150">
-            {searchResults.length > 0 ? (
-              searchResults.map((item, idx) => (
-                <button
-                  key={`${item.name}-${idx}`}
-                  type="button"
-                  onClick={() => handleSelectSearchResult(item)}
-                  className="w-full px-4 py-3 text-left flex items-center justify-between gap-3 hover:bg-slate-800/90 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
-                      <MapPin className="w-4 h-4 stroke-[2.5]" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 block truncate">
-                        {item.name}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium block truncate">
-                        Tap to view area map with hotels, societies & landmarks
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors shrink-0">
-                    Select Area
-                  </span>
-                </button>
-              ))
-            ) : (
-              /* Custom typed location fallback option */
-              <button
-                type="button"
-                onClick={() => {
-                  const customLoc = {
-                    name: searchQuery.trim(),
-                    lat: effectivePassengerLat || 30.7333,
-                    lng: effectivePassengerLng || 76.7794,
-                  };
-                  handleSelectSearchResult(customLoc);
-                }}
-                className="w-full px-4 py-3.5 text-left flex items-center justify-between gap-3 hover:bg-slate-800 transition-all cursor-pointer group"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
-                    <Search className="w-4 h-4 stroke-[2.5]" />
-                  </div>
-                  <div className="min-w-0">
-                    <span className="text-xs sm:text-sm font-bold text-emerald-300 block truncate">
-                      Search for "{searchQuery}"
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-medium block">
-                      Tap to focus map on {searchQuery} area
-                    </span>
-                  </div>
-                </div>
-                <span className="text-[10px] font-black text-slate-950 bg-emerald-400 px-2.5 py-1 rounded-lg shrink-0">
-                  Focus Map
-                </span>
-              </button>
-            )}
-          </div>
-        )}
-      </form>
-
       {/* Main Map View Area */}
       <div className="relative flex-1 w-full h-full overflow-hidden">
         <MotorideMap
@@ -365,7 +256,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           pickupLng={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
           pickupAddress={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.name : undefined}
           dropoffLat={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
-          dropoffLng={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
+          dropoffLng={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lng : undefined}
           dropoffAddress={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.name : undefined}
           focusCoords={mapFocusCoords}
           bottomSheetPadding={0}
@@ -374,26 +265,6 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           onMapClick={(lat, lng) => handleMapClick(lat, lng)}
           className="w-full h-full"
         />
-
-        {/* Floating Vertical Map Zoom In (+) & Zoom Out (-) Control Bar */}
-        <div className="absolute right-4 bottom-24 z-[450] flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={handleZoomIn}
-            title="Zoom In (+)"
-            className="w-11 h-11 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-white border border-slate-700/80 shadow-2xl backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer hover:border-emerald-500 hover:text-emerald-400"
-          >
-            <Plus className="w-6 h-6 stroke-[3]" />
-          </button>
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            title="Zoom Out (-)"
-            className="w-11 h-11 rounded-2xl bg-slate-900/95 hover:bg-slate-800 text-white border border-slate-700/80 shadow-2xl backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer hover:border-emerald-500 hover:text-emerald-400"
-          >
-            <Minus className="w-6 h-6 stroke-[3]" />
-          </button>
-        </div>
       </div>
 
       {/* Bottom Confirmation Bar */}
