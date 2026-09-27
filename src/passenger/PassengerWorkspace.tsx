@@ -102,6 +102,9 @@ const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: numb
   { name: 'Maya Garden Magnesia, Gazipur Road, Zirakpur', aliases: ['maya garden magnesia', 'magnesia zirakpur'], lat: 30.631214, lng: 76.841514 },
   { name: 'Maya Garden Avenue, Gazipur Road, Zirakpur', aliases: ['maya garden avenue', 'maya avenue zirakpur'], lat: 30.634124, lng: 76.839124 },
   { name: 'Platinum Homes, Old Ambala Road, Zirakpur', aliases: ['platinum homes', 'platinum homes zirakpur', 'platinum homes old ambala road', 'old ambala road platinum'], lat: 30.651514, lng: 76.848514 },
+  { name: 'Cozy Homes, Gazipur Road & Dhakoli, Zirakpur', aliases: ['cozy homes', 'cozy homes zirakpur', 'cozy homes dhakoli', 'cozy homes society', 'cozy homes gazipur'], lat: 30.636814, lng: 76.844514 },
+  { name: 'Cozy Homes, Sector 126 Kharar Road, Mohali', aliases: ['cozy homes kharar', 'cozy homes sector 126', 'cozy homes mohali'], lat: 30.749124, lng: 76.654124 },
+  { name: 'Hotel Suraj & Restaurant, Sector 22, Chandigarh', aliases: ['hotel suraj', 'suraj hotel', 'suraj hotel sector 22', 'suraj hotel chandigarh'], lat: 30.732814, lng: 76.772514 },
   { name: 'Mani Majra & Rajiv Gandhi IT Park Whole Area', aliases: ['manimajra', 'mani majra', 'it park manimajra', 'manimajra it park', 'rajiv gandhi it park'], lat: 30.724514, lng: 76.841514 },
   { name: 'Cosmo Mall, Zirakpur', aliases: ['cosmo mall', 'cosmo zirakpur', 'mall in zirakpur', 'cosmo mall zirakpur'], lat: 30.645514, lng: 76.822124 },
   { name: 'Paras Downtown Square Mall, Zirakpur', aliases: ['paras mall', 'paras downtown', 'downtown square zirakpur'], lat: 30.648214, lng: 76.819514 },
@@ -656,7 +659,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closest = { name: loc.name, dist };
       }
     }
-    if (closest) {
+    if (closest && closest.dist <= 300) {
       return closest.name;
     }
     return `Sector 70, Mohali Market`;
@@ -691,7 +694,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       }
     } catch {}
 
-    // 2. Fallback to closest preset landmark (Hotels, Malls, Societies, Markets, Sectors)
+    // 2. Fallback to closest preset landmark (Hotels, Malls, Societies, Markets, Sectors) ONLY if within 300m
     const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
     let closestPreset: { name: string; dist: number } | null = null;
     for (const loc of allPool) {
@@ -700,7 +703,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closestPreset = { name: loc.name, dist };
       }
     }
-    if (closestPreset) {
+    if (closestPreset && closestPreset.dist <= 300) {
       coordsNameCacheRef.current.set(key, closestPreset.name);
       return closestPreset.name;
     }
