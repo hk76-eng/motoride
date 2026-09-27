@@ -1253,9 +1253,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     // ─── STABLE PASSENGER LOCATION LOCK DURING BOOKING SELECTION ───
-    // If we are selecting pick/dropoff in the booking form (i.e., not captain, not active ride, but passenger position is available),
-    // KEEP THE MAP CENTERED on the passenger's current position without moving in any direction!
-    if (!isCaptainMode && !activeRideStatus && passengerLat && passengerLng) {
+    // If neither pickup nor drop-off are selected in the booking form yet, keep the map focused on passenger live location
+    if (!isCaptainMode && !activeRideStatus && !hasPickup && !hasDropoff && passengerLat && passengerLng) {
       const currentRouteKey = `stable_passenger_${passengerLat.toFixed(4)}_${passengerLng.toFixed(4)}_${bottomSheetPadding}`;
       if (lastFittedRouteKeyRef.current !== currentRouteKey) {
         lastFittedRouteKeyRef.current = currentRouteKey;
@@ -1336,7 +1335,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           routeBounds.extend([passengerLat, passengerLng]);
         }
         map.invalidateSize();
-        const bottomPad = bottomSheetPadding || 180;
+        const bottomPad = bottomSheetPadding || 340;
         map.fitBounds(routeBounds, {
           paddingTopLeft: [70, 40],
           paddingBottomRight: [40, bottomPad],
@@ -1344,12 +1343,19 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           animate: true,
         });
       }
-    } else if (!isCaptainMode && !hasDropoff && (pickupLat || passengerLat) && (pickupLng || passengerLng)) {
-      const focusLat = pickupLat || passengerLat!;
-      const focusLng = pickupLng || passengerLng!;
+    } else if (!isCaptainMode && hasPickup && !hasDropoff && pickupLat && pickupLng) {
       const pad = bottomSheetPadding || 280;
       map.invalidateSize();
-      map.fitBounds(L.latLngBounds([[focusLat, focusLng], [focusLat, focusLng]]), {
+      map.fitBounds(L.latLngBounds([[pickupLat, pickupLng], [pickupLat, pickupLng]]), {
+        paddingBottomRight: [40, pad],
+        paddingTopLeft: [70, 40],
+        maxZoom: 16,
+        animate: true,
+      });
+    } else if (!isCaptainMode && !hasPickup && hasDropoff && dropoffLat && dropoffLng) {
+      const pad = bottomSheetPadding || 280;
+      map.invalidateSize();
+      map.fitBounds(L.latLngBounds([[dropoffLat, dropoffLng], [dropoffLat, dropoffLng]]), {
         paddingBottomRight: [40, pad],
         paddingTopLeft: [70, 40],
         maxZoom: 16,
