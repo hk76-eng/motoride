@@ -1282,68 +1282,62 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           map.panTo([captainLat, captainLng], { animate: true, duration: 0.4 });
         }
       }
-    } else if (hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
-      const currentRouteKey = `${pickupLat.toFixed(4)}_${pickupLng.toFixed(4)}_${dropoffLat.toFixed(4)}_${dropoffLng.toFixed(4)}_${activeRideStatus || ''}_${bottomSheetPadding}`;
+    } else {
+      const currentRouteKey = `${pickupLat?.toFixed(4) || '0'}_${pickupLng?.toFixed(4) || '0'}_${dropoffLat?.toFixed(4) || '0'}_${dropoffLng?.toFixed(4) || '0'}_${passengerLat?.toFixed(4) || '0'}_${passengerLng?.toFixed(4) || '0'}_${activeRideStatus || ''}_${bottomSheetPadding}`;
       if (lastFittedRouteKeyRef.current !== currentRouteKey) {
         lastFittedRouteKeyRef.current = currentRouteKey;
-        const routeBounds = L.latLngBounds([
-          [pickupLat, pickupLng],
-          [dropoffLat, dropoffLng],
-        ]);
-        if (captainLat && captainLng) {
-          routeBounds.extend([captainLat, captainLng]);
+        
+        if (hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
+          const routeBounds = L.latLngBounds([
+            [pickupLat, pickupLng],
+            [dropoffLat, dropoffLng],
+          ]);
+          if (captainLat && captainLng) {
+            routeBounds.extend([captainLat, captainLng]);
+          }
+          if (shouldShowPassengerGps && passengerLat && passengerLng) {
+            routeBounds.extend([passengerLat, passengerLng]);
+          }
+          map.invalidateSize();
+          const bottomPad = bottomSheetPadding || 180;
+          map.fitBounds(routeBounds, {
+            paddingTopLeft: [70, 40],
+            paddingBottomRight: [40, bottomPad],
+            maxZoom: 16,
+            animate: true,
+          });
+        } else if (!isCaptainMode && hasPickup && pickupLat && pickupLng) {
+          const pad = bottomSheetPadding || 280;
+          map.invalidateSize();
+          map.fitBounds(L.latLngBounds([[pickupLat, pickupLng], [pickupLat, pickupLng]]), {
+            paddingBottomRight: [40, pad],
+            paddingTopLeft: [70, 40],
+            maxZoom: 16,
+            animate: true,
+          });
+        } else if (!isCaptainMode && hasDropoff && dropoffLat && dropoffLng) {
+          const pad = bottomSheetPadding || 280;
+          map.invalidateSize();
+          map.fitBounds(L.latLngBounds([[dropoffLat, dropoffLng], [dropoffLat, dropoffLng]]), {
+            paddingBottomRight: [40, pad],
+            paddingTopLeft: [70, 40],
+            maxZoom: 16,
+            animate: true,
+          });
+        } else if (passengerLat && passengerLng) {
+          const pad = bottomSheetPadding || 0;
+          map.invalidateSize();
+          if (pad > 0) {
+            map.fitBounds(L.latLngBounds([[passengerLat, passengerLng], [passengerLat, passengerLng]]), {
+              paddingBottomRight: [40, pad],
+              paddingTopLeft: [70, 40],
+              maxZoom: 16,
+              animate: false,
+            });
+          } else {
+            map.setView([passengerLat, passengerLng], 16, { animate: false });
+          }
         }
-        if (shouldShowPassengerGps && passengerLat && passengerLng) {
-          routeBounds.extend([passengerLat, passengerLng]);
-        }
-        map.invalidateSize();
-        const bottomPad = bottomSheetPadding || 180;
-        map.fitBounds(routeBounds, {
-          paddingTopLeft: [70, 40],
-          paddingBottomRight: [40, bottomPad],
-          maxZoom: 16,
-          animate: true,
-        });
-      }
-    } else if (!isCaptainMode && !hasDropoff && (pickupLat || passengerLat) && (pickupLng || passengerLng)) {
-      const focusLat = pickupLat || passengerLat!;
-      const focusLng = pickupLng || passengerLng!;
-      const pad = bottomSheetPadding || 280;
-      map.invalidateSize();
-      map.fitBounds(L.latLngBounds([[focusLat, focusLng], [focusLat, focusLng]]), {
-        paddingBottomRight: [40, pad],
-        paddingTopLeft: [70, 40],
-        maxZoom: 16,
-        animate: true,
-      });
-    } else if (!isCaptainMode && !hasPickup && hasDropoff && dropoffLat && dropoffLng) {
-      const focusLat = dropoffLat;
-      const focusLng = dropoffLng;
-      const pad = bottomSheetPadding || 280;
-      map.invalidateSize();
-      map.fitBounds(L.latLngBounds([[focusLat, focusLng], [focusLat, focusLng]]), {
-        paddingBottomRight: [40, pad],
-        paddingTopLeft: [70, 40],
-        maxZoom: 16,
-        animate: true,
-      });
-    } else if (bounds.length > 1 && !isFollowingPassenger) {
-      map.invalidateSize();
-      map.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 16, animate: false });
-    } else if (bounds.length >= 1 && !isFollowingPassenger) {
-      map.setView(bounds[0], 15, { animate: false });
-    } else if (passengerLat && passengerLng && !hasInitiallyCenteredPassengerRef.current) {
-      hasInitiallyCenteredPassengerRef.current = true;
-      const pad = bottomSheetPadding || 0;
-      if (pad > 0) {
-        map.fitBounds(L.latLngBounds([[passengerLat, passengerLng], [passengerLat, passengerLng]]), {
-          paddingBottomRight: [40, pad],
-          paddingTopLeft: [70, 40],
-          maxZoom: 16,
-          animate: false,
-        });
-      } else {
-        map.setView([passengerLat, passengerLng], 16, { animate: false });
       }
     }
   }, [
