@@ -104,6 +104,7 @@ interface MotorideMapProps {
   activeRideStatus?: string | null;
   focusCoords?: { lat: number; lng: number; zoom?: number; timestamp: number } | null;
   onFocusCoordsProcessed?: () => void;
+  zoomAction?: { type: 'in' | 'out'; timestamp: number } | null;
   onMapMoveStart?: () => void;
   onMapMoveEnd?: (lat: number, lng: number) => void;
   pickupMarkerType?: 'marker' | 'passenger';
@@ -154,6 +155,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   activeRideStatus = null,
   focusCoords = null,
   onFocusCoordsProcessed,
+  zoomAction = null,
   onMapMoveStart,
   onMapMoveEnd,
   pickupMarkerType = 'marker',
@@ -1415,6 +1417,17 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       }
     }
   }, [focusCoords, onFocusCoordsProcessed]);
+
+  // Handle external zoom in / zoom out actions
+  useEffect(() => {
+    if (zoomAction && mapInstanceRef.current) {
+      if (zoomAction.type === 'in') {
+        mapInstanceRef.current.zoomIn(1, { animate: true });
+      } else if (zoomAction.type === 'out') {
+        mapInstanceRef.current.zoomOut(1, { animate: true });
+      }
+    }
+  }, [zoomAction]);
 
   // Center on Passenger or Captain Live Location with Navigator
   const handleNavigatorCenter = () => {
