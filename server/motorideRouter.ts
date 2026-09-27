@@ -996,7 +996,7 @@ motorideRouter.get('/geocode/search', async (req: Request, res: Response) => {
     }
 
     // 1. Try Google Maps Geocoding API first for exact location finding
-    const mapsKey = process.env.VITE_GOOGLE_MAPS_API_KEY || '';
+    const mapsKey = process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDRr4NXZmlLOiuZ-ApDpqeuS3niSlWoPKg';
     const gMapsUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchTerms)}&key=${mapsKey}&region=in`;
     const gResponse = await fetch(gMapsUrl, { signal: AbortSignal.timeout(2000) });
     if (gResponse.ok) {
@@ -1212,7 +1212,28 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
     return res.json({ success: true, address: 'Selected Area' });
   }
 
-  // 1. Try Photon POI reverse search first (specialized in named places, hotels, shops, amenities)
+  // 1. Try Google Maps Geocoding API if key is present
+  const gMapsKey = process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDRr4NXZmlLOiuZ-ApDpqeuS3niSlWoPKg';
+  try {
+    if (gMapsKey) {
+      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${gMapsKey}&region=in`;
+      const gRes = await fetch(gUrl, { signal: AbortSignal.timeout(2000) });
+      if (gRes.ok) {
+        const gData = await gRes.json();
+        if (gData.status === 'OK' && Array.isArray(gData.results) && gData.results.length > 0) {
+          const poi = gData.results.find((r: any) =>
+            r.types?.includes('establishment') ||
+            r.types?.includes('point_of_interest') ||
+            r.types?.includes('premise')
+          ) || gData.results[0];
+          const shortName = poi.formatted_address.split(',').slice(0, 3).join(', ').trim();
+          return res.json({ success: true, address: shortName });
+        }
+      }
+    }
+  } catch {}
+
+  // 2. Try Photon POI reverse search (specialized in named places, hotels, shops, amenities)
   try {
     const photonUrl = `https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`;
     const pResponse = await fetch(photonUrl, { signal: AbortSignal.timeout(2500) });
