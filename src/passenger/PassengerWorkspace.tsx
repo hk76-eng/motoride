@@ -641,7 +641,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   }>({ name: '', lat: 0, lng: 0 });
   const [rideType, setRideType] = useState<RideTypeCode>('bike');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'wallet' | 'upi'>('upi');
-  const [offeredFare, setOfferedFare] = useState<number>(75);
+  const [offeredFare, setOfferedFare] = useState<number>(0);
   const [rideComment, setRideComment] = useState<string>('');
   const [showCommentInput, setShowCommentInput] = useState<boolean>(false);
   const [isBooking, setIsBooking] = useState(false);
@@ -1300,10 +1300,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   // Auto-align offered fare with estimated fare when endpoints/type change
   useEffect(() => {
-    if (estimatedFare > 0) {
+    if (hasSelectedLocations && estimatedFare > 0) {
       setOfferedFare(estimatedFare);
+    } else if (!hasSelectedLocations) {
+      setOfferedFare(0);
     }
-  }, [estimatedFare]);
+  }, [estimatedFare, hasSelectedLocations]);
 
   // 5-second interval ticker for stale location detection (>30s)
   useEffect(() => {
@@ -3472,7 +3474,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="number"
                     min={estimatedFare}
                     disabled={!hasSelectedLocations}
-                    value={offeredFare}
+                    value={hasSelectedLocations ? offeredFare : 0}
                     onChange={(e) => {
                       const val = Number(e.target.value);
                       setOfferedFare(Math.max(estimatedFare, isNaN(val) ? estimatedFare : val));
@@ -3727,7 +3729,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       : `Fare: ₹${activeRide.final_fare || activeRide.offered_fare} • Searching Captains...`
                     : hasSelectedLocations
                     ? `₹${offeredFare} • ${rideType.toUpperCase()} (Tap to expand booking)`
-                    : `Select destinations to calculate fare`}
+                    : `Fare ₹0 • ${rideType.toUpperCase()} (Tap to select pickup & drop)`}
                 </span>
               </div>
             </div>
