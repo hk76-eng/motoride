@@ -1588,6 +1588,69 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     }
   };
 
+  // Play melodious sound alert when captain sends a counter offer / joins ride
+  const playCaptainOfferAlertChime = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      // Pleasant ascending 4-note chime: C5 (523.25Hz), E5 (659.25Hz), G5 (783.99Hz), C6 (1046.50Hz)
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+
+        gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.08);
+        gain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + idx * 0.08 + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.28);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(ctx.currentTime + idx * 0.08);
+        osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
+      });
+
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([120, 60, 120]);
+      }
+    } catch (e) {
+      console.warn('Audio playback notice:', e);
+    }
+  };
+
+  // Sound alert trigger when new captain offers arrive
+  const prevOffersCountRef = useRef<number>(0);
+  const prevOffersRideIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeRide || !['requested', 'captain_offered'].includes(activeRide.status)) {
+      prevOffersCountRef.current = 0;
+      prevOffersRideIdRef.current = null;
+      return;
+    }
+
+    const currentOffersCount = activeRide.offers?.length || 0;
+    if (prevOffersRideIdRef.current !== activeRide.id) {
+      prevOffersRideIdRef.current = activeRide.id;
+      prevOffersCountRef.current = currentOffersCount;
+      if (currentOffersCount > 0) {
+        playCaptainOfferAlertChime();
+      }
+    } else if (currentOffersCount > prevOffersCountRef.current) {
+      playCaptainOfferAlertChime();
+      prevOffersCountRef.current = currentOffersCount;
+    } else {
+      prevOffersCountRef.current = currentOffersCount;
+    }
+  }, [activeRide?.id, activeRide?.status, activeRide?.offers?.length]);
+
   // Track unread captain chat messages after ride is accepted
   useEffect(() => {
     const isAcceptedRide = activeRide && ['captain_accepted', 'captain_arrived', 'trip_started'].includes(activeRide.status);
@@ -1783,6 +1846,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           setActiveRide(null);
         } else {
           setActiveRide(payload.ride);
+          playCaptainOfferAlertChime();
         }
       }
     });
@@ -2562,122 +2626,136 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               </div>
             )}
 
-            {/* Case 1: Searching Nearby Captains Radar - Prominent Center Radar Icon and Pulsing Scanner */}
+            {/* Case 1: Searching Nearby Captains Radar / Incoming Captain Offers */}
             {(activeRide.status === 'requested' || activeRide.status === 'captain_offered') && (
-              <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-8 text-center text-black my-auto">
-                {/* Center Radar Scanner Icon with Multi-ring Pulsing Waves */}
-                <div className="relative flex items-center justify-center w-36 h-36 sm:w-40 sm:h-40 my-3 select-none">
-                  {/* Outer Radar Waves with ping and pulse animations */}
-                  <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping border border-emerald-500/20" />
-                  <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-emerald-500/15 animate-pulse border border-emerald-500/30" />
-                  <div className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-emerald-500/40 animate-spin" style={{ animationDuration: '10s' }} />
-
-                  {/* Sweeping Radar Conic Gradient Beam */}
-                  <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden pointer-events-none opacity-60">
-                    <div
-                      className="w-full h-full origin-center animate-spin"
-                      style={{
-                        animationDuration: '3s',
-                        background: 'conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(16, 185, 129, 0.5) 360deg)'
-                      }}
-                    />
-                  </div>
-
-                  {/* Central Radar Target Icon */}
-                  <div className="relative z-10 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-emerald-400 flex items-center justify-center shadow-xl border-2 border-emerald-400 ring-4 ring-emerald-500/20">
-                    <Radar className="w-8 h-8 sm:w-9 sm:h-9 text-emerald-400 animate-pulse stroke-[2.5]" />
-                  </div>
-                </div>
-
-                <h3 className="text-base sm:text-lg font-black text-black mt-2 flex items-center justify-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                  <span>Radar Active • Contacting Captains</span>
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-700 font-medium max-w-xs mt-1">
-                  Broadcasting your offer of{' '}
-                  <span className="text-black font-black font-mono-num text-sm sm:text-base">
-                    ₹{activeRide.offered_fare}
-                  </span>{' '}
-                  to all nearby active captains in real time.
-                </p>
-
-                {/* Incoming Counter Offers from Captains */}
-                {activeRide.offers && activeRide.offers.length > 0 && (
-                  <div className="w-full mt-5 flex flex-col gap-2.5 text-left">
-                    <h4 className="text-xs font-black text-black flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-black" />
-                      <span>Incoming Captain Offers ({activeRide.offers.length})</span>
-                    </h4>
-                    {activeRide.offers.map((offer) => (
-                      <div
-                        key={offer.id}
-                        className="p-3 rounded-2xl bg-slate-50 border-2 border-black flex items-center justify-between gap-3 shadow-xs text-black"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Captain Profile Pick */}
-                          <div className="relative shrink-0">
-                            <img
-                              src={getCaptainAvatarUrl(offer.captain_name, offer.captain_avatar || offer.avatar_url)}
-                              alt={offer.captain_name || 'Captain'}
-                              referrerPolicy="no-referrer"
-                              className="w-11 h-11 rounded-full object-cover border-2 border-black bg-slate-200 shadow-xs"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src =
-                                  `https://ui-avatars.com/api/?name=${encodeURIComponent(offer.captain_name || 'Captain')}&background=0284c7&color=fff&bold=true`;
-                              }}
-                            />
-                            <span
-                              className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[9px] font-black border border-white"
-                              title="Verified Captain"
-                            >
-                              ✓
-                            </span>
-                          </div>
-
-                          {/* Captain Info */}
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-black text-sm text-black truncate">
-                                {offer.captain_name}
-                              </span>
-                              <div className="flex flex-col items-center leading-none shrink-0">
-                                <span className="flex items-center text-[10px] text-black bg-slate-200 px-1.5 py-0.5 rounded border border-black/30 font-bold leading-none">
-                                  <Star className="w-3 h-3 fill-black text-black mr-0.5" />
-                                  {offer.rating}
-                                </span>
-                                {(offer.captain_total_rides !== undefined || offer.total_rides !== undefined) && (
-                                  <span className="text-[10px] text-slate-700 font-bold font-mono-num leading-none mt-0.5">
-                                    ({offer.captain_total_rides ?? offer.total_rides ?? 0})
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-[11px] text-slate-700 mt-0.5 font-medium truncate">
-                              {offer.vehicle_model} • {offer.plate_number}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Counter Fare & Accept Button */}
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="text-sm font-black text-black font-mono-num">
-                            ₹{offer.counter_fare}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleAcceptOffer(offer.id)}
-                            className="px-3.5 py-1.5 rounded-xl bg-black hover:bg-slate-800 text-white font-black text-xs shadow-md border border-black transition-all active:scale-95 cursor-pointer"
-                          >
-                            Accept
-                          </button>
-                        </div>
+              <div className="flex-1 flex flex-col justify-between text-black w-full h-full">
+                {activeRide.offers && activeRide.offers.length > 0 ? (
+                  /* When Offers Arrive: Immediately Hide Radar and Show ONLY Incoming Captain Offers */
+                  <div className="w-full flex-1 flex flex-col gap-3 text-left animate-in fade-in zoom-in-95 duration-200 overflow-y-auto py-2">
+                    <div className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-950 shadow-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-sm font-black tracking-wide">
+                          Incoming Captain Offers ({activeRide.offers.length})
+                        </span>
                       </div>
-                    ))}
+                      <span className="text-xs font-bold text-emerald-800 font-mono-num">
+                        Base: ₹{activeRide.offered_fare}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5">
+                      {activeRide.offers.map((offer) => (
+                        <div
+                          key={offer.id}
+                          className="p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border-2 border-emerald-500/40 ring-1 ring-emerald-500/20 flex items-center justify-between gap-3 shadow-sm text-black transition-all"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Captain Profile Pick */}
+                            <div className="relative shrink-0">
+                              <img
+                                src={getCaptainAvatarUrl(offer.captain_name, offer.captain_avatar || offer.avatar_url)}
+                                alt={offer.captain_name || 'Captain'}
+                                referrerPolicy="no-referrer"
+                                className="w-11 h-11 rounded-full object-cover border-2 border-emerald-600 bg-slate-200 shadow-xs"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src =
+                                    `https://ui-avatars.com/api/?name=${encodeURIComponent(offer.captain_name || 'Captain')}&background=059669&color=fff&bold=true`;
+                                }}
+                              />
+                              <span
+                                className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black border border-white"
+                                title="Verified Captain"
+                              >
+                                ✓
+                              </span>
+                            </div>
+
+                            {/* Captain Info */}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-black text-sm text-black truncate">
+                                  {offer.captain_name}
+                                </span>
+                                <div className="flex flex-col items-center leading-none shrink-0">
+                                  <span className="flex items-center text-[10px] text-emerald-950 bg-emerald-500/25 px-1.5 py-0.5 rounded-md border border-emerald-500/40 font-bold leading-none">
+                                    <Star className="w-3 h-3 fill-emerald-600 text-emerald-600 mr-0.5" />
+                                    {offer.rating}
+                                  </span>
+                                  {(offer.captain_total_rides !== undefined || offer.total_rides !== undefined) && (
+                                    <span className="text-[10px] text-emerald-900 font-bold font-mono-num leading-none mt-0.5">
+                                      ({offer.captain_total_rides ?? offer.total_rides ?? 0} rides)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-[11px] text-slate-700 mt-0.5 font-semibold truncate">
+                                {offer.vehicle_model} • {offer.plate_number}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Counter Fare & Accept Button */}
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span className="text-base font-black text-emerald-950 font-mono-num">
+                              ₹{offer.counter_fare}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleAcceptOffer(offer.id)}
+                              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md border border-emerald-700 transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                            >
+                              <span>Accept</span>
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* When No Offers Yet: Show Radar Pulse and Contacting Captains Status */
+                  <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-8 text-center text-black my-auto">
+                    {/* Center Radar Scanner Icon with Multi-ring Pulsing Waves */}
+                    <div className="relative flex items-center justify-center w-36 h-36 sm:w-40 sm:h-40 my-3 select-none">
+                      {/* Outer Radar Waves with ping and pulse animations */}
+                      <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping border border-emerald-500/20" />
+                      <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-emerald-500/15 animate-pulse border border-emerald-500/30" />
+                      <div className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-emerald-500/40 animate-spin" style={{ animationDuration: '10s' }} />
+
+                      {/* Sweeping Radar Conic Gradient Beam */}
+                      <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden pointer-events-none opacity-60">
+                        <div
+                          className="w-full h-full origin-center animate-spin"
+                          style={{
+                            animationDuration: '3s',
+                            background: 'conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(16, 185, 129, 0.5) 360deg)'
+                          }}
+                        />
+                      </div>
+
+                      {/* Central Radar Target Icon */}
+                      <div className="relative z-10 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-emerald-400 flex items-center justify-center shadow-xl border-2 border-emerald-400 ring-4 ring-emerald-500/20">
+                        <Radar className="w-8 h-8 sm:w-9 sm:h-9 text-emerald-400 animate-pulse stroke-[2.5]" />
+                      </div>
+                    </div>
+
+                    <h3 className="text-base sm:text-lg font-black text-black mt-2 flex items-center justify-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                      <span>Radar Active • Contacting Captains</span>
+                    </h3>
+                    <p className="text-xs sm:text-sm text-slate-700 font-medium max-w-xs mt-1">
+                      Broadcasting your offer of{' '}
+                      <span className="text-black font-black font-mono-num text-sm sm:text-base">
+                        ₹{activeRide.offered_fare}
+                      </span>{' '}
+                      to all nearby active captains in real time.
+                    </p>
                   </div>
                 )}
 
                 {/* Cancel Button */}
-                <div className="w-full mt-5">
+                <div className="w-full mt-4 pt-2 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={handleCancelRide}
