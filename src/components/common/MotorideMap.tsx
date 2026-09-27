@@ -844,6 +844,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           .bindPopup(pickupPopupHtml);
         pickupMarkerRef.current.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
+          if (isPassengerPickupIcon && onSetPickupToPassengerLocation && pickupLat && pickupLng) {
+            onSetPickupToPassengerLocation(pickupLat, pickupLng);
+          }
         });
         pickupMarkerRef.current.on('dragend', (e: any) => {
           const latlng = e.target.getLatLng();
@@ -858,6 +861,13 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         pickupMarkerRef.current.setLatLng([pickupLat, pickupLng]);
         pickupMarkerRef.current.setIcon(aIcon);
         pickupMarkerRef.current.setPopupContent(pickupPopupHtml);
+        pickupMarkerRef.current.off('click');
+        pickupMarkerRef.current.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          if (isPassengerPickupIcon && onSetPickupToPassengerLocation && pickupLat && pickupLng) {
+            onSetPickupToPassengerLocation(pickupLat, pickupLng);
+          }
+        });
         pickupMarkerRef.current.setZIndexOffset(isPassengerPickupIcon ? 3500 : 2000);
         if (pickupMarkerRef.current.dragging) {
           if (isDraggablePin) pickupMarkerRef.current.dragging.enable();

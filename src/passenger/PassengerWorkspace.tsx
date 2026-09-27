@@ -817,12 +817,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         if (name) {
           setCurrentGpsLocationName(name);
           setPickup((prev) => {
-            if (prev.name === 'My Live GPS Location' || prev.name === fast) {
+            if (prev.name === 'My Live Location' || prev.name === 'My Live GPS Location') {
+              return prev;
+            }
+            if (prev.name === fast) {
               return { ...prev, name };
             }
             return prev;
           });
-          setPickupInputText((prev) => (prev === 'My Live GPS Location' || prev === fast ? name : prev));
+          setPickupInputText((prev) => (prev === 'My Live Location' || prev === 'My Live GPS Location' ? prev : (prev === fast ? name : prev)));
         }
       });
     }
@@ -1034,18 +1037,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   // Handler: 1-click set pickup to passenger standing position & open drop location fill box
   const handleSetPickupFromPassengerPosition = async (lat?: number, lng?: number) => {
-    const targetLat = lat ?? passengerGps.lat;
-    const targetLng = lng ?? passengerGps.lng;
+    const targetLat = (lat && lat > 0) ? lat : (passengerGps.lat > 0 ? passengerGps.lat : (pickup.lat > 0 ? pickup.lat : 30.704649));
+    const targetLng = (lng && lng > 0) ? lng : (passengerGps.lng > 0 ? passengerGps.lng : (pickup.lng > 0 ? pickup.lng : 76.717873));
 
-    // Fast 0ms location name from closest landmarks
-    const initialName = getFastLocationName(targetLat, targetLng);
+    const liveName = 'My Live Location';
     setPickup({
-      name: initialName,
+      name: liveName,
       lat: targetLat,
       lng: targetLng,
     });
-    setPickupInputText(initialName);
-    setCurrentGpsLocationName(initialName);
+    setPickupInputText(liveName);
+    setCurrentGpsLocationName(liveName);
     setActiveMapTarget('dropoff');
 
     // Automatically expand card, switch to drop location search, and focus input
@@ -1057,20 +1059,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       dropoffContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
 
-    setPickupToastMessage(`📍 Pickup set to ${initialName}`);
+    setPickupToastMessage(`📍 Pickup set to ${liveName}`);
     setShowPickupToast(true);
     setTimeout(() => setShowPickupToast(false), 3500);
-
-    // Refine with accurate reverse geocoding in background
-    try {
-      const accurateName = await resolveLocationNameAsync(targetLat, targetLng);
-      if (accurateName && accurateName !== initialName) {
-        setPickup((prev) => (prev.lat === targetLat && prev.lng === targetLng ? { ...prev, name: accurateName } : prev));
-        setPickupInputText((prev) => (prev === initialName ? accurateName : prev));
-        setCurrentGpsLocationName(accurateName);
-        setPickupToastMessage(`📍 Pickup: ${accurateName}`);
-      }
-    } catch {}
   };
   const [fareSettings, setFareSettings] = useState<FareSettings>(() => {
     try {
@@ -3106,7 +3097,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         setShowPickupSuggestions(true);
                         return;
                       }
-                      if (val === 'My Live GPS Location' || val === currentGpsLocationName) {
+                      if (val === 'My Live Location' || val === 'My Live GPS Location' || val === currentGpsLocationName) {
                         handleSetPickupFromPassengerPosition();
                         requestLiveLocation();
                         return;
@@ -3121,10 +3112,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <option value="" disabled className="bg-white text-slate-500">
                       Select Pickup Location
                     </option>
-                    <option value={currentGpsLocationName} className="bg-white text-emerald-700 font-bold">
-                      📍 {currentGpsLocationName} (Current Location)
+                    <option value="My Live Location" className="bg-white text-emerald-700 font-bold">
+                      📍 My Live Location (Current GPS)
                     </option>
-                    {pickup.name && pickup.name !== currentGpsLocationName && !PRESET_LOCATIONS.some((loc) => loc.name === pickup.name) && (
+                    {pickup.name && pickup.name !== 'My Live Location' && pickup.name !== currentGpsLocationName && !PRESET_LOCATIONS.some((loc) => loc.name === pickup.name) && (
                       <option value={pickup.name} className="bg-white text-emerald-700 font-bold">
                         📍 {pickup.name}
                       </option>
