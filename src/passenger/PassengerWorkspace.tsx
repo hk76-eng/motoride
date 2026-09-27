@@ -2983,8 +2983,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             )}
           </div>
         ) : (
-          /* Standard Ride Booking Form - Clean Borderless Modern Compact Layout */
-          <div className="bg-white rounded-3xl p-2.5 sm:p-3 flex flex-col gap-1.5 sm:gap-2 shadow-2xl text-black">
+          /* Standard Ride Booking Form - Clean Borderless Modern Layout filling 60% height */
+          <div className="bg-white rounded-3xl p-3 sm:p-3.5 flex flex-col justify-between h-full shadow-2xl text-black overflow-y-auto scrollbar-thin">
             {/* Top Pull Down / Minimize Handle Bar */}
             <div
               onClick={() => setIsCardMinimized(true)}
@@ -3774,8 +3774,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           </div>
         </div>
       ) : (
-        /* Expanded Booking Form - Anchored to Bottom Line */
-        <div className="fixed sm:absolute bottom-0 sm:bottom-1 md:bottom-2 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-0.75rem)] sm:w-[350px] md:w-[330px] max-h-[80dvh] sm:max-h-[calc(100vh-80px)] overflow-y-auto flex flex-col gap-1.5 pb-1 scrollbar-thin animate-in fade-in slide-in-from-bottom-4 duration-200">
+        /* Expanded Booking Form - Anchored to Bottom Line taking 60% viewport height */
+        <div className="fixed sm:absolute bottom-0 sm:bottom-1 md:bottom-2 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-0.75rem)] sm:w-[380px] md:w-[360px] h-[60dvh] max-h-[60dvh] flex flex-col pb-1 animate-in fade-in slide-in-from-bottom-4 duration-200">
           {renderControlPanel()}
         </div>
       )}
