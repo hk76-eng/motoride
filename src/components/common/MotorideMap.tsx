@@ -1316,6 +1316,17 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         maxZoom: 16,
         animate: true,
       });
+    } else if (!isCaptainMode && !hasPickup && hasDropoff && dropoffLat && dropoffLng) {
+      const focusLat = dropoffLat;
+      const focusLng = dropoffLng;
+      const pad = bottomSheetPadding || 280;
+      map.invalidateSize();
+      map.fitBounds(L.latLngBounds([[focusLat, focusLng], [focusLat, focusLng]]), {
+        paddingBottomRight: [40, pad],
+        paddingTopLeft: [70, 40],
+        maxZoom: 16,
+        animate: true,
+      });
     } else if (bounds.length > 1 && !isFollowingPassenger) {
       map.invalidateSize();
       map.fitBounds(L.latLngBounds(bounds), { padding: [60, 60], maxZoom: 16, animate: false });
