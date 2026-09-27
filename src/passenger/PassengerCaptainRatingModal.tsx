@@ -177,33 +177,6 @@ export const PassengerCaptainRatingModal: React.FC<PassengerCaptainRatingModalPr
           </span>
         </div>
 
-        {/* Compliment Tag Chips */}
-        <div className="flex flex-col gap-2">
-          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-emerald-600" />
-            Captain Compliments:
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {CAPTAIN_COMPLIMENT_TAGS.map((tag) => {
-              const isSelected = selectedTags.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleTag(tag)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer select-none active:scale-95 ${
-                    isSelected
-                      ? 'bg-emerald-600 text-white border-emerald-700 font-bold shadow-sm'
-                      : 'bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-200/80'
-                  }`}
-                >
-                  {tag}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Written Review Input */}
         <div className="flex flex-col gap-1.5">
           <input
