@@ -2961,10 +2961,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       type="button"
                       onClick={handleCancelRide}
                       disabled={isCancelling}
-                      className="w-full py-2 rounded-xl border-2 border-rose-500 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50"
+                      className="w-full py-2 rounded-xl border-2 border-black text-black bg-red-500 hover:bg-red-600 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm"
                       aria-label="Cancel Trip"
                     >
-                      <XCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <XCircle className="w-4 h-4 shrink-0 text-black stroke-[2.5]" />
                       <span>{isCancelling ? 'Cancelling...' : 'Cancel'}</span>
                     </button>
                   </div>
@@ -2973,10 +2973,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="button"
                     onClick={handleCancelRide}
                     disabled={isCancelling}
-                    className="w-full py-2.5 rounded-xl border-2 border-rose-500 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50 shadow-xs"
+                    className="w-full py-2.5 rounded-xl border-2 border-black text-black bg-red-500 hover:bg-red-600 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm"
                     aria-label="Cancel Ride"
                   >
-                    <XCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                    <XCircle className="w-4 h-4 shrink-0 text-black stroke-[2.5]" />
                     <span>{isCancelling ? 'Cancelling...' : 'Cancel Ride'}</span>
                   </button>
                 )}
