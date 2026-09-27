@@ -657,12 +657,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       }
     }
     if (closest) {
-      if (closest.dist <= 400) {
-        return closest.name;
-      }
-      if (closest.dist <= 1800) {
-        return `Near ${closest.name}`;
-      }
       return closest.name;
     }
     return `Sector 70, Mohali Market`;
@@ -682,7 +676,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closestPreset = { name: loc.name, dist };
       }
     }
-    if (closestPreset && closestPreset.dist <= 250) {
+    if (closestPreset && closestPreset.dist <= 1500) {
       coordsNameCacheRef.current.set(key, closestPreset.name);
       return closestPreset.name;
     }
@@ -693,6 +687,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         const text = await res.text();
         if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
           const data = JSON.parse(text);
+          const explicitName = data.name || data.building || data.hotel || data.amenity || data.shop;
+          if (explicitName && typeof explicitName === 'string' && explicitName.trim()) {
+            coordsNameCacheRef.current.set(key, explicitName.trim());
+            return explicitName.trim();
+          }
           if (data && data.address && typeof data.address === 'string' && data.address.trim()) {
             const cleanAddr = data.address.trim();
             if (!cleanAddr.startsWith('Location (') && !/\b30\.\d+\b/.test(cleanAddr) && !/\b76\.\d+\b/.test(cleanAddr)) {
@@ -704,9 +703,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       }
     } catch {}
 
-    const fallback = closestPreset
-      ? (closestPreset.dist <= 1500 ? `Near ${closestPreset.name}` : closestPreset.name)
-      : 'Sector 70, Mohali Area';
+    const fallback = closestPreset ? closestPreset.name : 'Sector 70, Mohali Market';
     coordsNameCacheRef.current.set(key, fallback);
     return fallback;
   };
