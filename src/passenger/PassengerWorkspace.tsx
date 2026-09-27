@@ -656,11 +656,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closest = { name: loc.name, dist };
       }
     }
-    // Only use preset landmark if within 120m of the exact clicked point
-    if (closest && closest.dist <= 120) {
+    if (closest) {
       return closest.name;
     }
-    return `Pin Point (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    return `Sector 70, Mohali Market`;
   };
 
   // Precise reverse geocoding via OpenStreetMap / backend geocode endpoint
@@ -669,21 +668,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const cached = coordsNameCacheRef.current.get(key);
     if (cached) return cached;
 
-    // 1. Try exact pinpoint reverse geocoding first
+    // 1. Try exact reverse geocoding first to find explicit hotel, building, shop, or landmark name
     try {
       const res = await fetch(getApiUrl(`/api/motoride/geocode/reverse?lat=${lat}&lng=${lng}`));
       if (res.ok) {
         const text = await res.text();
         if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
           const data = JSON.parse(text);
-          const explicitName = data.name || data.building || data.hotel || data.amenity || data.shop;
+          const explicitName = data.name || data.building || data.hotel || data.amenity || data.shop || data.tourism;
           if (explicitName && typeof explicitName === 'string' && explicitName.trim()) {
             coordsNameCacheRef.current.set(key, explicitName.trim());
             return explicitName.trim();
           }
           if (data && data.address && typeof data.address === 'string' && data.address.trim()) {
             const cleanAddr = data.address.trim();
-            if (!cleanAddr.startsWith('Location (') && !/\b30\.\d+\b/.test(cleanAddr) && !/\b76\.\d+\b/.test(cleanAddr)) {
+            if (!cleanAddr.toLowerCase().includes('pin point') && !cleanAddr.startsWith('Location (') && !/\b30\.\d+\b/.test(cleanAddr) && !/\b76\.\d+\b/.test(cleanAddr)) {
               coordsNameCacheRef.current.set(key, cleanAddr);
               return cleanAddr;
             }
@@ -692,7 +691,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       }
     } catch {}
 
-    // 2. Fallback to closest preset ONLY if within 250m
+    // 2. Fallback to closest preset landmark (Hotels, Malls, Societies, Markets, Sectors)
     const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
     let closestPreset: { name: string; dist: number } | null = null;
     for (const loc of allPool) {
@@ -701,12 +700,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         closestPreset = { name: loc.name, dist };
       }
     }
-    if (closestPreset && closestPreset.dist <= 250) {
+    if (closestPreset) {
       coordsNameCacheRef.current.set(key, closestPreset.name);
       return closestPreset.name;
     }
 
-    const fallback = `Pin Point Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+    const fallback = 'Sector 70, Mohali Market';
     coordsNameCacheRef.current.set(key, fallback);
     return fallback;
   };
