@@ -18,6 +18,10 @@
   background-color: #f1f5f9;
 }
 
+.leaflet-control-zoom {
+  display: none !important;
+}
+
 .custom-pin-icon,
 .marker-pin-a,
 .marker-pin-b,

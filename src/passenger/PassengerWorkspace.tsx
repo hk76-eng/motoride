@@ -3661,7 +3661,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         }}
       />
 
-      {/* Floating Map Controls on Right-Hand Side (Recenter, Zoom In +, Zoom Out -) in Middle of Background Map */}
+      {/* Floating Map Recenter Control on Right-Hand Side in Middle of Background Map */}
       <div className="fixed sm:absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-[450] flex flex-col items-center gap-2 select-none">
         {/* Recenter Tab / Button */}
         <button
@@ -3678,28 +3678,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         >
           <LocateFixed className="w-5 h-5 text-emerald-600 stroke-[2.5] group-hover:rotate-12 transition-transform" />
         </button>
-
-        {/* Zoom In (+) & Zoom Out (-) Control Group */}
-        <div className="flex flex-col bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/90 overflow-hidden divide-y divide-slate-100">
-          <button
-            type="button"
-            onClick={() => setMapZoomAction({ type: 'in', timestamp: Date.now() })}
-            title="Zoom In (+)"
-            aria-label="Zoom In (+)"
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-slate-800 hover:bg-slate-100 hover:text-black active:scale-95 transition-all cursor-pointer"
-          >
-            <Plus className="w-5 h-5 stroke-[2.5]" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMapZoomAction({ type: 'out', timestamp: Date.now() })}
-            title="Zoom Out (-)"
-            aria-label="Zoom Out (-)"
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center text-slate-800 hover:bg-slate-100 hover:text-black active:scale-95 transition-all cursor-pointer"
-          >
-            <Minus className="w-5 h-5 stroke-[2.5]" />
-          </button>
-        </div>
       </div>
 
       {/* Bottom / Sidebar Booking Form & Active Trip Card Controls */}
