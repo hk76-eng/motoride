@@ -57,6 +57,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const wasOpenRef = useRef<boolean>(false);
+  const isSelectingRef = useRef<boolean>(false);
 
   // Sync modal state ONLY when modal opens (prevent clearing text while typing!)
   useEffect(() => {
@@ -80,6 +81,11 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
 
   // Live Geocoding Search (Combining local 120+ landmark pool + OpenStreetMap API)
   useEffect(() => {
+    if (isSelectingRef.current) {
+      isSelectingRef.current = false;
+      return;
+    }
+
     const q = searchQuery.trim();
     if (!q) {
       setSearchResults([]);
@@ -128,6 +134,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   }, [searchQuery]);
 
   const handleSelectSearchResult = (loc: { name: string; lat: number; lng: number }) => {
+    isSelectingRef.current = true;
     setSelectedLocation(loc);
     setSearchQuery(loc.name);
     setShowSearchResults(false);
@@ -282,33 +289,66 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         </div>
 
         {/* Real-time Search Autocomplete Dropdown */}
-        {showSearchResults && searchResults.length > 0 && (
+        {showSearchResults && searchQuery.trim().length > 0 && (
           <div className="absolute top-14 left-3 sm:left-6 right-3 sm:right-6 mt-1 bg-slate-900/95 border-2 border-emerald-500/80 rounded-2xl shadow-2xl backdrop-blur-2xl max-h-72 overflow-y-auto divide-y divide-slate-800 z-50 animate-in fade-in duration-150">
-            {searchResults.map((item, idx) => (
+            {searchResults.length > 0 ? (
+              searchResults.map((item, idx) => (
+                <button
+                  key={`${item.name}-${idx}`}
+                  type="button"
+                  onClick={() => handleSelectSearchResult(item)}
+                  className="w-full px-4 py-3 text-left flex items-center justify-between gap-3 hover:bg-slate-800/90 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
+                      <MapPin className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 block truncate">
+                        {item.name}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium block truncate">
+                        Tap to view area map with hotels, societies & landmarks
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors shrink-0">
+                    Select Area
+                  </span>
+                </button>
+              ))
+            ) : (
+              /* Custom typed location fallback option */
               <button
-                key={`${item.name}-${idx}`}
                 type="button"
-                onClick={() => handleSelectSearchResult(item)}
-                className="w-full px-4 py-3 text-left flex items-center justify-between gap-3 hover:bg-slate-800/90 transition-all cursor-pointer group"
+                onClick={() => {
+                  const customLoc = {
+                    name: searchQuery.trim(),
+                    lat: effectivePassengerLat || 30.7333,
+                    lng: effectivePassengerLng || 76.7794,
+                  };
+                  handleSelectSearchResult(customLoc);
+                }}
+                className="w-full px-4 py-3.5 text-left flex items-center justify-between gap-3 hover:bg-slate-800 transition-all cursor-pointer group"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
-                    <MapPin className="w-4 h-4 stroke-[2.5]" />
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+                    <Search className="w-4 h-4 stroke-[2.5]" />
                   </div>
                   <div className="min-w-0">
-                    <span className="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 block truncate">
-                      {item.name}
+                    <span className="text-xs sm:text-sm font-bold text-emerald-300 block truncate">
+                      Search for "{searchQuery}"
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium block truncate">
-                      Tap to view {item.name} area map with hotels, societies & landmarks
+                    <span className="text-[10px] text-slate-400 font-medium block">
+                      Tap to focus map on {searchQuery} area
                     </span>
                   </div>
                 </div>
-                <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors shrink-0">
-                  Select Area
+                <span className="text-[10px] font-black text-slate-950 bg-emerald-400 px-2.5 py-1 rounded-lg shrink-0">
+                  Focus Map
                 </span>
               </button>
-            ))}
+            )}
           </div>
         )}
       </form>
