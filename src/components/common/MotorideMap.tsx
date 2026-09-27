@@ -107,6 +107,8 @@ interface MotorideMapProps {
   onMapMoveEnd?: (lat: number, lng: number) => void;
   pickupMarkerType?: 'marker' | 'passenger';
   onPickupDragEnd?: (lat: number, lng: number) => void;
+  dropoffMarkerType?: 'marker' | 'destination';
+  onDropoffDragEnd?: (lat: number, lng: number) => void;
 }
 
 export const MotorideMap: React.FC<MotorideMapProps> = ({
@@ -154,6 +156,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   onMapMoveEnd,
   pickupMarkerType = 'marker',
   onPickupDragEnd,
+  dropoffMarkerType = 'marker',
+  onDropoffDragEnd,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -381,6 +385,66 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       iconSize: [32, 72],
       iconAnchor: [16, 70],
       popupAnchor: [0, -70],
+    });
+  };
+
+  // Draggable Destination / Dropoff Icon specifically for setting destination location in modal map
+  const createDraggableDropoffIcon = (destinationName?: string, distanceText?: string) => {
+    const rawName = destinationName && destinationName.trim() ? destinationName.trim() : '';
+    const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
+    const displayName = shortName ? (shortName.length > 20 ? `${shortName.slice(0, 18)}…` : shortName) : 'Drag to Set Drop-off';
+
+    return L.divIcon({
+      className: 'custom-draggable-dropoff-icon marker-pin-b',
+      html: `
+        <div style="position: relative; width: 84px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: grab; user-select: none; pointer-events: auto;" title="Drag destination icon to adjust your drop-off location">
+          <!-- Top Floating Capsule Badge -->
+          <div style="position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 9999px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #e11d48; box-shadow: 0 4px 18px rgba(0,0,0,0.8), 0 0 12px rgba(244,63,94,0.4); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
+            <span style="background: #e11d48; color: #ffffff; width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; box-shadow: 0 0 8px rgba(244,63,94,0.7);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <circle cx="12" cy="12" r="6"></circle>
+                <circle cx="12" cy="12" r="2"></circle>
+              </svg>
+            </span>
+            <span style="color: #ffffff; font-weight: 800; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${displayName}
+            </span>
+            <span style="background: #e11d48; color: #ffffff; padding: 1px 5px; border-radius: 9999px; font-size: 9px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">
+              DRAG
+            </span>
+          </div>
+
+          <!-- Base Ground Radar Glow -->
+          <div style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 28px; height: 10px; border-radius: 50%; background: rgba(244,63,94,0.35); box-shadow: 0 0 12px rgba(244,63,94,0.8); z-index: 5; pointer-events: none;"></div>
+
+          <!-- Circular Destination Target Avatar with Move Badge -->
+          <div style="position: relative; width: 50px; height: 50px; border-radius: 50%; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.65), 0 0 0 3px #ffffff, 0 0 0 5px #e11d48; z-index: 20; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, #f43f5e, #881337); transition: transform 0.15s ease;">
+            <!-- Sharp Destination Target Icon -->
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
+              <circle cx="12" cy="12" r="10" stroke="#ffffff" stroke-width="2.2" opacity="0.9"></circle>
+              <circle cx="12" cy="12" r="5" stroke="#ffffff" stroke-width="2.2"></circle>
+              <circle cx="12" cy="12" r="1.5" fill="#ffffff"></circle>
+            </svg>
+            <div style="position: absolute; bottom: 0px; right: 0px; background: #e11d48; border: 1.5px solid #ffffff; width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.5);">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="5 9 2 12 5 15"></polyline>
+                <polyline points="9 5 12 2 15 5"></polyline>
+                <polyline points="15 19 12 22 9 19"></polyline>
+                <polyline points="19 9 22 12 19 15"></polyline>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="12" y1="2" x2="12" y2="22"></line>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Ground Contact Needle Tip -->
+          <div style="position: relative; margin-top: -3px; width: 10px; height: 10px; background: #e11d48; border-right: 2px solid #ffffff; border-bottom: 2px solid #ffffff; transform: rotate(45deg); z-index: 15; box-shadow: 2px 2px 4px rgba(0,0,0,0.3);"></div>
+        </div>
+      `,
+      iconSize: [84, 90],
+      iconAnchor: [42, 88],
+      popupAnchor: [0, -88],
     });
   };
 
@@ -833,9 +897,26 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     // 3. Dropoff Marker (Location B - Destination)
     if (hasDropoff && dropoffLat && dropoffLng) {
       bounds.push([dropoffLat, dropoffLng]);
-      const bIcon = createDropoffIcon(dropoffAddress || undefined, dropoffDistanceText);
+      const isDestinationDropoffIcon = dropoffMarkerType === 'destination';
+      const bIcon = isDestinationDropoffIcon
+        ? createDraggableDropoffIcon(dropoffAddress || undefined, dropoffDistanceText)
+        : createDropoffIcon(dropoffAddress || undefined, dropoffDistanceText);
 
-      const dropoffPopupHtml = `
+      const dropoffPopupHtml = isDestinationDropoffIcon
+        ? `
+        <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 190px; color: #000000; padding: 2px;">
+          <div style="font-weight: 900; color: #e11d48; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
+            <span>🎯 Destination (Drop-off)</span>
+          </div>
+          <div style="color: #0f172a; font-size: 12px; font-weight: 700;">
+            ${dropoffAddress || 'Selected Destination'}
+          </div>
+          <div style="color: #e11d48; font-size: 11px; margin-top: 4px; font-weight: 700;">
+            🖐️ Drag icon to adjust exact drop-off spot
+          </div>
+        </div>
+      `
+        : `
         <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 180px; color: #000000; padding: 2px;">
           <div style="font-weight: 900; color: #e11d48; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
             <img src="/marker_red.svg" alt="B" style="width: 12px; height: 26px; object-fit: contain; vertical-align: middle;" />
@@ -848,7 +929,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         </div>
       `;
 
-      const isDraggableDropoff = Boolean(interactive && onMapClick);
+      const isDraggableDropoff = Boolean(interactive && (onMapClick || onDropoffDragEnd));
 
       if (!dropoffMarkerRef.current || !map.hasLayer(dropoffMarkerRef.current)) {
         if (dropoffMarkerRef.current) {
@@ -858,7 +939,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         }
         dropoffMarkerRef.current = L.marker([dropoffLat, dropoffLng], {
           icon: bIcon,
-          zIndexOffset: 2500,
+          zIndexOffset: isDestinationDropoffIcon ? 3500 : 2500,
           draggable: isDraggableDropoff,
         })
           .addTo(map)
@@ -868,6 +949,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         });
         dropoffMarkerRef.current.on('dragend', (e: any) => {
           const latlng = e.target.getLatLng();
+          if (onDropoffDragEnd) {
+            onDropoffDragEnd(latlng.lat, latlng.lng);
+          }
           if (onMapClick) {
             onMapClick(latlng.lat, latlng.lng);
           }
@@ -875,12 +959,22 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       } else {
         dropoffMarkerRef.current.setLatLng([dropoffLat, dropoffLng]);
         dropoffMarkerRef.current.setIcon(bIcon);
-        dropoffMarkerRef.current.setZIndexOffset(2500);
+        dropoffMarkerRef.current.setZIndexOffset(isDestinationDropoffIcon ? 3500 : 2500);
         dropoffMarkerRef.current.setPopupContent(dropoffPopupHtml);
         if (dropoffMarkerRef.current.dragging) {
           if (isDraggableDropoff) dropoffMarkerRef.current.dragging.enable();
           else dropoffMarkerRef.current.dragging.disable();
         }
+        dropoffMarkerRef.current.off('dragend');
+        dropoffMarkerRef.current.on('dragend', (e: any) => {
+          const latlng = e.target.getLatLng();
+          if (onDropoffDragEnd) {
+            onDropoffDragEnd(latlng.lat, latlng.lng);
+          }
+          if (onMapClick) {
+            onMapClick(latlng.lat, latlng.lng);
+          }
+        });
       }
     } else if (dropoffMarkerRef.current) {
       map.removeLayer(dropoffMarkerRef.current);

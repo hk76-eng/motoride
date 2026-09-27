@@ -63,15 +63,29 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
       wasOpenRef.current = true;
-      const startLoc = (initialLocation && initialLocation.lat > 0 && initialLocation.lng > 0)
+      let startLoc = (initialLocation && initialLocation.lat > 0 && initialLocation.lng > 0)
         ? initialLocation
-        : (targetType === 'pickup' && effectivePassengerLat > 0
-            ? {
-                name: getFastLocationName(effectivePassengerLat, effectivePassengerLng) || 'My Live GPS Location',
-                lat: effectivePassengerLat,
-                lng: effectivePassengerLng,
-              }
-            : { name: '', lat: 0, lng: 0 });
+        : null;
+
+      if (!startLoc) {
+        if (targetType === 'pickup' && effectivePassengerLat > 0) {
+          startLoc = {
+            name: getFastLocationName(effectivePassengerLat, effectivePassengerLng) || 'My Live GPS Location',
+            lat: effectivePassengerLat,
+            lng: effectivePassengerLng,
+          };
+        } else if (targetType === 'dropoff' && effectivePassengerLat > 0) {
+          const dLat = effectivePassengerLat + 0.012;
+          const dLng = effectivePassengerLng + 0.012;
+          startLoc = {
+            name: getFastLocationName(dLat, dLng) || 'Drop-off Destination',
+            lat: dLat,
+            lng: dLng,
+          };
+        } else {
+          startLoc = { name: '', lat: 0, lng: 0 };
+        }
+      }
 
       setSelectedLocation(startLoc);
       setSearchQuery(startLoc.name || '');
@@ -232,10 +246,10 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           <div className="min-w-0 flex flex-col">
             <h2 className="text-sm sm:text-base font-black text-white truncate flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full ${targetType === 'pickup' ? 'bg-cyan-400' : 'bg-rose-500'}`} />
-              <span>{targetType === 'pickup' ? 'Set Pickup Location' : 'Select Destination Location'}</span>
+              <span>{targetType === 'pickup' ? 'Set Pickup Location' : 'Set Drop-off Location'}</span>
             </h2>
             <p className="text-[11px] text-slate-400 font-medium truncate">
-              {targetType === 'pickup' ? 'Drag passenger icon 👤 or tap map to set pickup' : 'Tap anywhere on map to set destination'}
+              {targetType === 'pickup' ? 'Drag passenger icon 👤 or tap map to set pickup' : 'Drag destination icon 🎯 or tap map to set drop-off'}
             </p>
           </div>
         </div>
@@ -252,14 +266,20 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
 
       {/* Main Map View Area */}
       <div className="relative flex-1 w-full h-full overflow-hidden">
-        {targetType === 'pickup' && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="px-3.5 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border border-cyan-500/50 text-cyan-300 text-xs font-bold shadow-xl shadow-cyan-950/50 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span>Drag passenger icon 👤 to set pickup location</span>
-            </div>
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className={`px-3.5 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border text-xs font-bold shadow-xl flex items-center gap-2 ${
+            targetType === 'pickup'
+              ? 'border-cyan-500/50 text-cyan-300 shadow-cyan-950/50'
+              : 'border-rose-500/50 text-rose-300 shadow-rose-950/50'
+          }`}>
+            <span className={`w-2 h-2 rounded-full animate-pulse ${targetType === 'pickup' ? 'bg-cyan-400' : 'bg-rose-500'}`} />
+            <span>
+              {targetType === 'pickup'
+                ? 'Drag passenger icon 👤 to set pickup location'
+                : 'Drag destination icon 🎯 to set drop-off location'}
+            </span>
           </div>
-        )}
+        </div>
 
         <MotorideMap
           passengerLat={undefined}
@@ -272,6 +292,8 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           dropoffLat={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
           dropoffLng={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lng : undefined}
           dropoffAddress={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.name : undefined}
+          dropoffMarkerType={targetType === 'dropoff' ? 'destination' : 'marker'}
+          onDropoffDragEnd={(lat, lng) => handleMapClick(lat, lng)}
           focusCoords={mapFocusCoords}
           bottomSheetPadding={0}
           showOverlayControls={false}
@@ -291,7 +313,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               {targetType === 'pickup' ? (
                 <img src="/passenger_icon.svg" alt="Passenger" className="w-5 h-5 rounded-full object-cover" />
               ) : (
-                <MapPin className="w-4 h-4 stroke-[2.5]" />
+                <span className="text-base select-none leading-none">🎯</span>
               )}
             </div>
             <div className="min-w-0 flex flex-col">
