@@ -164,24 +164,25 @@ export const MapTracker: React.FC<MapTrackerProps> = ({
 
   const TILE_CONFIGS: Record<string, { url: string; subdomains?: string; maxZoom: number; label: string }> = {
     'google-streets': {
-      url: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      url: `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
       maxZoom: 20,
       label: 'Google Streets',
     },
     'google-satellite': {
-      url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      url: `https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
       maxZoom: 20,
       label: 'Google Satellite',
     },
     'google-terrain': {
-      url: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      url: `https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
       maxZoom: 20,
       label: 'Google Terrain',
     },
     'carto-dark': {
-      url: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      maxZoom: 20,
-      label: 'Google Streets',
+      url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      subdomains: 'abcd',
+      maxZoom: 19,
+      label: 'Carto Voyager',
     },
   };
 

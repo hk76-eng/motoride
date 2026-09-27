@@ -23,7 +23,7 @@ const MAP_LAYERS: Record<MapLayerType, MapLayerConfig> = {
     label: 'Google Street',
     shortLabel: 'Street',
     tooltip: 'Google Maps Roadmaps & Street View (Default)',
-    url: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    url: `https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
     subdomains: ['0', '1', '2', '3'],
     maxZoom: 20,
   },
@@ -32,7 +32,7 @@ const MAP_LAYERS: Record<MapLayerType, MapLayerConfig> = {
     label: 'Google Terrain',
     shortLabel: 'Terrain',
     tooltip: 'Google Maps Topographic Terrain & Relief',
-    url: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    url: `https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}${GOOGLE_MAPS_KEY ? `&key=${GOOGLE_MAPS_KEY}` : ''}`,
     subdomains: ['0', '1', '2', '3'],
     maxZoom: 20,
   },
@@ -41,9 +41,9 @@ const MAP_LAYERS: Record<MapLayerType, MapLayerConfig> = {
     label: 'Voyager Dark',
     shortLabel: 'Voyager Dark',
     tooltip: 'Voyager Dark Night Carto Style',
-    url: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-    subdomains: ['0', '1', '2', '3'],
-    maxZoom: 20,
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    subdomains: ['a', 'b', 'c', 'd'],
+    maxZoom: 19,
   },
 };
 
@@ -1283,7 +1283,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         }
       }
     } else if (hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
-      const currentRouteKey = `${pickupLat.toFixed(4)}_${pickupLng.toFixed(4)}_${dropoffLat.toFixed(4)}_${dropoffLng.toFixed(4)}_${activeRideStatus || ''}`;
+      const currentRouteKey = `${pickupLat.toFixed(4)}_${pickupLng.toFixed(4)}_${dropoffLat.toFixed(4)}_${dropoffLng.toFixed(4)}_${activeRideStatus || ''}_${bottomSheetPadding}`;
       if (lastFittedRouteKeyRef.current !== currentRouteKey) {
         lastFittedRouteKeyRef.current = currentRouteKey;
         const routeBounds = L.latLngBounds([
