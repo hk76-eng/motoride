@@ -523,22 +523,23 @@ motorideRouter.post('/rides/:id/accept-offer', (req: Request, res: Response) => 
     return res.status(404).json({ error: 'Ride not found' });
   }
 
-  const { offer_id } = req.body;
+  const { offer_id, counter_fare } = req.body;
   const offer = (ride.offers || []).find((o) => o.id === offer_id);
-  if (!offer) {
-    return res.status(404).json({ error: 'Offer not found' });
+  const agreedFare = Number(counter_fare || offer?.counter_fare || ride.final_fare || ride.offered_fare || 0);
+
+  if (offer) {
+    ride.captain_id = offer.captain_id;
+    ride.captain_name = offer.captain_name;
+    ride.captain_phone = offer.captain_phone;
+    ride.vehicle_model = offer.vehicle_model;
+    ride.plate_number = offer.plate_number;
   }
 
-  ride.captain_id = offer.captain_id;
-  ride.captain_name = offer.captain_name;
-  ride.captain_phone = offer.captain_phone;
-  ride.vehicle_model = offer.vehicle_model;
-  ride.plate_number = offer.plate_number;
-  ride.final_fare = offer.counter_fare;
-  ride.offered_fare = offer.counter_fare;
-  ride.agreed_fare = offer.counter_fare;
-  ride.accepted_fare = offer.counter_fare;
-  ride.fare_amount = offer.counter_fare;
+  ride.final_fare = agreedFare;
+  ride.offered_fare = agreedFare;
+  (ride as any).agreed_fare = agreedFare;
+  (ride as any).accepted_fare = agreedFare;
+  (ride as any).fare_amount = agreedFare;
   ride.status = 'captain_accepted';
   ride.updated_at = new Date().toISOString();
 

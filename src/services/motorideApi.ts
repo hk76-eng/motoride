@@ -35,6 +35,54 @@ export const STATUS_RANK: Record<string, number> = {
   cancelled_by_captain: 7,
 };
 
+export function getRideAgreedFare(ride: MotorideRide | null | undefined): number {
+  if (!ride) return 0;
+
+  if (Array.isArray(ride.offers) && ride.offers.length > 0) {
+    const acceptedOffer = ride.offers.find((o) => o.status === 'accepted');
+    if (acceptedOffer && typeof acceptedOffer.counter_fare === 'number' && acceptedOffer.counter_fare > 0) {
+      return Number(acceptedOffer.counter_fare);
+    }
+
+    if (
+      ride.status === 'captain_accepted' ||
+      ride.status === 'captain_arrived' ||
+      ride.status === 'trip_started' ||
+      ride.status === 'trip_completed' ||
+      ride.status === 'completed' ||
+      ride.status === 'captain_offered'
+    ) {
+      const captainOffer =
+        ride.offers.find(
+          (o) =>
+            o.counter_fare &&
+            (o.status === 'accepted' || (ride.captain_id && o.captain_id === ride.captain_id))
+        ) || ride.offers[ride.offers.length - 1];
+
+      if (captainOffer && typeof captainOffer.counter_fare === 'number' && captainOffer.counter_fare > 0) {
+        return Number(captainOffer.counter_fare);
+      }
+    }
+  }
+
+  const candidates = [
+    (ride as any).agreed_fare,
+    (ride as any).accepted_fare,
+    ride.final_fare,
+    (ride as any).fare_amount,
+    ride.offered_fare,
+    ride.estimated_fare,
+  ];
+
+  for (const f of candidates) {
+    if (typeof f === 'number' && f > 0) {
+      return f;
+    }
+  }
+
+  return 0;
+}
+
 export function mergeRideSafely(local?: MotorideRide | null, remote?: MotorideRide | null): MotorideRide {
   if (!local) return remote || ({} as MotorideRide);
   if (!remote) return local;
@@ -45,27 +93,35 @@ export function mergeRideSafely(local?: MotorideRide | null, remote?: MotorideRi
   // Never revert a ride's status to an earlier workflow step
   const effectiveStatus = localRank > remoteRank ? local.status : remote.status;
 
-  // Prioritize negotiated and accepted fare fields from remote
-  const finalFare = remote.final_fare || local.final_fare || remote.offered_fare || local.offered_fare || 0;
-  const offeredFare = remote.offered_fare || local.offered_fare || remote.final_fare || local.final_fare || 0;
-  const agreedFare = remote.agreed_fare || local.agreed_fare || finalFare;
-  const acceptedFare = remote.accepted_fare || local.accepted_fare || finalFare;
-  const fareAmount = remote.fare_amount || local.fare_amount || finalFare;
+  const mergedOffersMap = new Map<string, RideOffer>();
+  (remote.offers || []).forEach((o) => { if (o && o.id) mergedOffersMap.set(o.id, o); });
+  (local.offers || []).forEach((o) => {
+    if (o && o.id) {
+      const existing = mergedOffersMap.get(o.id);
+      mergedOffersMap.set(o.id, { ...existing, ...o });
+    }
+  });
+  const mergedOffers = Array.from(mergedOffersMap.values());
+
+  const localAgreedFare = getRideAgreedFare(local);
+  const remoteAgreedFare = getRideAgreedFare(remote);
+  const bestFare = Math.max(localAgreedFare, remoteAgreedFare) || local.final_fare || remote.final_fare || local.offered_fare || remote.offered_fare || 0;
 
   return {
-    ...local,
     ...remote,
+    ...local,
     status: effectiveStatus,
-    captain_name: remote.captain_name || local.captain_name,
-    captain_phone: remote.captain_phone || local.captain_phone,
-    vehicle_model: remote.vehicle_model || local.vehicle_model,
-    plate_number: remote.plate_number || local.plate_number,
-    captain_avatar: (remote as any).captain_avatar || (local as any).captain_avatar,
-    final_fare: finalFare,
-    offered_fare: offeredFare,
-    agreed_fare: agreedFare,
-    accepted_fare: acceptedFare,
-    fare_amount: fareAmount,
+    offers: mergedOffers,
+    captain_name: local.captain_name || remote.captain_name,
+    captain_phone: local.captain_phone || remote.captain_phone,
+    vehicle_model: local.vehicle_model || remote.vehicle_model,
+    plate_number: local.plate_number || remote.plate_number,
+    captain_avatar: (local as any).captain_avatar || (remote as any).captain_avatar,
+    final_fare: bestFare,
+    offered_fare: bestFare,
+    agreed_fare: bestFare,
+    accepted_fare: bestFare,
+    fare_amount: bestFare,
     updated_at: new Date(
       Math.max(
         new Date(local.updated_at || 0).getTime(),
@@ -596,6 +652,8 @@ export const motorideApi = {
 
     const existingOffers = updatedRide.offers || [];
     updatedRide.offers = [...existingOffers.filter((o) => o.captain_id !== offerData.captain_id), newOffer];
+    updatedRide.agreed_fare = Number(offerData.counter_fare);
+    updatedRide.accepted_fare = Number(offerData.counter_fare);
 
     localRidesStore.set(rideId, updatedRide);
     saveLocalRides();
@@ -701,8 +759,21 @@ export const motorideApi = {
     );
 
     const finalRide = serverRes?.ride || updatedRide;
+    if (finalRide.offers) {
+      finalRide.offers.forEach((o) => {
+        if (o.id === offerId) o.status = 'accepted';
+      });
+    }
+    finalRide.final_fare = agreedFare;
+    finalRide.offered_fare = agreedFare;
+    finalRide.agreed_fare = agreedFare;
+    finalRide.accepted_fare = agreedFare;
+    finalRide.fare_amount = agreedFare;
+
     localRidesStore.set(rideId, finalRide);
     saveLocalRides();
+    realtimeSync.broadcast('RIDE_ACCEPTED', finalRide);
+    realtimeSync.broadcast('RIDE_UPDATED', finalRide);
     return finalRide;
   },
 

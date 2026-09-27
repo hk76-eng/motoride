@@ -11,7 +11,7 @@ import { PassengerProfileDrawer } from './PassengerProfileDrawer';
 import { DigitalWatchETA } from './DigitalWatchETA';
 import { PassengerCaptainRatingModal } from './PassengerCaptainRatingModal';
 import { LocationPickerMapModal } from './LocationPickerMapModal';
-import { motorideApi } from '../services/motorideApi';
+import { motorideApi, getRideAgreedFare } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
 import { safeStorage } from '../lib/safeStorage';
@@ -2943,7 +2943,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-100 border border-black">
                   <span className="text-xs text-black font-bold">Agreed Fare:</span>
                   <span className="font-mono-num font-black text-sm text-black">
-                    ₹{activeRide.final_fare || activeRide.offered_fare}
+                    ₹{getRideAgreedFare(activeRide)}
                   </span>
                 </div>
 
@@ -2995,7 +2995,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   <p className="text-xs text-slate-600 font-medium">
                     Total distance: {activeRide.distance_km} km • Final Fare:{' '}
                     <span className="font-mono-num font-black text-emerald-600">
-                      ₹{activeRide.final_fare || activeRide.offered_fare}
+                      ₹{getRideAgreedFare(activeRide)}
                     </span>
                   </p>
                 </div>
@@ -3802,8 +3802,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 <span className="text-[11px] text-emerald-400 font-mono-num font-semibold truncate">
                   {activeRide
                     ? activeRide.captain_name
-                      ? `${activeRide.captain_name} (${activeRide.vehicle_model || 'Bike'}) • ₹${activeRide.final_fare || activeRide.offered_fare}`
-                      : `Fare: ₹${activeRide.final_fare || activeRide.offered_fare} • Searching Captains...`
+                      ? `${activeRide.captain_name} (${activeRide.vehicle_model || 'Bike'}) • ₹${getRideAgreedFare(activeRide)}`
+                      : `Fare: ₹${getRideAgreedFare(activeRide)} • Searching Captains...`
                     : hasSelectedLocations
                     ? `₹${offeredFare} • ${rideType.toUpperCase()} (Tap to expand booking)`
                     : `Fare ₹0 • ${rideType.toUpperCase()} (Tap to select pickup & drop)`}
