@@ -2569,8 +2569,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const renderControlPanel = () => (
     <div className="flex flex-col gap-4 h-full">
       {activeRide ? (
-          /* Active Ride Cards - White Background with Black Text, Icons and Dark Black Outlines - Full Height Screen */
-          <div className="bg-white border-2 border-black rounded-none sm:rounded-3xl p-4 sm:p-5 flex flex-col justify-between h-full shadow-2xl text-black overflow-y-auto scrollbar-thin">
+          /* Active Ride Cards - Full Height for Search, Booking Form Sized for Captain Accepted / Active Trip */
+          <div className={`bg-white border-2 border-black ${
+            activeRide.status === 'requested' || activeRide.status === 'captain_offered'
+              ? 'rounded-none sm:rounded-3xl'
+              : 'rounded-3xl'
+          } p-4 sm:p-5 flex flex-col justify-between h-full shadow-2xl text-black overflow-y-auto scrollbar-thin`}>
             {/* Top Pull Down / Drop Down Handle Bar */}
             <div
               onClick={() => setIsCardMinimized(true)}
@@ -3848,9 +3852,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           </div>
         </div>
       ) : (
-        /* Expanded Booking Form / Captain Offered Panel - 100% full screen for Captain Offered & Active Ride, 60% height for standard booking form */
+        /* Expanded Booking Form / Captain Offered Panel / Captain Accepted Panel */
         <div className={`fixed sm:absolute z-[1000] ${
-          activeRide
+          activeRide && (activeRide.status === 'requested' || activeRide.status === 'captain_offered')
             ? 'inset-0 sm:inset-auto sm:bottom-1 md:bottom-2 sm:left-1/2 sm:-translate-x-1/2 w-full sm:w-[460px] md:w-[480px] h-full sm:h-[calc(100vh-1rem)] max-h-full pb-0 sm:pb-1'
             : 'bottom-0 sm:bottom-1 md:bottom-2 left-1/2 -translate-x-1/2 w-[calc(100%-0.75rem)] sm:w-[380px] md:w-[360px] h-[60dvh] max-h-[60dvh] pb-1'
         } flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200`}>
