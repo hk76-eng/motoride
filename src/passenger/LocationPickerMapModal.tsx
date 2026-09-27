@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Navigation, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Search, MapPin, Check, X, LocateFixed, Loader2, Navigation, Plus, Minus, Pencil } from 'lucide-react';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { getApiUrl } from '../utils/apiUrl';
 
@@ -46,6 +46,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     };
   });
 
+  const [customPlaceName, setCustomPlaceName] = useState<string>(() => initialLocation?.name || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ name: string; lat: number; lng: number }[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -88,6 +89,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
       }
 
       setSelectedLocation(startLoc);
+      setCustomPlaceName(startLoc.name || '');
       setSearchQuery(startLoc.name || '');
       setSearchResults([]);
       setShowSearchResults(false);
@@ -159,6 +161,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   const handleSelectSearchResult = (loc: { name: string; lat: number; lng: number }) => {
     isSelectingRef.current = true;
     setSelectedLocation(loc);
+    setCustomPlaceName(loc.name);
     setSearchQuery(loc.name);
     setShowSearchResults(false);
     setHasSelectedLocation(true);
@@ -183,6 +186,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   const handleMapClick = async (lat: number, lng: number) => {
     const instantName = getFastLocationName(lat, lng);
     setSelectedLocation({ name: instantName, lat, lng });
+    setCustomPlaceName(instantName);
     setHasSelectedLocation(true);
     setIsResolvingName(true);
 
@@ -190,6 +194,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
       const accurateName = await resolveLocationNameAsync(lat, lng);
       if (accurateName) {
         setSelectedLocation({ name: accurateName, lat, lng });
+        setCustomPlaceName(accurateName);
       }
     } catch {} finally {
       setIsResolvingName(false);
@@ -201,6 +206,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     const nameToUse = fastName.includes('Location (') ? 'My Live Location' : fastName;
     const loc = { name: nameToUse, lat: effectivePassengerLat, lng: effectivePassengerLng };
     setSelectedLocation(loc);
+    setCustomPlaceName(nameToUse);
     setSearchQuery(nameToUse);
     setShowSearchResults(false);
     setCurrentZoom(16);
@@ -286,12 +292,12 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           passengerLng={undefined}
           pickupLat={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
           pickupLng={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
-          pickupAddress={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.name : undefined}
+          pickupAddress={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? (customPlaceName || selectedLocation.name) : undefined}
           pickupMarkerType={targetType === 'pickup' ? 'passenger' : 'marker'}
           onPickupDragEnd={(lat, lng) => handleMapClick(lat, lng)}
           dropoffLat={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
           dropoffLng={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
-          dropoffAddress={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.name : undefined}
+          dropoffAddress={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? (customPlaceName || selectedLocation.name) : undefined}
           dropoffMarkerType={targetType === 'dropoff' ? 'destination' : 'marker'}
           onDropoffDragEnd={(lat, lng) => handleMapClick(lat, lng)}
           focusCoords={mapFocusCoords}
@@ -305,37 +311,107 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
 
       {/* Bottom Confirmation Bar */}
       <div className="bg-slate-900 border-t border-slate-800 p-3 sm:p-4 flex flex-col gap-3 shadow-2xl shrink-0 z-20">
-        <div className="flex items-center justify-between gap-3 bg-slate-950/80 p-3 rounded-2xl border border-slate-800">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-              targetType === 'pickup' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-            }`}>
-              {targetType === 'pickup' ? (
-                <img src="/passenger_icon.svg" alt="Passenger" className="w-5 h-5 rounded-full object-cover" />
-              ) : (
-                <span className="text-base select-none leading-none">🚩</span>
-              )}
-            </div>
-            <div className="min-w-0 flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <span>Selected {targetType === 'pickup' ? 'Pickup' : 'Destination'}</span>
-                {isResolvingName && <Loader2 className="w-3 h-3 text-emerald-400 animate-spin ml-1" />}
-              </span>
-              <span className="text-xs sm:text-sm font-black text-white truncate">
-                {selectedLocation.name || 'Tap on map to select location'}
+        <div className="flex flex-col gap-2.5 bg-slate-950/85 p-3 sm:p-3.5 rounded-2xl border border-slate-800 shadow-inner">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
+                targetType === 'pickup' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+              }`}>
+                {targetType === 'pickup' ? (
+                  <img src="/passenger_icon.svg" alt="Passenger" className="w-4 h-4 rounded-full object-cover" />
+                ) : (
+                  <span className="text-sm select-none leading-none">🚩</span>
+                )}
+              </div>
+              <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5 truncate">
+                <span>Selected {targetType === 'pickup' ? 'Pickup Location' : 'Destination / Drop-off'}</span>
+                {isResolvingName && <Loader2 className="w-3 h-3 text-cyan-400 animate-spin" />}
               </span>
             </div>
+
+            <span className="text-[10px] font-mono-num font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800 shrink-0">
+              {selectedLocation.lat > 0 ? `${selectedLocation.lat.toFixed(4)}, ${selectedLocation.lng.toFixed(4)}` : 'Tap map to pin'}
+            </span>
           </div>
 
-          <span className="text-[10px] font-mono-num font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 shrink-0">
-            {selectedLocation.lat > 0 ? `${selectedLocation.lat.toFixed(4)}, ${selectedLocation.lng.toFixed(4)}` : 'Ready'}
-          </span>
+          {/* Manually Write / Edit Place Name Input */}
+          <div className="relative flex items-center w-full">
+            <div className="absolute left-3 text-slate-400 pointer-events-none flex items-center">
+              <Pencil className="w-3.5 h-3.5 text-cyan-400" />
+            </div>
+            <input
+              type="text"
+              value={customPlaceName}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCustomPlaceName(val);
+                setSelectedLocation((prev) => ({
+                  ...prev,
+                  name: val,
+                }));
+              }}
+              placeholder={
+                targetType === 'pickup'
+                  ? 'Write place name manually (e.g. Flat 302, Gate 1 Cozy Homes...)'
+                  : 'Write place name manually (e.g. Tower B, Flat 204, Infosys...)'
+              }
+              className="w-full bg-slate-900 border border-slate-700/80 focus:border-cyan-400 rounded-xl pl-9 pr-8 py-2.5 text-xs sm:text-sm text-white font-semibold placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all shadow-inner"
+            />
+            {customPlaceName && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomPlaceName('');
+                  setSelectedLocation((prev) => ({ ...prev, name: '' }));
+                }}
+                className="absolute right-2.5 text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+                title="Clear text"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-400 px-1">
+            <span className="flex items-center gap-1 text-slate-400 truncate">
+              <span className="text-cyan-400 font-bold">💡 Tip:</span>
+              <span className="truncate">Drag icon or tap map to pin, then type custom place name</span>
+            </span>
+            {selectedLocation.lat > 0 && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsResolvingName(true);
+                  try {
+                    const fast = getFastLocationName(selectedLocation.lat, selectedLocation.lng);
+                    setCustomPlaceName(fast);
+                    setSelectedLocation((prev) => ({ ...prev, name: fast }));
+                    const accurate = await resolveLocationNameAsync(selectedLocation.lat, selectedLocation.lng);
+                    if (accurate) {
+                      setCustomPlaceName(accurate);
+                      setSelectedLocation((prev) => ({ ...prev, name: accurate }));
+                    }
+                  } finally {
+                    setIsResolvingName(false);
+                  }
+                }}
+                className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 underline cursor-pointer shrink-0 ml-2"
+                title="Re-fetch address from map coordinates"
+              >
+                Reset to Map Name
+              </button>
+            )}
+          </div>
         </div>
 
         <button
           type="button"
           onClick={() => {
-            onConfirmLocation(selectedLocation);
+            const finalName = customPlaceName.trim() || selectedLocation.name.trim() || (targetType === 'pickup' ? 'Selected Pickup Point' : 'Selected Destination');
+            onConfirmLocation({
+              ...selectedLocation,
+              name: finalName,
+            });
             onClose();
           }}
           className="w-full py-3.5 sm:py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm sm:text-base shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 active:scale-[0.98] transition-all cursor-pointer"
