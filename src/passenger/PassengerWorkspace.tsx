@@ -2961,7 +2961,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                       type="button"
                       onClick={handleCancelRide}
                       disabled={isCancelling}
-                      className="w-full py-2 rounded-xl border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50"
+                      className="w-full py-2 rounded-xl border-2 border-rose-500 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50"
                       aria-label="Cancel Trip"
                     >
                       <XCircle className="w-4 h-4 shrink-0 text-rose-600" />
@@ -2973,10 +2973,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     type="button"
                     onClick={handleCancelRide}
                     disabled={isCancelling}
-                    className="w-full py-2.5 rounded-xl border border-black text-black bg-slate-100 hover:bg-slate-200 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl border-2 border-rose-500 text-rose-700 bg-rose-50 hover:bg-rose-100 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50 shadow-xs"
                     aria-label="Cancel Ride"
                   >
-                    <XCircle className="w-4 h-4 shrink-0 text-black" />
+                    <XCircle className="w-4 h-4 shrink-0 text-rose-600" />
                     <span>{isCancelling ? 'Cancelling...' : 'Cancel Ride'}</span>
                   </button>
                 )}
