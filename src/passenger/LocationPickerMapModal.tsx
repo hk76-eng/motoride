@@ -249,7 +249,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               <span>{targetType === 'pickup' ? 'Set Pickup Location' : 'Set Drop-off Location'}</span>
             </h2>
             <p className="text-[11px] text-slate-400 font-medium truncate">
-              {targetType === 'pickup' ? 'Drag passenger icon 👤 or tap map to set pickup' : 'Drag destination icon 🎯 or tap map to set drop-off'}
+              {targetType === 'pickup' ? 'Drag passenger icon 👤 or tap map to set pickup' : 'Drag red flag icon 🚩 or tap map to set drop-off'}
             </p>
           </div>
         </div>
@@ -276,7 +276,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
             <span>
               {targetType === 'pickup'
                 ? 'Drag passenger icon 👤 to set pickup location'
-                : 'Drag destination icon 🎯 to set drop-off location'}
+                : 'Drag red flag icon 🚩 to set drop-off location'}
             </span>
           </div>
         </div>
@@ -290,7 +290,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           pickupMarkerType={targetType === 'pickup' ? 'passenger' : 'marker'}
           onPickupDragEnd={(lat, lng) => handleMapClick(lat, lng)}
           dropoffLat={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
-          dropoffLng={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lng : undefined}
+          dropoffLng={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
           dropoffAddress={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.name : undefined}
           dropoffMarkerType={targetType === 'dropoff' ? 'destination' : 'marker'}
           onDropoffDragEnd={(lat, lng) => handleMapClick(lat, lng)}
@@ -313,7 +313,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               {targetType === 'pickup' ? (
                 <img src="/passenger_icon.svg" alt="Passenger" className="w-5 h-5 rounded-full object-cover" />
               ) : (
-                <span className="text-base select-none leading-none">🎯</span>
+                <span className="text-base select-none leading-none">🚩</span>
               )}
             </div>
             <div className="min-w-0 flex flex-col">

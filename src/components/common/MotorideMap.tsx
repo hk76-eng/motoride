@@ -392,41 +392,43 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   const createDraggableDropoffIcon = (destinationName?: string, distanceText?: string) => {
     const rawName = destinationName && destinationName.trim() ? destinationName.trim() : '';
     const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
-    const displayName = shortName ? (shortName.length > 20 ? `${shortName.slice(0, 18)}…` : shortName) : 'Drag to Set Drop-off';
+    const displayName = shortName ? (shortName.length > 20 ? `${shortName.slice(0, 18)}…` : shortName) : 'Drag Red Flag';
 
     return L.divIcon({
       className: 'custom-draggable-dropoff-icon marker-pin-b',
       html: `
-        <div style="position: relative; width: 84px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: grab; user-select: none; pointer-events: auto;" title="Drag destination icon to adjust your drop-off location">
-          <!-- Top Floating Capsule Badge -->
-          <div style="position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 9999px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #e11d48; box-shadow: 0 4px 18px rgba(0,0,0,0.8), 0 0 12px rgba(244,63,94,0.4); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
-            <span style="background: #e11d48; color: #ffffff; width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; box-shadow: 0 0 8px rgba(244,63,94,0.7);">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <circle cx="12" cy="12" r="6"></circle>
-                <circle cx="12" cy="12" r="2"></circle>
-              </svg>
+        <div style="position: relative; width: 84px; height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: grab; user-select: none; pointer-events: auto;" title="Drag red flag to adjust your drop-off location">
+          <!-- Top Floating Capsule Badge with Red Flag -->
+          <div style="position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 9999px; background: #020617; color: #fca5a5; font-weight: 900; font-size: 11px; border: 1.5px solid #ef4444; box-shadow: 0 4px 18px rgba(0,0,0,0.8), 0 0 12px rgba(239,68,68,0.45); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
+            <span style="font-size: 13px; line-height: 1; filter: drop-shadow(0 0 4px rgba(239,68,68,0.6));">
+              🚩
             </span>
             <span style="color: #ffffff; font-weight: 800; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
               ${displayName}
             </span>
-            <span style="background: #e11d48; color: #ffffff; padding: 1px 5px; border-radius: 9999px; font-size: 9px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">
+            <span style="background: #ef4444; color: #ffffff; padding: 1px 5px; border-radius: 9999px; font-size: 9px; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase;">
               DRAG
             </span>
           </div>
 
-          <!-- Base Ground Radar Glow -->
-          <div style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 28px; height: 10px; border-radius: 50%; background: rgba(244,63,94,0.35); box-shadow: 0 0 12px rgba(244,63,94,0.8); z-index: 5; pointer-events: none;"></div>
+          <!-- Base Ground Radar Glow in Crimson Red -->
+          <div style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 28px; height: 10px; border-radius: 50%; background: rgba(239,68,68,0.4); box-shadow: 0 0 14px rgba(239,68,68,0.85); z-index: 5; pointer-events: none;"></div>
 
-          <!-- Circular Destination Target Avatar with Move Badge -->
-          <div style="position: relative; width: 50px; height: 50px; border-radius: 50%; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.65), 0 0 0 3px #ffffff, 0 0 0 5px #e11d48; z-index: 20; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, #f43f5e, #881337); transition: transform 0.15s ease;">
-            <!-- Sharp Destination Target Icon -->
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
-              <circle cx="12" cy="12" r="10" stroke="#ffffff" stroke-width="2.2" opacity="0.9"></circle>
-              <circle cx="12" cy="12" r="5" stroke="#ffffff" stroke-width="2.2"></circle>
-              <circle cx="12" cy="12" r="1.5" fill="#ffffff"></circle>
+          <!-- Circular Badge with Prominent Red Flag Vector Icon & Move Handle -->
+          <div style="position: relative; width: 50px; height: 50px; border-radius: 50%; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.7), 0 0 0 3px #ffffff, 0 0 0 5px #ef4444; z-index: 20; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, #ef4444, #991b1b); transition: transform 0.15s ease;">
+            <!-- Bold Red Flag Vector Graphic -->
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" style="filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));">
+              <!-- Flagpole -->
+              <path d="M5 21V3" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" />
+              <!-- Golden Finial Ball -->
+              <circle cx="5" cy="2.5" r="1.6" fill="#fef08a" stroke="#ffffff" stroke-width="0.7" />
+              <!-- Waving Red Flag Fabric -->
+              <path d="M5 3.5H19C17.2 6.5 19.5 8.5 18 11.5H5V3.5Z" fill="#ffffff" stroke="#ffffff" stroke-width="0.8" />
+              <path d="M5.8 4.4H17.8C16.3 7 18.2 8.3 16.9 10.6H5.8V4.4Z" fill="#dc2626" />
             </svg>
-            <div style="position: absolute; bottom: 0px; right: 0px; background: #e11d48; border: 1.5px solid #ffffff; width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.5);">
+
+            <!-- Small 4-way drag handle badge in corner -->
+            <div style="position: absolute; bottom: 0px; right: 0px; background: #ef4444; border: 1.5px solid #ffffff; width: 17px; height: 17px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.5);">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="5 9 2 12 5 15"></polyline>
                 <polyline points="9 5 12 2 15 5"></polyline>
@@ -439,7 +441,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           </div>
 
           <!-- Ground Contact Needle Tip -->
-          <div style="position: relative; margin-top: -3px; width: 10px; height: 10px; background: #e11d48; border-right: 2px solid #ffffff; border-bottom: 2px solid #ffffff; transform: rotate(45deg); z-index: 15; box-shadow: 2px 2px 4px rgba(0,0,0,0.3);"></div>
+          <div style="position: relative; margin-top: -3px; width: 10px; height: 10px; background: #ef4444; border-right: 2px solid #ffffff; border-bottom: 2px solid #ffffff; transform: rotate(45deg); z-index: 15; box-shadow: 2px 2px 4px rgba(0,0,0,0.3);"></div>
         </div>
       `,
       iconSize: [84, 90],
@@ -905,14 +907,15 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       const dropoffPopupHtml = isDestinationDropoffIcon
         ? `
         <div style="font-family: inherit; font-size: 12px; line-height: 1.4; min-width: 190px; color: #000000; padding: 2px;">
-          <div style="font-weight: 900; color: #e11d48; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
-            <span>🎯 Destination (Drop-off)</span>
+          <div style="font-weight: 900; color: #ef4444; display: flex; align-items: center; gap: 6px; font-size: 13px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 4px;">
+            <span style="font-size: 15px;">🚩</span>
+            <span>Drop-off Destination</span>
           </div>
           <div style="color: #0f172a; font-size: 12px; font-weight: 700;">
             ${dropoffAddress || 'Selected Destination'}
           </div>
-          <div style="color: #e11d48; font-size: 11px; margin-top: 4px; font-weight: 700;">
-            🖐️ Drag icon to adjust exact drop-off spot
+          <div style="color: #ef4444; font-size: 11px; margin-top: 4px; font-weight: 700;">
+            🖐️ Drag red flag to adjust exact drop-off spot
           </div>
         </div>
       `
