@@ -661,6 +661,21 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     const hasPickup = Boolean(pickupLat && pickupLng && pickupLat !== 0 && pickupLng !== 0);
     const hasDropoff = Boolean(dropoffLat && dropoffLng && dropoffLat !== 0 && dropoffLng !== 0);
 
+    let displayDropoffLat = dropoffLat;
+    let displayDropoffLng = dropoffLng;
+
+    if (!activeRideStatus && passengerLat && passengerLng && dropoffLat && dropoffLng) {
+      const dLat = dropoffLat - passengerLat;
+      const dLng = dropoffLng - passengerLng;
+      const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+      // Pull selected drop location towards passenger icon (max ~0.0035 degrees, about 350 meters)
+      if (dist > 0.0035) {
+        const ratio = 0.0035 / dist;
+        displayDropoffLat = passengerLat + dLat * ratio;
+        displayDropoffLng = passengerLng + dLng * ratio;
+      }
+    }
+
     // Calculate walking distance between passenger standing location and pickup location A
     let distToPickupMeters: number | null = null;
     if (passengerLat && passengerLng && hasPickup && pickupLat && pickupLng) {
@@ -897,8 +912,8 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     // 3. Dropoff Marker (Location B - Destination)
-    if (hasDropoff && dropoffLat && dropoffLng) {
-      bounds.push([dropoffLat, dropoffLng]);
+    if (hasDropoff && displayDropoffLat && displayDropoffLng) {
+      bounds.push([displayDropoffLat, displayDropoffLng]);
       const isDestinationDropoffIcon = dropoffMarkerType === 'destination';
       const bIcon = isDestinationDropoffIcon
         ? createDraggableDropoffIcon(dropoffAddress || undefined, dropoffDistanceText)
@@ -940,7 +955,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
             map.removeLayer(dropoffMarkerRef.current);
           } catch {}
         }
-        dropoffMarkerRef.current = L.marker([dropoffLat, dropoffLng], {
+        dropoffMarkerRef.current = L.marker([displayDropoffLat, displayDropoffLng], {
           icon: bIcon,
           zIndexOffset: isDestinationDropoffIcon ? 3500 : 2500,
           draggable: isDraggableDropoff,
@@ -960,7 +975,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           }
         });
       } else {
-        dropoffMarkerRef.current.setLatLng([dropoffLat, dropoffLng]);
+        dropoffMarkerRef.current.setLatLng([displayDropoffLat, displayDropoffLng]);
         dropoffMarkerRef.current.setIcon(bIcon);
         dropoffMarkerRef.current.setZIndexOffset(isDestinationDropoffIcon ? 3500 : 2500);
         dropoffMarkerRef.current.setPopupContent(dropoffPopupHtml);
@@ -1164,11 +1179,16 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     // 5. Simple Dark Blue Polyline Route (Connecting from pickup Location A to drop-off Location B)
-    if (hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
-      const latlngs: [number, number][] = [
-        [pickupLat, pickupLng],
-        [dropoffLat, dropoffLng],
-      ];
+    if (hasPickup && hasDropoff && pickupLat && pickupLng && displayDropoffLat && displayDropoffLng) {
+      const latlngs: [number, number][] = !activeRideStatus && passengerLat && passengerLng
+        ? [
+            [passengerLat, passengerLng],
+            [displayDropoffLat, displayDropoffLng],
+          ]
+        : [
+            [pickupLat, pickupLng],
+            [displayDropoffLat, displayDropoffLng],
+          ];
 
       // Remove any previous glow / casing polyline
       if (polylineGlowRef.current) {
@@ -1233,8 +1253,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     // ─── STABLE PASSENGER LOCATION LOCK DURING BOOKING SELECTION ───
-    // If neither pickup nor drop-off are selected in the booking form yet, keep the map focused on passenger live location
-    if (!isCaptainMode && !activeRideStatus && !hasPickup && !hasDropoff && passengerLat && passengerLng) {
+    // If we are selecting pick/dropoff in the booking form (i.e., not captain, not active ride, but passenger position is available),
+    // KEEP THE MAP CENTERED on the passenger's current position without moving in any direction!
+    if (!isCaptainMode && !activeRideStatus && passengerLat && passengerLng) {
       const currentRouteKey = `stable_passenger_${passengerLat.toFixed(4)}_${passengerLng.toFixed(4)}_${bottomSheetPadding}`;
       if (lastFittedRouteKeyRef.current !== currentRouteKey) {
         lastFittedRouteKeyRef.current = currentRouteKey;
@@ -1315,7 +1336,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           routeBounds.extend([passengerLat, passengerLng]);
         }
         map.invalidateSize();
-        const bottomPad = bottomSheetPadding || 340;
+        const bottomPad = bottomSheetPadding || 180;
         map.fitBounds(routeBounds, {
           paddingTopLeft: [70, 40],
           paddingBottomRight: [40, bottomPad],
@@ -1329,15 +1350,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       const pad = bottomSheetPadding || 280;
       map.invalidateSize();
       map.fitBounds(L.latLngBounds([[focusLat, focusLng], [focusLat, focusLng]]), {
-        paddingBottomRight: [40, pad],
-        paddingTopLeft: [70, 40],
-        maxZoom: 16,
-        animate: true,
-      });
-    } else if (!isCaptainMode && !hasPickup && hasDropoff && dropoffLat && dropoffLng) {
-      const pad = bottomSheetPadding || 280;
-      map.invalidateSize();
-      map.fitBounds(L.latLngBounds([[dropoffLat, dropoffLng], [dropoffLat, dropoffLng]]), {
         paddingBottomRight: [40, pad],
         paddingTopLeft: [70, 40],
         maxZoom: 16,
