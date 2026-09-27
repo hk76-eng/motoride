@@ -2009,6 +2009,7 @@ motorideRouter.post('/auth/register', (req: Request, res: Response) => {
       wallet_balance: existingAcc?.wallet_balance ?? (cleanRole === 'captain' ? 500 : 200),
       member_since: now,
       created_at: now,
+      avatar_url: req.body.avatar_url || '/default_profile_smile.jpg',
     };
 
     accountsStore.set(storeKey, account);
@@ -2030,6 +2031,7 @@ motorideRouter.post('/auth/register', (req: Request, res: Response) => {
         full_name: account.name,
         email: cleanEmail,
         phone: account.phone || '',
+        avatar_url: account.avatar_url,
         is_online: existingCpt?.is_online ?? true,
         is_approved: existingCpt?.is_approved ?? true,
         is_active: true,
@@ -2061,6 +2063,7 @@ motorideRouter.post('/auth/register', (req: Request, res: Response) => {
         full_name: account.name,
         email: cleanEmail,
         phone: account.phone || '',
+        avatar_url: account.avatar_url,
         total_rides: existingPsg?.total_rides ?? 0,
         rating: existingPsg?.rating ?? 5.0,
         wallet_balance: account.wallet_balance ?? 200,
