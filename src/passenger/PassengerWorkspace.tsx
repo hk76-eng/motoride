@@ -82,6 +82,16 @@ const PRESET_LOCATIONS = [
 ];
 
 const KNOWN_LOCATIONS: { name: string; aliases: string[]; lat: number; lng: number }[] = [
+  // Top-Level Regional Hubs & Centroids
+  { name: 'Chandigarh City Center, Sector 17', aliases: ['chandigarh', 'chd', 'chandigarh city', 'chandigarh ut', 'chandigarh city centre'], lat: 30.739834, lng: 76.782702 },
+  { name: 'Dhakoli, Zirakpur (Ghuman Nagar & Market)', aliases: ['dhakoli', 'dhakoli zirakpur', 'dhakoli mohali', 'gazipur road dhakoli', 'dhakoli market'], lat: 30.638514, lng: 76.842514 },
+  { name: 'Panchkula City Center, Sector 5', aliases: ['panchkula', 'pkl', 'panchkula city', 'panchkula haryana'], lat: 30.695514, lng: 76.852514 },
+  { name: 'Kharar City & Bus Stand', aliases: ['kharar', 'khara', 'kharar bus stand', 'kharar city', 'kharar mohali'], lat: 30.745514, lng: 76.648514 },
+  { name: 'SAS Nagar (Mohali Phase 7 & City Center)', aliases: ['sas nagar', 'sas nagar mohali', 'mohali', 'mohali city', 'phase 7 mohali'], lat: 30.710514, lng: 76.718514 },
+  { name: 'Zirakpur VIP Road & Chowk', aliases: ['zirakpur', 'zirakpur flyover', 'zirakpur chowk'], lat: 30.648514, lng: 76.825514 },
+  { name: 'Baltana, Zirakpur', aliases: ['baltana', 'baltana zirakpur'], lat: 30.662514, lng: 76.845514 },
+  { name: 'Peer Muchalla, Zirakpur', aliases: ['peer muchalla', 'peermuchalla', 'peer muchalla zirakpur'], lat: 30.631514, lng: 76.852514 },
+  { name: 'Mullanpur, New Chandigarh', aliases: ['mullanpur', 'mullanpur garibdas', 'new chandigarh'], lat: 30.814514, lng: 76.745514 },
   // Custom Requested Locations
   { name: 'Teleperformance, Sector 75, Mohali', aliases: ['teleperformance', 'tele performance', 'sector 75 teleperformance', 'teleperformance mohali', '75 teleperformance', 'teleperformance 75'], lat: 30.701124, lng: 76.702514 },
   { name: 'Infosys Limited, IT Park, Chandigarh', aliases: ['infosys', 'infosys it park', 'infosys chandigarh', 'infosys limited'], lat: 30.728514, lng: 76.843124 },

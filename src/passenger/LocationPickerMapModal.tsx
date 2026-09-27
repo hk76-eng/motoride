@@ -132,10 +132,22 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
     setSearchQuery(loc.name);
     setShowSearchResults(false);
     setHasSelectedLocation(true);
-    const isAreaSearch = /\b(dhakoli|zirakpur|sector|mohali|panchkula|mullanpur|kharar|baltana|peer muchalla)\b/i.test(loc.name);
-    const zoomLevel = isAreaSearch ? 15 : 16;
+    const isAreaSearch = /\b(chandigarh|dhakoli|zirakpur|sector|mohali|panchkula|mullanpur|kharar|khara|sas nagar|baltana|peer muchalla)\b/i.test(loc.name);
+    const zoomLevel = isAreaSearch ? 14 : 16;
     setCurrentZoom(zoomLevel);
     setMapFocusCoords({ lat: loc.lat, lng: loc.lng, zoom: zoomLevel, timestamp: Date.now() });
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchResults.length > 0) {
+      handleSelectSearchResult(searchResults[0]);
+    } else if (searchQuery.trim()) {
+      const matches = getInstantMatchingSuggestions(searchQuery.trim());
+      if (matches.length > 0) {
+        handleSelectSearchResult(matches[0]);
+      }
+    }
   };
 
   const handleMapClick = async (lat: number, lng: number) => {
@@ -226,7 +238,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
       </div>
 
       {/* Floating Search Bar Overlay & Live GPS Pill on top of Map */}
-      <div className="relative z-30 px-3 sm:px-6 pt-3 pb-2 max-w-2xl w-full mx-auto flex flex-col gap-2">
+      <form onSubmit={handleSearchSubmit} className="relative z-30 px-3 sm:px-6 pt-3 pb-2 max-w-2xl w-full mx-auto flex flex-col gap-2">
         <div className="relative flex items-center shadow-2xl">
           <Search className="w-4 h-4 text-emerald-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
           <input
@@ -239,8 +251,8 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
             }}
             placeholder={
               targetType === 'pickup'
-                ? 'Search place (e.g. Dhakoli, JW Marriott, Sector 17, VIP Road)...'
-                : 'Search place (e.g. Dhakoli, Elante Mall, PGI, Homeland Heights)...'
+                ? 'Search place (e.g. Dhakoli, Chandigarh, Panchkula, Kharar, SAS Nagar)...'
+                : 'Search place (e.g. Dhakoli, Chandigarh, Panchkula, Kharar, SAS Nagar)...'
             }
             className="w-full pl-10 pr-20 py-3 rounded-2xl bg-slate-900/95 border-2 border-slate-700 focus:border-emerald-500 text-white placeholder-slate-400 text-xs sm:text-sm font-bold shadow-2xl backdrop-blur-xl focus:outline-none transition-all"
           />
@@ -259,9 +271,12 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
                 <X className="w-3.5 h-3.5 stroke-[2.5]" />
               </button>
             ) : (
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/30">
+              <button
+                type="submit"
+                className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500 hover:text-slate-950 px-2 py-0.5 rounded-lg border border-emerald-500/30 transition-all cursor-pointer"
+              >
                 Search
-              </span>
+              </button>
             )}
           </div>
         </div>
@@ -296,19 +311,19 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
             ))}
           </div>
         )}
-      </div>
+      </form>
 
       {/* Main Map View Area */}
       <div className="relative flex-1 w-full h-full overflow-hidden">
         <MotorideMap
           passengerLat={undefined}
           passengerLng={undefined}
-          pickupLat={targetType === 'pickup' && hasSelectedLocation ? selectedLocation.lat : undefined}
-          pickupLng={targetType === 'pickup' && hasSelectedLocation ? selectedLocation.lng : undefined}
-          pickupAddress={targetType === 'pickup' && hasSelectedLocation ? selectedLocation.name : undefined}
-          dropoffLat={targetType === 'dropoff' && hasSelectedLocation ? selectedLocation.lat : undefined}
-          dropoffLng={targetType === 'dropoff' && hasSelectedLocation ? selectedLocation.lng : undefined}
-          dropoffAddress={targetType === 'dropoff' && hasSelectedLocation ? selectedLocation.name : undefined}
+          pickupLat={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
+          pickupLng={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
+          pickupAddress={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.name : undefined}
+          dropoffLat={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
+          dropoffLng={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
+          dropoffAddress={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.name : undefined}
           focusCoords={mapFocusCoords}
           bottomSheetPadding={0}
           showOverlayControls={false}
