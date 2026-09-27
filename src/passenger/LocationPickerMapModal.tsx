@@ -13,6 +13,8 @@ interface LocationPickerMapModalProps {
   getFastLocationName: (lat: number, lng: number) => string;
   resolveLocationNameAsync: (lat: number, lng: number) => Promise<string>;
   getInstantMatchingSuggestions: (query: string) => { name: string; lat: number; lng: number }[];
+  referencePickup?: { name: string; lat: number; lng: number };
+  referenceDropoff?: { name: string; lat: number; lng: number };
 }
 
 export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
@@ -25,6 +27,8 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   getFastLocationName,
   resolveLocationNameAsync,
   getInstantMatchingSuggestions,
+  referencePickup,
+  referenceDropoff,
 }) => {
   // Reliable passenger position fallbacks
   const effectivePassengerLat = (passengerGps && passengerGps.lat > 0)
@@ -290,16 +294,16 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         <MotorideMap
           passengerLat={undefined}
           passengerLng={undefined}
-          pickupLat={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
-          pickupLng={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
-          pickupAddress={targetType === 'pickup' && (hasSelectedLocation || selectedLocation.lat > 0) ? (customPlaceName || selectedLocation.name) : undefined}
+          pickupLat={targetType === 'pickup' ? (hasSelectedLocation || selectedLocation.lat > 0 ? selectedLocation.lat : undefined) : (referencePickup && referencePickup.lat > 0 ? referencePickup.lat : undefined)}
+          pickupLng={targetType === 'pickup' ? (hasSelectedLocation || selectedLocation.lng > 0 ? selectedLocation.lng : undefined) : (referencePickup && referencePickup.lng > 0 ? referencePickup.lng : undefined)}
+          pickupAddress={targetType === 'pickup' ? (hasSelectedLocation || selectedLocation.lat > 0 ? (customPlaceName || selectedLocation.name) : undefined) : (referencePickup && referencePickup.lat > 0 ? referencePickup.name : undefined)}
           pickupMarkerType="marker"
-          onPickupDragEnd={(lat, lng) => handleMapClick(lat, lng)}
-          dropoffLat={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? selectedLocation.lat : undefined}
-          dropoffLng={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lng > 0) ? selectedLocation.lng : undefined}
-          dropoffAddress={targetType === 'dropoff' && (hasSelectedLocation || selectedLocation.lat > 0) ? (customPlaceName || selectedLocation.name) : undefined}
+          onPickupDragEnd={targetType === 'pickup' ? (lat, lng) => handleMapClick(lat, lng) : undefined}
+          dropoffLat={targetType === 'dropoff' ? (hasSelectedLocation || selectedLocation.lat > 0 ? selectedLocation.lat : undefined) : (referenceDropoff && referenceDropoff.lat > 0 ? referenceDropoff.lat : undefined)}
+          dropoffLng={targetType === 'dropoff' ? (hasSelectedLocation || selectedLocation.lng > 0 ? selectedLocation.lng : undefined) : (referenceDropoff && referenceDropoff.lng > 0 ? referenceDropoff.lng : undefined)}
+          dropoffAddress={targetType === 'dropoff' ? (hasSelectedLocation || selectedLocation.lat > 0 ? (customPlaceName || selectedLocation.name) : undefined) : (referenceDropoff && referenceDropoff.lat > 0 ? referenceDropoff.name : undefined)}
           dropoffMarkerType="marker"
-          onDropoffDragEnd={(lat, lng) => handleMapClick(lat, lng)}
+          onDropoffDragEnd={targetType === 'dropoff' ? (lat, lng) => handleMapClick(lat, lng) : undefined}
           focusCoords={mapFocusCoords}
           bottomSheetPadding={0}
           showOverlayControls={false}

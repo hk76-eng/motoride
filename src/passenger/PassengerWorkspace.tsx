@@ -3828,6 +3828,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         targetType={pickerTargetType}
         initialLocation={pickerTargetType === 'pickup' ? pickup : dropoff}
         passengerGps={passengerGps}
+        referencePickup={pickup}
+        referenceDropoff={dropoff}
         onConfirmLocation={(loc) => {
           if (pickerTargetType === 'pickup') {
             setPickup(loc);
