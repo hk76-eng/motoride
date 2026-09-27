@@ -59,21 +59,24 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
   const wasOpenRef = useRef<boolean>(false);
   const isSelectingRef = useRef<boolean>(false);
 
-  // Sync modal state ONLY when modal opens (prevent clearing text while typing!)
+  // Sync modal state ONLY when modal opens (do NOT automatically select live GPS marker!)
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
       wasOpenRef.current = true;
       const startLoc = (initialLocation && initialLocation.lat > 0 && initialLocation.lng > 0)
         ? initialLocation
-        : { name: 'My Live GPS Location', lat: effectivePassengerLat, lng: effectivePassengerLng };
+        : { name: '', lat: 0, lng: 0 };
 
       setSelectedLocation(startLoc);
-      setSearchQuery('');
+      setSearchQuery(startLoc.name || '');
       setSearchResults([]);
       setShowSearchResults(false);
-      setCurrentZoom(15);
-      setHasSelectedLocation(false);
-      setMapFocusCoords({ lat: startLoc.lat, lng: startLoc.lng, zoom: 15, timestamp: Date.now() });
+      setCurrentZoom(14);
+      setHasSelectedLocation(startLoc.lat > 0);
+
+      const focusLat = startLoc.lat > 0 ? startLoc.lat : (effectivePassengerLat || 30.7333);
+      const focusLng = startLoc.lng > 0 ? startLoc.lng : (effectivePassengerLng || 76.7794);
+      setMapFocusCoords({ lat: focusLat, lng: focusLng, zoom: 14, timestamp: Date.now() });
     } else if (!isOpen) {
       wasOpenRef.current = false;
     }

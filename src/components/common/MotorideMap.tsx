@@ -1015,7 +1015,11 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       }
     }
 
-    // Auto-fit bounds or center on position
+    // Auto-fit bounds or center on position (Skip if focusCoords is explicitly provided)
+    if (focusCoords && focusCoords.lat && focusCoords.lng) {
+      return;
+    }
+
     if (showLocationsABOnly && hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
       const abBounds = L.latLngBounds([
         [pickupLat, pickupLng],
