@@ -2434,6 +2434,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         activeRideStatus={activeRide?.status}
         bottomSheetPadding={activeRide ? (isCardMinimized ? 90 : 380) : (isCardMinimized ? 80 : (hasSelectedLocations ? 485 : 320))}
         focusCoords={mapFocusCoords}
+        onFocusCoordsProcessed={() => setMapFocusCoords(null)}
         showOverlayControls={false}
         interactive={!activeRide}
         onSetPickupToPassengerLocation={(lat, lng) => handleSetPickupFromPassengerPosition(lat, lng)}
@@ -3667,7 +3668,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         }}
         title="Recenter Map on My Location"
         aria-label="Recenter Map on My Location"
-        className={`fixed sm:absolute right-3 sm:right-4 z-[950] p-2.5 sm:p-3 rounded-full bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 shadow-2xl backdrop-blur-md flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer group ${
+        className={`fixed sm:absolute right-3 sm:right-4 z-[1050] p-2.5 sm:p-3 rounded-full bg-white hover:bg-slate-50 text-slate-900 border border-slate-200/90 shadow-2xl backdrop-blur-md flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer group ${
           isCardMinimized ? 'bottom-20 sm:bottom-24' : 'bottom-[270px] sm:bottom-[290px]'
         }`}
       >

@@ -103,6 +103,7 @@ interface MotorideMapProps {
   onFocusNearestCaptain?: () => void;
   activeRideStatus?: string | null;
   focusCoords?: { lat: number; lng: number; zoom?: number; timestamp: number } | null;
+  onFocusCoordsProcessed?: () => void;
   onMapMoveStart?: () => void;
   onMapMoveEnd?: (lat: number, lng: number) => void;
   pickupMarkerType?: 'marker' | 'passenger';
@@ -152,6 +153,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   onFocusNearestCaptain,
   activeRideStatus = null,
   focusCoords = null,
+  onFocusCoordsProcessed,
   onMapMoveStart,
   onMapMoveEnd,
   pickupMarkerType = 'marker',
@@ -1408,8 +1410,11 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         animate: true,
         duration: 0.6,
       });
+      if (onFocusCoordsProcessed) {
+        onFocusCoordsProcessed();
+      }
     }
-  }, [focusCoords]);
+  }, [focusCoords, onFocusCoordsProcessed]);
 
   // Center on Passenger or Captain Live Location with Navigator
   const handleNavigatorCenter = () => {
