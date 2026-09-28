@@ -2192,6 +2192,7 @@ motorideRouter.post('/topup-requests/:id/reject', async (req: Request, res: Resp
 
 motorideRouter.get('/topup-requests/:id/messages', async (req: Request, res: Response) => {
   const requestId = req.params.id;
+  console.log(`DEBUG: Fetching messages for request: ${requestId}`);
   
   const { data: messages, error } = await supabase
     .from('topup_chat')
@@ -2200,9 +2201,11 @@ motorideRouter.get('/topup-requests/:id/messages', async (req: Request, res: Res
     .order('created_at', { ascending: true });
 
   if (error) {
+    console.error('DEBUG: Supabase error fetching messages:', error);
     return res.status(500).json({ error: error.message });
   }
 
+  console.log(`DEBUG: Found ${messages?.length || 0} messages for ${requestId}`);
   res.json({ success: true, messages: messages || [] });
 });
 
