@@ -1184,15 +1184,10 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
 
     // 5. Simple Dark Blue Polyline Route (Connecting from pickup Location A to drop-off Location B)
     if (hasPickup && hasDropoff && pickupLat && pickupLng && displayDropoffLat && displayDropoffLng) {
-      const latlngs: [number, number][] = !activeRideStatus && passengerLat && passengerLng
-        ? [
-            [passengerLat, passengerLng],
-            [displayDropoffLat, displayDropoffLng],
-          ]
-        : [
-            [pickupLat, pickupLng],
-            [displayDropoffLat, displayDropoffLng],
-          ];
+      const latlngs: [number, number][] = [
+        [pickupLat, pickupLng],
+        [displayDropoffLat, displayDropoffLng],
+      ];
 
       // Remove any previous glow / casing polyline
       if (polylineGlowRef.current) {
