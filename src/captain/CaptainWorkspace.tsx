@@ -2935,9 +2935,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {captainTopupRequests.map((req) => (
+                  {captainTopupRequests.map((req, idx) => (
                     <div
-                      key={req.id}
+                      key={`${req.id || 'req'}_${idx}_${req.created_at || ''}`}
                       className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition-all"
                     >
                       <div className="flex items-center gap-3">

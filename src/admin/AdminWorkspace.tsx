@@ -2488,9 +2488,9 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {topupRequests
                 .filter(r => topupFilter === 'all' || r.status === topupFilter)
-                .map((req) => (
+                .map((req, idx) => (
                   <div
-                    key={req.id}
+                    key={`${req.id || 'req'}_${idx}_${req.created_at || ''}`}
                     className="p-5 rounded-3xl bg-slate-950 border border-slate-800 flex flex-col gap-4 hover:border-slate-700 transition-all shadow-lg"
                   >
                     {/* Top Bar: Captain Info & Status */}

@@ -61,7 +61,14 @@ export const TopupChatModal: React.FC<TopupChatModalProps> = ({
       if (data?.request_id === depositRequest.id && data?.message) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === data.message.id)) return prev;
-          return [...prev, data.message];
+          const merged = [...prev, data.message];
+          const seen = new Set<string>();
+          return merged.filter((m) => {
+            if (!m.id) return true;
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+          });
         });
       }
     };
@@ -93,7 +100,16 @@ export const TopupChatModal: React.FC<TopupChatModalProps> = ({
   const loadMessages = async () => {
     try {
       const list = await motorideApi.getTopupChatMessages(depositRequest.id);
-      setMessages(list);
+      if (Array.isArray(list)) {
+        const seen = new Set<string>();
+        const deduped = list.filter((m) => {
+          if (!m.id) return true;
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
+          return true;
+        });
+        setMessages(deduped);
+      }
     } catch {}
   };
 
@@ -113,7 +129,10 @@ export const TopupChatModal: React.FC<TopupChatModalProps> = ({
       });
 
       if (newMsg) {
-        setMessages((prev) => [...prev, newMsg]);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === newMsg.id)) return prev;
+          return [...prev, newMsg];
+        });
         if (customText === undefined) setText('');
         setAttachment(null);
       }
@@ -362,11 +381,11 @@ export const TopupChatModal: React.FC<TopupChatModalProps> = ({
           )}
 
           {/* Message Stream */}
-          {messages.map((msg) => {
+          {messages.map((msg, idx) => {
             const isMe = msg.sender_id === currentUserId || (currentUserRole === 'admin' && msg.sender_role === 'admin');
             return (
               <div
-                key={msg.id}
+                key={`${msg.id || 'msg'}_${idx}_${msg.created_at || ''}`}
                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} gap-1`}
               >
                 <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium px-1">
