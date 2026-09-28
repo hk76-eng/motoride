@@ -140,6 +140,10 @@ export function loadQRSettingsFromDisk() {
         ...qrSettings,
         ...data,
       };
+      // Sanitize old mock qrserver URL
+      if (qrSettings.qr_image_url && qrSettings.qr_image_url.includes('qrserver.com')) {
+        qrSettings.qr_image_url = '';
+      }
     }
   } catch (err) {
     console.warn('Failed to load QR settings from disk:', err);
@@ -253,7 +257,7 @@ export function updateFareSettings(newSettings: Partial<FareSettings>): FareSett
 
 // 2. Official Admin QR Code & Payment Setting
 export let qrSettings: QRCodeSetting = {
-  qr_image_url: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=motoride.platform@upi%26pn=Motoride%20Technologies%26cu=INR',
+  qr_image_url: '',
   upi_id: 'motoride.platform@upi',
   merchant_name: 'Motoride Technologies Ltd',
   note: 'Scan using any UPI app (Google Pay, PhonePe, Paytm) to deposit platform commission or top-up driver wallet balance.',

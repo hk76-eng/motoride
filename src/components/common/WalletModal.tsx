@@ -135,18 +135,16 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         </div>
 
         {/* Official Admin QR Code */}
-        {qrSettings && (
-          <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
-            <OfficialQRCodeView
-              qrImageUrl={qrSettings.qr_image_url}
-              upiId={qrSettings.upi_id || 'motoride.platform@upi'}
-              merchantName={qrSettings.merchant_name || 'Motoride Technologies Ltd'}
-              note={qrSettings.note}
-              amount={topupAmount}
-              size={110}
-            />
-          </div>
-        )}
+        <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+          <OfficialQRCodeView
+            qrImageUrl={qrSettings?.qr_image_url}
+            upiId={qrSettings?.upi_id || 'motoride.platform@upi'}
+            merchantName={qrSettings?.merchant_name || 'Motoride Technologies Ltd'}
+            note={qrSettings?.note}
+            amount={topupAmount}
+            size={110}
+          />
+        </div>
 
         {/* Transactions list */}
         <div className="flex flex-col gap-2">

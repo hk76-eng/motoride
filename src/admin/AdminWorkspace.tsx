@@ -67,6 +67,7 @@ import {
   Globe,
   MessageSquare,
 } from 'lucide-react';
+import { OfficialQRCodeView } from '../components/common/OfficialQRCodeView';
 
 const DEFAULT_RIDE_CHARGES: RideChargeSettings = {
   base_fare: 25.0,
@@ -165,8 +166,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const [rideSaveStatus, setRideSaveStatus] = useState<string | null>(null);
   const [courierSaveStatus, setCourierSaveStatus] = useState<string | null>(null);
   const [qrSettings, setQrSettings] = useState<QRCodeSetting>({
-    qr_image_url:
-      'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=motoride.platform@upi%26pn=Motoride%20Technologies%26cu=INR',
+    qr_image_url: '',
     upi_id: 'motoride.platform@upi',
     merchant_name: 'Motoride Technologies Ltd',
     note: 'Scan using any UPI app to deposit platform driver commission or top-up driver wallet balance.',
@@ -1961,15 +1961,14 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-3">
               <span className="text-[11px] font-bold text-slate-400">CURRENT LIVE QR PREVIEW</span>
               <div className="w-48 h-48 p-2 bg-white rounded-2xl shadow-xl flex items-center justify-center overflow-hidden">
-                {qrSettings.qr_image_url ? (
-                  <img
-                    src={qrSettings.qr_image_url}
-                    alt="QR Preview"
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <span className="text-xs text-slate-400 font-bold">No QR Uploaded</span>
-                )}
+                <OfficialQRCodeView
+                  qrImageUrl={qrSettings.qr_image_url}
+                  upiId={qrSettings.upi_id || 'motoride.platform@upi'}
+                  merchantName={qrSettings.merchant_name || 'Motoride Technologies Ltd'}
+                  note={qrSettings.note}
+                  size={160}
+                  showDetails={false}
+                />
               </div>
 
             {/* QR Scanner / Image Upload Option */}

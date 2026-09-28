@@ -1534,6 +1534,9 @@ export const motorideApi = {
     if (cached) {
       try {
         cachedObj = JSON.parse(cached);
+        if (cachedObj && cachedObj.qr_image_url && cachedObj.qr_image_url.includes('qrserver.com')) {
+          cachedObj.qr_image_url = '';
+        }
       } catch {}
     }
 
@@ -1543,6 +1546,9 @@ export const motorideApi = {
 
     const result = json?.qr || cachedObj || defaultQR;
     if (result) {
+      if (result.qr_image_url && result.qr_image_url.includes('qrserver.com')) {
+        result.qr_image_url = '';
+      }
       try {
         safeStorage.setItem('motoride_qr_settings', JSON.stringify(result));
       } catch {}

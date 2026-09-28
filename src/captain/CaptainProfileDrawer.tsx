@@ -533,7 +533,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
               >
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 stroke-[2.5]" />
-                  <span>Captain Wallet & Payouts</span>
+                  <span>Captain Wallet & Official QR Top-Up</span>
                 </div>
                 <ChevronRight className="w-4 h-4 stroke-[2.5]" />
               </button>

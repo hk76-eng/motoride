@@ -167,7 +167,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const cached = safeStorage.getItem('motoride_qr_settings');
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (parsed && typeof parsed === 'object') return parsed;
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.qr_image_url && parsed.qr_image_url.includes('qrserver.com')) {
+            parsed.qr_image_url = '';
+          }
+          return parsed;
+        }
       }
     } catch {}
     return {
@@ -176,7 +181,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       merchant_name: 'Motoride Technologies Ltd',
       note: 'Scan using PhonePe, Google Pay, or Paytm to deposit commission or top up balance.',
       is_active: true,
-      qr_image_url: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=motoride.platform@upi%26pn=Motoride%20Technologies%26cu=INR',
+      qr_image_url: '',
       updated_at: new Date().toISOString(),
     };
   });
@@ -216,6 +221,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [captainTopupRequests, setCaptainTopupRequests] = useState<TopupDepositRequest[]>([]);
   const [activeChatRequest, setActiveChatRequest] = useState<TopupDepositRequest | null>(null);
   const [showQrScanner, setShowQrScanner] = useState<boolean>(false);
+  const [showQuickQrModal, setShowQuickQrModal] = useState<boolean>(false);
 
   const loadCaptainTopupRequests = async () => {
     try {
@@ -760,7 +766,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     });
 
     const unsubQrUpdated = realtimeSync.on('QR_SETTINGS_UPDATED', (qr: QRCodeSetting) => {
-      if (qr) setQrSettings(qr);
+      if (qr) {
+        if (qr.qr_image_url && qr.qr_image_url.includes('qrserver.com')) {
+          qr.qr_image_url = '';
+        }
+        setQrSettings(qr);
+      }
     });
 
     // Automatic daily reset: check if the calendar date changed in the local business timezone (Asia/Kolkata)
@@ -1284,7 +1295,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const loadSettings = async () => {
     try {
       const qr = await motorideApi.getQRSettings();
-      if (qr) setQrSettings(qr);
+      if (qr) {
+        if (qr.qr_image_url && qr.qr_image_url.includes('qrserver.com')) {
+          qr.qr_image_url = '';
+        }
+        setQrSettings(qr);
+      }
       const fare = await motorideApi.getFareSettings();
       if (fare) setFareSettings(fare);
     } catch {}
@@ -2077,6 +2093,27 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                     ? 'Passenger ride requests appear here instantly in real time with audio alert'
                     : 'Use the Online capsule button near Captain App at the top right to go Online and receive rides'}
                 </span>
+
+                {/* Instant Official QR Top-Up Banner */}
+                <div className="mt-3.5 p-3.5 rounded-2xl bg-slate-900 border border-amber-500/40 flex items-center justify-between gap-3 w-full shadow-lg">
+                  <div className="flex items-center gap-2.5 text-left min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
+                      <QrCode className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-black text-white truncate">Top-Up via Official QR</h4>
+                      <p className="text-[10px] text-slate-400 truncate">Wallet: ₹{walletBalance.toFixed(2)} • Instant UPI credit</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickQrModal(true)}
+                    className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all active:scale-95 shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <QrCode className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Open QR</span>
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -2619,6 +2656,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           <span className="text-[10px] font-mono-num font-bold px-1.5 py-0.5 rounded-md bg-black/40 text-amber-300 border border-amber-500/30">
             ₹{walletBalance.toFixed(0)}
           </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowQuickQrModal(true)}
+          className="px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-300 border border-emerald-500/40 shadow-sm active:scale-95"
+          title="Open Official QR Code to scan & pay"
+        >
+          <QrCode className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
+          <span>Official QR</span>
         </button>
 
         <button
@@ -3186,6 +3233,99 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             }
           }}
         />
+      )}
+
+      {/* Quick Official QR Code Modal */}
+      {showQuickQrModal && (
+        <div
+          onClick={() => setShowQuickQrModal(false)}
+          className="fixed inset-0 z-[2200] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-6 flex flex-col gap-4 shadow-2xl relative max-h-[90vh] overflow-y-auto"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
+                  <QrCode className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-white">Official Motoride QR Code</h3>
+                  <span className="text-[10px] text-slate-400 font-medium">Scan & Pay using PhonePe, GPay, or Paytm</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuickQrModal(false)}
+                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Guaranteed Crisp QR Code View */}
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-2 items-center">
+              <OfficialQRCodeView
+                qrImageUrl={qrSettings?.qr_image_url}
+                upiId={qrSettings?.upi_id || 'motoride.platform@upi'}
+                merchantName={qrSettings?.merchant_name || 'Motoride Technologies Ltd'}
+                note={qrSettings?.note}
+                amount={topupAmountInput}
+                size={160}
+              />
+            </div>
+
+            {/* Quick Amount Selector */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-bold text-slate-300">Top-Up Amount (₹)</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {[100, 200, 500, 1000].map((amt) => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setTopupAmountInput(amt.toString())}
+                    className={`py-1.5 rounded-xl text-xs font-black font-mono-num transition-all cursor-pointer border ${
+                      topupAmountInput === amt.toString()
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md'
+                        : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800'
+                    }`}
+                  >
+                    +₹{amt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Actions: Scan Camera & Full Wallet Actions */}
+            <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickQrModal(false);
+                  setShowQrScanner(true);
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              >
+                <Camera className="w-4 h-4 text-amber-400" />
+                <span>Scan Physical QR / Receipt with Camera</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickQrModal(false);
+                  setActiveTab('wallet');
+                }}
+                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95"
+              >
+                <Wallet className="w-4 h-4 stroke-[2.5]" />
+                <span>Go to Full Wallet & Submit Payment Slip</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
