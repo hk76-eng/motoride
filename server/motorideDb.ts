@@ -41,6 +41,7 @@ export function broadcastEvent(event: string, payload: any) {
 // 1. Initial Fare Settings & Separate Ride/Courier Configurations
 const DATA_DIR = path.join(process.cwd(), 'data');
 const FARE_FILE = path.join(DATA_DIR, 'fare_settings.json');
+const QR_FILE = path.join(DATA_DIR, 'qr_settings.json');
 
 export const defaultRideCharges: RideChargeSettings = {
   base_fare: 25.0,
@@ -119,8 +120,35 @@ export function loadFareSettingsFromDisk() {
   }
 }
 
+export function saveQRSettingsToDisk() {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(QR_FILE, JSON.stringify(qrSettings, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Failed to save QR settings to disk:', err);
+  }
+}
+
+export function loadQRSettingsFromDisk() {
+  try {
+    if (fs.existsSync(QR_FILE)) {
+      const raw = fs.readFileSync(QR_FILE, 'utf-8');
+      const data = JSON.parse(raw);
+      qrSettings = {
+        ...qrSettings,
+        ...data,
+      };
+    }
+  } catch (err) {
+    console.warn('Failed to load QR settings from disk:', err);
+  }
+}
+
 // Automatically load persisted fare settings
 loadFareSettingsFromDisk();
+loadQRSettingsFromDisk();
 
 export function updateFareSettings(newSettings: Partial<FareSettings>): FareSettings {
   const mergedRide: RideChargeSettings = {
@@ -240,6 +268,7 @@ export function updateQRSettings(newSettings: Partial<QRCodeSetting>): QRCodeSet
     updated_at: new Date().toISOString(),
   };
   broadcastEvent('QR_SETTINGS_UPDATED', qrSettings);
+  saveQRSettingsToDisk();
   return qrSettings;
 }
 
