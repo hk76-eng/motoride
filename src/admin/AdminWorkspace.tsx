@@ -1912,96 +1912,30 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 {qrSettings.upi_id}
               </span>
 
-              {/* QR Scanner / Image Upload Option */}
+            {/* QR Scanner / Image Upload Option */}
               <div className="w-full pt-2 border-t border-slate-800">
                 <label className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-white cursor-pointer transition-all flex items-center justify-center gap-2 shadow-md">
                   <UploadCloud className="w-4 h-4 text-emerald-400" />
-                  <span>Upload & Scan QR Code Image</span>
+                  <span>Remove QR Code Image</span>
                   <input
-                    type="file"
-                    accept="image/*"
+                    type="button"
                     className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (uploadEvent) => {
-                        const result = uploadEvent.target?.result as string;
-                        if (result) {
-                          setQrSettings({ ...qrSettings, qr_image_url: result });
-                          if (typeof showToast === 'function') {
-                            showToast('Official QR code successfully uploaded & scanned!');
-                          }
-                        }
-                      };
-                      reader.readAsDataURL(file);
+                    onClick={() => {
+                        setQrSettings({ ...qrSettings, qr_image_url: '' });
                     }}
                   />
                 </label>
               </div>
             </div>
 
-            {/* Edit Fields */}
+            {/* Edit Fields (Removed fields) */}
             <div className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">
-                  QR Image URL (or standard UPI generator URL)
-                </label>
-                <input
-                  type="text"
-                  value={qrSettings.qr_image_url}
-                  onChange={(e) =>
-                    setQrSettings({ ...qrSettings, qr_image_url: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">
-                  Merchant UPI ID
-                </label>
-                <input
-                  type="text"
-                  value={qrSettings.upi_id}
-                  onChange={(e) => setQrSettings({ ...qrSettings, upi_id: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-num text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">
-                  Merchant Display Name
-                </label>
-                <input
-                  type="text"
-                  value={qrSettings.merchant_name}
-                  onChange={(e) =>
-                    setQrSettings({ ...qrSettings, merchant_name: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-400 block mb-1">
-                  Instructions / Note for Captains
-                </label>
-                <textarea
-                  rows={2}
-                  value={qrSettings.note}
-                  onChange={(e) => setQrSettings({ ...qrSettings, note: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white"
-                />
-              </div>
-
               <button
                 type="button"
                 onClick={handleSaveQR}
-                className="mt-2 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-lg transition-all"
               >
-                <Save className="w-4 h-4" />
-                <span>Save QR Code Setting</span>
+                Save Settings
               </button>
             </div>
           </div>
