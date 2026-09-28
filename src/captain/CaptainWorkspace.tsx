@@ -51,6 +51,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Copy,
+  UploadCloud,
 } from 'lucide-react';
 import defaultRituAvatar from '../assets/images/passenger_ritu_avatar_1790347071742.jpg';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
