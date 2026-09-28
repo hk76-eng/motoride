@@ -2695,13 +2695,13 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 </div>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base sm:text-lg font-black text-white">Captain Wallet & Payouts</h2>
+                    <h2 className="text-base sm:text-lg font-black text-white">Captain Wallet</h2>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
                       Active Partner
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 font-medium">
-                    Manage driver balance, top-up via Official Admin QR, and request instant earnings payouts
+                    Manage driver balance and top-up via Official Admin QR code
                   </p>
                 </div>
               </div>
@@ -2779,8 +2779,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* Main Action Grid: Topup (Left) & Withdraw (Right) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Main Action Section: Topup via Official Admin QR */}
+            <div className="w-full">
               
               {/* Top-Up Section with Official Admin QR */}
               <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col gap-5 shadow-xl">
@@ -2922,55 +2922,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                     <span>{isSubmittingProof ? 'Submitting Payment Proof...' : 'Submit Payment Proof & Open Chat'}</span>
                   </button>
                 </div>
-              </div>
-
-              {/* Withdrawal Section */}
-              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col justify-between gap-5 shadow-xl">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800">
-                    <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
-                      <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-extrabold text-white">Withdraw Earnings / Request Payout</h3>
-                      <span className="text-[11px] text-slate-400">Transfer wallet funds directly to your UPI ID</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-300 block mb-1">Payout Amount (₹)</label>
-                      <input
-                        type="number"
-                        value={payoutAmountInput}
-                        onChange={(e) => setPayoutAmountInput(e.target.value)}
-                        placeholder="e.g. 500"
-                        className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-num font-bold text-white focus:outline-none focus:border-amber-500/50"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-300 block mb-1">Your UPI ID or Bank Details</label>
-                      <input
-                        type="text"
-                        value={payoutUpiInput}
-                        onChange={(e) => setPayoutUpiInput(e.target.value)}
-                        placeholder="e.g. captain@upi or A/C 9182371983 IFSC HDFC000123"
-                        className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-amber-500/50"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleExecutePayout}
-                  disabled={isProcessingPayout}
-                  className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xl shadow-amber-950/50 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-                  <span>{isProcessingPayout ? 'Submitting Payout...' : 'Request Instant Payout'}</span>
-                </button>
               </div>
 
             </div>
