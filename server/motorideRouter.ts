@@ -2008,6 +2008,8 @@ motorideRouter.get('/topup-requests', (req: Request, res: Response) => {
 motorideRouter.post('/topup-requests', (req: Request, res: Response) => {
   const { captain_id, captain_name, captain_phone, captain_avatar, amount, utr_number, payment_slip_url, note } = req.body;
   
+  console.log('DEBUG: Received top-up request from:', captain_id, 'Amount:', amount, 'Has Slip URL:', !!payment_slip_url, 'URL Length:', payment_slip_url?.length);
+
   if (!captain_id || !amount || Number(amount) <= 0) {
     return res.status(400).json({ error: 'Valid captain ID and deposit amount required' });
   }

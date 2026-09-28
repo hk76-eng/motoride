@@ -366,8 +366,9 @@ export function persistDbToDisk() {
       topupChat: Array.from(topupChatStore.entries()),
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    console.log('Successfully persisted DB to:', DB_FILE);
   } catch (err) {
-    console.warn('Failed to persist DB to disk:', err);
+    console.error('CRITICAL: Failed to persist DB to disk:', err);
   }
 }
 
