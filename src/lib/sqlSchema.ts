@@ -245,6 +245,8 @@ CREATE TABLE IF NOT EXISTS public.topup_requests (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()),
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );
+ALTER TABLE public.topup_requests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow All Topup Requests" ON public.topup_requests FOR ALL USING (true) WITH CHECK (true);
 
 -- 18. Top-Up Chat Messages
 CREATE TABLE IF NOT EXISTS public.topup_chat (
@@ -257,6 +259,8 @@ CREATE TABLE IF NOT EXISTS public.topup_chat (
     image_url TEXT,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );
+ALTER TABLE public.topup_chat ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow All Topup Chat" ON public.topup_chat FOR ALL USING (true) WITH CHECK (true);
 
 -- Realtime publication for topup data
 ALTER PUBLICATION supabase_realtime ADD TABLE public.topup_requests;
