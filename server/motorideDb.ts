@@ -345,8 +345,6 @@ export interface TopupChatMessage {
   created_at: string;
 }
 
-export const topupRequestsStore = new Map<string, TopupDepositRequest>();
-export const topupChatStore = new Map<string, TopupChatMessage[]>();
 
 // Persistent Disk Storage helpers for server container reliability
 const DB_FILE = path.join(DATA_DIR, 'motoride_db.json');
@@ -362,8 +360,6 @@ export function persistDbToDisk() {
       passengers: Array.from(passengersStore.entries()),
       wallets: Array.from(walletsStore.entries()),
       rides: Array.from(ridesStore.entries()),
-      topupRequests: Array.from(topupRequestsStore.entries()),
-      topupChat: Array.from(topupChatStore.entries()),
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
     console.log('Successfully persisted DB to:', DB_FILE);
