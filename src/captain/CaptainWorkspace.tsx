@@ -740,9 +740,40 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (qr) setQrSettings(qr);
     });
 
-    const unsubTopupUpdated = realtimeSync.on('TOPUP_REQUEST_UPDATED', () => {
+    const unsubTopupUpdated = realtimeSync.on('TOPUP_REQUEST_UPDATED', (payload: any) => {
       loadCaptainTopupRequests();
       loadCaptainData();
+      const currentId = captainIdRef.current || captainRef.current?.id || '';
+      const reqCaptId = payload?.request?.captain_id || payload?.user_id || '';
+      if (reqCaptId && (reqCaptId === currentId || reqCaptId === authUserRef.current?.id || reqCaptId === captainRef.current?.phone)) {
+        if (payload?.wallet?.balance !== undefined) {
+          setWalletBalance(payload.wallet.balance);
+        }
+        if (payload?.status === 'approved' || payload?.request?.status === 'approved') {
+          setWalletMessage(`🎉 Payment verified! Your wallet has been credited immediately.`);
+          setTimeout(() => setWalletMessage(null), 5000);
+        }
+      }
+    });
+
+    const unsubWalletUpdated = realtimeSync.on('WALLET_UPDATED', (payload: any) => {
+      const currentId = captainIdRef.current || captainRef.current?.id || '';
+      const targetId = payload?.user_id || payload?.captain_id || '';
+      if (targetId && (targetId === currentId || targetId === authUserRef.current?.id || targetId === captainRef.current?.phone)) {
+        if (typeof payload?.balance === 'number') {
+          setWalletBalance(payload.balance);
+        }
+        loadCaptainData();
+      }
+    });
+
+    const unsubProfilesUpdated = realtimeSync.on('PROFILES_UPDATED', (prof: any) => {
+      const currentId = captainIdRef.current || captainRef.current?.id || '';
+      if (prof && (prof.id === currentId || prof.phone === currentId || prof.id === authUserRef.current?.id)) {
+        if (typeof prof.wallet_balance === 'number') {
+          setWalletBalance(prof.wallet_balance);
+        }
+      }
     });
 
     // Automatic daily reset: check if the calendar date changed in the local business timezone (Asia/Kolkata)
@@ -798,6 +829,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       unsubFareUpdated();
       unsubQrUpdated();
       unsubTopupUpdated();
+      unsubWalletUpdated();
+      unsubProfilesUpdated();
       clearInterval(rolloverInterval);
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleVisibility);

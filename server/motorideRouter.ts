@@ -2190,15 +2190,33 @@ motorideRouter.post('/topup-requests/:id/approve', async (req: Request, res: Res
 
   persistDbToDisk();
 
-  // Try updating Supabase
+  // Try updating Supabase (Profiles, Wallets, Transactions, and Topup Request)
   try {
     await supabase.from('topup_requests').update({ status: 'approved', updated_at: now }).eq('id', requestId);
     await supabase.from('topup_chat').insert([approvalMsg]);
+    
+    // Update Supabase Wallets table
+    await supabase.from('wallets').upsert([{
+      user_id: request.captain_id,
+      balance: wallet.balance,
+      currency: '₹',
+      updated_at: now,
+    }]);
+
+    // Update Supabase Profiles table
+    await supabase.from('profiles').update({
+      wallet_balance: wallet.balance,
+      updated_at: now,
+    }).eq('id', request.captain_id);
+
+    // Insert Supabase Wallet Transaction
+    await supabase.from('wallet_transactions').insert([tx]);
   } catch (err) {
     console.warn('Supabase approve update error:', err);
   }
 
   broadcastEvent('TOPUP_REQUEST_UPDATED', { request, wallet, transaction: tx, message: approvalMsg });
+  broadcastEvent('WALLET_UPDATED', { user_id: request.captain_id, balance: wallet.balance, wallet, transaction: tx });
   res.json({ success: true, request, wallet, transaction: tx });
 });
 
