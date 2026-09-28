@@ -101,6 +101,29 @@ class RealtimeSyncManager {
                 this.emit('CAPTAINS_UPDATED', payload.new);
               }
             )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'topup_requests' },
+              (payload: any) => {
+                if (payload.eventType === 'INSERT') {
+                  this.emit('TOPUP_REQUEST_CREATED', { request: payload.new });
+                } else if (payload.eventType === 'UPDATE') {
+                  this.emit('TOPUP_REQUEST_UPDATED', { request: payload.new, id: payload.new?.id, status: payload.new?.status });
+                }
+              }
+            )
+            .on(
+              'postgres_changes',
+              { event: 'INSERT', schema: 'public', table: 'topup_chat' },
+              (payload: any) => {
+                if (payload.new) {
+                  this.emit('TOPUP_CHAT_MESSAGE_RECEIVED', {
+                    request_id: payload.new.request_id,
+                    message: payload.new,
+                  });
+                }
+              }
+            )
             .subscribe((status: string) => {
               if (status === 'SUBSCRIBED') {
                 this.isConnected = true;

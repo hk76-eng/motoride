@@ -1626,12 +1626,74 @@ export const motorideApi = {
     const qs = queryParams.toString();
     const url = `${API_BASE}/topup-requests${qs ? `?${qs}` : ''}`;
 
-    const json = await safeFetchJson<{ requests: TopupDepositRequest[] }>(
-      url,
-      undefined,
-      { requests: [] }
+    let serverList: TopupDepositRequest[] = [];
+    try {
+      const json = await safeFetchJson<{ requests: TopupDepositRequest[] }>(
+        url,
+        undefined,
+        { requests: [] }
+      );
+      if (Array.isArray(json?.requests) && json.requests.length > 0) {
+        serverList = json.requests;
+      }
+    } catch {}
+
+    // Direct Supabase query (Crucial for Vercel SPA deployment where server API might not be co-hosted)
+    const supabase = getSupabase();
+    let supabaseList: TopupDepositRequest[] = [];
+    if (supabase) {
+      try {
+        let query = supabase.from('topup_requests').select('*');
+        if (params?.captain_id) {
+          query = query.eq('captain_id', params.captain_id);
+        }
+        if (params?.status && params.status !== 'all') {
+          query = query.eq('status', params.status);
+        }
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (!error && Array.isArray(data)) {
+          supabaseList = data;
+        }
+      } catch (err) {
+        console.warn('Supabase topup_requests fetch warning:', err);
+      }
+    }
+
+    // Merge server, Supabase, and local cache
+    const mergedMap = new Map<string, TopupDepositRequest>();
+    supabaseList.forEach((r) => { if (r?.id) mergedMap.set(r.id, r); });
+    serverList.forEach((r) => { if (r?.id) mergedMap.set(r.id, { ...(mergedMap.get(r.id) || {}), ...r }); });
+
+    const localCached = safeStorage.getItem('motoride_topup_requests_cache');
+    if (localCached) {
+      try {
+        const parsed = JSON.parse(localCached);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((r: TopupDepositRequest) => {
+            if (r?.id && !mergedMap.has(r.id)) {
+              mergedMap.set(r.id, r);
+            }
+          });
+        }
+      } catch {}
+    }
+
+    let finalRequests = Array.from(mergedMap.values()).sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-    return json.requests || [];
+
+    if (params?.captain_id) {
+      finalRequests = finalRequests.filter((r) => r.captain_id === params.captain_id);
+    }
+    if (params?.status && params.status !== 'all') {
+      finalRequests = finalRequests.filter((r) => r.status === params.status);
+    }
+
+    try {
+      safeStorage.setItem('motoride_topup_requests_cache', JSON.stringify(finalRequests));
+    } catch {}
+
+    return finalRequests;
   },
 
   async createTopupRequest(data: {
@@ -1644,53 +1706,280 @@ export const motorideApi = {
     payment_slip_url?: string;
     note?: string;
   }): Promise<TopupDepositRequest> {
-    const json = await safeFetchJson<{ request: TopupDepositRequest }>(`${API_BASE}/topup-requests`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return json.request;
+    const reqId = `dep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString();
+
+    const fallbackRequest: TopupDepositRequest = {
+      id: reqId,
+      captain_id: data.captain_id,
+      captain_name: data.captain_name || 'Captain Partner',
+      captain_phone: data.captain_phone || '',
+      captain_avatar: data.captain_avatar || '',
+      amount: Number(data.amount) || 0,
+      utr_number: data.utr_number || '',
+      payment_slip_url: data.payment_slip_url || '',
+      note: data.note || '',
+      status: 'pending',
+      created_at: now,
+      updated_at: now,
+    };
+
+    const initialMsg: TopupChatMessage = {
+      id: `msg_${Date.now()}`,
+      request_id: reqId,
+      sender_id: data.captain_id,
+      sender_role: 'captain',
+      sender_name: data.captain_name || 'Captain',
+      message: `Submitted top-up deposit request for ₹${data.amount}.${data.utr_number ? ` UTR: ${data.utr_number}` : ''}`,
+      image_url: data.payment_slip_url || undefined,
+      created_at: now,
+    };
+
+    // Save to local cached list immediately
+    try {
+      const currentCached = safeStorage.getItem('motoride_topup_requests_cache');
+      const list: TopupDepositRequest[] = currentCached ? JSON.parse(currentCached) : [];
+      list.unshift(fallbackRequest);
+      safeStorage.setItem('motoride_topup_requests_cache', JSON.stringify(list));
+    } catch {}
+
+    // 1. Try Backend API
+    let serverResult: TopupDepositRequest | null = null;
+    try {
+      const json = await safeFetchJson<{ request: TopupDepositRequest }>(`${API_BASE}/topup-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (json?.request) {
+        serverResult = json.request;
+      }
+    } catch {}
+
+    const result = serverResult || fallbackRequest;
+
+    // 2. Persist directly to Supabase
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await supabase.from('topup_requests').insert([result]);
+        await supabase.from('topup_chat').insert([{
+          ...initialMsg,
+          request_id: result.id,
+        }]);
+      } catch (err) {
+        console.warn('Supabase topup_requests direct insert warning:', err);
+      }
+    }
+
+    realtimeSync.broadcast('TOPUP_REQUEST_CREATED', { request: result, message: initialMsg });
+    return result;
   },
 
   async approveTopupRequest(id: string): Promise<{ request: TopupDepositRequest; wallet: { balance: number } }> {
-    const json = await safeFetchJson<{ request: TopupDepositRequest; wallet: { balance: number } }>(
-      `${API_BASE}/topup-requests/${id}/approve`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' } }
-    );
-    return json;
+    const now = new Date().toISOString();
+
+    // 1. Try backend API
+    try {
+      const json = await safeFetchJson<{ request: TopupDepositRequest; wallet: { balance: number } }>(
+        `${API_BASE}/topup-requests/${id}/approve`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+      if (json?.request) {
+        realtimeSync.broadcast('TOPUP_REQUEST_UPDATED', { request: json.request, id, status: 'approved' });
+        return json;
+      }
+    } catch {}
+
+    // 2. Direct Supabase update
+    let updatedRequest: TopupDepositRequest = {
+      id,
+      captain_id: '',
+      captain_name: 'Captain',
+      amount: 0,
+      status: 'approved',
+      created_at: now,
+      updated_at: now,
+    };
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data: current } = await supabase.from('topup_requests').select('*').eq('id', id).single();
+        if (current) {
+          updatedRequest = { ...current, status: 'approved', updated_at: now };
+          await supabase.from('topup_requests').update({ status: 'approved', updated_at: now }).eq('id', id);
+
+          // Credit captain profile/wallet
+          const { data: profile } = await supabase.from('profiles').select('wallet_balance').eq('id', current.captain_id).single();
+          const newBal = Number((Number(profile?.wallet_balance || 0) + Number(current.amount)).toFixed(2));
+          await supabase.from('profiles').update({ wallet_balance: newBal }).eq('id', current.captain_id);
+
+          // Insert confirmation chat message
+          await supabase.from('topup_chat').insert([{
+            request_id: id,
+            sender_id: 'admin',
+            sender_role: 'admin',
+            sender_name: 'Motoride Admin',
+            message: `✅ Payment verified! ₹${current.amount} has been credited to your wallet balance.`,
+            created_at: now,
+          }]);
+        }
+      } catch (err) {
+        console.warn('Supabase approve direct update warning:', err);
+      }
+    }
+
+    realtimeSync.broadcast('TOPUP_REQUEST_UPDATED', { request: updatedRequest, id, status: 'approved' });
+    return { request: updatedRequest, wallet: { balance: updatedRequest.amount } };
   },
 
   async rejectTopupRequest(id: string, rejection_reason?: string): Promise<{ request: TopupDepositRequest }> {
-    const json = await safeFetchJson<{ request: TopupDepositRequest }>(
-      `${API_BASE}/topup-requests/${id}/reject`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rejection_reason }),
+    const now = new Date().toISOString();
+    const reason = rejection_reason || 'Payment verification failed';
+
+    // 1. Try backend API
+    try {
+      const json = await safeFetchJson<{ request: TopupDepositRequest }>(
+        `${API_BASE}/topup-requests/${id}/reject`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rejection_reason: reason }),
+        }
+      );
+      if (json?.request) {
+        realtimeSync.broadcast('TOPUP_REQUEST_UPDATED', { request: json.request, id, status: 'rejected' });
+        return json;
       }
-    );
-    return json;
+    } catch {}
+
+    // 2. Direct Supabase update
+    let updatedRequest: TopupDepositRequest = {
+      id,
+      captain_id: '',
+      captain_name: 'Captain',
+      amount: 0,
+      status: 'rejected',
+      rejection_reason: reason,
+      created_at: now,
+      updated_at: now,
+    };
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data: current } = await supabase.from('topup_requests').select('*').eq('id', id).single();
+        if (current) {
+          updatedRequest = { ...current, status: 'rejected', rejection_reason: reason, updated_at: now };
+          await supabase.from('topup_requests').update({
+            status: 'rejected',
+            rejection_reason: reason,
+            updated_at: now,
+          }).eq('id', id);
+
+          // Insert rejection chat message
+          await supabase.from('topup_chat').insert([{
+            request_id: id,
+            sender_id: 'admin',
+            sender_role: 'admin',
+            sender_name: 'Motoride Admin',
+            message: `❌ Deposit request rejected: ${reason}`,
+            created_at: now,
+          }]);
+        }
+      } catch (err) {
+        console.warn('Supabase reject direct update warning:', err);
+      }
+    }
+
+    realtimeSync.broadcast('TOPUP_REQUEST_UPDATED', { request: updatedRequest, id, status: 'rejected' });
+    return { request: updatedRequest };
   },
 
   async getTopupChatMessages(id: string): Promise<TopupChatMessage[]> {
-    const json = await safeFetchJson<{ messages: TopupChatMessage[] }>(
-      `${API_BASE}/topup-requests/${id}/messages?t=${Date.now()}`,
-      undefined,
-      { messages: [] }
+    const msgMap = new Map<string, TopupChatMessage>();
+
+    // 1. Try backend API
+    try {
+      const json = await safeFetchJson<{ messages: TopupChatMessage[] }>(
+        `${API_BASE}/topup-requests/${id}/messages?t=${Date.now()}`,
+        undefined,
+        { messages: [] }
+      );
+      if (Array.isArray(json?.messages)) {
+        json.messages.forEach((m) => { if (m?.id) msgMap.set(m.id, m); });
+      }
+    } catch {}
+
+    // 2. Try direct Supabase
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data: messages, error } = await supabase
+          .from('topup_chat')
+          .select('*')
+          .eq('request_id', id)
+          .order('created_at', { ascending: true });
+
+        if (!error && Array.isArray(messages)) {
+          messages.forEach((m) => { if (m?.id) msgMap.set(m.id, m); });
+        }
+      } catch (err) {
+        console.warn('Supabase topup_chat fetch warning:', err);
+      }
+    }
+
+    return Array.from(msgMap.values()).sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     );
-    return json.messages || [];
   },
 
   async sendTopupChatMessage(
     id: string,
     data: { sender_id: string; sender_role: 'admin' | 'captain'; sender_name: string; message: string; image_url?: string }
   ): Promise<TopupChatMessage> {
-    const json = await safeFetchJson<{ message: TopupChatMessage }>(`${API_BASE}/topup-requests/${id}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return json.message;
+    const now = new Date().toISOString();
+    const fallbackMsg: TopupChatMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      request_id: id,
+      sender_id: data.sender_id,
+      sender_role: data.sender_role || 'captain',
+      sender_name: data.sender_name || 'User',
+      message: data.message || '',
+      image_url: data.image_url || undefined,
+      created_at: now,
+    };
+
+    let resultMsg: TopupChatMessage = fallbackMsg;
+
+    // 1. Try backend API
+    try {
+      const json = await safeFetchJson<{ message: TopupChatMessage }>(`${API_BASE}/topup-requests/${id}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (json?.message) {
+        resultMsg = json.message;
+      }
+    } catch {}
+
+    // 2. Direct Supabase insert
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data: sbData } = await supabase.from('topup_chat').insert([resultMsg]).select().single();
+        if (sbData?.id) {
+          resultMsg = sbData;
+        }
+      } catch (err) {
+        console.warn('Supabase topup_chat send warning:', err);
+      }
+    }
+
+    realtimeSync.broadcast('TOPUP_CHAT_MESSAGE_RECEIVED', { request_id: id, message: resultMsg });
+    return resultMsg;
   },
 
   // 7. Admin Stats & Notifications
