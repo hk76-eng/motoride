@@ -1996,6 +1996,8 @@ motorideRouter.get('/topup-requests', async (req: Request, res: Response) => {
   const captainId = req.query.captain_id as string;
   const status = req.query.status as string;
 
+  console.log('DEBUG: Fetching topup requests. Captain:', captainId, 'Status:', status);
+
   let query = supabase.from('topup_requests').select('*');
   if (captainId) {
     query = query.eq('captain_id', captainId);
@@ -2007,9 +2009,11 @@ motorideRouter.get('/topup-requests', async (req: Request, res: Response) => {
   const { data: requests, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
+    console.error('DEBUG: Supabase fetch error:', error);
     return res.status(500).json({ error: error.message });
   }
 
+  console.log('DEBUG: Found', requests?.length || 0, 'topup requests');
   res.json({ success: true, requests });
 });
 
