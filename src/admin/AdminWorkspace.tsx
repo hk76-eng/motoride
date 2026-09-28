@@ -679,34 +679,37 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       const captainMap = new Map<string, Captain>();
       for (const cpt of [...(c || []), ...localCaptains]) {
         if (!cpt || isDemoAccount(cpt)) continue;
-        const key = (cpt.email && cpt.email.includes('@')) ? cpt.email.toLowerCase() : cpt.id;
-        const existing = captainMap.get(key);
+        const key = cpt.id || cpt.email?.toLowerCase() || cpt.phone;
+        if (!key) continue;
+        const existing = captainMap.get(key) || (cpt.email ? captainMap.get(cpt.email.toLowerCase()) : null);
         if (!existing) {
           captainMap.set(key, cpt);
+          if (cpt.id) captainMap.set(cpt.id, cpt);
         } else {
-          // Merge details if existing has placeholder values
           if (cpt.full_name && (!existing.full_name || existing.full_name === 'Captain')) existing.full_name = cpt.full_name;
           if (cpt.phone && !existing.phone) existing.phone = cpt.phone;
           if (cpt.vehicle?.model && !existing.vehicle?.model) existing.vehicle.model = cpt.vehicle.model;
           if (cpt.vehicle?.plate_number && !existing.vehicle?.plate_number) existing.vehicle.plate_number = cpt.vehicle.plate_number;
         }
       }
-      const filteredCaptains = Array.from(captainMap.values());
+      const filteredCaptains = Array.from(new Set(captainMap.values()));
 
       const passengerMap = new Map<string, Passenger>();
       for (const psg of [...(p || []), ...localPassengers]) {
         if (!psg || isDemoAccount(psg)) continue;
-        const key = (psg.email && psg.email.includes('@')) ? psg.email.toLowerCase() : psg.id;
-        const existing = passengerMap.get(key);
+        const key = psg.id || psg.email?.toLowerCase() || psg.phone;
+        if (!key) continue;
+        const existing = passengerMap.get(key) || (psg.email ? passengerMap.get(psg.email.toLowerCase()) : null);
         if (!existing) {
           passengerMap.set(key, psg);
+          if (psg.id) passengerMap.set(psg.id, psg);
         } else {
-          // Merge details if existing has placeholder values
           if (psg.full_name && (!existing.full_name || existing.full_name === 'Passenger')) existing.full_name = psg.full_name;
           if (psg.phone && !existing.phone) existing.phone = psg.phone;
+          if (psg.email && !existing.email) existing.email = psg.email;
         }
       }
-      const filteredPassengers = Array.from(passengerMap.values());
+      const filteredPassengers = Array.from(new Set(passengerMap.values()));
 
       const filteredRides = (r || []).filter(ride => !isDemoRide(ride));
 
