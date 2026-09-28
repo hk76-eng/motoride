@@ -5,6 +5,7 @@ import {
   QRCodeSetting,
   FareSettings,
   WalletTransaction,
+  TopupDepositRequest,
 } from '../types/motoride';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
@@ -52,9 +53,12 @@ import {
   ArrowDownLeft,
   Copy,
   UploadCloud,
+  Camera,
 } from 'lucide-react';
 import defaultRituAvatar from '../assets/images/passenger_ritu_avatar_1790347071742.jpg';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
+import { OfficialQRCodeView } from '../components/common/OfficialQRCodeView';
+import { QRCodeScannerModal } from '../components/common/QRCodeScannerModal';
 
 interface CaptainWorkspaceProps {
   captainId?: string;
@@ -158,7 +162,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [inspectedRide, setInspectedRide] = useState<MotorideRide | null>(null);
   const [counterFareInput, setCounterFareInput] = useState<{ [rideId: string]: number }>({});
   const [showCounterModal, setShowCounterModal] = useState<string | null>(null);
-  const [qrSettings, setQrSettings] = useState<QRCodeSetting | null>(null);
+  const [qrSettings, setQrSettings] = useState<QRCodeSetting>(() => {
+    try {
+      const cached = safeStorage.getItem('motoride_qr_settings');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {}
+    return {
+      id: 'default',
+      upi_id: 'motoride.platform@upi',
+      merchant_name: 'Motoride Technologies Ltd',
+      note: 'Scan using PhonePe, Google Pay, or Paytm to deposit commission or top up balance.',
+      is_active: true,
+      qr_image_url: 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=upi://pay?pa=motoride.platform@upi%26pn=Motoride%20Technologies%26cu=INR',
+      updated_at: new Date().toISOString(),
+    };
+  });
   const [fareSettings, setFareSettings] = useState<FareSettings | null>(null);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
@@ -194,6 +215,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [isSubmittingProof, setIsSubmittingProof] = useState<boolean>(false);
   const [captainTopupRequests, setCaptainTopupRequests] = useState<TopupDepositRequest[]>([]);
   const [activeChatRequest, setActiveChatRequest] = useState<TopupDepositRequest | null>(null);
+  const [showQrScanner, setShowQrScanner] = useState<boolean>(false);
 
   const loadCaptainTopupRequests = async () => {
     try {
@@ -203,8 +225,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    if (activeTab === 'wallet' && captainId) {
-      loadCaptainTopupRequests();
+    if (activeTab === 'wallet') {
+      loadSettings();
+      if (captainId) {
+        loadCaptainTopupRequests();
+      }
     }
   }, [activeTab, captainId]);
 
@@ -2734,38 +2759,30 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   </div>
                 </div>
 
-                {/* Official QR Code Box */}
-                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-center gap-4">
-                  <div className="w-32 h-32 rounded-2xl bg-white p-2 flex items-center justify-center shrink-0 shadow-lg">
-                    {qrSettings?.qr_image_url ? (
-                      <img
-                        src={qrSettings.qr_image_url}
-                        alt="Official Admin QR Code"
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 text-xs font-bold text-center">
-                        Official QR Code
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-col gap-2 min-w-0 w-full text-center sm:text-left">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">OFFICIAL UPI PAY ID</span>
-                    <div className="flex items-center justify-center sm:justify-start gap-2">
-                      <span className="text-xs font-mono font-bold text-amber-400 truncate bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800">
-                        {qrSettings?.upi_id || 'motoride.platform@upi'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyUpi(qrSettings?.upi_id || 'motoride.platform@upi')}
-                        className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-white font-bold transition-all cursor-pointer border border-slate-700 shrink-0"
-                      >
-                        {copiedUpiToast ? 'Copied!' : 'Copy'}
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-slate-400">
-                      {qrSettings?.note || 'Scan using PhonePe, Google Pay, or Paytm to deposit commission or top up balance.'}
-                    </p>
+                {/* Official QR Code Box with dynamic auto-fallback & 1-tap mobile payment */}
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3">
+                  <OfficialQRCodeView
+                    qrImageUrl={qrSettings?.qr_image_url}
+                    upiId={qrSettings?.upi_id || 'motoride.platform@upi'}
+                    merchantName={qrSettings?.merchant_name || 'Motoride Technologies Ltd'}
+                    note={qrSettings?.note}
+                    amount={topupAmountInput}
+                    size={140}
+                  />
+
+                  {/* Camera Scanner Trigger for Mobile & Desktop */}
+                  <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-[11px] text-slate-400">
+                      Need to scan a physical QR code or receipt?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowQrScanner(true)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 border border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Open Camera QR Scanner</span>
+                    </button>
                   </div>
                 </div>
 
@@ -3143,6 +3160,30 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             motorideApi.getWallet(captainId).then(w => {
               if (w && w.wallet) setWalletBalance(w.wallet.balance);
             });
+          }}
+        />
+      )}
+
+      {/* Camera QR Code Scanner Modal */}
+      {showQrScanner && (
+        <QRCodeScannerModal
+          isOpen={showQrScanner}
+          onClose={() => setShowQrScanner(false)}
+          title="Scan Official QR Code / Payment Slip"
+          onScanSuccess={(scannedText) => {
+            if (scannedText.startsWith('upi://pay')) {
+              try {
+                // Parse UPI QR parameters if any
+                const queryString = scannedText.split('?')[1] || '';
+                const params = new URLSearchParams(queryString);
+                const am = params.get('am');
+                const tr = params.get('tr') || params.get('refId');
+                if (am && !isNaN(Number(am))) setTopupAmountInput(am);
+                if (tr) setUtrInput(tr);
+              } catch {}
+            } else if (/^\d{8,18}$/.test(scannedText.trim())) {
+              setUtrInput(scannedText.trim());
+            }
           }}
         />
       )}
