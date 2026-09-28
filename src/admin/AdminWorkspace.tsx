@@ -439,8 +439,28 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     const unsubAcc = realtimeSync.on('ACCOUNTS_UPDATED', () => loadAllData());
     const unsubStats = realtimeSync.on('STATS_UPDATED', () => loadAllData());
     const unsubProf = realtimeSync.on('PROFILES_UPDATED', () => loadAllData());
-    const unsubTopupCreated = realtimeSync.on('TOPUP_REQUEST_CREATED', () => loadAllData());
-    const unsubTopupUpdated = realtimeSync.on('TOPUP_REQUEST_UPDATED', () => loadAllData());
+    const unsubTopupCreated = realtimeSync.on('TOPUP_REQUEST_CREATED', (payload: any) => {
+      if (payload?.request) {
+        setTopupRequests((prev) => {
+          if (prev.some((r) => r.id === payload.request.id)) {
+            return prev.map((r) => (r.id === payload.request.id ? { ...r, ...payload.request } : r));
+          }
+          return [payload.request, ...prev];
+        });
+      }
+      loadAllData();
+    });
+    const unsubTopupUpdated = realtimeSync.on('TOPUP_REQUEST_UPDATED', (payload: any) => {
+      if (payload?.request?.id || payload?.id) {
+        const id = payload.request?.id || payload.id;
+        const status = payload.request?.status || payload.status;
+        setTopupRequests((prev) =>
+          prev.map((r) => (r.id === id ? { ...r, ...(payload.request || {}), status: status || r.status } : r))
+        );
+      }
+      loadAllData();
+    });
+    const unsubTopupMsg = realtimeSync.on('TOPUP_CHAT_MESSAGE_RECEIVED', () => loadAllData());
 
     // 1.5-second fast poll to ensure admin view updates immediately across all screens and devices
     const pollInterval = setInterval(() => {
@@ -466,6 +486,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       unsubProf();
       unsubTopupCreated();
       unsubTopupUpdated();
+      unsubTopupMsg();
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleVisibility);
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -1030,6 +1051,49 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Pending Top-Up Deposit Proofs & Chat Alert */}
+          {topupRequests.some((r) => r.status === 'pending') && (
+            <div className="p-4 sm:p-5 rounded-3xl bg-amber-950/30 border border-amber-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl animate-in fade-in">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 font-black flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-6 h-6 stroke-[2.5]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-extrabold text-white">
+                      {topupRequests.filter((r) => r.status === 'pending').length} Pending Captain Deposit Proof(s)
+                    </h3>
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                  </div>
+                  <p className="text-xs text-amber-200/80 mt-0.5">
+                    Captains have submitted payment slip screenshots & UTR numbers awaiting your verification and chat response.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const firstPending = topupRequests.find((r) => r.status === 'pending');
+                    if (firstPending) setActiveTopupChatRequest(firstPending);
+                  }}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all active:scale-95 cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                >
+                  <MessageSquare className="w-4 h-4 stroke-[2.5]" />
+                  <span>Open Verification Chat</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('topup_approvals')}
+                  className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white font-bold text-xs transition-all border border-slate-700 cursor-pointer"
+                >
+                  View All ({topupRequests.length})
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Quick Active Rides Live List */}
           <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-3 shadow-xl">
