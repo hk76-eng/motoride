@@ -232,10 +232,10 @@ CREATE TABLE IF NOT EXISTS public.ratings (
 -- 16. QR Code / Admin Payment Settings Table
 CREATE TABLE IF NOT EXISTS public.qr_settings (
     id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
-    qr_image_url TEXT NOT NULL,
-    upi_id TEXT NOT NULL DEFAULT 'motoride.platform@upi',
-    merchant_name TEXT NOT NULL DEFAULT 'Motoride Technologies Ltd',
-    note TEXT DEFAULT 'Scan with any UPI app (GPay, PhonePe, Paytm) to pay driver commission or top-up wallet.',
+    qr_image_url TEXT NOT NULL DEFAULT '/official_admin_qr.svg',
+    upi_id TEXT NOT NULL DEFAULT 'hemant76@idbi',
+    merchant_name TEXT NOT NULL DEFAULT 'Hemant',
+    note TEXT DEFAULT 'Scan to Pay with any UPI App',
     is_active BOOLEAN DEFAULT TRUE,
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );

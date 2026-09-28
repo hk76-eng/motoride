@@ -5,7 +5,6 @@ import {
   QRCodeSetting,
   FareSettings,
   WalletTransaction,
-  TopupDepositRequest,
 } from '../types/motoride';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
@@ -52,15 +51,9 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Copy,
-  UploadCloud,
-  Camera,
-  Loader2,
 } from 'lucide-react';
 import defaultRituAvatar from '../assets/images/passenger_ritu_avatar_1790347071742.jpg';
-import { uploadMediaToSupabase, compressImageToDataUrl } from '../lib/supabaseStorage';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
-import { OfficialQRCodeView } from '../components/common/OfficialQRCodeView';
-import { QRCodeScannerModal } from '../components/common/QRCodeScannerModal';
 
 interface CaptainWorkspaceProps {
   captainId?: string;
@@ -164,29 +157,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [inspectedRide, setInspectedRide] = useState<MotorideRide | null>(null);
   const [counterFareInput, setCounterFareInput] = useState<{ [rideId: string]: number }>({});
   const [showCounterModal, setShowCounterModal] = useState<string | null>(null);
-  const [qrSettings, setQrSettings] = useState<QRCodeSetting>(() => {
-    try {
-      const cached = safeStorage.getItem('motoride_qr_settings');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed && typeof parsed === 'object') {
-          if (parsed.qr_image_url && parsed.qr_image_url.includes('qrserver.com')) {
-            parsed.qr_image_url = '';
-          }
-          return parsed;
-        }
-      }
-    } catch {}
-    return {
-      id: 'default',
-      upi_id: 'motoride.platform@upi',
-      merchant_name: 'Motoride Technologies Ltd',
-      note: 'Scan using PhonePe, Google Pay, or Paytm to deposit commission or top up balance.',
-      is_active: true,
-      qr_image_url: '',
-      updated_at: new Date().toISOString(),
-    };
-  });
+  const [qrSettings, setQrSettings] = useState<QRCodeSetting | null>(null);
   const [fareSettings, setFareSettings] = useState<FareSettings | null>(null);
   const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
@@ -220,43 +191,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [utrInput, setUtrInput] = useState<string>('');
   const [paymentSlipInput, setPaymentSlipInput] = useState<string | null>(null);
   const [isSubmittingProof, setIsSubmittingProof] = useState<boolean>(false);
-  const [isUploadingSlip, setIsUploadingSlip] = useState<boolean>(false);
-  const [slipUploadStatus, setSlipUploadStatus] = useState<'idle' | 'uploading' | 'supabase_uploaded' | 'local_fallback'>('idle');
   const [captainTopupRequests, setCaptainTopupRequests] = useState<TopupDepositRequest[]>([]);
   const [activeChatRequest, setActiveChatRequest] = useState<TopupDepositRequest | null>(null);
-  const [showQrScanner, setShowQrScanner] = useState<boolean>(false);
-  const [showQuickQrModal, setShowQuickQrModal] = useState<boolean>(false);
-
-  const handlePaymentSlipUpload = async (file: File) => {
-    if (!file) return;
-    setIsUploadingSlip(true);
-    setSlipUploadStatus('uploading');
-
-    try {
-      // 1. Generate lightweight compressed data URL for instant UI preview & robust fallback
-      const localDataUrl = await compressImageToDataUrl(file, 1200, 1200, 0.85);
-      if (localDataUrl) {
-        setPaymentSlipInput(localDataUrl);
-      }
-
-      // 2. Upload file directly to Supabase Storage in 'payments' folder
-      const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `captain_deposit_${captainId || 'user'}_${Date.now()}.${fileExt}`;
-      const cdnUrl = await uploadMediaToSupabase(file, fileName, 'payments');
-
-      if (cdnUrl) {
-        setPaymentSlipInput(cdnUrl);
-        setSlipUploadStatus('supabase_uploaded');
-      } else {
-        setSlipUploadStatus('local_fallback');
-      }
-    } catch (err) {
-      console.warn('Supabase upload error, using local compressed image:', err);
-      setSlipUploadStatus('local_fallback');
-    } finally {
-      setIsUploadingSlip(false);
-    }
-  };
 
   const loadCaptainTopupRequests = async () => {
     try {
@@ -266,11 +202,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    if (activeTab === 'wallet') {
-      loadSettings();
-      if (captainId) {
-        loadCaptainTopupRequests();
-      }
+    if (activeTab === 'wallet' && captainId) {
+      loadCaptainTopupRequests();
     }
   }, [activeTab, captainId]);
 
@@ -302,7 +235,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         setTimeout(() => setWalletMessage(null), 4000);
         setUtrInput('');
         setPaymentSlipInput(null);
-        setSlipUploadStatus('idle');
         await loadCaptainTopupRequests();
         setActiveChatRequest(req);
       }
@@ -802,12 +734,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     });
 
     const unsubQrUpdated = realtimeSync.on('QR_SETTINGS_UPDATED', (qr: QRCodeSetting) => {
-      if (qr) {
-        if (qr.qr_image_url && qr.qr_image_url.includes('qrserver.com')) {
-          qr.qr_image_url = '';
-        }
-        setQrSettings(qr);
-      }
+      if (qr) setQrSettings(qr);
     });
 
     // Automatic daily reset: check if the calendar date changed in the local business timezone (Asia/Kolkata)
@@ -1331,12 +1258,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const loadSettings = async () => {
     try {
       const qr = await motorideApi.getQRSettings();
-      if (qr) {
-        if (qr.qr_image_url && qr.qr_image_url.includes('qrserver.com')) {
-          qr.qr_image_url = '';
-        }
-        setQrSettings(qr);
-      }
+      if (qr) setQrSettings(qr);
       const fare = await motorideApi.getFareSettings();
       if (fare) setFareSettings(fare);
     } catch {}
@@ -2129,27 +2051,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                     ? 'Passenger ride requests appear here instantly in real time with audio alert'
                     : 'Use the Online capsule button near Captain App at the top right to go Online and receive rides'}
                 </span>
-
-                {/* Instant Official QR Top-Up Banner */}
-                <div className="mt-3.5 p-3.5 rounded-2xl bg-slate-900 border border-amber-500/40 flex items-center justify-between gap-3 w-full shadow-lg">
-                  <div className="flex items-center gap-2.5 text-left min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
-                      <QrCode className="w-5 h-5 stroke-[2.5]" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-black text-white truncate">Top-Up via Official QR</h4>
-                      <p className="text-[10px] text-slate-400 truncate">Wallet: ₹{walletBalance.toFixed(2)} • Instant UPI credit</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickQrModal(true)}
-                    className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all active:scale-95 shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
-                  >
-                    <QrCode className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span>Open QR</span>
-                  </button>
-                </div>
               </div>
             </div>
           ) : (
@@ -2696,16 +2597,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
         <button
           type="button"
-          onClick={() => setShowQuickQrModal(true)}
-          className="px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-300 border border-emerald-500/40 shadow-sm active:scale-95"
-          title="Open Official QR Code to scan & pay"
-        >
-          <QrCode className="w-3.5 h-3.5 text-emerald-400 stroke-[2.5]" />
-          <span>Official QR</span>
-        </button>
-
-        <button
-          type="button"
           onClick={() => setIsRideHistoryOpen(true)}
           className="px-3 py-1.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition-all cursor-pointer hidden sm:flex"
         >
@@ -2842,30 +2733,38 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   </div>
                 </div>
 
-                {/* Official QR Code Box with dynamic auto-fallback & 1-tap mobile payment */}
-                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3">
-                  <OfficialQRCodeView
-                    qrImageUrl={qrSettings?.qr_image_url}
-                    upiId={qrSettings?.upi_id || 'motoride.platform@upi'}
-                    merchantName={qrSettings?.merchant_name || 'Motoride Technologies Ltd'}
-                    note={qrSettings?.note}
-                    amount={topupAmountInput}
-                    size={140}
-                  />
-
-                  {/* Camera Scanner Trigger for Mobile & Desktop */}
-                  <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between flex-wrap gap-2">
-                    <span className="text-[11px] text-slate-400">
-                      Need to scan a physical QR code or receipt?
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowQrScanner(true)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 border border-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
-                    >
-                      <Camera className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Open Camera QR Scanner</span>
-                    </button>
+                {/* Official QR Code Box */}
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-center gap-4">
+                  <div className="w-32 h-32 rounded-2xl bg-white p-2 flex items-center justify-center shrink-0 shadow-lg">
+                    {qrSettings?.qr_image_url ? (
+                      <img
+                        src={qrSettings.qr_image_url}
+                        alt="Official Admin QR Code"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 text-xs font-bold text-center">
+                        Official QR Code
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 min-w-0 w-full text-center sm:text-left">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">OFFICIAL UPI PAY ID</span>
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <span className="text-xs font-mono font-bold text-amber-400 truncate bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800">
+                        {qrSettings?.upi_id || 'hemant76@idbi'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyUpi(qrSettings?.upi_id || 'hemant76@idbi')}
+                        className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-white font-bold transition-all cursor-pointer border border-slate-700 shrink-0"
+                      >
+                        {copiedUpiToast ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      {qrSettings?.note || 'Scan using PhonePe, Google Pay, or Paytm to deposit commission or top up balance.'}
+                    </p>
                   </div>
                 </div>
 
@@ -2908,105 +2807,37 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white focus:outline-none focus:border-amber-500/50"
                     />
 
-                    <div className="flex items-center justify-between mt-1">
-                      <label className="text-xs font-bold text-amber-300">
-                        2. Upload Payment Slip / Paid Receipt Screenshot
-                      </label>
-                      {slipUploadStatus === 'supabase_uploaded' && (
-                        <span className="text-[10px] text-emerald-400 font-extrabold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                          <span>Uploaded to Supabase Cloud</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Upload Cloud Dropzone */}
-                    <label className={`w-full p-4 rounded-2xl bg-slate-950 border border-dashed transition-all flex flex-col items-center justify-center gap-2 text-center shadow-inner cursor-pointer ${
-                      isUploadingSlip
-                        ? 'border-amber-500/60 bg-amber-500/5 cursor-wait'
-                        : paymentSlipInput
-                        ? 'border-emerald-500/50 hover:bg-slate-900/90'
-                        : 'border-amber-500/40 hover:bg-slate-900/90 hover:border-amber-400'
-                    }`}>
-                      {isUploadingSlip ? (
-                        <>
-                          <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-xs font-extrabold text-amber-300">
-                              Uploading to Supabase Storage...
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              Storing payment proof in cloud bucket and linking to admin verification
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-sm">
-                            <UploadCloud className="w-6 h-6 stroke-[2.5]" />
-                          </div>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-xs font-extrabold text-white">
-                              {paymentSlipInput ? 'Change Payment Slip Screenshot' : 'Upload Payment Slip Proof'}
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              Direct cloud upload to Supabase Storage • Supports JPG, PNG, Screenshots
-                            </span>
-                          </div>
-                        </>
-                      )}
-
+                    <label className="text-xs font-bold text-amber-300 mt-1">2. Upload Payment Slip / Paid Receipt Screenshot</label>
+                    <label className="w-full p-3 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-dashed border-amber-500/40 text-xs font-bold text-white cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 text-center shadow-inner">
+                      <UploadCloud className="w-5 h-5 text-emerald-400" />
+                      <span>{paymentSlipInput ? 'Change Payment Slip Screenshot' : 'Upload Payment Slip Proof'}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Supports JPG, PNG, Screenshots</span>
                       <input
                         type="file"
                         accept="image/*"
-                        disabled={isUploadingSlip}
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) handlePaymentSlipUpload(file);
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const result = ev.target?.result as string;
+                            if (result) setPaymentSlipInput(result);
+                          };
+                          reader.readAsDataURL(file);
                         }}
                       />
                     </label>
 
-                    {/* Payment Slip Preview Card */}
                     {paymentSlipInput && (
-                      <div className="relative w-full rounded-2xl overflow-hidden border border-emerald-500/40 bg-slate-900 shadow-md p-3 flex items-center gap-3 animate-in fade-in">
-                        <img
-                          src={paymentSlipInput}
-                          alt="Uploaded Payment Slip"
-                          className="w-16 h-16 object-cover rounded-xl border border-slate-700 shrink-0"
-                        />
-                        <div className="flex flex-col min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-black text-white truncate">
-                              Payment Slip Proof Attached
-                            </span>
-                            {paymentSlipInput.startsWith('http') ? (
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-extrabold flex items-center gap-1">
-                                <UploadCloud className="w-3 h-3 text-emerald-400" />
-                                <span>Supabase Storage</span>
-                              </span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-extrabold">
-                                Local Proof
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                            Linked to Admin Verification Chat upon submitting
-                          </p>
-                        </div>
-
+                      <div className="relative w-full h-32 rounded-xl overflow-hidden border border-emerald-500/50 shadow-md mt-1">
+                        <img src={paymentSlipInput} alt="Uploaded Payment Slip" className="w-full h-full object-cover" />
                         <button
                           type="button"
-                          onClick={() => {
-                            setPaymentSlipInput(null);
-                            setSlipUploadStatus('idle');
-                          }}
-                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all cursor-pointer shrink-0 border border-slate-700"
-                          title="Remove attached payment slip"
+                          onClick={() => setPaymentSlipInput(null)}
+                          className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-red-600 text-white text-[10px] font-bold cursor-pointer shadow"
                         >
-                          <X className="w-4 h-4" />
+                          Remove
                         </button>
                       </div>
                     )}
@@ -3313,123 +3144,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             });
           }}
         />
-      )}
-
-      {/* Camera QR Code Scanner Modal */}
-      {showQrScanner && (
-        <QRCodeScannerModal
-          isOpen={showQrScanner}
-          onClose={() => setShowQrScanner(false)}
-          title="Scan Official QR Code / Payment Slip"
-          onScanSuccess={(scannedText) => {
-            if (scannedText.startsWith('upi://pay')) {
-              try {
-                // Parse UPI QR parameters if any
-                const queryString = scannedText.split('?')[1] || '';
-                const params = new URLSearchParams(queryString);
-                const am = params.get('am');
-                const tr = params.get('tr') || params.get('refId');
-                if (am && !isNaN(Number(am))) setTopupAmountInput(am);
-                if (tr) setUtrInput(tr);
-              } catch {}
-            } else if (/^\d{8,18}$/.test(scannedText.trim())) {
-              setUtrInput(scannedText.trim());
-            }
-          }}
-        />
-      )}
-
-      {/* Quick Official QR Code Modal */}
-      {showQuickQrModal && (
-        <div
-          onClick={() => setShowQuickQrModal(false)}
-          className="fixed inset-0 z-[2200] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-5 sm:p-6 flex flex-col gap-4 shadow-2xl relative max-h-[90vh] overflow-y-auto"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center">
-                  <QrCode className="w-5 h-5 stroke-[2.5]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-white">Official Motoride QR Code</h3>
-                  <span className="text-[10px] text-slate-400 font-medium">Scan & Pay using PhonePe, GPay, or Paytm</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowQuickQrModal(false)}
-                className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-all cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Guaranteed Crisp QR Code View */}
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-2 items-center">
-              <OfficialQRCodeView
-                qrImageUrl={qrSettings?.qr_image_url}
-                upiId={qrSettings?.upi_id || 'motoride.platform@upi'}
-                merchantName={qrSettings?.merchant_name || 'Motoride Technologies Ltd'}
-                note={qrSettings?.note}
-                amount={topupAmountInput}
-                size={160}
-              />
-            </div>
-
-            {/* Quick Amount Selector */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-slate-300">Top-Up Amount (₹)</label>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[100, 200, 500, 1000].map((amt) => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setTopupAmountInput(amt.toString())}
-                    className={`py-1.5 rounded-xl text-xs font-black font-mono-num transition-all cursor-pointer border ${
-                      topupAmountInput === amt.toString()
-                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md'
-                        : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800'
-                    }`}
-                  >
-                    +₹{amt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Actions: Scan Camera & Full Wallet Actions */}
-            <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowQuickQrModal(false);
-                  setShowQrScanner(true);
-                }}
-                className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-              >
-                <Camera className="w-4 h-4 text-amber-400" />
-                <span>Scan Physical QR / Receipt with Camera</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowQuickQrModal(false);
-                  setActiveTab('wallet');
-                }}
-                className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95"
-              >
-                <Wallet className="w-4 h-4 stroke-[2.5]" />
-                <span>Go to Full Wallet & Submit Payment Slip</span>
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

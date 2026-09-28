@@ -140,10 +140,6 @@ export function loadQRSettingsFromDisk() {
         ...qrSettings,
         ...data,
       };
-      // Sanitize old mock qrserver URL
-      if (qrSettings.qr_image_url && qrSettings.qr_image_url.includes('qrserver.com')) {
-        qrSettings.qr_image_url = '';
-      }
     }
   } catch (err) {
     console.warn('Failed to load QR settings from disk:', err);
@@ -257,10 +253,10 @@ export function updateFareSettings(newSettings: Partial<FareSettings>): FareSett
 
 // 2. Official Admin QR Code & Payment Setting
 export let qrSettings: QRCodeSetting = {
-  qr_image_url: '',
-  upi_id: 'motoride.platform@upi',
-  merchant_name: 'Motoride Technologies Ltd',
-  note: 'Scan using any UPI app (Google Pay, PhonePe, Paytm) to deposit platform commission or top-up driver wallet balance.',
+  qr_image_url: '/official_admin_qr.svg',
+  upi_id: 'hemant76@idbi',
+  merchant_name: 'Hemant',
+  note: 'Scan to Pay with any UPI App (Google Pay, PhonePe, Paytm, BHIM) to deposit platform commission or top-up wallet balance.',
   is_active: true,
   updated_at: new Date().toISOString(),
 };

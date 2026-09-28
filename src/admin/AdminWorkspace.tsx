@@ -67,7 +67,6 @@ import {
   Globe,
   MessageSquare,
 } from 'lucide-react';
-import { OfficialQRCodeView } from '../components/common/OfficialQRCodeView';
 
 const DEFAULT_RIDE_CHARGES: RideChargeSettings = {
   base_fare: 25.0,
@@ -166,10 +165,10 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const [rideSaveStatus, setRideSaveStatus] = useState<string | null>(null);
   const [courierSaveStatus, setCourierSaveStatus] = useState<string | null>(null);
   const [qrSettings, setQrSettings] = useState<QRCodeSetting>({
-    qr_image_url: '',
-    upi_id: 'motoride.platform@upi',
-    merchant_name: 'Motoride Technologies Ltd',
-    note: 'Scan using any UPI app to deposit platform driver commission or top-up driver wallet balance.',
+    qr_image_url: '/official_admin_qr.svg',
+    upi_id: 'hemant76@idbi',
+    merchant_name: 'Hemant',
+    note: 'Scan to Pay with any UPI App (Google Pay, PhonePe, Paytm, BHIM) to deposit platform commission or top up balance.',
     is_active: true,
     updated_at: new Date().toISOString(),
   });
@@ -437,7 +436,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     const unsubAcc = realtimeSync.on('ACCOUNTS_UPDATED', () => loadAllData());
     const unsubStats = realtimeSync.on('STATS_UPDATED', () => loadAllData());
     const unsubProf = realtimeSync.on('PROFILES_UPDATED', () => loadAllData());
-    const unsubTopup = realtimeSync.on('TOPUP_REQUEST_CREATED', () => loadAllData());
 
     // 1.5-second fast poll to ensure admin view updates immediately across all screens and devices
     const pollInterval = setInterval(() => {
@@ -461,7 +459,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       unsubAcc();
       unsubStats();
       unsubProf();
-      unsubTopup();
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleVisibility);
       document.removeEventListener('visibilitychange', handleVisibility);
@@ -829,19 +826,21 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
   const handleSaveQR = async () => {
     try {
-      // Send only fields we want to update. The server-side logic now handles partial updates.
       const payload: Partial<QRCodeSetting> = {
         qr_image_url: qrSettings?.qr_image_url || '',
+        upi_id: qrSettings?.upi_id || 'hemant76@idbi',
+        merchant_name: qrSettings?.merchant_name || 'Hemant',
+        note: qrSettings?.note || 'Scan to Pay with any UPI App',
         is_active: qrSettings?.is_active ?? true,
       };
       const updated = await motorideApi.updateQRSettings(payload);
       if (updated) {
         setQrSettings(updated);
       }
-      setQrSaveStatus('QR settings saved successfully!');
+      setQrSaveStatus('QR settings saved permanently!');
       setTimeout(() => setQrSaveStatus(null), 3000);
     } catch (err: any) {
-      alert(err.message || 'Failed to save');
+      alert(err.message || 'Failed to save QR settings');
     }
   };
 
@@ -1961,14 +1960,15 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-3">
               <span className="text-[11px] font-bold text-slate-400">CURRENT LIVE QR PREVIEW</span>
               <div className="w-48 h-48 p-2 bg-white rounded-2xl shadow-xl flex items-center justify-center overflow-hidden">
-                <OfficialQRCodeView
-                  qrImageUrl={qrSettings.qr_image_url}
-                  upiId={qrSettings.upi_id || 'motoride.platform@upi'}
-                  merchantName={qrSettings.merchant_name || 'Motoride Technologies Ltd'}
-                  note={qrSettings.note}
-                  size={160}
-                  showDetails={false}
-                />
+                {qrSettings.qr_image_url ? (
+                  <img
+                    src={qrSettings.qr_image_url}
+                    alt="QR Preview"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xs text-slate-400 font-bold">No QR Uploaded</span>
+                )}
               </div>
 
             {/* QR Scanner / Image Upload Option */}
@@ -2028,15 +2028,80 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               </div>
             </div>
 
-            {/* Edit Fields (Removed fields) */}
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={handleSaveQR}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold shadow-lg transition-all"
-              >
-                Save Settings
-              </button>
+            {/* Edit Fields */}
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  UPI ID (VPA)
+                </label>
+                <input
+                  type="text"
+                  value={qrSettings.upi_id || ''}
+                  onChange={(e) => setQrSettings(prev => ({ ...prev, upi_id: e.target.value }))}
+                  placeholder="e.g. hemant76@idbi"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  Beneficiary / Merchant Name
+                </label>
+                <input
+                  type="text"
+                  value={qrSettings.merchant_name || ''}
+                  onChange={(e) => setQrSettings(prev => ({ ...prev, merchant_name: e.target.value }))}
+                  placeholder="e.g. Hemant"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  Payment Instruction / Note
+                </label>
+                <textarea
+                  value={qrSettings.note || ''}
+                  onChange={(e) => setQrSettings(prev => ({ ...prev, note: e.target.value }))}
+                  placeholder="Scan to Pay with any UPI App"
+                  rows={2}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 transition-colors resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const officialDefaults = {
+                      qr_image_url: '/official_admin_qr.svg',
+                      upi_id: 'hemant76@idbi',
+                      merchant_name: 'Hemant',
+                      note: 'Scan to Pay with any UPI App',
+                      is_active: true,
+                    };
+                    setQrSettings(prev => ({ ...prev, ...officialDefaults }));
+                    try {
+                      const updated = await motorideApi.updateQRSettings(officialDefaults);
+                      if (updated) setQrSettings(updated);
+                      setQrSaveStatus('Reset & locked to Official Hemant UPI QR code!');
+                      setTimeout(() => setQrSaveStatus(null), 3500);
+                    } catch (err: any) {
+                      console.warn('Reset official QR warning:', err);
+                    }
+                  }}
+                  className="px-3 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all cursor-pointer"
+                >
+                  Set Official QR
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveQR}
+                  className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg transition-all cursor-pointer"
+                >
+                  Save QR Settings Permanently
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2155,10 +2220,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                           onClick={() => setActiveTopupChatRequest(req)}
                           className="w-16 h-16 object-cover rounded-xl border border-amber-500/40 cursor-pointer hover:scale-105 transition-transform shadow-md"
                         />
-                        <span className="text-[9px] text-amber-400 font-bold flex items-center gap-0.5">
-                          {req.payment_slip_url.startsWith('http') && <UploadCloud className="w-2.5 h-2.5 text-emerald-400" />}
-                          <span>{req.payment_slip_url.startsWith('http') ? 'Cloud Proof' : 'View Proof'}</span>
-                        </span>
+                        <span className="text-[9px] text-amber-400 font-bold">Click to view</span>
                       </div>
                     )}
                   </div>

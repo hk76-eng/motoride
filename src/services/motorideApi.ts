@@ -1520,11 +1520,11 @@ export const motorideApi = {
   async getQRSettings(): Promise<QRCodeSetting> {
     const defaultQR: QRCodeSetting = {
       id: 'default',
-      upi_id: 'motoride.pay@upi',
-      merchant_name: 'Motoride Payments',
-      note: 'Motoride Ride Fare',
+      upi_id: 'hemant76@idbi',
+      merchant_name: 'Hemant',
+      note: 'Scan to Pay with any UPI App',
       is_active: true,
-      qr_image_url: '',
+      qr_image_url: '/official_admin_qr.svg',
       updated_at: new Date().toISOString(),
     };
 
@@ -1534,9 +1534,6 @@ export const motorideApi = {
     if (cached) {
       try {
         cachedObj = JSON.parse(cached);
-        if (cachedObj && cachedObj.qr_image_url && cachedObj.qr_image_url.includes('qrserver.com')) {
-          cachedObj.qr_image_url = '';
-        }
       } catch {}
     }
 
@@ -1546,9 +1543,6 @@ export const motorideApi = {
 
     const result = json?.qr || cachedObj || defaultQR;
     if (result) {
-      if (result.qr_image_url && result.qr_image_url.includes('qrserver.com')) {
-        result.qr_image_url = '';
-      }
       try {
         safeStorage.setItem('motoride_qr_settings', JSON.stringify(result));
       } catch {}
@@ -1571,11 +1565,11 @@ export const motorideApi = {
       const cached = safeStorage.getItem('motoride_qr_settings');
       let prev: QRCodeSetting = {
         id: 'default',
-        upi_id: 'motoride.pay@upi',
-        merchant_name: 'Motoride Payments',
-        note: 'Motoride Ride Fare',
+        upi_id: 'hemant76@idbi',
+        merchant_name: 'Hemant',
+        note: 'Scan to Pay with any UPI App',
         is_active: true,
-        qr_image_url: '',
+        qr_image_url: '/official_admin_qr.svg',
         updated_at: new Date().toISOString(),
       };
       if (cached) {
