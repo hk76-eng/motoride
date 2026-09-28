@@ -12,6 +12,7 @@ import {
   TopupDepositRequest,
 } from '../types/motoride';
 import { TopupChatModal } from '../components/common/TopupChatModal';
+import { RideChatModal } from '../components/common/RideChatModal';
 import { motorideApi } from '../services/motorideApi';
 import { SUPABASE_SQL_SCHEMA } from '../lib/sqlSchema';
 import { isSupabaseConfigured, getSupabase, SUPABASE_CONFIG_STATUS } from '../lib/supabase';
@@ -119,7 +120,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   onSignOut,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'captains' | 'passengers' | 'rides' | 'ride_charges' | 'courier_charges' | 'qr' | 'topup_approvals' | 'app_link' | 'supabase'
+    'overview' | 'live_chat' | 'topup_approvals' | 'rides' | 'captains' | 'passengers' | 'ride_charges' | 'courier_charges' | 'qr' | 'app_link' | 'supabase'
   >('overview');
 
   const [stats, setStats] = useState<AdminDashboardStats>({
@@ -191,6 +192,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   // Top-Up Approvals & Verification Chat State
   const [topupRequests, setTopupRequests] = useState<TopupDepositRequest[]>([]);
   const [activeTopupChatRequest, setActiveTopupChatRequest] = useState<TopupDepositRequest | null>(null);
+  const [activeRideChat, setActiveRideChat] = useState<MotorideRide | null>(null);
+  const [chatCenterFilter, setChatCenterFilter] = useState<'all' | 'topup' | 'rides'>('all');
   const [topupFilter, setTopupFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(null);
   const [rejectionReasonInput, setRejectionReasonInput] = useState<string>('');
@@ -950,13 +953,14 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
         {[
           { key: 'overview', label: 'Dashboard Overview', icon: Activity },
+          { key: 'live_chat', label: 'Live Chat & Support', icon: MessageSquare },
+          { key: 'topup_approvals', label: `Top-Up Approvals (${topupRequests.filter(r => r.status === 'pending').length} Pending)`, icon: CheckCircle2 },
           { key: 'rides', label: `Live Rides (${rides.length})`, icon: Bike },
           { key: 'captains', label: `Captains (${captains.length})`, icon: Users },
           { key: 'passengers', label: `Passengers (${passengers.length})`, icon: Users },
           { key: 'ride_charges', label: 'Ride Charges / KM', icon: Bike },
           { key: 'courier_charges', label: 'Courier Charges / KM', icon: Settings },
           { key: 'qr', label: 'Official QR Code', icon: QrCode },
-          { key: 'topup_approvals', label: `Top-Up Approvals (${topupRequests.filter(r => r.status === 'pending').length} Pending)`, icon: CheckCircle2 },
           { key: 'app_link', label: 'Motoride App Link', icon: Smartphone },
           { key: 'supabase', label: 'Supabase SQL Setup', icon: Database },
         ].map((tab) => {
@@ -1047,12 +1051,13 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                     <th className="py-3 px-3">PICKUP → DROPOFF</th>
                     <th className="py-3 px-3">FARE</th>
                     <th className="py-3 px-3">STATUS</th>
+                    <th className="py-3 px-3 text-right">ACTION</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   {rides.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-500 text-xs">
+                      <td colSpan={7} className="py-8 text-center text-slate-500 text-xs">
                         No live or registered rides recorded yet. Real bookings will appear here in real time.
                       </td>
                     </tr>
@@ -1089,6 +1094,16 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                           {r.status.replace(/_/g, ' ')}
                         </span>
                       </td>
+                      <td className="py-3 px-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setActiveRideChat(r)}
+                          className="px-2.5 py-1 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/30 text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm"
+                        >
+                          <MessageSquare className="w-3 h-3 text-indigo-300" />
+                          <span>Chat</span>
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -1096,6 +1111,235 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* VIEW: LIVE CHAT & SUPPORT CENTER */}
+      {activeTab === 'live_chat' && (
+        <div className="flex flex-col gap-5">
+          {/* Chat Center Header & Quick Metric Strip */}
+          <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center font-bold shadow-lg">
+                <MessageSquare className="w-6 h-6 stroke-[2.5]" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white flex items-center gap-2">
+                  <span>Live Communications & Support Center</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Direct dispatch monitoring, passenger-captain ride messaging, and top-up verification chat channels.
+                </p>
+              </div>
+            </div>
+
+            {/* Filter Toggle */}
+            <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 self-stretch sm:self-auto">
+              {[
+                { key: 'all', label: 'All Channels' },
+                { key: 'topup', label: `Top-Up Chats (${topupRequests.length})` },
+                { key: 'rides', label: `Ride Chats (${rides.length})` },
+              ].map((f) => (
+                <button
+                  type="button"
+                  key={f.key}
+                  onClick={() => setChatCenterFilter(f.key as any)}
+                  className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    chatCenterFilter === f.key
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* SECTION 1: TOP-UP VERIFICATION CHATS */}
+          {(chatCenterFilter === 'all' || chatCenterFilter === 'topup') && (
+            <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-4 shadow-xl">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck className="w-5 h-5 text-amber-400 stroke-[2.5]" />
+                  <h3 className="text-sm font-extrabold text-white">Captain Top-Up Payment Verification Chats</h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30">
+                    {topupRequests.filter((r) => r.status === 'pending').length} Pending
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('topup_approvals')}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-bold transition-colors cursor-pointer"
+                >
+                  View in Approvals Tab →
+                </button>
+              </div>
+
+              {topupRequests.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-center flex flex-col items-center justify-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-bold text-white">No Captain Top-Up Requests Yet</p>
+                  <p className="text-[11px] text-slate-400 max-w-sm">
+                    Captains who deposit money via your official UPI QR code will automatically initiate a live chat thread here with payment receipts.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {topupRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-3 hover:border-slate-700 transition-all shadow-md"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 font-black flex items-center justify-center shrink-0">
+                            {req.captain_avatar ? (
+                              <img src={req.captain_avatar} alt={req.captain_name} className="w-full h-full object-cover rounded-xl" />
+                            ) : (
+                              req.captain_name[0]?.toUpperCase() || 'C'
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-sm font-extrabold text-white truncate block">
+                              {req.captain_name}
+                            </span>
+                            <span className="text-[11px] text-slate-400 font-mono">
+                              Deposit: <b className="text-emerald-400 font-mono-num font-extrabold">₹{req.amount}</b> • UTR: {req.utr_number || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border shrink-0 ${
+                          req.status === 'approved'
+                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            : req.status === 'rejected'
+                            ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                            : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                        }`}>
+                          {req.status === 'approved' ? 'Approved' : req.status === 'rejected' ? 'Rejected' : 'Pending'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-900 gap-2">
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(req.created_at).toLocaleDateString()}
+                        </span>
+
+                        <div className="flex items-center gap-2">
+                          {req.status === 'pending' && (
+                            <button
+                              type="button"
+                              onClick={() => handleApproveDeposit(req.id)}
+                              disabled={isApproving === req.id}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-[11px] font-extrabold transition-all cursor-pointer disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setActiveTopupChatRequest(req)}
+                            className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span>Open Chat Box</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SECTION 2: LIVE RIDE CHAT CHANNELS */}
+          {(chatCenterFilter === 'all' || chatCenterFilter === 'rides') && (
+            <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-4 shadow-xl">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2.5">
+                  <Bike className="w-5 h-5 text-indigo-400 stroke-[2.5]" />
+                  <h3 className="text-sm font-extrabold text-white">Live Passenger-Captain In-Ride Channels</h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[11px] font-bold border border-indigo-500/30">
+                    {rides.length} Registered
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('rides')}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-bold transition-colors cursor-pointer"
+                >
+                  View all rides in table →
+                </button>
+              </div>
+
+              {rides.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-slate-950/60 border border-slate-800/80 text-center flex flex-col items-center justify-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 flex items-center justify-center">
+                    <Bike className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-bold text-white">No Live Rides Active Right Now</p>
+                  <p className="text-[11px] text-slate-400 max-w-sm">
+                    When passengers book bike, auto, cab, or courier rides, the live dispatch chat between passenger, captain, and admin appears here.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  {rides.slice(0, 10).map((r) => (
+                    <div
+                      key={r.id}
+                      className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-3 hover:border-slate-700 transition-all shadow-md"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono-num font-extrabold text-indigo-400 text-xs">
+                              #{r.ride_code}
+                            </span>
+                            <span className="text-xs font-extrabold text-white truncate">
+                              {r.passenger_name} ↔ {r.captain_name || 'Searching Captain...'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 truncate mt-1">
+                            📍 {r.pickup_address} → {r.dropoff_address}
+                          </p>
+                        </div>
+
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${
+                          r.status === 'trip_completed'
+                            ? 'bg-emerald-500/20 text-emerald-300'
+                            : r.status.includes('cancelled')
+                            ? 'bg-rose-500/20 text-rose-300'
+                            : 'bg-amber-500/20 text-amber-300'
+                        }`}>
+                          {r.status.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-900 gap-2">
+                        <div className="text-[11px] text-slate-400 font-mono">
+                          Fare: <b className="text-emerald-400 font-mono-num font-bold">₹{r.final_fare || r.offered_fare}</b> ({r.distance_km} km)
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setActiveRideChat(r)}
+                          className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-indigo-200 stroke-[2.5]" />
+                          <span>Open Ride Chat</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1719,6 +1963,16 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                       >
                         {r.status.replace(/_/g, ' ')}
                       </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveRideChat(r)}
+                        className="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-sm"
+                      >
+                        <MessageSquare className="w-3 h-3 text-indigo-200 stroke-[2.5]" />
+                        <span>Live Chat</span>
+                      </button>
+
                       <button
                         type="button"
                         title="Delete ride record"
@@ -3478,6 +3732,21 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           }}
           onStatusUpdated={loadAllData}
         />
+      )}
+
+      {/* Live Ride Chat Modal for Admin */}
+      {activeRideChat && (
+        <div className="fixed inset-0 z-[2100] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl h-[85vh] rounded-3xl overflow-hidden shadow-2xl">
+            <RideChatModal
+              ride={activeRideChat}
+              currentUserId="admin"
+              currentUserRole="admin"
+              currentUserName="Motoride Admin"
+              onClose={() => setActiveRideChat(null)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

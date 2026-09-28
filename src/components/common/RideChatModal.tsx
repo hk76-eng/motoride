@@ -8,7 +8,7 @@ import { safeStorage } from '../../lib/safeStorage';
 interface RideChatModalProps {
   ride: MotorideRide;
   currentUserId: string;
-  currentUserRole: 'passenger' | 'captain';
+  currentUserRole: 'passenger' | 'captain' | 'admin';
   currentUserName: string;
   onClose?: () => void;
 }
@@ -27,9 +27,22 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isCaptain = currentUserRole === 'captain';
-  const otherPartyName = isCaptain ? (ride.passenger_name || 'Passenger') : (ride.captain_name || 'Captain');
+  const isAdmin = currentUserRole === 'admin';
+  const otherPartyName = isAdmin
+    ? `${ride.passenger_name || 'Passenger'} & ${ride.captain_name || 'Captain'}`
+    : isCaptain
+    ? (ride.passenger_name || 'Passenger')
+    : (ride.captain_name || 'Captain');
 
-  const quickReplies = isCaptain
+  const quickReplies = isAdmin
+    ? [
+        'Motoride Dispatch: Ride monitored live ✅',
+        'Please verify passenger OTP before starting trip',
+        'Captain on route to pickup location',
+        'Emergency SOS check: Is everything okay?',
+        'Support: How can we assist you?',
+      ]
+    : isCaptain
     ? [
         'I have arrived at Location A',
         'Where are you waiting?',
@@ -137,7 +150,7 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
                 Chat with {otherPartyName}
               </h4>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-mono font-extrabold border border-emerald-300">
-                {isCaptain ? 'Passenger' : 'Captain'}
+                {isAdmin ? 'Admin Support' : isCaptain ? 'Passenger' : 'Captain'}
               </span>
             </div>
             <p className="text-[11px] text-slate-500 flex items-center gap-1 font-medium mt-0.5">
