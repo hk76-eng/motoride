@@ -256,13 +256,23 @@ export function isDemoAccount(acc: any): boolean {
   const id = String(acc.id || acc.profile_id || '').toLowerCase().trim();
   const email = String(acc.email || '').toLowerCase().trim();
   const name = String(acc.name || acc.full_name || '').toLowerCase().trim();
+  const role = String(acc.role || '').toLowerCase().trim();
+
+  // Exclude Admin profiles from user/captain/passenger lists
+  if (
+    role === 'admin' ||
+    email === 'freelanceseoservices01@gmail.com' ||
+    id.includes('fb95d290-c925-4c93-ad9c-ebdc') ||
+    id === 'usr-admin-001'
+  ) {
+    return true;
+  }
 
   // Explicit legacy demo IDs only
   if (
     id === 'cpt_1' ||
     id === 'psg_1' ||
     id === 'cpt_vikram_01' ||
-    id === 'usr-admin-001' ||
     id === 'usr_demo_100' ||
     id === 'demo_user'
   ) {
@@ -335,11 +345,11 @@ export const supabaseAuth = {
 
     // Guarantee registered passenger Ritu Sharma is in accounts list
     const rituExists = accounts.some(
-      (a) => a.id === 'usr_1789917923920_d4kaz' || a.email?.toLowerCase() === 'osmskart@gmail.com'
+      (a) => a.id === 'usr_1789917923920_d4ka' || a.id === 'usr_1789917923920_d4kaz' || a.email?.toLowerCase() === 'osmskart@gmail.com'
     );
     if (!rituExists) {
       const rituAccount: StoredAccount = {
-        id: 'usr_1789917923920_d4kaz',
+        id: 'usr_1789917923920_d4ka',
         email: 'osmskart@gmail.com',
         name: 'Ritu Sharma',
         role: 'passenger',

@@ -903,7 +903,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   });
 
   const filteredCaptains = captains.filter((cpt) => {
-    if (isDemoAccount(cpt)) return false;
+    if (isDemoAccount(cpt) || (cpt as any).role === 'admin' || cpt.email === 'freelanceseoservices01@gmail.com') return false;
     if (captainFilter === 'online' && !cpt.is_online) return false;
     if (captainFilter === 'approved' && !cpt.is_approved) return false;
     if (captainFilter === 'suspended' && cpt.is_approved) return false;
@@ -923,7 +923,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   });
 
   const filteredPassengers = passengers.filter((p) => {
-    if (isDemoAccount(p)) return false;
+    if (isDemoAccount(p) || (p as any).role === 'admin' || p.email === 'freelanceseoservices01@gmail.com') return false;
     if (passengerSearch) {
       const q = passengerSearch.toLowerCase();
       return (
