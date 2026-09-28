@@ -2496,6 +2496,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         captainHeading={currentCaptainHeading}
         captainName={activeRide?.captain_name || 'Captain'}
         activeRideStatus={activeRide?.status}
+        hidePassengerIcon={Boolean(currentPickupLat && currentDropoffLat)}
         bottomSheetPadding={activeRide ? (isCardMinimized ? 90 : 380) : (isCardMinimized ? 80 : (hasSelectedLocations ? 485 : 320))}
         focusCoords={mapFocusCoords}
         onFocusCoordsProcessed={() => setMapFocusCoords(null)}

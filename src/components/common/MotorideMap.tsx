@@ -111,6 +111,7 @@ interface MotorideMapProps {
   onPickupDragEnd?: (lat: number, lng: number) => void;
   dropoffMarkerType?: 'marker' | 'destination';
   onDropoffDragEnd?: (lat: number, lng: number) => void;
+  hidePassengerIcon?: boolean;
 }
 
 export const MotorideMap: React.FC<MotorideMapProps> = ({
@@ -162,6 +163,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   onPickupDragEnd,
   dropoffMarkerType = 'marker',
   onDropoffDragEnd,
+  hidePassengerIcon = false,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -711,7 +713,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       ['searching', 'captain_accepted', 'captain_arrived', 'trip_started', 'trip_completed'].includes(activeRideStatus)
     );
     const shouldShowPassengerGps = !isCaptainMode && !isRideActiveNow && !isRideBooked && Boolean(passengerLat && passengerLng);
-    if (shouldShowPassengerGps && passengerLat && passengerLng) {
+    if (shouldShowPassengerGps && !hidePassengerIcon && passengerLat && passengerLng) {
       if (!isPickAndDropActive) {
         bounds.push([passengerLat, passengerLng]);
       }
