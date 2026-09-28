@@ -3455,6 +3455,11 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           currentUserId="admin"
           currentUserRole="admin"
           currentUserName="Motoride Admin"
+          onApprove={handleApproveDeposit}
+          onReject={async (id, reason) => {
+            await motorideApi.rejectTopupRequest(id, reason);
+            await loadAllData();
+          }}
           onStatusUpdated={loadAllData}
         />
       )}
