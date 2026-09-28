@@ -229,18 +229,38 @@ CREATE TABLE IF NOT EXISTS public.ratings (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );
 
--- 16. QR Code / Admin Payment Settings Table
-CREATE TABLE IF NOT EXISTS public.qr_settings (
+-- 17. Top-Up Requests
+CREATE TABLE IF NOT EXISTS public.topup_requests (
     id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
-    qr_image_url TEXT NOT NULL DEFAULT '/official_admin_qr.svg',
-    upi_id TEXT NOT NULL DEFAULT 'hemant76@idbi',
-    merchant_name TEXT NOT NULL DEFAULT 'Hemant',
-    note TEXT DEFAULT 'Scan to Pay with any UPI App',
-    is_active BOOLEAN DEFAULT TRUE,
+    captain_id TEXT NOT NULL,
+    captain_name TEXT NOT NULL,
+    captain_phone TEXT,
+    captain_avatar TEXT,
+    amount NUMERIC(12, 2) NOT NULL,
+    utr_number TEXT,
+    payment_slip_url TEXT,
+    note TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    rejection_reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW()),
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
 );
 
--- 18. In-App Notifications Table
+-- 18. Top-Up Chat Messages
+CREATE TABLE IF NOT EXISTS public.topup_chat (
+    id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
+    request_id TEXT NOT NULL REFERENCES public.topup_requests(id) ON DELETE CASCADE,
+    sender_id TEXT NOT NULL,
+    sender_role TEXT NOT NULL CHECK (sender_role IN ('admin', 'captain')),
+    sender_name TEXT NOT NULL,
+    message TEXT NOT NULL,
+    image_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc', NOW())
+);
+
+-- Realtime publication for topup data
+ALTER PUBLICATION supabase_realtime ADD TABLE public.topup_requests;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.topup_chat;
 CREATE TABLE IF NOT EXISTS public.notifications (
     id TEXT PRIMARY KEY DEFAULT uuid_generate_v4()::text,
     user_id TEXT,

@@ -1671,7 +1671,7 @@ export const motorideApi = {
 
   async getTopupChatMessages(id: string): Promise<TopupChatMessage[]> {
     const json = await safeFetchJson<{ messages: TopupChatMessage[] }>(
-      `${API_BASE}/topup-requests/${id}/messages`,
+      `${API_BASE}/topup-requests/${id}/messages?t=${Date.now()}`,
       undefined,
       { messages: [] }
     );
