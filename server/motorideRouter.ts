@@ -1954,6 +1954,36 @@ motorideRouter.post('/wallet/:userId/topup', (req: Request, res: Response) => {
   res.json({ success: true, wallet, transaction: tx });
 });
 
+motorideRouter.post('/wallet/:userId/withdraw', (req: Request, res: Response) => {
+  const amount = Number(req.body.amount);
+  const upiOrBank = req.body.upiOrBank || 'UPI Account';
+  if (!amount || isNaN(amount) || amount <= 0) {
+    return res.status(400).json({ error: 'Valid withdrawal amount required' });
+  }
+
+  const wallet = walletsStore.get(req.params.userId) || { balance: 0, currency: '₹' };
+  if (wallet.balance < amount) {
+    return res.status(400).json({ error: 'Insufficient wallet balance for withdrawal' });
+  }
+
+  wallet.balance = Number((wallet.balance - amount).toFixed(2));
+  walletsStore.set(req.params.userId, wallet);
+
+  const tx: WalletTransaction = {
+    id: `tx_wdr_${Date.now()}`,
+    wallet_id: `w_${req.params.userId}`,
+    user_id: req.params.userId,
+    amount,
+    type: 'debit',
+    category: 'withdrawal',
+    description: `Payout withdrawal request to ${upiOrBank}`,
+    created_at: new Date().toISOString(),
+  };
+
+  walletTransactionsStore.unshift(tx);
+  res.json({ success: true, wallet, transaction: tx });
+});
+
 // 7. Admin Dashboard & Notifications
 motorideRouter.get('/stats', (req: Request, res: Response) => {
   res.json({ success: true, stats: getAdminStats() });

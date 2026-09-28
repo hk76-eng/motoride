@@ -1606,6 +1606,15 @@ export const motorideApi = {
     return json.wallet;
   },
 
+  async requestWithdrawal(userId: string, amount: number, upiOrBank?: string): Promise<{ balance: number }> {
+    const json = await safeFetchJson<{ wallet: { balance: number } }>(`${API_BASE}/wallet/${userId}/withdraw`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, upiOrBank }),
+    }, { wallet: { balance: 0 } });
+    return json.wallet;
+  },
+
   // 7. Admin Stats & Notifications
   async getAdminStats(): Promise<AdminDashboardStats> {
     const json = await safeFetchJson<{ stats: AdminDashboardStats }>(`${API_BASE}/stats`, undefined, {

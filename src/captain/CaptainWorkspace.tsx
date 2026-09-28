@@ -45,6 +45,11 @@ import {
   IndianRupee,
   History,
   Volume2,
+  Wallet,
+  PlusCircle,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Copy,
 } from 'lucide-react';
 import defaultRituAvatar from '../assets/images/passenger_ritu_avatar_1790347071742.jpg';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
@@ -170,6 +175,74 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   // Default to false so the map and Captain live GPS position are immediately 100% visible
   const [is100Full, setIs100Full] = useState<boolean>(false);
+
+  // Dedicated Wallet Tab & Payout state
+  const [activeTab, setActiveTab] = useState<'requests' | 'wallet'>('requests');
+  const [topupAmountInput, setTopupAmountInput] = useState<string>('200');
+  const [payoutAmountInput, setPayoutAmountInput] = useState<string>('');
+  const [payoutUpiInput, setPayoutUpiInput] = useState<string>('');
+  const [isProcessingTopup, setIsProcessingTopup] = useState<boolean>(false);
+  const [isProcessingPayout, setIsProcessingPayout] = useState<boolean>(false);
+  const [walletMessage, setWalletMessage] = useState<string | null>(null);
+  const [copiedUpiToast, setCopiedUpiToast] = useState<boolean>(false);
+
+  const handleExecuteTopup = async () => {
+    const amt = Number(topupAmountInput);
+    if (!amt || isNaN(amt) || amt <= 0) {
+      alert('Please enter a valid top-up amount');
+      return;
+    }
+    setIsProcessingTopup(true);
+    try {
+      const res = await motorideApi.topupWallet(captainId, amt);
+      setWalletBalance(res.balance);
+      setWalletMessage(`✅ Top-up of ₹${amt} executed successfully! Wallet balance updated.`);
+      setTimeout(() => setWalletMessage(null), 4000);
+      const w = await motorideApi.getWallet(captainId);
+      if (w && w.transactions) setWalletTransactions(w.transactions);
+    } catch (err: any) {
+      alert(err.message || 'Failed to process top-up');
+    } finally {
+      setIsProcessingTopup(false);
+    }
+  };
+
+  const handleExecutePayout = async () => {
+    const amt = Number(payoutAmountInput);
+    if (!amt || isNaN(amt) || amt <= 0) {
+      alert('Please enter a valid payout amount');
+      return;
+    }
+    if (amt > walletBalance) {
+      alert(`Insufficient balance. Maximum withdrawable amount is ₹${walletBalance.toFixed(2)}`);
+      return;
+    }
+    if (!payoutUpiInput.trim()) {
+      alert('Please enter your UPI ID or Bank account details for payout');
+      return;
+    }
+
+    setIsProcessingPayout(true);
+    try {
+      const res = await motorideApi.requestWithdrawal(captainId, amt, payoutUpiInput.trim());
+      setWalletBalance(res.balance);
+      setWalletMessage(`💸 Payout request of ₹${amt} submitted to ${payoutUpiInput.trim()}! Balance updated.`);
+      setTimeout(() => setWalletMessage(null), 4000);
+      setPayoutAmountInput('');
+      const w = await motorideApi.getWallet(captainId);
+      if (w && w.transactions) setWalletTransactions(w.transactions);
+    } catch (err: any) {
+      alert(err.message || 'Failed to submit payout request');
+    } finally {
+      setIsProcessingPayout(false);
+    }
+  };
+
+  const handleCopyUpi = (upiId: string) => {
+    navigator.clipboard.writeText(upiId);
+    setCopiedUpiToast(true);
+    setTimeout(() => setCopiedUpiToast(false), 2000);
+  };
 
   // Component refs to ensure real-time callbacks never miss updates due to stale closures
   const activeRideRef = useRef<MotorideRide | null>(null);
@@ -2432,6 +2505,361 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         <span className="w-3.5 h-0.5 bg-amber-400 rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
       </button>
 
+      {/* Top Floating Captain Workspace Navigation Tabs Bar */}
+      <div className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-20 z-[1100] flex items-center gap-1.5 p-1 rounded-2xl bg-black/85 border border-amber-500/30 backdrop-blur-xl shadow-2xl">
+        <button
+          type="button"
+          onClick={() => setActiveTab('requests')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === 'requests'
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-950/40'
+              : 'text-slate-300 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Bike className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span className="hidden xs:inline">Live Requests</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('wallet')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
+            activeTab === 'wallet'
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-950/40'
+              : 'text-slate-300 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Wallet className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>Wallet</span>
+          <span className="text-[10px] font-mono-num font-bold px-1.5 py-0.5 rounded-md bg-black/40 text-amber-300 border border-amber-500/30">
+            ₹{walletBalance.toFixed(0)}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsRideHistoryOpen(true)}
+          className="px-3 py-1.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition-all cursor-pointer hidden sm:flex"
+        >
+          <History className="w-3.5 h-3.5 text-amber-400 stroke-[2.5]" />
+          <span>History</span>
+        </button>
+      </div>
+
+      {/* Dedicated Captain Wallet View Tab Overlay */}
+      {activeTab === 'wallet' && (
+        <div className="fixed inset-0 z-[1150] pt-16 sm:pt-20 pb-10 px-3 sm:px-6 md:px-8 bg-slate-950/95 backdrop-blur-xl overflow-y-auto flex flex-col gap-6 animate-in fade-in duration-200 scrollbar-thin">
+          <div className="max-w-4xl mx-auto w-full flex flex-col gap-6">
+            
+            {/* Header Notification Toast */}
+            {walletMessage && (
+              <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-extrabold flex items-center justify-between shadow-xl animate-in fade-in slide-in-from-top-2">
+                <span>{walletMessage}</span>
+                <button
+                  type="button"
+                  onClick={() => setWalletMessage(null)}
+                  className="p-1 rounded-lg bg-emerald-500/30 hover:bg-emerald-500/50 text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Wallet Header Bar */}
+            <div className="flex items-center justify-between bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-3xl shadow-xl">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/25 to-amber-600/10 border border-amber-500/40 text-amber-400 flex items-center justify-center shadow-inner shrink-0">
+                  <Wallet className="w-6 h-6 stroke-[2.5]" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base sm:text-lg font-black text-white">Captain Wallet & Payouts</h2>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+                      Active Partner
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Manage driver balance, top-up via Official Admin QR, and request instant earnings payouts
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('requests')}
+                className="px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-amber-950/50 cursor-pointer shrink-0"
+              >
+                <Bike className="w-4 h-4 stroke-[2.5]" />
+                <span>Back to Map & Requests</span>
+              </button>
+            </div>
+
+            {/* Metrics Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Card 1: Balance */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 border border-amber-500/30 shadow-xl flex flex-col justify-between relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl group-hover:bg-amber-500/10 transition-all" />
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block mb-1">
+                    DRIVER WALLET BALANCE
+                  </span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl sm:text-4xl font-black text-amber-400 font-mono-num tracking-tight">
+                      ₹{walletBalance.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-medium">Status</span>
+                  <span className={`font-bold px-2 py-0.5 rounded-lg ${
+                    walletBalance >= 50
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  }`}>
+                    {walletBalance >= 50 ? 'Eligible for Rides' : 'Low Balance (Top Up Required)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card 2: Today's Income */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl flex flex-col justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block mb-1">
+                    TODAY'S GROSS EARNINGS
+                  </span>
+                  <span className="text-3xl sm:text-4xl font-black text-emerald-400 font-mono-num tracking-tight">
+                    ₹{todayIncome.toFixed(2)}
+                  </span>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                  <span>Completed Today</span>
+                  <span className="font-bold text-white">{todayCompletedRidesCount} Rides</span>
+                </div>
+              </div>
+
+              {/* Card 3: Commission Rule */}
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-xl flex flex-col justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block mb-1">
+                    PLATFORM COMMISSION
+                  </span>
+                  <span className="text-2xl font-black text-slate-200">
+                    10% - 15%
+                  </span>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Deducted automatically per completed ride from driver wallet.
+                  </p>
+                </div>
+                <div className="mt-3 pt-2.5 border-t border-slate-800/80 text-[11px] text-amber-300/90 font-medium flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>Maintain min ₹50 balance</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Action Grid: Topup (Left) & Withdraw (Right) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Top-Up Section with Official Admin QR */}
+              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col gap-5 shadow-xl">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-emerald-500/15 text-emerald-400">
+                      <QrCode className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-white">Top-Up Wallet via Official QR</h3>
+                      <span className="text-[11px] text-slate-400">Scan & Pay using PhonePe, Google Pay, or Paytm</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Official QR Code Box */}
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-center gap-4">
+                  <div className="w-32 h-32 rounded-2xl bg-white p-2 flex items-center justify-center shrink-0 shadow-lg">
+                    {qrSettings?.qr_image_url ? (
+                      <img
+                        src={qrSettings.qr_image_url}
+                        alt="Official Admin QR Code"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 text-xs font-bold text-center">
+                        Official QR Code
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 min-w-0 w-full text-center sm:text-left">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">OFFICIAL UPI PAY ID</span>
+                    <div className="flex items-center justify-center sm:justify-start gap-2">
+                      <span className="text-xs font-mono font-bold text-amber-400 truncate bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-800">
+                        {qrSettings?.upi_id || 'motoride.platform@upi'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyUpi(qrSettings?.upi_id || 'motoride.platform@upi')}
+                        className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-white font-bold transition-all cursor-pointer border border-slate-700 shrink-0"
+                      >
+                        {copiedUpiToast ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      {qrSettings?.note || 'Scan using PhonePe, Google Pay, or Paytm to deposit commission or top up balance.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Preset Buttons & Custom Input */}
+                <div className="flex flex-col gap-3">
+                  <label className="text-xs font-bold text-slate-300">Select Top-Up Amount (₹)</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[100, 200, 500, 1000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setTopupAmountInput(amt.toString())}
+                        className={`py-2 rounded-xl text-xs font-extrabold font-mono-num transition-all cursor-pointer border ${
+                          topupAmountInput === amt.toString()
+                            ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-950/40'
+                            : 'bg-slate-950 text-slate-200 border-slate-800 hover:bg-slate-800'
+                        }`}
+                      >
+                        +₹{amt}
+                      </button>
+                    ))}
+                  </div>
+
+                  <input
+                    type="number"
+                    value={topupAmountInput}
+                    onChange={(e) => setTopupAmountInput(e.target.value)}
+                    placeholder="Enter custom amount (₹)"
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-num font-bold text-white focus:outline-none focus:border-amber-500/50"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleExecuteTopup}
+                    disabled={isProcessingTopup}
+                    className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-xl shadow-emerald-950/50 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <PlusCircle className="w-4 h-4 stroke-[2.5]" />
+                    <span>{isProcessingTopup ? 'Processing Top-up...' : `Execute Top-Up ₹${topupAmountInput || '0'}`}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Withdrawal Section */}
+              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col justify-between gap-5 shadow-xl">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800">
+                    <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
+                      <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-white">Withdraw Earnings / Request Payout</h3>
+                      <span className="text-[11px] text-slate-400">Transfer wallet funds directly to your UPI ID</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Payout Amount (₹)</label>
+                      <input
+                        type="number"
+                        value={payoutAmountInput}
+                        onChange={(e) => setPayoutAmountInput(e.target.value)}
+                        placeholder="e.g. 500"
+                        className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-num font-bold text-white focus:outline-none focus:border-amber-500/50"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 block mb-1">Your UPI ID or Bank Details</label>
+                      <input
+                        type="text"
+                        value={payoutUpiInput}
+                        onChange={(e) => setPayoutUpiInput(e.target.value)}
+                        placeholder="e.g. captain@upi or A/C 9182371983 IFSC HDFC000123"
+                        className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-amber-500/50"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleExecutePayout}
+                  disabled={isProcessingPayout}
+                  className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xl shadow-amber-950/50 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+                  <span>{isProcessingPayout ? 'Submitting Payout...' : 'Request Instant Payout'}</span>
+                </button>
+              </div>
+
+            </div>
+
+            {/* Transaction Log Table */}
+            <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col gap-4 shadow-xl">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-amber-400 stroke-[2.5]" />
+                  <h3 className="text-sm font-extrabold text-white">Wallet Transaction History</h3>
+                </div>
+                <span className="text-xs font-mono font-bold text-slate-400">
+                  {walletTransactions.length} Transactions
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-1 scrollbar-thin">
+                {walletTransactions.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500 text-xs font-medium">
+                    No transactions recorded yet.
+                  </div>
+                ) : (
+                  walletTransactions.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 flex items-center justify-between gap-3 hover:border-slate-700 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          tx.type === 'credit'
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                        }`}>
+                          {tx.type === 'credit' ? (
+                            <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
+                          ) : (
+                            <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-white block">
+                            {tx.description || (tx.type === 'credit' ? 'Wallet Credit / Top-Up' : 'Commission / Withdrawal')}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono block">
+                            {tx.created_at ? new Date(tx.created_at).toLocaleString() : 'Just now'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span className={`text-sm font-black font-mono-num shrink-0 ${
+                        tx.type === 'credit' ? 'text-emerald-400' : 'text-amber-400'
+                      }`}>
+                        {tx.type === 'credit' ? '+' : '-'}₹{Math.abs(tx.amount).toFixed(2)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Captain Profile Slide-in Drawer from Left to Right */}
       <CaptainProfileDrawer
         isOpen={isProfileOpen}
@@ -2439,7 +2867,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         captain={captain}
         todayIncome={todayIncome}
         onUpdateCaptain={handleUpdateCaptainProfile}
-        onOpenWallet={onOpenWallet}
+        onOpenWallet={() => {
+          setIsProfileOpen(false);
+          setActiveTab('wallet');
+          onOpenWallet?.();
+        }}
         onOpenRideHistory={() => setIsRideHistoryOpen(true)}
         onSignOut={onSignOut}
       />

@@ -503,7 +503,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
             </div>
 
             {/* Middle Row inside Overview Card: Today's Income */}
-            <div className="pt-3 border-t border-white/10">
+            <div className="pt-3 border-t border-white/10 flex flex-col gap-2">
               <div className="p-3 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm">
@@ -522,6 +522,21 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                   Resets at 12 AM
                 </span>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenWallet?.();
+                }}
+                className="w-full p-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all active:scale-95 cursor-pointer flex items-center justify-between shadow-lg shadow-amber-950/40"
+              >
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 stroke-[2.5]" />
+                  <span>Captain Wallet & Payouts</span>
+                </div>
+                <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
             </div>
 
             {/* Bottom Row inside Overview Card: Rating & Total Rides */}

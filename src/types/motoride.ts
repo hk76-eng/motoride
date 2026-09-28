@@ -221,7 +221,7 @@ export interface WalletTransaction {
   user_id: string;
   amount: number;
   type: 'credit' | 'debit';
-  category: 'ride_earning' | 'commission_fee' | 'topup' | 'ride_payment' | 'refund';
+  category: 'ride_earning' | 'commission_fee' | 'topup' | 'ride_payment' | 'refund' | 'withdrawal';
   description: string;
   reference_ride_id?: string;
   created_at: string;
