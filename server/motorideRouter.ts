@@ -1998,6 +1998,14 @@ motorideRouter.get('/topup-requests', async (req: Request, res: Response) => {
   const captainId = (req.query.captain_id as string) || '';
   const status = (req.query.status as string) || '';
 
+  const mergedMap = new Map<string, TopupDepositRequest>();
+
+  // 1. Populate from local persistent memory store first
+  for (const [id, r] of topupRequestsStore.entries()) {
+    if (r && r.id) mergedMap.set(id, r);
+  }
+
+  // 2. Fetch from Supabase and merge
   try {
     let query = supabase.from('topup_requests').select('*');
     if (captainId) {
@@ -2010,29 +2018,32 @@ motorideRouter.get('/topup-requests', async (req: Request, res: Response) => {
     const { data: requests, error } = await query.order('created_at', { ascending: false });
 
     if (!error && Array.isArray(requests)) {
-      // Sync into local memory store
       for (const r of requests) {
-        if (r && r.id) topupRequestsStore.set(r.id, r);
+        if (r && r.id) {
+          const existing = mergedMap.get(r.id) || {};
+          const merged = { ...existing, ...r };
+          mergedMap.set(r.id, merged);
+          topupRequestsStore.set(r.id, merged);
+        }
       }
       persistDbToDisk();
-      return res.json({ success: true, requests });
     }
   } catch (err) {
-    console.warn('Supabase topup_requests query failed, falling back to local store:', err);
+    console.warn('Supabase topup_requests query failed, relying on merged local store:', err);
   }
 
-  // Resilient Local Fallback
-  let localList = Array.from(topupRequestsStore.values()).sort(
+  let finalRequests = Array.from(mergedMap.values()).sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
+
   if (captainId) {
-    localList = localList.filter((r) => r.captain_id === captainId);
+    finalRequests = finalRequests.filter((r) => r.captain_id === captainId);
   }
   if (status && status !== 'all') {
-    localList = localList.filter((r) => r.status === status);
+    finalRequests = finalRequests.filter((r) => r.status === status);
   }
 
-  res.json({ success: true, requests: localList });
+  res.json({ success: true, requests: finalRequests });
 });
 
 motorideRouter.post('/topup-requests', async (req: Request, res: Response) => {
@@ -2246,7 +2257,15 @@ motorideRouter.post('/topup-requests/:id/reject', async (req: Request, res: Resp
 
 motorideRouter.get('/topup-requests/:id/messages', async (req: Request, res: Response) => {
   const requestId = req.params.id;
+  const msgMap = new Map<string, TopupChatMessage>();
 
+  // 1. Local memory store first
+  const localMsgs = topupChatStore.get(requestId) || [];
+  for (const m of localMsgs) {
+    if (m && m.id) msgMap.set(m.id, m);
+  }
+
+  // 2. Fetch from Supabase and merge
   try {
     const { data: messages, error } = await supabase
       .from('topup_chat')
@@ -2254,16 +2273,21 @@ motorideRouter.get('/topup-requests/:id/messages', async (req: Request, res: Res
       .eq('request_id', requestId)
       .order('created_at', { ascending: true });
 
-    if (!error && Array.isArray(messages) && messages.length > 0) {
-      topupChatStore.set(requestId, messages);
-      return res.json({ success: true, messages });
+    if (!error && Array.isArray(messages)) {
+      for (const m of messages) {
+        if (m && m.id) msgMap.set(m.id, m);
+      }
     }
   } catch (err) {
     console.warn('Supabase topup_chat fetch error, fallback to memory:', err);
   }
 
-  const localMsgs = topupChatStore.get(requestId) || [];
-  res.json({ success: true, messages: localMsgs });
+  const finalMessages = Array.from(msgMap.values()).sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  topupChatStore.set(requestId, finalMessages);
+  res.json({ success: true, messages: finalMessages });
 });
 
 motorideRouter.post('/topup-requests/:id/messages', async (req: Request, res: Response) => {
