@@ -651,14 +651,14 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   created_at: sp.created_at || new Date().toISOString(),
                 });
               }
-            } else if (sp.role === 'passenger') {
+            } else if (sp.role !== 'captain' && !sp.vehicle_model && !sp.plate_number) {
               const matchingPsg = supaPassengers.find((p: any) => p.profile_id === sp.id || p.id === sp.id);
               if (!p.some(existing => (existing.email && existing.email.toLowerCase() === sp.email?.toLowerCase()) || existing.id === sp.id) &&
                   !localPassengers.some(existing => (existing.email && existing.email.toLowerCase() === sp.email?.toLowerCase()) || existing.id === sp.id)) {
                 localPassengers.push({
                   id: sp.id,
                   profile_id: sp.id,
-                  full_name: sp.full_name || 'Passenger',
+                  full_name: sp.full_name || sp.name || 'Passenger',
                   email: sp.email || '',
                   phone: sp.phone || '',
                   total_rides: matchingPsg?.total_rides ?? 0,

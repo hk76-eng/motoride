@@ -1632,19 +1632,23 @@ export const motorideApi = {
           });
         });
 
-        // Add from profiles table (where role = 'passenger' or not captain)
+        // Add from profiles table (any non-captain profile is classified as a passenger)
         profs.forEach((sp: any) => {
           if (!sp || isDemoAccount(sp)) return;
-          const isPassenger = sp.role === 'passenger' || sp.user_type === 'passenger' || (!sp.role && !sp.vehicle_model && !sp.plate_number);
-          if (!isPassenger) return;
+          const isCaptain = sp.role === 'captain' || sp.user_type === 'captain' || sp.is_captain || Boolean(sp.vehicle_model || sp.plate_number);
+          if (isCaptain) return;
 
-          const key = sp.id || sp.phone;
+          const key = sp.id || sp.email || sp.phone;
           if (!key) return;
 
-          const existing = mergedMap.get(key);
-          const matchingWal = wals.find((w: any) => w.user_id === sp.id || w.user_id === sp.phone);
+          const existingById = mergedMap.get(sp.id);
+          const existingByEmail = sp.email ? mergedMap.get(sp.email.toLowerCase()) : null;
+          const existingByPhone = sp.phone ? mergedMap.get(sp.phone) : null;
+          const existing = existingById || existingByEmail || existingByPhone;
 
-          mergedMap.set(key, {
+          const matchingWal = wals.find((w: any) => w.user_id === sp.id || w.user_id === sp.phone || w.user_id === sp.email);
+
+          const updatedPassenger: Passenger = {
             id: sp.id || key,
             profile_id: sp.id || key,
             full_name: sp.full_name || sp.name || existing?.full_name || 'Passenger',
@@ -1655,7 +1659,10 @@ export const motorideApi = {
             wallet_balance: matchingWal?.balance !== undefined ? Number(matchingWal.balance) : Number(sp.wallet_balance ?? existing?.wallet_balance ?? 200),
             emergency_contact: sp.phone || existing?.emergency_contact || '',
             created_at: sp.created_at || existing?.created_at || new Date().toISOString(),
-          });
+          };
+
+          if (sp.id) mergedMap.set(sp.id, updatedPassenger);
+          if (sp.email) mergedMap.set(sp.email.toLowerCase(), updatedPassenger);
         });
 
         // Add from rides
@@ -1692,8 +1699,8 @@ export const motorideApi = {
           if (Array.isArray(parsed)) {
             parsed.forEach((a: any) => {
               if (!a || isDemoAccount(a)) return;
-              const isPass = a.role === 'passenger' || (!a.role && !a.vehicle_model);
-              if (!isPass) return;
+              const isCap = a.role === 'captain' || Boolean(a.vehicle_model || a.plate_number);
+              if (isCap) return;
               const key = a.id || a.phone || a.email;
               if (key && !mergedMap.has(key)) {
                 mergedMap.set(key, {
