@@ -777,9 +777,14 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
   const handleSaveQR = async () => {
     try {
-      const updated = await motorideApi.updateQRSettings(qrSettings);
+      // Send only fields we want to update. The server-side logic now handles partial updates.
+      const payload: Partial<QRCodeSetting> = {
+        qr_image_url: qrSettings.qr_image_url,
+        is_active: qrSettings.is_active,
+      };
+      const updated = await motorideApi.updateQRSettings(payload);
       setQrSettings(updated);
-      setQrSaveStatus('QR settings saved & updated across all Captain wallets in real time!');
+      setQrSaveStatus('QR settings saved successfully!');
       setTimeout(() => setQrSaveStatus(null), 3000);
     } catch (err: any) {
       alert(err.message || 'Failed to save');

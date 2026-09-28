@@ -262,9 +262,18 @@ export let qrSettings: QRCodeSetting = {
 };
 
 export function updateQRSettings(newSettings: Partial<QRCodeSetting>): QRCodeSetting {
+  // Only update fields that are explicitly provided (not undefined)
+  const updates: Partial<QRCodeSetting> = {};
+  for (const key in newSettings) {
+    const value = newSettings[key as keyof QRCodeSetting];
+    if (value !== undefined) {
+      updates[key as keyof QRCodeSetting] = value as any;
+    }
+  }
+
   qrSettings = {
     ...qrSettings,
-    ...newSettings,
+    ...updates,
     updated_at: new Date().toISOString(),
   };
   broadcastEvent('QR_SETTINGS_UPDATED', qrSettings);
