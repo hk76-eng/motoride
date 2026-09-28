@@ -5,6 +5,7 @@ import {
   QRCodeSetting,
   FareSettings,
   WalletTransaction,
+  TopupDepositRequest,
 } from '../types/motoride';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
@@ -51,6 +52,7 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   Copy,
+  UploadCloud,
 } from 'lucide-react';
 import defaultRituAvatar from '../assets/images/passenger_ritu_avatar_1790347071742.jpg';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
