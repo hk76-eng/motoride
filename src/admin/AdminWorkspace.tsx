@@ -1900,31 +1900,49 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
             {/* Live Preview Box */}
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center text-center gap-3">
               <span className="text-[11px] font-bold text-slate-400">CURRENT LIVE QR PREVIEW</span>
-              <div className="w-48 h-48 p-2 bg-white rounded-2xl shadow-xl">
-                <img
-                  src={qrSettings.qr_image_url}
-                  alt="QR Preview"
-                  className="w-full h-full object-contain"
-                />
+              <div className="w-48 h-48 p-2 bg-white rounded-2xl shadow-xl flex items-center justify-center overflow-hidden">
+                {qrSettings.qr_image_url ? (
+                  <img
+                    src={qrSettings.qr_image_url}
+                    alt="QR Preview"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xs text-slate-400 font-bold">No QR Uploaded</span>
+                )}
               </div>
-              <span className="text-xs font-bold text-white">{qrSettings.merchant_name}</span>
-              <span className="text-xs font-mono-num text-amber-400 font-bold">
-                {qrSettings.upi_id}
-              </span>
 
             {/* QR Scanner / Image Upload Option */}
               <div className="w-full pt-2 border-t border-slate-800">
                 <label className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-white cursor-pointer transition-all flex items-center justify-center gap-2 shadow-md">
                   <UploadCloud className="w-4 h-4 text-emerald-400" />
-                  <span>Remove QR Code Image</span>
+                  <span>{qrSettings.qr_image_url ? 'Replace QR Code' : 'Upload New QR Code'}</span>
                   <input
-                    type="button"
+                    type="file"
+                    accept="image/*"
                     className="hidden"
-                    onClick={() => {
-                        setQrSettings({ ...qrSettings, qr_image_url: '' });
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (uploadEvent) => {
+                        const result = uploadEvent.target?.result as string;
+                        if (result) {
+                          setQrSettings({ ...qrSettings, qr_image_url: result });
+                        }
+                      };
+                      reader.readAsDataURL(file);
                     }}
                   />
                 </label>
+                {qrSettings.qr_image_url && (
+                    <button
+                        onClick={() => setQrSettings({ ...qrSettings, qr_image_url: '' })}
+                        className="w-full mt-2 py-2.5 px-3 rounded-xl bg-red-900/20 hover:bg-red-900/40 border border-red-900/50 text-xs font-bold text-red-400 cursor-pointer transition-all flex items-center justify-center gap-2 shadow-md"
+                    >
+                        Remove QR Code
+                    </button>
+                )}
               </div>
             </div>
 
