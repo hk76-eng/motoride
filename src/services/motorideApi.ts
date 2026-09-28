@@ -1648,6 +1648,60 @@ export const motorideApi = {
             supabaseTxs = txData;
           }
         }
+
+        // Failsafe: Query approved top-up deposit requests directly from Supabase topup_requests table
+        try {
+          const { data: approvedReqs } = await supabase
+            .from('topup_requests')
+            .select('*')
+            .in('status', ['approved', 'completed']);
+
+          if (Array.isArray(approvedReqs) && approvedReqs.length > 0) {
+            let approvedSum = 0;
+            approvedReqs.forEach((r: any) => {
+              const isMatch = idsToTry.some((key) => {
+                if (!key) return false;
+                const kStr = String(key).toLowerCase().trim();
+                const cIdStr = String(r.captain_id || '').toLowerCase().trim();
+                const cPhoneStr = String(r.captain_phone || '').toLowerCase().trim();
+                return (
+                  cIdStr === kStr ||
+                  cPhoneStr === kStr ||
+                  (kStr.length >= 6 && cIdStr.includes(kStr)) ||
+                  (cPhoneStr.length >= 6 && kStr.includes(cPhoneStr))
+                );
+              });
+
+              if (isMatch) {
+                approvedSum += Number(r.amount || 0);
+
+                // Synthesize transaction record if not present
+                const txId = `tx_topup_${r.id}`;
+                const alreadyExists = supabaseTxs.some(
+                  (tx) => tx.id === txId || (r.utr_number && tx.description?.includes(r.utr_number))
+                );
+                if (!alreadyExists) {
+                  supabaseTxs.push({
+                    id: txId,
+                    wallet_id: `w_${userId}`,
+                    user_id: userId,
+                    amount: Number(r.amount || 0),
+                    type: 'credit',
+                    category: 'topup',
+                    description: `Official Top-Up Deposit Approved (${r.utr_number ? `UTR: ${r.utr_number}` : 'Verified Payment'})`,
+                    created_at: r.updated_at || r.created_at || new Date().toISOString(),
+                  });
+                }
+              }
+            });
+
+            if (supabaseBal === null || approvedSum > supabaseBal) {
+              supabaseBal = approvedSum;
+            }
+          }
+        } catch (topupErr) {
+          console.warn('Approved top-ups calculation notice:', topupErr);
+        }
       } catch (err) {
         console.warn('Supabase wallet fetch warning:', err);
       }

@@ -108,7 +108,31 @@ class RealtimeSyncManager {
                 if (payload.eventType === 'INSERT') {
                   this.emit('TOPUP_REQUEST_CREATED', { request: payload.new });
                 } else if (payload.eventType === 'UPDATE') {
-                  this.emit('TOPUP_REQUEST_UPDATED', { request: payload.new, id: payload.new?.id, status: payload.new?.status });
+                  this.emit('TOPUP_REQUEST_UPDATED', { request: payload.new, id: payload.new?.id, status: payload.new?.status, user_id: payload.new?.captain_id, phone: payload.new?.captain_phone });
+                }
+              }
+            )
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'wallets' },
+              (payload: any) => {
+                if (payload.new) {
+                  this.emit('WALLET_UPDATED', {
+                    user_id: payload.new.user_id,
+                    balance: Number(payload.new.balance),
+                  });
+                }
+              }
+            )
+            .on(
+              'postgres_changes',
+              { event: 'INSERT', schema: 'public', table: 'wallet_transactions' },
+              (payload: any) => {
+                if (payload.new) {
+                  this.emit('WALLET_TRANSACTION_CREATED', payload.new);
+                  this.emit('WALLET_UPDATED', {
+                    user_id: payload.new.user_id,
+                  });
                 }
               }
             )
