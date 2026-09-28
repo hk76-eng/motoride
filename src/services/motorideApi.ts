@@ -16,7 +16,7 @@ import {
 } from '../types/motoride';
 import { getSupabase } from '../lib/supabase';
 import { safeStorage } from '../lib/safeStorage';
-import { supabaseAuth } from '../lib/supabaseAuth';
+import { supabaseAuth, isDemoAccount } from '../lib/supabaseAuth';
 import { realtimeSync } from './realtimeSync';
 import { saveApkBlobToIndexedDb, getApkBlobFromIndexedDb, deleteApkBlobFromIndexedDb } from '../lib/apkStorage';
 
@@ -1131,13 +1131,242 @@ export const motorideApi = {
   },
 
   async getCaptains(): Promise<Captain[]> {
-    const json = await safeFetchJson<{ captains?: Captain[] }>(`${API_BASE}/captains`, undefined, { captains: [] });
-    return Array.isArray(json?.captains) ? json.captains : [];
+    const mergedMap = new Map<string, Captain>();
+
+    // 1. Try server endpoint
+    try {
+      const json = await safeFetchJson<{ captains?: Captain[] }>(`${API_BASE}/captains`, undefined, { captains: [] });
+      if (Array.isArray(json?.captains)) {
+        json.captains.forEach((c) => {
+          if (c && c.id && !isDemoAccount(c)) mergedMap.set(c.id, c);
+        });
+      }
+    } catch {}
+
+    // 2. Direct Supabase query (Crucial for Vercel SPA deployment)
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const [profRes, cptRes, vehRes, walRes, ridesRes, topupRes] = await Promise.all([
+          supabase.from('profiles').select('*'),
+          supabase.from('captains').select('*'),
+          supabase.from('vehicles').select('*'),
+          supabase.from('wallets').select('*'),
+          supabase.from('rides').select('captain_id, captain_name, captain_phone, captain_avatar, vehicle_model, plate_number'),
+          supabase.from('topup_requests').select('captain_id, captain_name, captain_phone, captain_avatar'),
+        ]);
+
+        const profs = profRes.data || [];
+        const cpts = cptRes.data || [];
+        const vehs = vehRes.data || [];
+        const wals = walRes.data || [];
+        const rides = ridesRes.data || [];
+        const topups = topupRes.data || [];
+
+        // Add from captains table
+        cpts.forEach((c: any) => {
+          if (!c || isDemoAccount(c)) return;
+          const key = c.id || c.profile_id || c.phone;
+          if (!key) return;
+          const matchingVeh = vehs.find((v: any) => v.captain_id === c.id || v.captain_id === c.profile_id);
+          const matchingWal = wals.find((w: any) => w.user_id === c.id || w.user_id === c.profile_id || w.user_id === c.phone);
+          mergedMap.set(key, {
+            id: c.id || c.profile_id || key,
+            profile_id: c.profile_id || c.id || key,
+            full_name: c.full_name || c.name || 'Captain Partner',
+            email: c.email || '',
+            phone: c.phone || '',
+            is_online: Boolean(c.is_online ?? true),
+            is_approved: Boolean(c.is_approved ?? true),
+            is_active: Boolean(c.is_active ?? true),
+            current_lat: Number(c.current_lat || 30.7046),
+            current_lng: Number(c.current_lng || 76.7178),
+            rating: Number(c.rating || 5.0),
+            total_rides: Number(c.total_rides || 0),
+            today_earnings: Number(c.today_earnings || 0),
+            total_earnings: Number(c.total_earnings || 0),
+            wallet_balance: matchingWal?.balance !== undefined ? Number(matchingWal.balance) : Number(c.wallet_balance || 500),
+            vehicle: {
+              id: matchingVeh?.id || `veh_${key}`,
+              captain_id: key,
+              model: c.vehicle_model || matchingVeh?.model || 'Motorcycle',
+              plate_number: c.plate_number || matchingVeh?.plate_number || '',
+              vehicle_type: matchingVeh?.vehicle_type || 'bike',
+              color: matchingVeh?.color || 'Black',
+              is_active: true,
+            },
+            created_at: c.created_at || new Date().toISOString(),
+          });
+        });
+
+        // Add from profiles table (where role = 'captain' or has vehicle info)
+        profs.forEach((sp: any) => {
+          if (!sp || isDemoAccount(sp)) return;
+          const isCaptain = sp.role === 'captain' || sp.user_type === 'captain' || sp.is_captain || Boolean(sp.vehicle_model || sp.plate_number);
+          if (!isCaptain) return;
+
+          const key = sp.id || sp.phone;
+          if (!key) return;
+
+          const existing = mergedMap.get(key);
+          const matchingVeh = vehs.find((v: any) => v.captain_id === sp.id || v.captain_id === sp.phone);
+          const matchingWal = wals.find((w: any) => w.user_id === sp.id || w.user_id === sp.phone);
+
+          mergedMap.set(key, {
+            id: sp.id || key,
+            profile_id: sp.id || key,
+            full_name: sp.full_name || sp.name || existing?.full_name || 'Captain Partner',
+            email: sp.email || existing?.email || '',
+            phone: sp.phone || existing?.phone || '',
+            is_online: existing?.is_online ?? Boolean(sp.is_online ?? true),
+            is_approved: existing?.is_approved ?? Boolean(sp.is_approved ?? true),
+            is_active: existing?.is_active ?? true,
+            current_lat: existing?.current_lat ?? Number(sp.current_lat || 30.7046),
+            current_lng: existing?.current_lng ?? Number(sp.current_lng || 76.7178),
+            rating: existing?.rating ?? Number(sp.rating || 5.0),
+            total_rides: existing?.total_rides ?? Number(sp.total_rides || 0),
+            today_earnings: existing?.today_earnings ?? 0,
+            total_earnings: existing?.total_earnings ?? 0,
+            wallet_balance: matchingWal?.balance !== undefined ? Number(matchingWal.balance) : Number(sp.wallet_balance ?? existing?.wallet_balance ?? 500),
+            vehicle: {
+              id: matchingVeh?.id || existing?.vehicle?.id || `veh_${key}`,
+              captain_id: key,
+              model: sp.vehicle_model || matchingVeh?.model || existing?.vehicle?.model || 'Motorcycle',
+              plate_number: sp.plate_number || matchingVeh?.plate_number || existing?.vehicle?.plate_number || '',
+              vehicle_type: matchingVeh?.vehicle_type || existing?.vehicle?.vehicle_type || 'bike',
+              color: 'Black',
+              is_active: true,
+            },
+            created_at: sp.created_at || existing?.created_at || new Date().toISOString(),
+          });
+        });
+
+        // Add from rides
+        rides.forEach((r: any) => {
+          if (!r?.captain_id || isDemoAccount({ id: r.captain_id, name: r.captain_name })) return;
+          const key = r.captain_id;
+          if (!mergedMap.has(key)) {
+            mergedMap.set(key, {
+              id: key,
+              profile_id: key,
+              full_name: r.captain_name || 'Captain Partner',
+              email: '',
+              phone: r.captain_phone || '',
+              is_online: true,
+              is_approved: true,
+              is_active: true,
+              current_lat: 30.7046,
+              current_lng: 76.7178,
+              rating: 5.0,
+              total_rides: 1,
+              today_earnings: 0,
+              total_earnings: 0,
+              wallet_balance: 500,
+              vehicle: {
+                id: `veh_${key}`,
+                captain_id: key,
+                model: r.vehicle_model || 'Motorcycle',
+                plate_number: r.plate_number || '',
+                vehicle_type: 'bike',
+                color: 'Black',
+                is_active: true,
+              },
+              created_at: new Date().toISOString(),
+            });
+          }
+        });
+
+        // Add from topup requests
+        topups.forEach((t: any) => {
+          if (!t?.captain_id || isDemoAccount({ id: t.captain_id, name: t.captain_name })) return;
+          const key = t.captain_id;
+          if (!mergedMap.has(key)) {
+            mergedMap.set(key, {
+              id: key,
+              profile_id: key,
+              full_name: t.captain_name || 'Captain Partner',
+              email: '',
+              phone: t.captain_phone || '',
+              is_online: true,
+              is_approved: true,
+              is_active: true,
+              current_lat: 30.7046,
+              current_lng: 76.7178,
+              rating: 5.0,
+              total_rides: 0,
+              today_earnings: 0,
+              total_earnings: 0,
+              wallet_balance: 500,
+              vehicle: {
+                id: `veh_${key}`,
+                captain_id: key,
+                model: 'Motorcycle',
+                plate_number: '',
+                vehicle_type: 'bike',
+                color: 'Black',
+                is_active: true,
+              },
+              created_at: new Date().toISOString(),
+            });
+          }
+        });
+      } catch (err) {
+        console.warn('Supabase getCaptains error:', err);
+      }
+    }
+
+    // 3. Fallback: Local storage caches
+    try {
+      const sources = ['motoride_registered_accounts', 'motoride_supa_profiles'];
+      sources.forEach((src) => {
+        const raw = safeStorage.getItem(src);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            list.forEach((a: any) => {
+              if (!a || isDemoAccount(a)) return;
+              const isCap = a.role === 'captain' || Boolean(a.vehicle_model || a.plate_number);
+              if (!isCap) return;
+              const key = a.id || a.phone || a.email;
+              if (key && !mergedMap.has(key)) {
+                mergedMap.set(key, {
+                  id: a.id || key,
+                  profile_id: a.id || key,
+                  full_name: a.full_name || a.name || 'Captain',
+                  email: a.email || '',
+                  phone: a.phone || '',
+                  is_online: true,
+                  is_approved: true,
+                  is_active: true,
+                  current_lat: 30.7046,
+                  current_lng: 76.7178,
+                  rating: 5.0,
+                  total_rides: 0,
+                  wallet_balance: a.wallet_balance ?? 500,
+                  vehicle: {
+                    id: `veh_${key}`,
+                    captain_id: key,
+                    model: a.vehicle_model || 'Motorcycle',
+                    plate_number: a.plate_number || '',
+                    vehicle_type: a.vehicle_type || 'bike',
+                    color: 'Black',
+                    is_active: true,
+                  },
+                  created_at: a.member_since || a.created_at || new Date().toISOString(),
+                });
+              }
+            });
+          }
+        }
+      });
+    } catch {}
+
+    return Array.from(mergedMap.values());
   },
 
   async getCaptainById(id: string): Promise<Captain | null> {
-    const json = await safeFetchJson<{ captain?: Captain }>(`${API_BASE}/captains/${id}`, undefined, {});
-    return json?.captain || null;
+    const list = await this.getCaptains();
+    return list.find((c) => c.id === id || c.profile_id === id || c.phone === id) || null;
   },
 
   // Today's Income Calculation Engine
@@ -1293,13 +1522,200 @@ export const motorideApi = {
 
   // 3. Passengers
   async getAccounts(): Promise<any[]> {
-    const json = await safeFetchJson<{ accounts?: any[] }>(`${API_BASE}/auth/accounts`, undefined, { accounts: [] });
-    return json.accounts || [];
+    let serverAccs: any[] = [];
+    try {
+      const json = await safeFetchJson<{ accounts?: any[] }>(`${API_BASE}/auth/accounts`, undefined, { accounts: [] });
+      if (Array.isArray(json?.accounts)) {
+        serverAccs = json.accounts;
+      }
+    } catch {}
+
+    const mergedMap = new Map<string, any>();
+    serverAccs.forEach((a) => {
+      if (a && (a.id || a.email || a.phone) && !isDemoAccount(a)) {
+        mergedMap.set(a.id || a.email || a.phone, a);
+      }
+    });
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data: profs } = await supabase.from('profiles').select('*');
+        if (Array.isArray(profs)) {
+          profs.forEach((sp: any) => {
+            if (!sp || isDemoAccount(sp)) return;
+            const key = sp.id || sp.email || sp.phone;
+            if (key && !mergedMap.has(key)) {
+              mergedMap.set(key, {
+                id: sp.id,
+                name: sp.full_name || sp.name || 'User',
+                email: sp.email || '',
+                phone: sp.phone || '',
+                role: sp.role || (sp.vehicle_model ? 'captain' : 'passenger'),
+                wallet_balance: sp.wallet_balance || 0,
+                member_since: sp.created_at || new Date().toISOString(),
+              });
+            }
+          });
+        }
+      } catch {}
+    }
+
+    try {
+      const sources = ['motoride_registered_accounts', 'motoride_supa_profiles'];
+      sources.forEach((src) => {
+        const rawLocal = safeStorage.getItem(src);
+        if (rawLocal) {
+          const parsed = JSON.parse(rawLocal);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((a: any) => {
+              if (!a || isDemoAccount(a)) return;
+              const key = a.id || a.email || a.phone;
+              if (key && !mergedMap.has(key)) {
+                mergedMap.set(key, a);
+              }
+            });
+          }
+        }
+      });
+    } catch {}
+
+    return Array.from(mergedMap.values());
   },
 
   async getPassengers(): Promise<Passenger[]> {
-    const json = await safeFetchJson<{ passengers?: Passenger[] }>(`${API_BASE}/passengers`, undefined, { passengers: [] });
-    return json.passengers || [];
+    const mergedMap = new Map<string, Passenger>();
+
+    // 1. Try server endpoint
+    try {
+      const json = await safeFetchJson<{ passengers?: Passenger[] }>(`${API_BASE}/passengers`, undefined, { passengers: [] });
+      if (Array.isArray(json?.passengers)) {
+        json.passengers.forEach((p) => {
+          if (p && p.id && !isDemoAccount(p)) mergedMap.set(p.id, p);
+        });
+      }
+    } catch {}
+
+    // 2. Direct Supabase query (Crucial for Vercel SPA deployment)
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const [profRes, passRes, walRes, ridesRes] = await Promise.all([
+          supabase.from('profiles').select('*'),
+          supabase.from('passengers').select('*'),
+          supabase.from('wallets').select('*'),
+          supabase.from('rides').select('passenger_id, passenger_name, passenger_phone, passenger_avatar'),
+        ]);
+
+        const profs = profRes.data || [];
+        const psgs = passRes.data || [];
+        const wals = walRes.data || [];
+        const rides = ridesRes.data || [];
+
+        // Add from passengers table
+        psgs.forEach((p: any) => {
+          if (!p || isDemoAccount(p)) return;
+          const key = p.id || p.profile_id || p.phone;
+          if (!key) return;
+          const matchingWal = wals.find((w: any) => w.user_id === p.id || w.user_id === p.profile_id || w.user_id === p.phone);
+          mergedMap.set(key, {
+            id: p.id || p.profile_id || key,
+            profile_id: p.profile_id || p.id || key,
+            full_name: p.full_name || p.name || 'Passenger',
+            email: p.email || '',
+            phone: p.phone || '',
+            total_rides: Number(p.total_rides || 0),
+            rating: Number(p.rating || 5.0),
+            wallet_balance: matchingWal?.balance !== undefined ? Number(matchingWal.balance) : Number(p.wallet_balance || 200),
+            emergency_contact: p.emergency_contact || p.phone || '',
+            created_at: p.created_at || new Date().toISOString(),
+          });
+        });
+
+        // Add from profiles table (where role = 'passenger' or not captain)
+        profs.forEach((sp: any) => {
+          if (!sp || isDemoAccount(sp)) return;
+          const isPassenger = sp.role === 'passenger' || sp.user_type === 'passenger' || (!sp.role && !sp.vehicle_model && !sp.plate_number);
+          if (!isPassenger) return;
+
+          const key = sp.id || sp.phone;
+          if (!key) return;
+
+          const existing = mergedMap.get(key);
+          const matchingWal = wals.find((w: any) => w.user_id === sp.id || w.user_id === sp.phone);
+
+          mergedMap.set(key, {
+            id: sp.id || key,
+            profile_id: sp.id || key,
+            full_name: sp.full_name || sp.name || existing?.full_name || 'Passenger',
+            email: sp.email || existing?.email || '',
+            phone: sp.phone || existing?.phone || '',
+            total_rides: existing?.total_rides ?? Number(sp.total_rides || 0),
+            rating: existing?.rating ?? Number(sp.rating || 5.0),
+            wallet_balance: matchingWal?.balance !== undefined ? Number(matchingWal.balance) : Number(sp.wallet_balance ?? existing?.wallet_balance ?? 200),
+            emergency_contact: sp.phone || existing?.emergency_contact || '',
+            created_at: sp.created_at || existing?.created_at || new Date().toISOString(),
+          });
+        });
+
+        // Add from rides
+        rides.forEach((r: any) => {
+          if (!r?.passenger_id || isDemoAccount({ id: r.passenger_id, name: r.passenger_name })) return;
+          const key = r.passenger_id;
+          if (!mergedMap.has(key)) {
+            mergedMap.set(key, {
+              id: key,
+              profile_id: key,
+              full_name: r.passenger_name || 'Passenger',
+              email: '',
+              phone: r.passenger_phone || '',
+              total_rides: 1,
+              rating: 5.0,
+              wallet_balance: 200,
+              emergency_contact: r.passenger_phone || '',
+              created_at: new Date().toISOString(),
+            });
+          }
+        });
+      } catch (err) {
+        console.warn('Supabase getPassengers error:', err);
+      }
+    }
+
+    // 3. Fallback: Local storage caches
+    try {
+      const sources = ['motoride_registered_accounts', 'motoride_supa_profiles'];
+      sources.forEach((src) => {
+        const rawLocal = safeStorage.getItem(src);
+        if (rawLocal) {
+          const parsed = JSON.parse(rawLocal);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((a: any) => {
+              if (!a || isDemoAccount(a)) return;
+              const isPass = a.role === 'passenger' || (!a.role && !a.vehicle_model);
+              if (!isPass) return;
+              const key = a.id || a.phone || a.email;
+              if (key && !mergedMap.has(key)) {
+                mergedMap.set(key, {
+                  id: a.id || key,
+                  profile_id: a.id || key,
+                  full_name: a.full_name || a.name || 'Passenger',
+                  email: a.email || '',
+                  phone: a.phone || '',
+                  total_rides: 0,
+                  rating: 5.0,
+                  wallet_balance: a.wallet_balance ?? 200,
+                  emergency_contact: a.phone || '',
+                  created_at: a.member_since || a.created_at || new Date().toISOString(),
+                });
+              }
+            });
+          }
+        }
+      });
+    } catch {}
+
+    return Array.from(mergedMap.values());
   },
 
   async updatePassengerProfile(
