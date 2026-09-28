@@ -227,6 +227,33 @@ export interface WalletTransaction {
   created_at: string;
 }
 
+export interface TopupDepositRequest {
+  id: string;
+  captain_id: string;
+  captain_name: string;
+  captain_phone?: string;
+  captain_avatar?: string;
+  amount: number;
+  utr_number?: string;
+  payment_slip_url?: string;
+  note?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TopupChatMessage {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  sender_role: 'admin' | 'captain';
+  sender_name: string;
+  message: string;
+  image_url?: string;
+  created_at: string;
+}
+
 export interface MotorideNotification {
   id: string;
   user_id?: string;

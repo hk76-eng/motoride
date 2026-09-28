@@ -11,6 +11,8 @@ import {
   RideOffer,
   PassengerLiveLocation,
   AppHyperlinkConfig,
+  TopupDepositRequest,
+  TopupChatMessage,
 } from '../types/motoride';
 import { getSupabase } from '../lib/supabase';
 import { safeStorage } from '../lib/safeStorage';
@@ -1613,6 +1615,79 @@ export const motorideApi = {
       body: JSON.stringify({ amount, upiOrBank }),
     }, { wallet: { balance: 0 } });
     return json.wallet;
+  },
+
+  // 6b. Top-Up Deposit Proof & Admin Verification Chat API
+  async getTopupRequests(params?: { captain_id?: string; status?: string }): Promise<TopupDepositRequest[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.captain_id) queryParams.set('captain_id', params.captain_id);
+    if (params?.status) queryParams.set('status', params.status);
+
+    const json = await safeFetchJson<{ requests: TopupDepositRequest[] }>(
+      `${API_BASE}/topup-requests?${queryParams.toString()}`,
+      undefined,
+      { requests: [] }
+    );
+    return json.requests || [];
+  },
+
+  async createTopupRequest(data: {
+    captain_id: string;
+    captain_name: string;
+    captain_phone?: string;
+    captain_avatar?: string;
+    amount: number;
+    utr_number?: string;
+    payment_slip_url?: string;
+    note?: string;
+  }): Promise<TopupDepositRequest> {
+    const json = await safeFetchJson<{ request: TopupDepositRequest }>(`${API_BASE}/topup-requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return json.request;
+  },
+
+  async approveTopupRequest(id: string): Promise<{ request: TopupDepositRequest; wallet: { balance: number } }> {
+    const json = await safeFetchJson<{ request: TopupDepositRequest; wallet: { balance: number } }>(
+      `${API_BASE}/topup-requests/${id}/approve`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+    );
+    return json;
+  },
+
+  async rejectTopupRequest(id: string, rejection_reason?: string): Promise<{ request: TopupDepositRequest }> {
+    const json = await safeFetchJson<{ request: TopupDepositRequest }>(
+      `${API_BASE}/topup-requests/${id}/reject`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rejection_reason }),
+      }
+    );
+    return json;
+  },
+
+  async getTopupChatMessages(id: string): Promise<TopupChatMessage[]> {
+    const json = await safeFetchJson<{ messages: TopupChatMessage[] }>(
+      `${API_BASE}/topup-requests/${id}/messages`,
+      undefined,
+      { messages: [] }
+    );
+    return json.messages || [];
+  },
+
+  async sendTopupChatMessage(
+    id: string,
+    data: { sender_id: string; sender_role: 'admin' | 'captain'; sender_name: string; message: string; image_url?: string }
+  ): Promise<TopupChatMessage> {
+    const json = await safeFetchJson<{ message: TopupChatMessage }>(`${API_BASE}/topup-requests/${id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return json.message;
   },
 
   // 7. Admin Stats & Notifications

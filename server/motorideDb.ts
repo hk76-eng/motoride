@@ -317,6 +317,37 @@ export const ridesStore = new Map<string, MotorideRide>();
 // 7. Notifications Store
 export const notificationsStore: MotorideNotification[] = [];
 
+// 8. Top-up Deposit Requests & Proof Verification Store
+export interface TopupDepositRequest {
+  id: string;
+  captain_id: string;
+  captain_name: string;
+  captain_phone?: string;
+  captain_avatar?: string;
+  amount: number;
+  utr_number?: string;
+  payment_slip_url?: string;
+  note?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  rejection_reason?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TopupChatMessage {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  sender_role: 'admin' | 'captain';
+  sender_name: string;
+  message: string;
+  image_url?: string;
+  created_at: string;
+}
+
+export const topupRequestsStore = new Map<string, TopupDepositRequest>();
+export const topupChatStore = new Map<string, TopupChatMessage[]>();
+
 // Persistent Disk Storage helpers for server container reliability
 const DB_FILE = path.join(DATA_DIR, 'motoride_db.json');
 
@@ -331,6 +362,8 @@ export function persistDbToDisk() {
       passengers: Array.from(passengersStore.entries()),
       wallets: Array.from(walletsStore.entries()),
       rides: Array.from(ridesStore.entries()),
+      topupRequests: Array.from(topupRequestsStore.entries()),
+      topupChat: Array.from(topupChatStore.entries()),
     };
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
@@ -435,6 +468,16 @@ export function loadDbFromDisk() {
       if (Array.isArray(data.rides)) {
         for (const [k, v] of data.rides) {
           if (v && v.id) ridesStore.set(k, v);
+        }
+      }
+      if (Array.isArray(data.topupRequests)) {
+        for (const [k, v] of data.topupRequests) {
+          if (v && v.id) topupRequestsStore.set(k, v);
+        }
+      }
+      if (Array.isArray(data.topupChat)) {
+        for (const [k, v] of data.topupChat) {
+          if (k && Array.isArray(v)) topupChatStore.set(k, v);
         }
       }
     }

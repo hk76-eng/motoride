@@ -9,7 +9,9 @@ import {
   CourierChargeSettings,
   QRCodeSetting,
   AppHyperlinkConfig,
+  TopupDepositRequest,
 } from '../types/motoride';
+import { TopupChatModal } from '../components/common/TopupChatModal';
 import { motorideApi } from '../services/motorideApi';
 import { SUPABASE_SQL_SCHEMA } from '../lib/sqlSchema';
 import { isSupabaseConfigured, getSupabase, SUPABASE_CONFIG_STATUS } from '../lib/supabase';
@@ -63,6 +65,7 @@ import {
   Percent,
   Link2,
   Globe,
+  MessageSquare,
 } from 'lucide-react';
 
 const DEFAULT_RIDE_CHARGES: RideChargeSettings = {
@@ -116,7 +119,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   onSignOut,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'captains' | 'passengers' | 'rides' | 'ride_charges' | 'courier_charges' | 'qr' | 'app_link' | 'supabase'
+    'overview' | 'captains' | 'passengers' | 'rides' | 'ride_charges' | 'courier_charges' | 'qr' | 'topup_approvals' | 'app_link' | 'supabase'
   >('overview');
 
   const [stats, setStats] = useState<AdminDashboardStats>({
@@ -185,6 +188,45 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   const [appLinkConfig, setAppLinkConfig] = useState<AppHyperlinkConfig>(() => motorideApi.getAppHyperlinkConfig());
   const [appLinkSaveStatus, setAppLinkSaveStatus] = useState<string | null>(null);
   const [isSavingAppLink, setIsSavingAppLink] = useState(false);
+
+  // Top-Up Approvals & Verification Chat State
+  const [topupRequests, setTopupRequests] = useState<TopupDepositRequest[]>([]);
+  const [activeTopupChatRequest, setActiveTopupChatRequest] = useState<TopupDepositRequest | null>(null);
+  const [topupFilter, setTopupFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [rejectingRequestId, setRejectingRequestId] = useState<string | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState<string>('');
+  const [isApproving, setIsApproving] = useState<string | null>(null);
+  const [topupActionToast, setTopupActionToast] = useState<string | null>(null);
+
+  const handleApproveDeposit = async (reqId: string) => {
+    setIsApproving(reqId);
+    try {
+      const res = await motorideApi.approveTopupRequest(reqId);
+      if (res && res.request) {
+        setTopupActionToast(`✅ Deposit of ₹${res.request.amount} verified and credited to ${res.request.captain_name}'s wallet!`);
+        setTimeout(() => setTopupActionToast(null), 4000);
+        await loadAllData();
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to approve deposit');
+    } finally {
+      setIsApproving(null);
+    }
+  };
+
+  const handleRejectDeposit = async () => {
+    if (!rejectingRequestId) return;
+    try {
+      await motorideApi.rejectTopupRequest(rejectingRequestId, rejectionReasonInput || 'Payment verification failed');
+      setTopupActionToast(`❌ Deposit request rejected.`);
+      setTimeout(() => setTopupActionToast(null), 4000);
+      setRejectingRequestId(null);
+      setRejectionReasonInput('');
+      await loadAllData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to reject deposit');
+    }
+  };
 
   const handleSaveAppLink = async () => {
     setIsSavingAppLink(true);
@@ -426,7 +468,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
 
   const loadAllData = async () => {
     try {
-      const [s, c, p, r, q, serverAccounts] = await Promise.all([
+      const [s, c, p, r, q, serverAccounts, topupsList] = await Promise.all([
         motorideApi.getAdminStats().catch((err) => {
           console.warn('AdminStats load failed, using fallback:', err);
           return null;
@@ -451,7 +493,15 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           console.warn('Accounts load failed, using fallback:', err);
           return [];
         }),
+        motorideApi.getTopupRequests().catch((err) => {
+          console.warn('TopupRequests load failed:', err);
+          return [];
+        }),
       ]);
+
+      if (Array.isArray(topupsList)) {
+        setTopupRequests(topupsList);
+      }
 
       let localCaptains: Captain[] = [];
       let localPassengers: Passenger[] = [];
@@ -901,6 +951,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           { key: 'ride_charges', label: 'Ride Charges / KM', icon: Bike },
           { key: 'courier_charges', label: 'Courier Charges / KM', icon: Settings },
           { key: 'qr', label: 'Official QR Code', icon: QrCode },
+          { key: 'topup_approvals', label: `Top-Up Approvals (${topupRequests.filter(r => r.status === 'pending').length} Pending)`, icon: CheckCircle2 },
           { key: 'app_link', label: 'Motoride App Link', icon: Smartphone },
           { key: 'supabase', label: 'Supabase SQL Setup', icon: Database },
         ].map((tab) => {
@@ -1987,6 +2038,198 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* VIEW: TOP-UP APPROVALS & PAYMENT VERIFICATION CHAT */}
+      {activeTab === 'topup_approvals' && (
+        <div className="p-5 sm:p-6 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-6 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-800">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-extrabold text-white flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  <span>Captain Top-Up Approvals & Payment Proof Verification</span>
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold">
+                  {topupRequests.filter(r => r.status === 'pending').length} Pending
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">
+                Verify payment slip screenshots submitted by Captains. Approving a request instantly credits their wallet balance in real time.
+              </p>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-2xl border border-slate-800">
+              {(['all', 'pending', 'approved', 'rejected'] as const).map((st) => (
+                <button
+                  type="button"
+                  key={st}
+                  onClick={() => setTopupFilter(st)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer ${
+                    topupFilter === st
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {st === 'pending' ? 'Pending Verification' : st}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {topupActionToast && (
+            <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold shadow-lg animate-in fade-in">
+              {topupActionToast}
+            </div>
+          )}
+
+          {/* Deposit Requests Grid / List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {topupRequests
+              .filter(r => topupFilter === 'all' || r.status === topupFilter)
+              .map((req) => (
+                <div
+                  key={req.id}
+                  className="p-5 rounded-3xl bg-slate-950 border border-slate-800 flex flex-col gap-4 hover:border-slate-700 transition-all shadow-lg"
+                >
+                  {/* Top Bar: Captain Info & Status */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 font-bold flex items-center justify-center shrink-0 shadow-md">
+                        {req.captain_avatar ? (
+                          <img src={req.captain_avatar} alt={req.captain_name} className="w-full h-full object-cover rounded-2xl" />
+                        ) : (
+                          req.captain_name[0]?.toUpperCase() || 'C'
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-sm font-extrabold text-white truncate block">
+                          {req.captain_name}
+                        </span>
+                        <span className="text-xs font-mono text-slate-400 block">
+                          {req.captain_phone || 'Captain Partner'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono block">
+                          Submitted {new Date(req.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-black border shrink-0 ${
+                      req.status === 'approved'
+                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                        : req.status === 'rejected'
+                        ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                        : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                    }`}>
+                      {req.status === 'approved'
+                        ? '✅ Approved'
+                        : req.status === 'rejected'
+                        ? '❌ Rejected'
+                        : '⏳ Pending Approval'}
+                    </span>
+                  </div>
+
+                  {/* Payment Details & Slip Screenshot */}
+                  <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">REQUESTED DEPOSIT AMOUNT</span>
+                      <span className="text-2xl font-black text-emerald-400 font-mono-num">
+                        ₹{req.amount.toFixed(2)}
+                      </span>
+                      {req.utr_number && (
+                        <span className="text-xs font-mono text-amber-300 font-bold">
+                          UTR: {req.utr_number}
+                        </span>
+                      )}
+                    </div>
+
+                    {req.payment_slip_url && (
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <img
+                          src={req.payment_slip_url}
+                          alt="Payment Slip Proof"
+                          onClick={() => setActiveTopupChatRequest(req)}
+                          className="w-16 h-16 object-cover rounded-xl border border-amber-500/40 cursor-pointer hover:scale-105 transition-transform shadow-md"
+                        />
+                        <span className="text-[9px] text-amber-400 font-bold">Click to view</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-1">
+                    {req.status === 'pending' && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleApproveDeposit(req.id)}
+                          disabled={isApproving === req.id}
+                          className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                          <span>{isApproving === req.id ? 'Crediting...' : 'Approve & Credit Wallet'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setRejectingRequestId(req.id)}
+                          className="px-3 py-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTopupChatRequest(req)}
+                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 border border-slate-700 shadow-sm"
+                    >
+                      <MessageSquare className="w-4 h-4 text-amber-400 stroke-[2.5]" />
+                      <span>Verification Chat</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          {/* Rejection Modal Dialog */}
+          {rejectingRequestId && (
+            <div className="fixed inset-0 z-[2100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="w-full max-w-md p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col gap-4 shadow-2xl">
+                <h3 className="text-base font-extrabold text-white">Reject Top-Up Deposit Request</h3>
+                <p className="text-xs text-slate-400">
+                  Please specify the rejection reason so the Captain is notified in chat.
+                </p>
+                <input
+                  type="text"
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  placeholder="e.g. UTR number mismatch or blurry payment receipt"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-white focus:outline-none focus:border-rose-500"
+                />
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleRejectDeposit}
+                    className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold cursor-pointer"
+                  >
+                    Confirm Rejection
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRejectingRequestId(null)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -3135,6 +3378,19 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
             <span>{actionToast}</span>
           </div>
         </div>
+      )}
+
+      {/* Topup Verification Chat Modal for Admin */}
+      {activeTopupChatRequest && (
+        <TopupChatModal
+          isOpen={!!activeTopupChatRequest}
+          onClose={() => setActiveTopupChatRequest(null)}
+          depositRequest={activeTopupChatRequest}
+          currentUserId="admin"
+          currentUserRole="admin"
+          currentUserName="Motoride Admin"
+          onStatusUpdated={loadAllData}
+        />
       )}
     </div>
   );

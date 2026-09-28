@@ -23,6 +23,10 @@ import {
   accountsStore,
   ServerRegisteredAccount,
   persistDbToDisk,
+  topupRequestsStore,
+  topupChatStore,
+  TopupDepositRequest,
+  TopupChatMessage,
   purgeAllDataFromDb,
   clearAllRidesFromDb,
   deleteCaptainFromDb,
@@ -1982,6 +1986,216 @@ motorideRouter.post('/wallet/:userId/withdraw', (req: Request, res: Response) =>
 
   walletTransactionsStore.unshift(tx);
   res.json({ success: true, wallet, transaction: tx });
+});
+
+// 6b. Top-Up QR Deposit Proof & Verification API
+motorideRouter.get('/topup-requests', (req: Request, res: Response) => {
+  const captainId = req.query.captain_id as string;
+  const status = req.query.status as string;
+
+  let requests = Array.from(topupRequestsStore.values());
+  if (captainId) {
+    requests = requests.filter((r) => r.captain_id === captainId);
+  }
+  if (status) {
+    requests = requests.filter((r) => r.status === status);
+  }
+
+  requests.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  res.json({ success: true, requests });
+});
+
+motorideRouter.post('/topup-requests', (req: Request, res: Response) => {
+  const { captain_id, captain_name, captain_phone, captain_avatar, amount, utr_number, payment_slip_url, note } = req.body;
+  
+  if (!captain_id || !amount || Number(amount) <= 0) {
+    return res.status(400).json({ error: 'Valid captain ID and deposit amount required' });
+  }
+
+  const requestId = `dep_${Date.now()}`;
+  const now = new Date().toISOString();
+
+  const newRequest: TopupDepositRequest = {
+    id: requestId,
+    captain_id,
+    captain_name: captain_name || 'Captain',
+    captain_phone: captain_phone || '',
+    captain_avatar: captain_avatar || '',
+    amount: Number(amount),
+    utr_number: utr_number || '',
+    payment_slip_url: payment_slip_url || '',
+    note: note || '',
+    status: 'pending',
+    created_at: now,
+    updated_at: now,
+  };
+
+  topupRequestsStore.set(requestId, newRequest);
+
+  // Initial chat message in topup thread
+  const initialMessage: TopupChatMessage = {
+    id: `msg_${Date.now()}`,
+    request_id: requestId,
+    sender_id: captain_id,
+    sender_role: 'captain',
+    sender_name: captain_name || 'Captain',
+    message: `Submitted ₹${amount} top-up request (UTR: ${utr_number || 'N/A'}) with payment slip proof.`,
+    image_url: payment_slip_url || undefined,
+    created_at: now,
+  };
+
+  topupChatStore.set(requestId, [initialMessage]);
+  persistDbToDisk();
+
+  broadcastEvent('TOPUP_REQUEST_CREATED', { request: newRequest, message: initialMessage });
+  res.json({ success: true, request: newRequest });
+});
+
+motorideRouter.post('/topup-requests/:id/approve', (req: Request, res: Response) => {
+  const requestId = req.params.id;
+  const request = topupRequestsStore.get(requestId);
+
+  if (!request) {
+    return res.status(404).json({ error: 'Top-up deposit request not found' });
+  }
+
+  if (request.status === 'approved') {
+    return res.status(400).json({ error: 'Request is already approved' });
+  }
+
+  const now = new Date().toISOString();
+  request.status = 'approved';
+  request.updated_at = now;
+  topupRequestsStore.set(requestId, request);
+
+  // Credit Captain Wallet
+  const wallet = walletsStore.get(request.captain_id) || { balance: 0, currency: '₹' };
+  wallet.balance = Number((wallet.balance + request.amount).toFixed(2));
+  walletsStore.set(request.captain_id, wallet);
+
+  // Update Account Store
+  for (const [key, acc] of accountsStore.entries()) {
+    if (acc.id === request.captain_id) {
+      acc.wallet_balance = wallet.balance;
+      accountsStore.set(key, acc);
+    }
+  }
+
+  // Create Wallet Transaction
+  const tx: WalletTransaction = {
+    id: `tx_dep_${Date.now()}`,
+    wallet_id: `w_${request.captain_id}`,
+    user_id: request.captain_id,
+    amount: request.amount,
+    type: 'credit',
+    category: 'topup',
+    description: `Official QR Top-up Approved (UTR: ${request.utr_number || 'Verified'})`,
+    created_at: now,
+  };
+  walletTransactionsStore.unshift(tx);
+
+  // Automated approval message in topup chat
+  const approvalMsg: TopupChatMessage = {
+    id: `msg_app_${Date.now()}`,
+    request_id: requestId,
+    sender_id: 'admin',
+    sender_role: 'admin',
+    sender_name: 'Motoride Admin',
+    message: `✅ Payment verified! ₹${request.amount} has been credited to your wallet balance immediately.`,
+    created_at: now,
+  };
+
+  const msgs = topupChatStore.get(requestId) || [];
+  msgs.push(approvalMsg);
+  topupChatStore.set(requestId, msgs);
+
+  // Notification for captain
+  notificationsStore.unshift({
+    id: `notif_${Date.now()}`,
+    user_id: request.captain_id,
+    role_target: 'captain',
+    title: 'Wallet Top-Up Approved!',
+    message: `Your payment of ₹${request.amount} has been verified and added to your wallet.`,
+    type: 'success',
+    is_read: false,
+    created_at: now,
+  });
+
+  persistDbToDisk();
+
+  broadcastEvent('TOPUP_REQUEST_UPDATED', { request, wallet, transaction: tx, message: approvalMsg });
+  res.json({ success: true, request, wallet, transaction: tx });
+});
+
+motorideRouter.post('/topup-requests/:id/reject', (req: Request, res: Response) => {
+  const requestId = req.params.id;
+  const { rejection_reason } = req.body;
+  const request = topupRequestsStore.get(requestId);
+
+  if (!request) {
+    return res.status(404).json({ error: 'Top-up deposit request not found' });
+  }
+
+  const now = new Date().toISOString();
+  request.status = 'rejected';
+  request.rejection_reason = rejection_reason || 'Payment verification failed';
+  request.updated_at = now;
+  topupRequestsStore.set(requestId, request);
+
+  const rejectionMsg: TopupChatMessage = {
+    id: `msg_rej_${Date.now()}`,
+    request_id: requestId,
+    sender_id: 'admin',
+    sender_role: 'admin',
+    sender_name: 'Motoride Admin',
+    message: `❌ Deposit request rejected: ${request.rejection_reason}`,
+    created_at: now,
+  };
+
+  const msgs = topupChatStore.get(requestId) || [];
+  msgs.push(rejectionMsg);
+  topupChatStore.set(requestId, msgs);
+
+  persistDbToDisk();
+
+  broadcastEvent('TOPUP_REQUEST_UPDATED', { request, message: rejectionMsg });
+  res.json({ success: true, request });
+});
+
+motorideRouter.get('/topup-requests/:id/messages', (req: Request, res: Response) => {
+  const requestId = req.params.id;
+  const messages = topupChatStore.get(requestId) || [];
+  res.json({ success: true, messages });
+});
+
+motorideRouter.post('/topup-requests/:id/messages', (req: Request, res: Response) => {
+  const requestId = req.params.id;
+  const { sender_id, sender_role, sender_name, message, image_url } = req.body;
+
+  if (!sender_id || (!message && !image_url)) {
+    return res.status(400).json({ error: 'Message or image attachment required' });
+  }
+
+  const now = new Date().toISOString();
+  const newMsg: TopupChatMessage = {
+    id: `msg_${Date.now()}`,
+    request_id: requestId,
+    sender_id,
+    sender_role: sender_role || 'captain',
+    sender_name: sender_name || 'User',
+    message: message || '',
+    image_url: image_url || undefined,
+    created_at: now,
+  };
+
+  const msgs = topupChatStore.get(requestId) || [];
+  msgs.push(newMsg);
+  topupChatStore.set(requestId, msgs);
+
+  persistDbToDisk();
+
+  broadcastEvent('TOPUP_CHAT_MESSAGE_RECEIVED', { request_id: requestId, message: newMsg });
+  res.json({ success: true, message: newMsg });
 });
 
 // 7. Admin Dashboard & Notifications

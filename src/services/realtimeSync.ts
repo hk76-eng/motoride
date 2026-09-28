@@ -215,6 +215,10 @@ class RealtimeSyncManager {
     };
   }
 
+  public off(event: string, callback: EventCallback) {
+    this.listeners.get(event)?.delete(callback);
+  }
+
   public emit(event: string, payload: any, broadcastLocally: boolean = true) {
     const callbacks = this.listeners.get(event);
     if (callbacks) {

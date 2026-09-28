@@ -8,6 +8,7 @@ import {
 } from '../types/motoride';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
+import { TopupChatModal } from '../components/common/TopupChatModal';
 import { CaptainPassengerRatingModal } from './CaptainPassengerRatingModal';
 import { motorideApi, getRideAgreedFare } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
@@ -185,6 +186,64 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [isProcessingPayout, setIsProcessingPayout] = useState<boolean>(false);
   const [walletMessage, setWalletMessage] = useState<string | null>(null);
   const [copiedUpiToast, setCopiedUpiToast] = useState<boolean>(false);
+
+  // Top-Up QR Deposit Proof & Chat state
+  const [utrInput, setUtrInput] = useState<string>('');
+  const [paymentSlipInput, setPaymentSlipInput] = useState<string | null>(null);
+  const [isSubmittingProof, setIsSubmittingProof] = useState<boolean>(false);
+  const [captainTopupRequests, setCaptainTopupRequests] = useState<TopupDepositRequest[]>([]);
+  const [activeChatRequest, setActiveChatRequest] = useState<TopupDepositRequest | null>(null);
+
+  const loadCaptainTopupRequests = async () => {
+    try {
+      const list = await motorideApi.getTopupRequests({ captain_id: captainId });
+      setCaptainTopupRequests(list);
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (activeTab === 'wallet' && captainId) {
+      loadCaptainTopupRequests();
+    }
+  }, [activeTab, captainId]);
+
+  const handleSubmitDepositProof = async () => {
+    const amt = Number(topupAmountInput);
+    if (!amt || isNaN(amt) || amt <= 0) {
+      alert('Please enter a valid top-up amount');
+      return;
+    }
+    if (!paymentSlipInput) {
+      alert('Please upload your payment slip proof or receipt screenshot');
+      return;
+    }
+
+    setIsSubmittingProof(true);
+    try {
+      const req = await motorideApi.createTopupRequest({
+        captain_id: captainId,
+        captain_name: captain?.full_name || captainName || 'Captain',
+        captain_phone: captain?.phone || '',
+        captain_avatar: captain?.avatar_url || '',
+        amount: amt,
+        utr_number: utrInput.trim(),
+        payment_slip_url: paymentSlipInput,
+      });
+
+      if (req) {
+        setWalletMessage(`✅ Top-up request for ₹${amt} submitted to Admin! Live verification chat opened.`);
+        setTimeout(() => setWalletMessage(null), 4000);
+        setUtrInput('');
+        setPaymentSlipInput(null);
+        await loadCaptainTopupRequests();
+        setActiveChatRequest(req);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to submit top-up request');
+    } finally {
+      setIsSubmittingProof(false);
+    }
+  };
 
   const handleExecuteTopup = async () => {
     const amt = Number(topupAmountInput);
@@ -2737,14 +2796,62 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                     className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono-num font-bold text-white focus:outline-none focus:border-amber-500/50"
                   />
 
+                  {/* UTR / Reference No. & Payment Slip Upload */}
+                  <div className="flex flex-col gap-2 pt-2 border-t border-slate-800">
+                    <label className="text-xs font-bold text-amber-300">1. Enter Transaction / UTR No.</label>
+                    <input
+                      type="text"
+                      value={utrInput}
+                      onChange={(e) => setUtrInput(e.target.value)}
+                      placeholder="e.g. 12-digit UPI UTR No. (492819283712)"
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white focus:outline-none focus:border-amber-500/50"
+                    />
+
+                    <label className="text-xs font-bold text-amber-300 mt-1">2. Upload Payment Slip / Paid Receipt Screenshot</label>
+                    <label className="w-full p-3 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-dashed border-amber-500/40 text-xs font-bold text-white cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 text-center shadow-inner">
+                      <UploadCloud className="w-5 h-5 text-emerald-400" />
+                      <span>{paymentSlipInput ? 'Change Payment Slip Screenshot' : 'Upload Payment Slip Proof'}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">Supports JPG, PNG, Screenshots</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const result = ev.target?.result as string;
+                            if (result) setPaymentSlipInput(result);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+
+                    {paymentSlipInput && (
+                      <div className="relative w-full h-32 rounded-xl overflow-hidden border border-emerald-500/50 shadow-md mt-1">
+                        <img src={paymentSlipInput} alt="Uploaded Payment Slip" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setPaymentSlipInput(null)}
+                          className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-red-600 text-white text-[10px] font-bold cursor-pointer shadow"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Submit Proof to Admin Button */}
                   <button
                     type="button"
-                    onClick={handleExecuteTopup}
-                    disabled={isProcessingTopup}
-                    className="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-xl shadow-emerald-950/50 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                    onClick={handleSubmitDepositProof}
+                    disabled={isSubmittingProof || !paymentSlipInput}
+                    className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xl shadow-amber-950/50 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-40"
                   >
-                    <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-                    <span>{isProcessingTopup ? 'Processing Top-up...' : `Execute Top-Up ₹${topupAmountInput || '0'}`}</span>
+                    <Send className="w-4 h-4 stroke-[2.5]" />
+                    <span>{isSubmittingProof ? 'Submitting Payment Proof...' : 'Submit Payment Proof & Open Chat'}</span>
                   </button>
                 </div>
               </div>
@@ -2799,6 +2906,77 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               </div>
 
             </div>
+
+            {/* Submitted Top-Up Requests & Live Verification Chat list */}
+            {captainTopupRequests.length > 0 && (
+              <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col gap-4 shadow-xl">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-amber-400 stroke-[2.5]" />
+                    <h3 className="text-sm font-extrabold text-white">My Top-Up Deposit Proofs & Admin Verification Chat</h3>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-amber-400">
+                    {captainTopupRequests.length} Requests
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {captainTopupRequests.map((req) => (
+                    <div
+                      key={req.id}
+                      className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-700 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        {req.payment_slip_url ? (
+                          <img
+                            src={req.payment_slip_url}
+                            alt="Payment Proof"
+                            className="w-14 h-14 object-cover rounded-xl border border-slate-800 shrink-0 cursor-pointer"
+                            onClick={() => setActiveChatRequest(req)}
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400 font-bold shrink-0">
+                            QR
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-base font-black text-amber-400 font-mono-num">
+                              ₹{req.amount.toFixed(2)}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              req.status === 'approved'
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                : req.status === 'rejected'
+                                ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                                : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                            }`}>
+                              {req.status === 'approved'
+                                ? '✅ Approved & Credited'
+                                : req.status === 'rejected'
+                                ? '❌ Rejected'
+                                : '⏳ Pending Admin Verification'}
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-300 font-mono block mt-0.5">
+                            UTR: {req.utr_number || 'N/A'} • Submitted {new Date(req.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveChatRequest(req)}
+                        className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 shadow"
+                      >
+                        <MessageSquare className="w-4 h-4 stroke-[2.5]" />
+                        <span>Open Verification Chat</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Transaction Log Table */}
             <div className="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col gap-4 shadow-xl">
@@ -2947,6 +3125,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           isSubmitting={isFinishingRide}
           onSubmit={(score, review, tags) => handleFinishRideWithRating(score, review, tags, false)}
           onSkip={() => handleFinishRideWithRating(5, '', [], true)}
+        />
+      )}
+
+      {/* Top-up Verification Chat Modal for Captain */}
+      {activeChatRequest && (
+        <TopupChatModal
+          isOpen={!!activeChatRequest}
+          onClose={() => setActiveChatRequest(null)}
+          depositRequest={activeChatRequest}
+          currentUserId={captainId}
+          currentUserRole="captain"
+          currentUserName={captain?.full_name || captainName || 'Captain'}
+          onStatusUpdated={() => {
+            loadCaptainTopupRequests();
+            motorideApi.getWallet(captainId).then(w => {
+              if (w && w.wallet) setWalletBalance(w.wallet.balance);
+            });
+          }}
         />
       )}
     </div>
