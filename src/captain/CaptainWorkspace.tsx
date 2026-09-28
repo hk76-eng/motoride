@@ -56,6 +56,7 @@ import {
 } from 'lucide-react';
 import defaultRituAvatar from '../assets/images/passenger_ritu_avatar_1790347071742.jpg';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
+import { compressImage } from '../utils/imageCompressor';
 
 interface CaptainWorkspaceProps {
   captainId?: string;
@@ -233,8 +234,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       });
 
       if (req) {
-        setWalletMessage(`✅ Top-up request for ₹${amt} submitted to Admin! Live verification chat opened.`);
-        setTimeout(() => setWalletMessage(null), 4000);
+        setWalletMessage(`✅ Screenshot & payment proof sent successfully! Verification chat opened.`);
+        setTimeout(() => setWalletMessage(null), 5000);
         setUtrInput('');
         setPaymentSlipInput(null);
         await loadCaptainTopupRequests();
@@ -739,6 +740,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (qr) setQrSettings(qr);
     });
 
+    const unsubTopupUpdated = realtimeSync.on('TOPUP_REQUEST_UPDATED', () => {
+      loadCaptainTopupRequests();
+      loadCaptainData();
+    });
+
     // Automatic daily reset: check if the calendar date changed in the local business timezone (Asia/Kolkata)
     // When midnight passes, Today's Income automatically resets to ₹0 without requiring manual actions.
     let lastCheckedDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
@@ -791,6 +797,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       unsubEarningsUpdated();
       unsubFareUpdated();
       unsubQrUpdated();
+      unsubTopupUpdated();
       clearInterval(rolloverInterval);
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleVisibility);
@@ -2818,15 +2825,20 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                         type="file"
                         accept="image/*"
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            const result = ev.target?.result as string;
-                            if (result) setPaymentSlipInput(result);
-                          };
-                          reader.readAsDataURL(file);
+                          try {
+                            const compressed = await compressImage(file, 1200, 1200, 0.85);
+                            setPaymentSlipInput(compressed);
+                          } catch {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              const result = ev.target?.result as string;
+                              if (result) setPaymentSlipInput(result);
+                            };
+                            reader.readAsDataURL(file);
+                          }
                         }}
                       />
                     </label>

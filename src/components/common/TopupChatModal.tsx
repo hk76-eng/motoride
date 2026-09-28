@@ -3,6 +3,7 @@ import { X, Send, UploadCloud, Image as ImageIcon, CheckCircle2, AlertCircle, Cl
 import { TopupDepositRequest, TopupChatMessage } from '../../types/motoride';
 import { motorideApi } from '../../services/motorideApi';
 import { realtimeSync } from '../../services/realtimeSync';
+import { compressImage } from '../../utils/imageCompressor';
 
 interface TopupChatModalProps {
   isOpen: boolean;
@@ -424,15 +425,20 @@ export const TopupChatModal: React.FC<TopupChatModalProps> = ({
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                  const res = ev.target?.result as string;
-                  if (res) setAttachment(res);
-                };
-                reader.readAsDataURL(file);
+                try {
+                  const compressed = await compressImage(file, 1200, 1200, 0.85);
+                  setAttachment(compressed);
+                } catch {
+                  const reader = new FileReader();
+                  reader.onload = (ev) => {
+                    const res = ev.target?.result as string;
+                    if (res) setAttachment(res);
+                  };
+                  reader.readAsDataURL(file);
+                }
               }}
             />
           </label>
