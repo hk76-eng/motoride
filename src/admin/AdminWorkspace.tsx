@@ -437,6 +437,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     const unsubAcc = realtimeSync.on('ACCOUNTS_UPDATED', () => loadAllData());
     const unsubStats = realtimeSync.on('STATS_UPDATED', () => loadAllData());
     const unsubProf = realtimeSync.on('PROFILES_UPDATED', () => loadAllData());
+    const unsubTopup = realtimeSync.on('TOPUP_REQUEST_CREATED', () => loadAllData());
 
     // 1.5-second fast poll to ensure admin view updates immediately across all screens and devices
     const pollInterval = setInterval(() => {
@@ -460,6 +461,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       unsubAcc();
       unsubStats();
       unsubProf();
+      unsubTopup();
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleVisibility);
       document.removeEventListener('visibilitychange', handleVisibility);
