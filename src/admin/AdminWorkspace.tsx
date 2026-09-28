@@ -2156,115 +2156,127 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           )}
 
           {/* Deposit Requests Grid / List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {topupRequests
-              .filter(r => topupFilter === 'all' || r.status === topupFilter)
-              .map((req) => (
-                <div
-                  key={req.id}
-                  className="p-5 rounded-3xl bg-slate-950 border border-slate-800 flex flex-col gap-4 hover:border-slate-700 transition-all shadow-lg"
-                >
-                  {/* Top Bar: Captain Info & Status */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 font-bold flex items-center justify-center shrink-0 shadow-md">
-                        {req.captain_avatar ? (
-                          <img src={req.captain_avatar} alt={req.captain_name} className="w-full h-full object-cover rounded-2xl" />
-                        ) : (
-                          req.captain_name[0]?.toUpperCase() || 'C'
-                        )}
+          {topupRequests.filter(r => topupFilter === 'all' || r.status === topupFilter).length === 0 ? (
+            <div className="p-10 rounded-3xl bg-slate-950 border border-slate-800 text-center flex flex-col items-center justify-center gap-3">
+              <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center">
+                <CheckCircle2 className="w-7 h-7 text-slate-500" />
+              </div>
+              <h3 className="text-base font-bold text-white">No {topupFilter !== 'all' ? topupFilter : ''} Top-Up Requests</h3>
+              <p className="text-xs text-slate-400 max-w-md">
+                When captains scan your QR code and submit their deposit amount along with payment screenshots or UTR numbers, their verification chat sessions will appear here in real time.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {topupRequests
+                .filter(r => topupFilter === 'all' || r.status === topupFilter)
+                .map((req) => (
+                  <div
+                    key={req.id}
+                    className="p-5 rounded-3xl bg-slate-950 border border-slate-800 flex flex-col gap-4 hover:border-slate-700 transition-all shadow-lg"
+                  >
+                    {/* Top Bar: Captain Info & Status */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-400 font-bold flex items-center justify-center shrink-0 shadow-md">
+                          {req.captain_avatar ? (
+                            <img src={req.captain_avatar} alt={req.captain_name} className="w-full h-full object-cover rounded-2xl" />
+                          ) : (
+                            req.captain_name[0]?.toUpperCase() || 'C'
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-sm font-extrabold text-white truncate block">
+                            {req.captain_name}
+                          </span>
+                          <span className="text-xs font-mono text-slate-400 block">
+                            {req.captain_phone || 'Captain Partner'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono block">
+                            Submitted {new Date(req.created_at).toLocaleString()}
+                          </span>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <span className="text-sm font-extrabold text-white truncate block">
-                          {req.captain_name}
-                        </span>
-                        <span className="text-xs font-mono text-slate-400 block">
-                          {req.captain_phone || 'Captain Partner'}
-                        </span>
-                        <span className="text-[10px] text-slate-500 font-mono block">
-                          Submitted {new Date(req.created_at).toLocaleString()}
-                        </span>
-                      </div>
+
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-black border shrink-0 ${
+                        req.status === 'approved'
+                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                          : req.status === 'rejected'
+                          ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
+                          : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                      }`}>
+                        {req.status === 'approved'
+                          ? '✅ Approved'
+                          : req.status === 'rejected'
+                          ? '❌ Rejected'
+                          : '⏳ Pending Approval'}
+                      </span>
                     </div>
 
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-black border shrink-0 ${
-                      req.status === 'approved'
-                        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                        : req.status === 'rejected'
-                        ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
-                        : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
-                    }`}>
-                      {req.status === 'approved'
-                        ? '✅ Approved'
-                        : req.status === 'rejected'
-                        ? '❌ Rejected'
-                        : '⏳ Pending Approval'}
-                    </span>
-                  </div>
-
-                  {/* Payment Details & Slip Screenshot */}
-                  <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">REQUESTED DEPOSIT AMOUNT</span>
-                      <span className="text-2xl font-black text-emerald-400 font-mono-num">
-                        ₹{req.amount.toFixed(2)}
-                      </span>
-                      {req.utr_number && (
-                        <span className="text-xs font-mono text-amber-300 font-bold">
-                          UTR: {req.utr_number}
+                    {/* Payment Details & Slip Screenshot */}
+                    <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">REQUESTED DEPOSIT AMOUNT</span>
+                        <span className="text-2xl font-black text-emerald-400 font-mono-num">
+                          ₹{req.amount.toFixed(2)}
                         </span>
+                        {req.utr_number && (
+                          <span className="text-xs font-mono text-amber-300 font-bold">
+                            UTR: {req.utr_number}
+                          </span>
+                        )}
+                      </div>
+
+                      {req.payment_slip_url && (
+                        <div className="flex flex-col items-center gap-1 shrink-0">
+                          <img
+                            src={req.payment_slip_url}
+                            alt="Payment Slip Proof"
+                            onClick={() => setActiveTopupChatRequest(req)}
+                            className="w-16 h-16 object-cover rounded-xl border border-amber-500/40 cursor-pointer hover:scale-105 transition-transform shadow-md"
+                          />
+                          <span className="text-[9px] text-amber-400 font-bold">Click to view</span>
+                        </div>
                       )}
                     </div>
 
-                    {req.payment_slip_url && (
-                      <div className="flex flex-col items-center gap-1 shrink-0">
-                        <img
-                          src={req.payment_slip_url}
-                          alt="Payment Slip Proof"
-                          onClick={() => setActiveTopupChatRequest(req)}
-                          className="w-16 h-16 object-cover rounded-xl border border-amber-500/40 cursor-pointer hover:scale-105 transition-transform shadow-md"
-                        />
-                        <span className="text-[9px] text-amber-400 font-bold">Click to view</span>
-                      </div>
-                    )}
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2 pt-1">
+                      {req.status === 'pending' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveDeposit(req.id)}
+                            disabled={isApproving === req.id}
+                            className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                            <span>{isApproving === req.id ? 'Crediting...' : 'Approve & Credit Wallet'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setRejectingRequestId(req.id)}
+                            className="px-3 py-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 text-xs font-bold transition-all cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveTopupChatRequest(req)}
+                        className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 border border-slate-700 shadow-sm"
+                      >
+                        <MessageSquare className="w-4 h-4 text-amber-400 stroke-[2.5]" />
+                        <span>Verification Chat</span>
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-1">
-                    {req.status === 'pending' && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleApproveDeposit(req.id)}
-                          disabled={isApproving === req.id}
-                          className="flex-1 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
-                        >
-                          <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-                          <span>{isApproving === req.id ? 'Crediting...' : 'Approve & Credit Wallet'}</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setRejectingRequestId(req.id)}
-                          className="px-3 py-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/40 text-rose-300 text-xs font-bold transition-all cursor-pointer"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => setActiveTopupChatRequest(req)}
-                      className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-1.5 border border-slate-700 shadow-sm"
-                    >
-                      <MessageSquare className="w-4 h-4 text-amber-400 stroke-[2.5]" />
-                      <span>Verification Chat</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-          </div>
+                ))}
+            </div>
+          )}
 
           {/* Rejection Modal Dialog */}
           {rejectingRequestId && (

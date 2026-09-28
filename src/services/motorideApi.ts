@@ -1621,10 +1621,13 @@ export const motorideApi = {
   async getTopupRequests(params?: { captain_id?: string; status?: string }): Promise<TopupDepositRequest[]> {
     const queryParams = new URLSearchParams();
     if (params?.captain_id) queryParams.set('captain_id', params.captain_id);
-    if (params?.status) queryParams.set('status', params.status);
+    if (params?.status && params.status !== 'all') queryParams.set('status', params.status);
+
+    const qs = queryParams.toString();
+    const url = `${API_BASE}/topup-requests${qs ? `?${qs}` : ''}`;
 
     const json = await safeFetchJson<{ requests: TopupDepositRequest[] }>(
-      `${API_BASE}/topup-requests?${queryParams.toString()}`,
+      url,
       undefined,
       { requests: [] }
     );
