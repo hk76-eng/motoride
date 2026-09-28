@@ -1516,27 +1516,72 @@ export const motorideApi = {
 
   // 5. QR Code Settings
   async getQRSettings(): Promise<QRCodeSetting> {
+    const defaultQR: QRCodeSetting = {
+      id: 'default',
+      upi_id: 'motoride.pay@upi',
+      merchant_name: 'Motoride Payments',
+      note: 'Motoride Ride Fare',
+      is_active: true,
+      qr_image_url: '',
+      updated_at: new Date().toISOString(),
+    };
+
+    // First check local safeStorage for instant cached response
+    const cached = safeStorage.getItem('motoride_qr_settings');
+    let cachedObj: QRCodeSetting | null = null;
+    if (cached) {
+      try {
+        cachedObj = JSON.parse(cached);
+      } catch {}
+    }
+
     const json = await safeFetchJson<{ qr: QRCodeSetting }>(`${API_BASE}/qr-settings`, undefined, {
-      qr: {
+      qr: cachedObj || defaultQR,
+    });
+
+    const result = json?.qr || cachedObj || defaultQR;
+    if (result) {
+      try {
+        safeStorage.setItem('motoride_qr_settings', JSON.stringify(result));
+      } catch {}
+    }
+    return result;
+  },
+
+  async updateQRSettings(qr: Partial<QRCodeSetting>): Promise<QRCodeSetting> {
+    const json = await safeFetchJson<{ qr?: QRCodeSetting }>(`${API_BASE}/qr-settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(qr),
+    }, {});
+
+    let result: QRCodeSetting;
+    if (json && json.qr) {
+      result = json.qr;
+    } else {
+      // Fallback merge if endpoint returns unexpected format
+      const cached = safeStorage.getItem('motoride_qr_settings');
+      let prev: QRCodeSetting = {
         id: 'default',
         upi_id: 'motoride.pay@upi',
         merchant_name: 'Motoride Payments',
         note: 'Motoride Ride Fare',
         is_active: true,
-        qr_image_url: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=upi://pay?pa=motoride.pay@upi',
+        qr_image_url: '',
         updated_at: new Date().toISOString(),
-      },
-    });
-    return json.qr;
-  },
+      };
+      if (cached) {
+        try { prev = JSON.parse(cached); } catch {}
+      }
+      result = { ...prev, ...qr, updated_at: new Date().toISOString() };
+    }
 
-  async updateQRSettings(qr: Partial<QRCodeSetting>): Promise<QRCodeSetting> {
-    const json = await safeFetchJson<{ qr: QRCodeSetting }>(`${API_BASE}/qr-settings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(qr),
-    });
-    return json.qr;
+    try {
+      safeStorage.setItem('motoride_qr_settings', JSON.stringify(result));
+    } catch {}
+
+    realtimeSync.emit('QR_SETTINGS_UPDATED', result);
+    return result;
   },
 
   // 6. Wallet

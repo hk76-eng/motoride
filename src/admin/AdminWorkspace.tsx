@@ -779,11 +779,13 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     try {
       // Send only fields we want to update. The server-side logic now handles partial updates.
       const payload: Partial<QRCodeSetting> = {
-        qr_image_url: qrSettings.qr_image_url,
-        is_active: qrSettings.is_active,
+        qr_image_url: qrSettings?.qr_image_url || '',
+        is_active: qrSettings?.is_active ?? true,
       };
       const updated = await motorideApi.updateQRSettings(payload);
-      setQrSettings(updated);
+      if (updated) {
+        setQrSettings(updated);
+      }
       setQrSaveStatus('QR settings saved successfully!');
       setTimeout(() => setQrSaveStatus(null), 3000);
     } catch (err: any) {
@@ -1921,28 +1923,51 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
               <div className="w-full pt-2 border-t border-slate-800">
                 <label className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-white cursor-pointer transition-all flex items-center justify-center gap-2 shadow-md">
                   <UploadCloud className="w-4 h-4 text-emerald-400" />
-                  <span>{qrSettings.qr_image_url ? 'Replace QR Code' : 'Upload New QR Code'}</span>
+                  <span>{qrSettings?.qr_image_url ? 'Replace QR Code' : 'Upload New QR Code'}</span>
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={async (e) => {
+                    onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
                       const reader = new FileReader();
-                      reader.onload = (uploadEvent) => {
+                      reader.onload = async (uploadEvent) => {
                         const result = uploadEvent.target?.result as string;
                         if (result) {
-                          setQrSettings({ ...qrSettings, qr_image_url: result });
+                          setQrSettings(prev => ({ ...prev, qr_image_url: result }));
+                          try {
+                            const updated = await motorideApi.updateQRSettings({ qr_image_url: result });
+                            if (updated) {
+                              setQrSettings(updated);
+                            }
+                            setQrSaveStatus('Official QR code uploaded & saved successfully!');
+                            setTimeout(() => setQrSaveStatus(null), 3500);
+                          } catch (err: any) {
+                            console.warn('Auto-save uploaded QR warning:', err);
+                          }
                         }
                       };
                       reader.readAsDataURL(file);
                     }}
                   />
                 </label>
-                {qrSettings.qr_image_url && (
+                {qrSettings?.qr_image_url && (
                     <button
-                        onClick={() => setQrSettings({ ...qrSettings, qr_image_url: '' })}
+                        type="button"
+                        onClick={async () => {
+                            setQrSettings(prev => ({ ...prev, qr_image_url: '' }));
+                            try {
+                              const updated = await motorideApi.updateQRSettings({ qr_image_url: '' });
+                              if (updated) {
+                                setQrSettings(updated);
+                              }
+                              setQrSaveStatus('QR code removed & saved successfully.');
+                              setTimeout(() => setQrSaveStatus(null), 3500);
+                            } catch (err: any) {
+                              console.warn('Auto-save remove QR warning:', err);
+                            }
+                        }}
                         className="w-full mt-2 py-2.5 px-3 rounded-xl bg-red-900/20 hover:bg-red-900/40 border border-red-900/50 text-xs font-bold text-red-400 cursor-pointer transition-all flex items-center justify-center gap-2 shadow-md"
                     >
                         Remove QR Code

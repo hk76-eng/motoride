@@ -136,15 +136,21 @@ export const WalletModal: React.FC<WalletModalProps> = ({
         {/* Official Admin QR Code */}
         {qrSettings && (
           <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center gap-3">
-            <img
-              src={qrSettings.qr_image_url}
-              alt="Scan & Pay"
-              className="w-16 h-16 rounded-lg bg-white p-1 object-contain"
-            />
+            {qrSettings.qr_image_url ? (
+              <img
+                src={qrSettings.qr_image_url}
+                alt="Scan & Pay"
+                className="w-16 h-16 rounded-lg bg-white p-1 object-contain shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-lg bg-slate-900 border border-slate-800 p-1 flex items-center justify-center text-[10px] text-slate-500 font-bold text-center shrink-0">
+                No QR
+              </div>
+            )}
             <div className="text-xs">
               <span className="font-bold text-white block">UPI Scan & Pay</span>
               <span className="text-[11px] font-mono-num text-amber-400 font-semibold block">
-                {qrSettings.upi_id}
+                {qrSettings.upi_id || 'motoride.pay@upi'}
               </span>
               <span className="text-[10px] text-slate-400 mt-0.5 block">
                 Zero processing charges on UPI top-ups
