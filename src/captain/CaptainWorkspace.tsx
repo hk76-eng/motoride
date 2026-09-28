@@ -54,8 +54,10 @@ import {
   Copy,
   UploadCloud,
   Camera,
+  Loader2,
 } from 'lucide-react';
 import defaultRituAvatar from '../assets/images/passenger_ritu_avatar_1790347071742.jpg';
+import { uploadMediaToSupabase, compressImageToDataUrl } from '../lib/supabaseStorage';
 import { MotorideRideHistoryModal } from '../components/MotorideRideHistoryModal';
 import { OfficialQRCodeView } from '../components/common/OfficialQRCodeView';
 import { QRCodeScannerModal } from '../components/common/QRCodeScannerModal';
@@ -218,10 +220,43 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [utrInput, setUtrInput] = useState<string>('');
   const [paymentSlipInput, setPaymentSlipInput] = useState<string | null>(null);
   const [isSubmittingProof, setIsSubmittingProof] = useState<boolean>(false);
+  const [isUploadingSlip, setIsUploadingSlip] = useState<boolean>(false);
+  const [slipUploadStatus, setSlipUploadStatus] = useState<'idle' | 'uploading' | 'supabase_uploaded' | 'local_fallback'>('idle');
   const [captainTopupRequests, setCaptainTopupRequests] = useState<TopupDepositRequest[]>([]);
   const [activeChatRequest, setActiveChatRequest] = useState<TopupDepositRequest | null>(null);
   const [showQrScanner, setShowQrScanner] = useState<boolean>(false);
   const [showQuickQrModal, setShowQuickQrModal] = useState<boolean>(false);
+
+  const handlePaymentSlipUpload = async (file: File) => {
+    if (!file) return;
+    setIsUploadingSlip(true);
+    setSlipUploadStatus('uploading');
+
+    try {
+      // 1. Generate lightweight compressed data URL for instant UI preview & robust fallback
+      const localDataUrl = await compressImageToDataUrl(file, 1200, 1200, 0.85);
+      if (localDataUrl) {
+        setPaymentSlipInput(localDataUrl);
+      }
+
+      // 2. Upload file directly to Supabase Storage in 'payments' folder
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `captain_deposit_${captainId || 'user'}_${Date.now()}.${fileExt}`;
+      const cdnUrl = await uploadMediaToSupabase(file, fileName, 'payments');
+
+      if (cdnUrl) {
+        setPaymentSlipInput(cdnUrl);
+        setSlipUploadStatus('supabase_uploaded');
+      } else {
+        setSlipUploadStatus('local_fallback');
+      }
+    } catch (err) {
+      console.warn('Supabase upload error, using local compressed image:', err);
+      setSlipUploadStatus('local_fallback');
+    } finally {
+      setIsUploadingSlip(false);
+    }
+  };
 
   const loadCaptainTopupRequests = async () => {
     try {
@@ -267,6 +302,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         setTimeout(() => setWalletMessage(null), 4000);
         setUtrInput('');
         setPaymentSlipInput(null);
+        setSlipUploadStatus('idle');
         await loadCaptainTopupRequests();
         setActiveChatRequest(req);
       }
@@ -2872,37 +2908,105 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white focus:outline-none focus:border-amber-500/50"
                     />
 
-                    <label className="text-xs font-bold text-amber-300 mt-1">2. Upload Payment Slip / Paid Receipt Screenshot</label>
-                    <label className="w-full p-3 rounded-xl bg-slate-950 hover:bg-slate-800/80 border border-dashed border-amber-500/40 text-xs font-bold text-white cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 text-center shadow-inner">
-                      <UploadCloud className="w-5 h-5 text-emerald-400" />
-                      <span>{paymentSlipInput ? 'Change Payment Slip Screenshot' : 'Upload Payment Slip Proof'}</span>
-                      <span className="text-[10px] text-slate-400 font-normal">Supports JPG, PNG, Screenshots</span>
+                    <div className="flex items-center justify-between mt-1">
+                      <label className="text-xs font-bold text-amber-300">
+                        2. Upload Payment Slip / Paid Receipt Screenshot
+                      </label>
+                      {slipUploadStatus === 'supabase_uploaded' && (
+                        <span className="text-[10px] text-emerald-400 font-extrabold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                          <span>Uploaded to Supabase Cloud</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Upload Cloud Dropzone */}
+                    <label className={`w-full p-4 rounded-2xl bg-slate-950 border border-dashed transition-all flex flex-col items-center justify-center gap-2 text-center shadow-inner cursor-pointer ${
+                      isUploadingSlip
+                        ? 'border-amber-500/60 bg-amber-500/5 cursor-wait'
+                        : paymentSlipInput
+                        ? 'border-emerald-500/50 hover:bg-slate-900/90'
+                        : 'border-amber-500/40 hover:bg-slate-900/90 hover:border-amber-400'
+                    }`}>
+                      {isUploadingSlip ? (
+                        <>
+                          <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-extrabold text-amber-300">
+                              Uploading to Supabase Storage...
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              Storing payment proof in cloud bucket and linking to admin verification
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shadow-sm">
+                            <UploadCloud className="w-6 h-6 stroke-[2.5]" />
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-xs font-extrabold text-white">
+                              {paymentSlipInput ? 'Change Payment Slip Screenshot' : 'Upload Payment Slip Proof'}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              Direct cloud upload to Supabase Storage • Supports JPG, PNG, Screenshots
+                            </span>
+                          </div>
+                        </>
+                      )}
+
                       <input
                         type="file"
                         accept="image/*"
+                        disabled={isUploadingSlip}
                         className="hidden"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            const result = ev.target?.result as string;
-                            if (result) setPaymentSlipInput(result);
-                          };
-                          reader.readAsDataURL(file);
+                          if (file) handlePaymentSlipUpload(file);
                         }}
                       />
                     </label>
 
+                    {/* Payment Slip Preview Card */}
                     {paymentSlipInput && (
-                      <div className="relative w-full h-32 rounded-xl overflow-hidden border border-emerald-500/50 shadow-md mt-1">
-                        <img src={paymentSlipInput} alt="Uploaded Payment Slip" className="w-full h-full object-cover" />
+                      <div className="relative w-full rounded-2xl overflow-hidden border border-emerald-500/40 bg-slate-900 shadow-md p-3 flex items-center gap-3 animate-in fade-in">
+                        <img
+                          src={paymentSlipInput}
+                          alt="Uploaded Payment Slip"
+                          className="w-16 h-16 object-cover rounded-xl border border-slate-700 shrink-0"
+                        />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-black text-white truncate">
+                              Payment Slip Proof Attached
+                            </span>
+                            {paymentSlipInput.startsWith('http') ? (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-extrabold flex items-center gap-1">
+                                <UploadCloud className="w-3 h-3 text-emerald-400" />
+                                <span>Supabase Storage</span>
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-extrabold">
+                                Local Proof
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                            Linked to Admin Verification Chat upon submitting
+                          </p>
+                        </div>
+
                         <button
                           type="button"
-                          onClick={() => setPaymentSlipInput(null)}
-                          className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-red-600 text-white text-[10px] font-bold cursor-pointer shadow"
+                          onClick={() => {
+                            setPaymentSlipInput(null);
+                            setSlipUploadStatus('idle');
+                          }}
+                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all cursor-pointer shrink-0 border border-slate-700"
+                          title="Remove attached payment slip"
                         >
-                          Remove
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
                     )}

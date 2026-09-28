@@ -142,9 +142,9 @@ export function compressImageToDataUrl(file: File, maxWidth = 400, maxHeight = 4
  * Returns the public CDN URL.
  */
 export async function uploadMediaToSupabase(
-  fileOrBlob: File | Blob,
+  fileOrBlobOrDataUrl: File | Blob | string,
   fileName: string,
-  folder: 'avatars' | 'documents' | 'qr' | 'vehicles' | 'general' = 'general'
+  folder: 'avatars' | 'documents' | 'qr' | 'vehicles' | 'payments' | 'general' = 'general'
 ): Promise<string | null> {
   const supabase = getSupabase();
   if (!supabase || !isSupabaseConfigured()) {
@@ -153,10 +153,35 @@ export async function uploadMediaToSupabase(
   }
 
   try {
+    let payload: File | Blob;
+    let contentType = 'image/jpeg';
+
+    if (typeof fileOrBlobOrDataUrl === 'string') {
+      if (fileOrBlobOrDataUrl.startsWith('data:')) {
+        const parts = fileOrBlobOrDataUrl.split(',');
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        contentType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        payload = new Blob([u8arr], { type: contentType });
+      } else {
+        // Already a remote CDN or web URL
+        return fileOrBlobOrDataUrl;
+      }
+    } else {
+      payload = fileOrBlobOrDataUrl;
+      if (payload.type) contentType = payload.type;
+    }
+
     const cleanFileName = fileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
     const path = `${folder}/${Date.now()}_${cleanFileName}`;
 
-    const { error: uploadErr } = await supabase.storage.from(MOTORIDE_MEDIA_BUCKET).upload(path, fileOrBlob, {
+    const { error: uploadErr } = await supabase.storage.from(MOTORIDE_MEDIA_BUCKET).upload(path, payload, {
+      contentType,
       cacheControl: '3600',
       upsert: true,
     });

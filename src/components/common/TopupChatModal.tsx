@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, UploadCloud, Image as ImageIcon, CheckCircle2, AlertCircle, Clock, ShieldCheck } from 'lucide-react';
+import { X, Send, UploadCloud, Image as ImageIcon, CheckCircle2, AlertCircle, Clock, ShieldCheck, Loader2 } from 'lucide-react';
 import { TopupDepositRequest, TopupChatMessage } from '../../types/motoride';
 import { motorideApi } from '../../services/motorideApi';
 import { realtimeSync } from '../../services/realtimeSync';
+import { uploadMediaToSupabase, compressImageToDataUrl } from '../../lib/supabaseStorage';
 
 interface TopupChatModalProps {
   isOpen: boolean;
@@ -27,8 +28,30 @@ export const TopupChatModal: React.FC<TopupChatModalProps> = ({
   const [text, setText] = useState<string>('');
   const [attachment, setAttachment] = useState<string | null>(null);
   const [isSending, setIsProcessing] = useState<boolean>(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState<boolean>(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleAttachmentUpload = async (file: File) => {
+    if (!file) return;
+    setIsUploadingAttachment(true);
+    try {
+      // 1. Instant local preview
+      const localDataUrl = await compressImageToDataUrl(file, 1200, 1200, 0.85);
+      if (localDataUrl) setAttachment(localDataUrl);
+
+      // 2. Upload to Supabase Storage
+      const fileName = `chat_${depositRequest.id}_${Date.now()}.${file.name.split('.').pop() || 'jpg'}`;
+      const cdnUrl = await uploadMediaToSupabase(file, fileName, 'payments');
+      if (cdnUrl) {
+        setAttachment(cdnUrl);
+      }
+    } catch (err) {
+      console.warn('Chat upload error:', err);
+    } finally {
+      setIsUploadingAttachment(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && depositRequest?.id) {
@@ -159,14 +182,37 @@ export const TopupChatModal: React.FC<TopupChatModalProps> = ({
             </div>
 
             {depositRequest.payment_slip_url && (
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] text-slate-400 font-bold">Uploaded Payment Slip Proof:</span>
-                <img
-                  src={depositRequest.payment_slip_url}
-                  alt="Payment Slip Proof"
-                  onClick={() => setPreviewImage(depositRequest.payment_slip_url || null)}
-                  className="w-48 h-48 object-cover rounded-2xl border border-amber-500/40 cursor-pointer hover:opacity-90 transition-opacity shadow-lg"
-                />
+              <div className="flex flex-col gap-2 p-3.5 rounded-2xl bg-slate-950/90 border border-amber-500/30 shadow-inner">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-[11px] text-amber-300 font-extrabold flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400 stroke-[2.5]" />
+                    <span>Uploaded Payment Slip Proof (Admin Verification)</span>
+                  </span>
+                  {depositRequest.payment_slip_url.startsWith('http') ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-extrabold flex items-center gap-1">
+                      <UploadCloud className="w-3 h-3 text-emerald-400" />
+                      <span>Supabase Storage</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-extrabold">
+                      Local Proof
+                    </span>
+                  )}
+                </div>
+                <div className="relative group/proof inline-block">
+                  <img
+                    src={depositRequest.payment_slip_url}
+                    alt="Payment Slip Proof"
+                    onClick={() => setPreviewImage(depositRequest.payment_slip_url || null)}
+                    className="max-w-xs max-h-60 object-cover rounded-2xl border border-amber-500/40 cursor-pointer hover:opacity-90 transition-opacity shadow-lg"
+                  />
+                  <div
+                    onClick={() => setPreviewImage(depositRequest.payment_slip_url || null)}
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover/proof:opacity-100 rounded-2xl flex items-center justify-center text-white text-xs font-bold transition-opacity cursor-pointer"
+                  >
+                    Click to Enlarge
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -212,9 +258,15 @@ export const TopupChatModal: React.FC<TopupChatModalProps> = ({
         {/* Attachment Preview Box before sending */}
         {attachment && (
           <div className="px-4 py-2 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <img src={attachment} alt="Upload preview" className="w-10 h-10 rounded-lg object-cover border border-amber-500/40" />
-              <span className="text-xs text-amber-400 font-bold">Image Attached</span>
+              <div className="flex flex-col">
+                <span className="text-xs text-amber-300 font-bold flex items-center gap-1">
+                  {attachment.startsWith('http') && <UploadCloud className="w-3.5 h-3.5 text-emerald-400" />}
+                  <span>{attachment.startsWith('http') ? 'Uploaded to Supabase Cloud' : 'Image Attached'}</span>
+                </span>
+                <span className="text-[10px] text-slate-400">Attached to verification chat</span>
+              </div>
             </div>
             <button
               type="button"
@@ -228,21 +280,20 @@ export const TopupChatModal: React.FC<TopupChatModalProps> = ({
 
         {/* Form Input Footer */}
         <form onSubmit={handleSend} className="p-3 bg-slate-950 border-t border-slate-800 flex items-center gap-2">
-          <label className="p-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 cursor-pointer transition-all shrink-0">
-            <UploadCloud className="w-5 h-5 text-emerald-400" />
+          <label className="p-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 cursor-pointer transition-all shrink-0 relative" title="Upload screenshot to Supabase Storage">
+            {isUploadingAttachment ? (
+              <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+            ) : (
+              <UploadCloud className="w-5 h-5 text-emerald-400" />
+            )}
             <input
               type="file"
               accept="image/*"
+              disabled={isUploadingAttachment}
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                  const res = ev.target?.result as string;
-                  if (res) setAttachment(res);
-                };
-                reader.readAsDataURL(file);
+                if (file) handleAttachmentUpload(file);
               }}
             />
           </label>

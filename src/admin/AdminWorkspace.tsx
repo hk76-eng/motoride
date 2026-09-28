@@ -2155,7 +2155,10 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                           onClick={() => setActiveTopupChatRequest(req)}
                           className="w-16 h-16 object-cover rounded-xl border border-amber-500/40 cursor-pointer hover:scale-105 transition-transform shadow-md"
                         />
-                        <span className="text-[9px] text-amber-400 font-bold">Click to view</span>
+                        <span className="text-[9px] text-amber-400 font-bold flex items-center gap-0.5">
+                          {req.payment_slip_url.startsWith('http') && <UploadCloud className="w-2.5 h-2.5 text-emerald-400" />}
+                          <span>{req.payment_slip_url.startsWith('http') ? 'Cloud Proof' : 'View Proof'}</span>
+                        </span>
                       </div>
                     )}
                   </div>
