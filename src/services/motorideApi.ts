@@ -1587,14 +1587,14 @@ export const motorideApi = {
   },
 
   // 6. Wallet
-  async getWallet(userId: string): Promise<{ wallet: { balance: number; currency: string }; transactions: WalletTransaction[] }> {
+  async getWallet(userId: string, userPhone?: string): Promise<{ wallet: { balance: number; currency: string }; transactions: WalletTransaction[] }> {
     let serverWallet: { balance: number; currency: string } | null = null;
     let serverTxs: WalletTransaction[] = [];
 
     // 1. Try server endpoint
     try {
       const json = await safeFetchJson<{ wallet?: { balance: number; currency: string }; transactions?: WalletTransaction[] }>(
-        `${API_BASE}/wallet/${userId}`
+        `${API_BASE}/wallet/${userId}${userPhone ? `?phone=${encodeURIComponent(userPhone)}` : ''}`
       );
       if (json?.wallet && typeof json.wallet.balance === 'number') {
         serverWallet = json.wallet;
@@ -1610,28 +1610,43 @@ export const motorideApi = {
     let supabaseTxs: WalletTransaction[] = [];
     if (supabase) {
       try {
-        // Check wallets table
-        const { data: wData } = await supabase.from('wallets').select('balance').eq('user_id', userId).maybeSingle();
-        if (wData && typeof wData.balance === 'number') {
-          supabaseBal = Number(wData.balance);
+        // Query profiles by id OR by phone
+        let profileData: any = null;
+        if (userId) {
+          const { data: pById } = await supabase.from('profiles').select('id, phone, wallet_balance').eq('id', userId).maybeSingle();
+          if (pById) profileData = pById;
+        }
+        if (!profileData && (userPhone || userId)) {
+          const phoneToQuery = userPhone || userId;
+          const { data: pByPhone } = await supabase.from('profiles').select('id, phone, wallet_balance').eq('phone', phoneToQuery).maybeSingle();
+          if (pByPhone) profileData = pByPhone;
         }
 
-        // Also check profiles table
-        if (supabaseBal === null) {
-          const { data: pData } = await supabase.from('profiles').select('wallet_balance').eq('id', userId).maybeSingle();
-          if (pData && typeof pData.wallet_balance === 'number') {
-            supabaseBal = Number(pData.wallet_balance);
+        if (profileData && typeof profileData.wallet_balance === 'number') {
+          supabaseBal = Number(profileData.wallet_balance);
+        }
+
+        // Query wallets table by matching user_id, profile.id, or profile.phone
+        const idsToTry = Array.from(new Set([userId, userPhone, profileData?.id, profileData?.phone].filter(Boolean)));
+        for (const idToTry of idsToTry) {
+          const { data: wData } = await supabase.from('wallets').select('balance').eq('user_id', idToTry).maybeSingle();
+          if (wData && typeof wData.balance === 'number') {
+            if (supabaseBal === null || Number(wData.balance) > supabaseBal) {
+              supabaseBal = Number(wData.balance);
+            }
           }
         }
 
-        // Fetch transactions
-        const { data: txData } = await supabase
-          .from('wallet_transactions')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-        if (Array.isArray(txData)) {
-          supabaseTxs = txData;
+        // Fetch transactions matching any of the user identifiers
+        if (idsToTry.length > 0) {
+          const { data: txData } = await supabase
+            .from('wallet_transactions')
+            .select('*')
+            .in('user_id', idsToTry)
+            .order('created_at', { ascending: false });
+          if (Array.isArray(txData)) {
+            supabaseTxs = txData;
+          }
         }
       } catch (err) {
         console.warn('Supabase wallet fetch warning:', err);
@@ -1641,16 +1656,23 @@ export const motorideApi = {
     // 3. Local safeStorage fallback
     let localBal = 0;
     try {
-      const cached = safeStorage.getItem(`motoride_wallet_${userId}`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed && typeof parsed.balance === 'number') {
-          localBal = parsed.balance;
+      const idsToCheck = [userId, userPhone, safeStorage.getItem('motoride_captain_id'), safeStorage.getItem('motoride_captain_phone')].filter(Boolean);
+      for (const idKey of idsToCheck) {
+        const cached = safeStorage.getItem(`motoride_wallet_${idKey}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed.balance === 'number') {
+            localBal = Math.max(localBal, parsed.balance);
+          }
         }
+      }
+      const rawBal = safeStorage.getItem('motoride_captain_wallet_balance');
+      if (rawBal && !isNaN(Number(rawBal))) {
+        localBal = Math.max(localBal, Number(rawBal));
       }
     } catch {}
 
-    const finalBal = serverWallet?.balance ?? supabaseBal ?? localBal;
+    const finalBal = supabaseBal ?? serverWallet?.balance ?? localBal;
     const finalWallet = { balance: finalBal, currency: '₹' };
 
     const mergedTxsMap = new Map<string, WalletTransaction>();
@@ -1661,7 +1683,9 @@ export const motorideApi = {
     );
 
     try {
-      safeStorage.setItem(`motoride_wallet_${userId}`, JSON.stringify(finalWallet));
+      if (userId) safeStorage.setItem(`motoride_wallet_${userId}`, JSON.stringify(finalWallet));
+      if (userPhone) safeStorage.setItem(`motoride_wallet_${userPhone}`, JSON.stringify(finalWallet));
+      safeStorage.setItem('motoride_captain_wallet_balance', finalBal.toString());
     } catch {}
 
     return {
@@ -1920,6 +1944,8 @@ export const motorideApi = {
       updated_at: now,
     };
     let newBal = 0;
+    let targetPhone = '';
+    let targetProfileId = '';
 
     const supabase = getSupabase();
     if (supabase) {
@@ -1929,36 +1955,61 @@ export const motorideApi = {
           updatedRequest = { ...current, status: 'approved', updated_at: now };
           await supabase.from('topup_requests').update({ status: 'approved', updated_at: now }).eq('id', id);
 
-          // Fetch current balance from wallets or profiles
+          // Find profile by ID or Phone
+          targetPhone = current.captain_phone || '';
+          targetProfileId = current.captain_id || '';
+
+          let profileObj: any = null;
+          if (targetProfileId) {
+            const { data: p1 } = await supabase.from('profiles').select('id, phone, wallet_balance').eq('id', targetProfileId).maybeSingle();
+            if (p1) profileObj = p1;
+          }
+          if (!profileObj && (targetPhone || targetProfileId)) {
+            const phoneSearch = targetPhone || targetProfileId;
+            const { data: p2 } = await supabase.from('profiles').select('id, phone, wallet_balance').eq('phone', phoneSearch).maybeSingle();
+            if (p2) profileObj = p2;
+          }
+
+          if (profileObj?.phone) targetPhone = profileObj.phone;
+          if (profileObj?.id) targetProfileId = profileObj.id;
+
+          // Calculate current balance
           let currentBal = 0;
-          const { data: wData } = await supabase.from('wallets').select('balance').eq('user_id', current.captain_id).maybeSingle();
-          if (wData && typeof wData.balance === 'number') {
-            currentBal = Number(wData.balance);
+          if (profileObj && typeof profileObj.wallet_balance === 'number') {
+            currentBal = Number(profileObj.wallet_balance);
           } else {
-            const { data: profile } = await supabase.from('profiles').select('wallet_balance').eq('id', current.captain_id).maybeSingle();
-            if (profile && typeof profile.wallet_balance === 'number') {
-              currentBal = Number(profile.wallet_balance);
+            const { data: wData } = await supabase.from('wallets').select('balance').eq('user_id', current.captain_id).maybeSingle();
+            if (wData && typeof wData.balance === 'number') {
+              currentBal = Number(wData.balance);
             }
           }
 
           newBal = Number((currentBal + Number(current.amount)).toFixed(2));
 
-          // Update profiles table
-          await supabase.from('profiles').update({ wallet_balance: newBal, updated_at: now }).eq('id', current.captain_id);
+          // Update profiles table by ID and by Phone
+          if (targetProfileId) {
+            await supabase.from('profiles').update({ wallet_balance: newBal, updated_at: now }).eq('id', targetProfileId);
+          }
+          if (targetPhone) {
+            await supabase.from('profiles').update({ wallet_balance: newBal, updated_at: now }).eq('phone', targetPhone);
+          }
 
-          // Update wallets table
-          await supabase.from('wallets').upsert([{
-            user_id: current.captain_id,
-            balance: newBal,
-            currency: '₹',
-            updated_at: now,
-          }]);
+          // Update wallets table for all matching keys
+          const keysToUpdate = Array.from(new Set([current.captain_id, targetProfileId, targetPhone].filter(Boolean)));
+          for (const key of keysToUpdate) {
+            await supabase.from('wallets').upsert([{
+              user_id: key,
+              balance: newBal,
+              currency: '₹',
+              updated_at: now,
+            }]);
+          }
 
           // Insert wallet transaction
           const tx: WalletTransaction = {
             id: `tx_dep_${Date.now()}`,
-            wallet_id: `w_${current.captain_id}`,
-            user_id: current.captain_id,
+            wallet_id: `w_${targetProfileId || current.captain_id}`,
+            user_id: targetProfileId || current.captain_id,
             amount: Number(current.amount),
             type: 'credit',
             category: 'topup',
@@ -1982,14 +2033,33 @@ export const motorideApi = {
       }
     }
 
-    if (updatedRequest.captain_id) {
+    const allCaptainKeys = Array.from(new Set([updatedRequest.captain_id, targetProfileId, targetPhone, updatedRequest.captain_phone].filter(Boolean)));
+    for (const k of allCaptainKeys) {
       try {
-        safeStorage.setItem(`motoride_wallet_${updatedRequest.captain_id}`, JSON.stringify({ balance: newBal, currency: '₹' }));
+        safeStorage.setItem(`motoride_wallet_${k}`, JSON.stringify({ balance: newBal, currency: '₹' }));
       } catch {}
     }
+    safeStorage.setItem('motoride_captain_wallet_balance', newBal.toString());
 
-    realtimeSync.broadcast('TOPUP_REQUEST_UPDATED', { request: updatedRequest, id, status: 'approved', wallet: { balance: newBal, currency: '₹' } });
-    realtimeSync.broadcast('WALLET_UPDATED', { user_id: updatedRequest.captain_id, captain_id: updatedRequest.captain_id, balance: newBal });
+    realtimeSync.broadcast('TOPUP_REQUEST_UPDATED', {
+      request: updatedRequest,
+      id,
+      status: 'approved',
+      wallet: { balance: newBal, currency: '₹' },
+      user_id: updatedRequest.captain_id,
+      captain_id: updatedRequest.captain_id,
+      profile_id: targetProfileId,
+      phone: targetPhone,
+    });
+
+    realtimeSync.broadcast('WALLET_UPDATED', {
+      user_id: updatedRequest.captain_id,
+      captain_id: updatedRequest.captain_id,
+      profile_id: targetProfileId,
+      phone: targetPhone,
+      balance: newBal,
+    });
+
     return { request: updatedRequest, wallet: { balance: newBal } };
   },
 

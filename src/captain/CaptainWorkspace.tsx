@@ -223,10 +223,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     setIsSubmittingProof(true);
     try {
+      const targetCaptainId = captainId || authUser?.id || captain?.id || safeStorage.getItem('motoride_captain_id') || captain?.phone || authUser?.phone || '';
+      const targetCaptainPhone = captain?.phone || authUser?.phone || safeStorage.getItem('motoride_captain_phone') || '';
       const req = await motorideApi.createTopupRequest({
-        captain_id: captainId,
-        captain_name: captain?.full_name || captainName || 'Captain',
-        captain_phone: captain?.phone || '',
+        captain_id: targetCaptainId,
+        captain_name: captain?.full_name || captainName || authUser?.name || 'Captain',
+        captain_phone: targetCaptainPhone,
         captain_avatar: captain?.avatar_url || '',
         amount: amt,
         utr_number: utrInput.trim(),
@@ -743,9 +745,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     const unsubTopupUpdated = realtimeSync.on('TOPUP_REQUEST_UPDATED', (payload: any) => {
       loadCaptainTopupRequests();
       loadCaptainData();
-      const currentId = captainIdRef.current || captainRef.current?.id || '';
-      const reqCaptId = payload?.request?.captain_id || payload?.user_id || '';
-      if (reqCaptId && (reqCaptId === currentId || reqCaptId === authUserRef.current?.id || reqCaptId === captainRef.current?.phone)) {
+      const currentId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id || '';
+      const currentPhone = captainRef.current?.phone || authUserRef.current?.phone || '';
+      const reqCaptId = payload?.request?.captain_id || payload?.user_id || payload?.captain_id || '';
+      const reqCaptPhone = payload?.request?.captain_phone || payload?.phone || '';
+      const isMyTopup = (
+        (reqCaptId && (reqCaptId === currentId || reqCaptId === currentPhone || reqCaptId === authUserRef.current?.id)) ||
+        (reqCaptPhone && (reqCaptPhone === currentPhone || reqCaptPhone === currentId)) ||
+        (payload?.profile_id && (payload.profile_id === currentId || payload.profile_id === authUserRef.current?.id))
+      );
+
+      if (isMyTopup) {
         if (payload?.wallet?.balance !== undefined) {
           setWalletBalance(payload.wallet.balance);
         }
@@ -757,9 +767,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     });
 
     const unsubWalletUpdated = realtimeSync.on('WALLET_UPDATED', (payload: any) => {
-      const currentId = captainIdRef.current || captainRef.current?.id || '';
+      const currentId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id || '';
+      const currentPhone = captainRef.current?.phone || authUserRef.current?.phone || '';
       const targetId = payload?.user_id || payload?.captain_id || '';
-      if (targetId && (targetId === currentId || targetId === authUserRef.current?.id || targetId === captainRef.current?.phone)) {
+      const targetPhone = payload?.phone || '';
+      const isMyWallet = (
+        (targetId && (targetId === currentId || targetId === currentPhone || targetId === authUserRef.current?.id)) ||
+        (targetPhone && (targetPhone === currentPhone || targetPhone === currentId)) ||
+        (payload?.profile_id && (payload.profile_id === currentId || payload.profile_id === authUserRef.current?.id))
+      );
+
+      if (isMyWallet) {
         if (typeof payload?.balance === 'number') {
           setWalletBalance(payload.balance);
         }
@@ -768,8 +786,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     });
 
     const unsubProfilesUpdated = realtimeSync.on('PROFILES_UPDATED', (prof: any) => {
-      const currentId = captainIdRef.current || captainRef.current?.id || '';
-      if (prof && (prof.id === currentId || prof.phone === currentId || prof.id === authUserRef.current?.id)) {
+      const currentId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id || '';
+      const currentPhone = captainRef.current?.phone || authUserRef.current?.phone || '';
+      if (prof && (prof.id === currentId || prof.phone === currentPhone || prof.phone === currentId || prof.id === authUserRef.current?.id)) {
         if (typeof prof.wallet_balance === 'number') {
           setWalletBalance(prof.wallet_balance);
         }
@@ -923,7 +942,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         }));
         setInternalOnline(Boolean(cpt.is_online));
       }
-      const w = await motorideApi.getWallet(captainId);
+      const targetCaptainId = captainId || authUser?.id || captain?.id || safeStorage.getItem('motoride_captain_id') || '';
+      const targetCaptainPhone = captain?.phone || authUser?.phone || safeStorage.getItem('motoride_captain_phone') || '';
+      const w = await motorideApi.getWallet(targetCaptainId, targetCaptainPhone);
       if (w && w.wallet) {
         setWalletBalance(w.wallet.balance || 0);
         setWalletTransactions(w.transactions || []);
