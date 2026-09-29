@@ -382,16 +382,8 @@ export const motorideApi = {
         if (!error && data && Array.isArray(data)) {
           (data as MotorideRide[]).forEach((r) => {
             if (r && r.id) {
-              const existing = localRidesStore.get(r.id) || map.get(r.id) || ({} as MotorideRide);
-              const merged: MotorideRide = {
-                ...existing,
-                ...r,
-                captain_name: r.captain_name || existing.captain_name,
-                captain_phone: r.captain_phone || existing.captain_phone,
-                vehicle_model: r.vehicle_model || existing.vehicle_model,
-                plate_number: r.plate_number || existing.plate_number,
-                captain_avatar: (r as any).captain_avatar || (existing as any).captain_avatar,
-              };
+              const existing = localRidesStore.get(r.id) || map.get(r.id);
+              const merged = mergeRideSafely(existing, r);
               map.set(r.id, merged);
               localRidesStore.set(r.id, merged);
             }
