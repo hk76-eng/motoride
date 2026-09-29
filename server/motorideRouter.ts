@@ -1282,19 +1282,64 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
     return res.json({ success: true, address: 'Selected Area' });
   }
 
-  // 1. Try Google Maps Geocoding API if key is present
-  const gMapsKey = process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDRr4NXZmlLOiuZ-ApDpqeuS3niSlWoPKg';
+  const gMapsKey = process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyB9pAU6h7_1zk9j7hEWdhcwmwQA80Ep0ZE';
+
+  // 1. Try Google Maps Geocoding & Places Nearby Search for exact hotel, hospital, market, home, garden, institution
   try {
     if (gMapsKey) {
-      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${gMapsKey}&region=in&language=en`;
-      const gRes = await fetch(gUrl, { signal: AbortSignal.timeout(2500) });
-      if (gRes.ok) {
+      // Run Places Nearby Search & Geocoding in parallel for maximum speed and rich place accuracy
+      const [gRes, placesRes] = await Promise.all([
+        fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${gMapsKey}&region=in&language=en`, { signal: AbortSignal.timeout(3000) }).catch(() => null),
+        fetch(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=160&key=${gMapsKey}&language=en`, { signal: AbortSignal.timeout(3000) }).catch(() => null),
+      ]);
+
+      let exactPoiName = '';
+      let poiVicinity = '';
+
+      if (placesRes && placesRes.ok) {
+        const placesData = await placesRes.json();
+        if (placesData.status === 'OK' && Array.isArray(placesData.results) && placesData.results.length > 0) {
+          // Score and rank establishments: prioritize hospitals, hotels, gardens/parks, institutions, markets, and housing societies
+          const scoredPois = placesData.results
+            .filter((p: any) =>
+              p.name &&
+              !p.types?.includes('political') &&
+              !p.types?.includes('locality') &&
+              !['Chandigarh', 'Mohali', 'Panchkula', 'Punjab', 'Haryana'].includes(p.name)
+            )
+            .sort((a: any, b: any) => {
+              const getScore = (p: any) => {
+                const types = p.types || [];
+                const nameLower = (p.name || '').toLowerCase();
+                // Direct keyword boost for hospitals, hotels, gardens, markets, institutions, homes
+                if (types.includes('hospital') || nameLower.includes('hospital') || nameLower.includes('clinic')) return 100;
+                if (types.includes('lodging') || types.includes('hotel') || nameLower.includes('hotel') || nameLower.includes('resort')) return 95;
+                if (types.includes('park') || nameLower.includes('garden') || nameLower.includes('lake') || types.includes('tourist_attraction')) return 90;
+                if (types.includes('university') || types.includes('school') || types.includes('college') || nameLower.includes('college') || nameLower.includes('institute') || nameLower.includes('campus')) return 85;
+                if (types.includes('shopping_mall') || types.includes('supermarket') || nameLower.includes('mall') || nameLower.includes('market') || nameLower.includes('plaza')) return 80;
+                if (nameLower.includes('society') || nameLower.includes('heights') || nameLower.includes('enclave') || nameLower.includes('greens') || nameLower.includes('apartments') || nameLower.includes('vihar') || nameLower.includes('homes')) return 75;
+                if (types.includes('health') || types.includes('doctor')) return 70;
+                if (types.includes('subpremise') || types.includes('premise')) return 60;
+                return 30;
+              };
+              return getScore(b) - getScore(a);
+            });
+
+          const topPoi = scoredPois[0];
+          if (topPoi && topPoi.name) {
+            exactPoiName = topPoi.name.replace(/^near\s+/i, '').trim();
+            poiVicinity = (topPoi.vicinity || '').replace(/^near\s+/i, '').trim();
+          }
+        }
+      }
+
+      if (gRes && gRes.ok) {
         const gData = await gRes.json();
         if (gData.status === 'OK' && Array.isArray(gData.results) && gData.results.length > 0) {
           const best =
             gData.results.find((r: any) =>
               r.types?.some((t: string) =>
-                ['establishment', 'point_of_interest', 'premise', 'subpremise', 'shopping_mall', 'hospital', 'transit_station', 'park'].includes(t)
+                ['establishment', 'point_of_interest', 'premise', 'subpremise', 'shopping_mall', 'hospital', 'lodging', 'hotel', 'park', 'school', 'university'].includes(t)
               )
             ) ||
             gData.results.find((r: any) =>
@@ -1302,7 +1347,7 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
             ) ||
             gData.results[0];
 
-          let placeName = '';
+          let placeName = exactPoiName || '';
           let streetNumber = '';
           let route = '';
           let sublocality = '';
@@ -1313,8 +1358,8 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
           if (Array.isArray(best.address_components)) {
             for (const comp of best.address_components) {
               const types = comp.types || [];
-              if (types.includes('point_of_interest') || types.includes('establishment') || types.includes('premise')) {
-                if (!placeName) placeName = comp.long_name;
+              if (!placeName && (types.includes('point_of_interest') || types.includes('establishment') || types.includes('premise') || types.includes('hospital') || types.includes('lodging'))) {
+                placeName = comp.long_name;
               }
               if (types.includes('street_number')) streetNumber = comp.long_name;
               if (types.includes('route')) route = comp.long_name;
@@ -1327,9 +1372,16 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
             }
           }
 
+          const rawFormatted = (best.formatted_address || '').replace(/, India$/, '').replace(/^near\s+/i, '').trim();
+          const firstFormattedSegment = rawFormatted.split(',')[0]?.trim();
+          if (!placeName && firstFormattedSegment && !/^\d+/.test(firstFormattedSegment) && firstFormattedSegment.length > 2) {
+            placeName = firstFormattedSegment;
+          }
+
           const street = [streetNumber, route].filter(Boolean).join(' ');
           const finalCity = locality || city || 'Chandigarh';
           const parts: string[] = [];
+
           if (placeName && !parts.includes(placeName)) parts.push(placeName);
           if (street && !parts.some((p) => p.toLowerCase().includes(street.toLowerCase()))) parts.push(street);
           if (sublocality && !parts.some((p) => p.toLowerCase().includes(sublocality.toLowerCase()))) parts.push(sublocality);
@@ -1338,21 +1390,37 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
 
           let fullAddr = parts.join(', ');
           if (!fullAddr || fullAddr.length < 5) {
-            fullAddr = (best.formatted_address || '').replace(/, India$/, '').trim();
+            fullAddr = rawFormatted;
           }
+
+          // Clean any remaining "near " prefix
+          fullAddr = fullAddr.replace(/^near\s+/i, '').trim();
+          const finalName = (placeName || exactPoiName || sublocality || fullAddr.split(',')[0].trim()).replace(/^near\s+/i, '').trim();
 
           return res.json({
             success: true,
-            address: fullAddr || best.formatted_address,
-            name: placeName || sublocality || fullAddr.split(',')[0].trim(),
+            address: fullAddr,
+            name: finalName,
             locality: sublocality,
             city: finalCity,
             postal_code: postalCode,
           });
         }
       }
+
+      // If Geocoding had no results but Places API found exact POI
+      if (exactPoiName) {
+        const fullAddr = poiVicinity ? `${exactPoiName}, ${poiVicinity}` : exactPoiName;
+        return res.json({
+          success: true,
+          address: fullAddr,
+          name: exactPoiName,
+        });
+      }
     }
-  } catch {}
+  } catch (err: any) {
+    console.warn('Google Maps reverse geocoding note:', err.message);
+  }
 
   // 2. Try Photon POI reverse search (specialized in named places, hotels, shops, amenities)
   try {
@@ -1363,8 +1431,8 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
       if (pData && Array.isArray(pData.features) && pData.features.length > 0) {
         const prop = pData.features[0].properties || {};
         if (prop.name && typeof prop.name === 'string' && prop.name.trim().length > 1) {
-          const placeName = prop.name.trim();
-          const sub = prop.district || prop.street || prop.city || '';
+          const placeName = prop.name.replace(/^near\s+/i, '').trim();
+          const sub = (prop.district || prop.street || prop.city || '').replace(/^near\s+/i, '').trim();
           const fullPlace = sub && !placeName.toLowerCase().includes(sub.toLowerCase())
             ? `${placeName}, ${sub}`
             : placeName;
@@ -1374,7 +1442,7 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
     }
   } catch {}
 
-  // 2. Try Nominatim with full address details
+  // 3. Try Nominatim with full address details
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`;
     const response = await fetch(url, {
@@ -1393,27 +1461,29 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
         const explicitPlace = parsed.name || addrObj.hotel || addrObj.building || addrObj.amenity || addrObj.shop || addrObj.residential || addrObj.tourism;
         
         if (explicitPlace && typeof explicitPlace === 'string' && explicitPlace.trim()) {
-          const area = addrObj.suburb || addrObj.road || addrObj.city_district || addrObj.city || '';
-          const fullPlace = area && !explicitPlace.toLowerCase().includes(area.toLowerCase())
-            ? `${explicitPlace.trim()}, ${area.trim()}`
-            : explicitPlace.trim();
-          return res.json({ success: true, address: fullPlace, name: explicitPlace.trim() });
+          const cleanName = explicitPlace.replace(/^near\s+/i, '').trim();
+          const area = (addrObj.suburb || addrObj.road || addrObj.city_district || addrObj.city || '').replace(/^near\s+/i, '').trim();
+          const fullPlace = area && !cleanName.toLowerCase().includes(area.toLowerCase())
+            ? `${cleanName}, ${area}`
+            : cleanName;
+          return res.json({ success: true, address: fullPlace, name: cleanName });
         }
 
         if (addrObj.suburb) {
-          const roadOrCity = addrObj.road ? `${addrObj.suburb}, ${addrObj.road}` : `${addrObj.suburb}, ${addrObj.city || 'Chandigarh'}`;
-          return res.json({ success: true, address: roadOrCity, name: addrObj.suburb });
+          const cleanSuburb = addrObj.suburb.replace(/^near\s+/i, '').trim();
+          const roadOrCity = addrObj.road ? `${cleanSuburb}, ${addrObj.road.replace(/^near\s+/i, '').trim()}` : `${cleanSuburb}, ${addrObj.city || 'Chandigarh'}`;
+          return res.json({ success: true, address: roadOrCity, name: cleanSuburb });
         }
 
         if (parsed.display_name) {
-          const shortName = parsed.display_name.split(',').slice(0, 3).join(', ').trim();
+          const shortName = parsed.display_name.split(',').slice(0, 3).join(', ').replace(/^near\s+/i, '').trim();
           return res.json({ success: true, address: shortName });
         }
       }
     }
   } catch {}
 
-  // 3. Fallback to nearest genuine Tricity sector/centroid
+  // 4. Fallback to nearest genuine Tricity sector/centroid
   const fallbackArea = getRegionalAreaNameHelper(lat, lng);
   res.json({ success: true, address: fallbackArea });
 });

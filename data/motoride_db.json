@@ -22,7 +22,7 @@
       {
         "id": "usr_1789917923920_d4kaz",
         "email": "osmskart@gmail.com",
-        "password_hash": "test",
+        "password_hash": "Osmskart@1978",
         "name": "Ritu Sharma",
         "role": "passenger",
         "phone": "+919876543210",
@@ -31,7 +31,8 @@
         "vehicle_type": "bike",
         "wallet_balance": 200,
         "member_since": "2026-09-20T15:25:23.920Z",
-        "created_at": "2026-09-20T15:25:23.920Z"
+        "created_at": "2026-09-20T15:25:23.920Z",
+        "avatar_url": "/default_profile_smile.jpg"
       }
     ]
   ],
@@ -45,6 +46,7 @@
         "full_name": "Ritu Sharma",
         "email": "osmskart@gmail.com",
         "phone": "+919876543210",
+        "avatar_url": "/default_profile_smile.jpg",
         "total_rides": 0,
         "rating": 5,
         "wallet_balance": 200,
@@ -68,5 +70,105 @@
         "currency": "₹"
       }
     ]
-  ]
+  ],
+  "rides": [
+    [
+      "ride_1790690910527_73bwg",
+      {
+        "id": "ride_1790690910527_73bwg",
+        "ride_code": "RIDE-6993",
+        "passenger_id": "usr_1789917923920_d4kaz",
+        "passenger_name": "Ritu Sharma",
+        "passenger_phone": "+919876543210",
+        "passenger_avatar": "/passenger_avatar_default.jpg",
+        "passenger_rating": 5,
+        "passenger_total_rides": 15,
+        "pickup_address": "Chandigarh Tricity Area",
+        "pickup_lat": 30.612183,
+        "pickup_lng": 76.852417,
+        "dropoff_address": "Sector 66, Mohali Bawa White House",
+        "dropoff_lat": 30.6741254,
+        "dropoff_lng": 76.74273029999999,
+        "distance_km": 21.4,
+        "duration_minutes": 21,
+        "estimated_fare": 214,
+        "offered_fare": 214,
+        "final_fare": 214,
+        "ride_type": "bike",
+        "status": "cancelled_by_passenger",
+        "payment_method": "upi",
+        "payment_status": "pending",
+        "created_at": "2026-09-29T14:08:30.527Z",
+        "updated_at": "2026-09-29T14:09:11.363Z",
+        "offers": [],
+        "cancellation_reason": "Passenger cancelled/closed the active ride"
+      }
+    ],
+    [
+      "ride_1790690965215_vqdcw",
+      {
+        "id": "ride_1790690965215_vqdcw",
+        "ride_code": "RIDE-3267",
+        "passenger_id": "usr_1789917923920_d4kaz",
+        "passenger_name": "Ritu Sharma",
+        "passenger_phone": "+919876543210",
+        "passenger_avatar": "/passenger_avatar_default.jpg",
+        "passenger_rating": 5,
+        "passenger_total_rides": 15,
+        "pickup_address": "Chandigarh Tricity Area",
+        "pickup_lat": 30.612183,
+        "pickup_lng": 76.852417,
+        "dropoff_address": "Sector 70, Mohali Market",
+        "dropoff_lat": 30.704649,
+        "dropoff_lng": 76.717873,
+        "distance_km": 24.5,
+        "duration_minutes": 22,
+        "estimated_fare": 245,
+        "offered_fare": 245,
+        "final_fare": 245,
+        "ride_type": "bike",
+        "status": "cancelled_by_passenger",
+        "payment_method": "upi",
+        "payment_status": "pending",
+        "created_at": "2026-09-29T14:09:25.216Z",
+        "updated_at": "2026-09-29T14:10:17.817Z",
+        "offers": [],
+        "cancellation_reason": "Passenger cancelled/closed the active ride"
+      }
+    ],
+    [
+      "ride_1790691052881_c8zb7",
+      {
+        "id": "ride_1790691052881_c8zb7",
+        "ride_code": "RIDE-5716",
+        "passenger_id": "usr_1789917923920_d4kaz",
+        "passenger_name": "Ritu Sharma",
+        "passenger_phone": "+919876543210",
+        "passenger_avatar": "/passenger_avatar_default.jpg",
+        "passenger_rating": 5,
+        "passenger_total_rides": 15,
+        "pickup_address": "Chandigarh Tricity Area",
+        "pickup_lat": 30.612183,
+        "pickup_lng": 76.852417,
+        "dropoff_address": "Motia City, Dhakoli, Zirakpur",
+        "dropoff_lat": 30.637214,
+        "dropoff_lng": 76.843114,
+        "distance_km": 3.3,
+        "duration_minutes": 5,
+        "estimated_fare": 33,
+        "offered_fare": 33,
+        "final_fare": 33,
+        "ride_type": "bike",
+        "status": "cancelled_by_passenger",
+        "payment_method": "upi",
+        "payment_status": "pending",
+        "created_at": "2026-09-29T14:10:52.881Z",
+        "updated_at": "2026-09-29T14:11:07.780Z",
+        "offers": [],
+        "cancellation_reason": "Passenger cancelled/closed the active ride"
+      }
+    ]
+  ],
+  "topupRequests": [],
+  "topupChat": []
 }

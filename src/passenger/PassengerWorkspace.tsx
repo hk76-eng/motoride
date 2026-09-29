@@ -746,19 +746,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     return 'Chandigarh Tricity Area';
   };
 
-  // Fast synchronous location name resolver from ALL KNOWN_LOCATIONS & PRESET_LOCATIONS
+  // Fast synchronous location name resolver (defers to regional area while async reverse geocoding resolves exact place)
   const getFastLocationName = (lat: number, lng: number): string => {
-    const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
-    let closest: { name: string; dist: number } | null = null;
-    for (const loc of allPool) {
-      const dist = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
-      if (!closest || dist < closest.dist) {
-        closest = { name: loc.name, dist };
-      }
-    }
-    if (closest && closest.dist <= 180) {
-      return closest.name;
-    }
     return getRegionalAreaName(lat, lng);
   };
 

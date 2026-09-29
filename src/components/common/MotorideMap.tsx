@@ -221,10 +221,28 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       popupAnchor: [0, -64],
     });
 
+  // Helper to extract clean meaningful place name (hotels, hospitals, markets, societies, institutions) skipping raw plot/house numbers
+  const extractCleanPlaceLabel = (raw: string): string => {
+    if (!raw) return '';
+    const cleaned = raw.replace(/^near\s+/i, '').trim();
+    const segments = cleaned.split(',').map((s) => s.trim()).filter(Boolean);
+    if (segments.length > 1) {
+      const first = segments[0];
+      const isHouseOrPlot =
+        /^(p\d+|\d+|plot\s*\d+|sco\s*\d+|scf\s*\d+|booth\s*\d+|h\.?no\.?\s*\d+|house\s*no\.?\s*\d+|flat\s*no\.?\s*\d+)/i.test(first) ||
+        (first.length <= 4 && !isNaN(Number(first)));
+      if (isHouseOrPlot) {
+        return segments[1];
+      }
+      return first;
+    }
+    return cleaned;
+  };
+
   // Draggable Passenger Icon specifically for setting pickup location in modal map
   const createDraggablePassengerPickupIcon = (pickupLocationName?: string, distanceText?: string) => {
     const rawName = pickupLocationName && pickupLocationName.trim() ? pickupLocationName.trim().replace(/^near\s+/i, '') : '';
-    const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
+    const shortName = extractCleanPlaceLabel(rawName);
     const displayName = shortName ? (shortName.length > 24 ? `${shortName.slice(0, 22)}…` : shortName) : 'Set Pickup';
 
     return L.divIcon({
@@ -314,7 +332,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       rawName.toLowerCase().includes('location a');
 
     const shouldShowLabel = !hideLabel || Boolean(distanceText);
-    const shortName = isGenericPickup ? '' : (rawName.includes(',') ? rawName.split(',')[0].trim() : rawName);
+    const shortName = isGenericPickup ? '' : extractCleanPlaceLabel(rawName);
     const displayName = shortName.length > 24 ? `${shortName.slice(0, 22)}…` : shortName;
 
     return L.divIcon({
@@ -369,7 +387,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     const rawName = destinationName && destinationName.trim() ? destinationName.trim().replace(/^near\s+/i, '') : 'Drop-off (B)';
-    const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
+    const shortName = extractCleanPlaceLabel(rawName);
     const displayName = shortName.length > 24 ? `${shortName.slice(0, 22)}…` : shortName;
 
     return L.divIcon({
@@ -397,7 +415,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
   // Draggable Destination / Dropoff Icon specifically for setting destination location in modal map
   const createDraggableDropoffIcon = (destinationName?: string, distanceText?: string) => {
     const rawName = destinationName && destinationName.trim() ? destinationName.trim().replace(/^near\s+/i, '') : '';
-    const shortName = rawName.includes(',') ? rawName.split(',')[0].trim() : rawName;
+    const shortName = extractCleanPlaceLabel(rawName);
     const displayName = shortName ? (shortName.length > 24 ? `${shortName.slice(0, 22)}…` : shortName) : 'Drag Red Flag';
 
     return L.divIcon({
