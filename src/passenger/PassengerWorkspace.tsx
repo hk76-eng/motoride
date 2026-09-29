@@ -2791,8 +2791,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   />
                 )}
 
-                {/* When Captain has arrived, show arrival banner */}
-                {activeRide.status === 'captain_arrived' && (
+                {/* When Captain has arrived (and trip NOT started), show arrival banner */}
+                {activeRide.status === 'captain_arrived' && activeRide.status !== 'trip_started' && (
                   <div className="w-full rounded-2xl bg-emerald-500 text-slate-950 px-3.5 py-2.5 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-slate-950 animate-ping shrink-0" />
