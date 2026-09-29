@@ -11,7 +11,7 @@ import { PassengerProfileDrawer } from './PassengerProfileDrawer';
 import { DigitalWatchETA } from './DigitalWatchETA';
 import { PassengerCaptainRatingModal } from './PassengerCaptainRatingModal';
 import { LocationPickerMapModal } from './LocationPickerMapModal';
-import { motorideApi, getRideAgreedFare } from '../services/motorideApi';
+import { motorideApi, getRideAgreedFare, mergeRideSafely, STATUS_RANK } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
 import { reverseGeocodeCoordinates } from '../utils/reverseGeocoding';
@@ -1846,16 +1846,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           safeStorage.setItem('motoride_active_passenger_ride_id', ride.id);
           setActiveRide((prev) => {
             if (!prev || prev.id !== ride.id) return ride;
-            return {
-              ...prev,
-              ...ride,
-              status: ride.status,
-              captain_name: ride.captain_name || prev.captain_name,
-              captain_phone: ride.captain_phone || prev.captain_phone,
-              vehicle_model: ride.vehicle_model || prev.vehicle_model,
-              plate_number: ride.plate_number || prev.plate_number,
-              captain_avatar: (ride as any).captain_avatar || (ride as any).avatar_url || (prev as any).captain_avatar || (prev as any).avatar_url,
-            };
+            return mergeRideSafely(prev, ride);
           });
         }
         loadRideHistory();
@@ -1958,11 +1949,40 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     };
   }, [currentPassengerId, currentUser?.id, authUser?.id]);
 
-  // Active ride live polling backup (ensures 0% missed status change even in background tabs or slow network)
+  // Active ride live subscription & polling backup (ensures 0% missed status change across Supabase Realtime & network reconnects)
   useEffect(() => {
     if (!activeRide?.id) return;
     const rideId = activeRide.id;
     let isCancelled = false;
+
+    // 1. Direct Supabase & Realtime subscription for this specific ride
+    const unsubRide = motorideApi.subscribeToRide(rideId, (latest) => {
+      if (isCancelled || !latest) return;
+      const ratedIds = getRatedRideIds();
+      if (latest.status.includes('cancelled')) {
+        safeStorage.removeItem('motoride_active_passenger_ride_id');
+        setActiveRide(null);
+        setShowCaptainRatingModal(false);
+        setCompletedRideForRating(null);
+      } else if (latest.status === 'trip_completed' || latest.status === 'completed') {
+        safeStorage.removeItem('motoride_active_passenger_ride_id');
+        if (!latest.passenger_rated && !ratedIds.includes(latest.id)) {
+          setActiveRide(latest);
+          setCompletedRideForRating(latest);
+          setShowCaptainRatingModal(true);
+        } else {
+          setActiveRide(null);
+          setShowCaptainRatingModal(false);
+          setCompletedRideForRating(null);
+        }
+      } else {
+        safeStorage.setItem('motoride_active_passenger_ride_id', latest.id);
+        setActiveRide((prev) => {
+          if (!prev || prev.id !== latest.id) return latest;
+          return mergeRideSafely(prev, latest);
+        });
+      }
+    });
 
     const poll = async () => {
       try {
@@ -1970,10 +1990,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         if (!isCancelled && latest) {
           const ratedIds = getRatedRideIds();
           if (latest.status.includes('cancelled')) {
+            safeStorage.removeItem('motoride_active_passenger_ride_id');
             setActiveRide(null);
             setShowCaptainRatingModal(false);
             setCompletedRideForRating(null);
           } else if (latest.status === 'trip_completed' || latest.status === 'completed') {
+            safeStorage.removeItem('motoride_active_passenger_ride_id');
             if (!latest.passenger_rated && !ratedIds.includes(latest.id)) {
               setActiveRide(latest);
               setCompletedRideForRating(latest);
@@ -1984,12 +2006,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               setCompletedRideForRating(null);
             }
           } else {
+            safeStorage.setItem('motoride_active_passenger_ride_id', latest.id);
             setActiveRide((prev) => {
               if (!prev || prev.id !== latest.id) return latest;
-              if (prev.status !== latest.status) {
-                return { ...prev, ...latest };
-              }
-              return prev;
+              return mergeRideSafely(prev, latest);
             });
           }
         }
@@ -2000,6 +2020,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const interval = setInterval(poll, 1500);
     return () => {
       isCancelled = true;
+      unsubRide();
       clearInterval(interval);
     };
   }, [activeRide?.id]);
@@ -2255,17 +2276,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       if (active) {
         setActiveRide((prev) => {
           if (!prev || prev.id !== active.id) return active;
-          return {
-            ...prev,
-            ...active,
-            status: active.status,
-            final_fare: active.final_fare || prev.final_fare,
-            captain_name: active.captain_name || prev.captain_name,
-            captain_phone: active.captain_phone || prev.captain_phone,
-            vehicle_model: active.vehicle_model || prev.vehicle_model,
-            plate_number: active.plate_number || prev.plate_number,
-            captain_avatar: (active as any).captain_avatar || (active as any).avatar_url || (prev as any).captain_avatar || (prev as any).avatar_url,
-          };
+          return mergeRideSafely(prev, active);
         });
 
         if ((active.status === 'trip_completed' || active.status === 'completed') && !active.passenger_rated && !ratedIds.includes(active.id)) {
@@ -2636,8 +2647,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 <span className="text-[11px] font-mono-num font-black text-black block">
                   {activeRide.ride_code}
                 </span>
-                <h2 className="text-base font-black text-black capitalize">
-                  {activeRide.status.replace(/_/g, ' ')}
+                <h2 className="text-base font-black text-black">
+                  {activeRide.status === 'captain_arrived'
+                    ? '🚕 Captain has arrived at your pickup location'
+                    : activeRide.status === 'trip_started'
+                    ? '🚕 Trip is in progress'
+                    : activeRide.status === 'trip_completed' || activeRide.status === 'completed'
+                    ? '✓ Trip completed'
+                    : activeRide.status === 'captain_accepted'
+                    ? 'Captain is on the way'
+                    : activeRide.status === 'captain_offered' || activeRide.status === 'requested'
+                    ? 'Finding Captain'
+                    : activeRide.status.replace(/_/g, ' ')}
                 </h2>
               </div>
 
@@ -2840,8 +2861,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   <div className="w-full rounded-2xl bg-emerald-500 text-slate-950 px-3.5 py-2.5 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-slate-950 animate-ping shrink-0" />
-                      <span className="text-xs sm:text-sm font-black uppercase tracking-wide">
-                        Captain has arrived at pickup location!
+                      <span className="text-xs sm:text-sm font-black tracking-wide">
+                        🚕 Captain has arrived at your pickup location
                       </span>
                     </div>
                     <span className="text-[10px] bg-slate-950 text-white px-2 py-0.5 rounded-lg font-bold shrink-0">
@@ -2856,8 +2877,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
                       <div>
-                        <span className="text-xs sm:text-sm font-black uppercase tracking-wide text-white block">
-                          Trip in Progress
+                        <span className="text-xs sm:text-sm font-black tracking-wide text-white block">
+                          🚕 Trip is in progress
                         </span>
                         <span className="text-[10px] text-slate-300 font-normal block truncate max-w-[220px] sm:max-w-xs">
                           En route to: {activeRide.dropoff_address || 'Destination (Location B)'}

@@ -14,7 +14,7 @@ import {
   TopupDepositRequest,
   TopupChatMessage,
 } from '../types/motoride';
-import { getSupabase } from '../lib/supabase';
+import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 import { safeStorage } from '../lib/safeStorage';
 import { supabaseAuth, isDemoAccount } from '../lib/supabaseAuth';
 import { realtimeSync } from './realtimeSync';
@@ -27,14 +27,19 @@ const API_BASE = getApiUrl('/api/motoride');
 // Local and cross-browser memory store for resilient instant sync
 export const STATUS_RANK: Record<string, number> = {
   requested: 1,
+  searching: 1,
   captain_offered: 2,
+  captain_assigned: 3,
   captain_accepted: 3,
+  captain_arriving: 3,
   captain_arrived: 4,
   trip_started: 5,
+  in_progress: 5,
   trip_completed: 6,
   completed: 6,
   cancelled_by_passenger: 7,
   cancelled_by_captain: 7,
+  cancelled: 7,
 };
 
 export function getRideAgreedFare(ride: MotorideRide | null | undefined): number {
@@ -92,38 +97,44 @@ export function mergeRideSafely(local?: MotorideRide | null, remote?: MotorideRi
   const localRank = STATUS_RANK[local.status] || 0;
   const remoteRank = STATUS_RANK[remote.status] || 0;
 
-  // Never revert a ride's status to an earlier workflow step
-  const effectiveStatus = localRank > remoteRank ? local.status : remote.status;
+  // Authoritative status resolution: Forward-only state machine.
+  // Higher rank always wins. If equal rank, remote (Supabase/server) is preferred.
+  let effectiveStatus = remoteRank >= localRank ? remote.status : local.status;
+
+  // Terminal states cannot be reverted to non-terminal states
+  if (local.status === 'trip_completed' || local.status === 'completed' || local.status.includes('cancelled')) {
+    if (remote.status !== 'trip_completed' && remote.status !== 'completed' && !remote.status.includes('cancelled')) {
+      effectiveStatus = local.status;
+    }
+  }
 
   const mergedOffersMap = new Map<string, RideOffer>();
+  (local.offers || []).forEach((o) => { if (o && o.id) mergedOffersMap.set(o.id, o); });
   (remote.offers || []).forEach((o) => { if (o && o.id) mergedOffersMap.set(o.id, o); });
-  (local.offers || []).forEach((o) => {
-    if (o && o.id) {
-      const existing = mergedOffersMap.get(o.id);
-      mergedOffersMap.set(o.id, { ...existing, ...o });
-    }
-  });
   const mergedOffers = Array.from(mergedOffersMap.values());
 
   const localAgreedFare = getRideAgreedFare(local);
   const remoteAgreedFare = getRideAgreedFare(remote);
-  const bestFare = Math.max(localAgreedFare, remoteAgreedFare) || local.final_fare || remote.final_fare || local.offered_fare || remote.offered_fare || 0;
+  const bestFare = Math.max(localAgreedFare, remoteAgreedFare) || remote.final_fare || local.final_fare || remote.offered_fare || local.offered_fare || 0;
 
   return {
-    ...remote,
     ...local,
+    ...remote,
     status: effectiveStatus,
     offers: mergedOffers,
-    captain_name: local.captain_name || remote.captain_name,
-    captain_phone: local.captain_phone || remote.captain_phone,
-    vehicle_model: local.vehicle_model || remote.vehicle_model,
-    plate_number: local.plate_number || remote.plate_number,
-    captain_avatar: (local as any).captain_avatar || (remote as any).captain_avatar,
+    captain_name: remote.captain_name || local.captain_name,
+    captain_phone: remote.captain_phone || local.captain_phone,
+    vehicle_model: remote.vehicle_model || local.vehicle_model,
+    plate_number: remote.plate_number || local.plate_number,
+    captain_avatar: (remote as any).captain_avatar || (local as any).captain_avatar,
     final_fare: bestFare,
     offered_fare: bestFare,
     agreed_fare: bestFare,
     accepted_fare: bestFare,
     fare_amount: bestFare,
+    trip_started_at: remote.trip_started_at || local.trip_started_at,
+    trip_completed_at: remote.trip_completed_at || local.trip_completed_at,
+    completed_at: (remote as any).completed_at || (local as any).completed_at,
     updated_at: new Date(
       Math.max(
         new Date(local.updated_at || 0).getTime(),
@@ -782,6 +793,21 @@ export const motorideApi = {
     }
   ): Promise<MotorideRide> {
     const existing = localRidesStore.get(rideId) || extra?.ride || ({ id: rideId } as MotorideRide);
+    const existingRank = STATUS_RANK[existing.status] || 0;
+    const newRank = STATUS_RANK[status] || 0;
+
+    // Strict forward-only state machine: reject invalid backwards status transitions
+    if (newRank < existingRank && !status.includes('cancelled')) {
+      console.warn(
+        `[Motoride State Machine] Rejected invalid backwards status transition for ride ${rideId} from ${existing.status} (rank ${existingRank}) to ${status} (rank ${newRank})`
+      );
+      return existing;
+    }
+    if (status.includes('cancelled') && existingRank >= 5) {
+      console.warn(`[Motoride State Machine] Cannot cancel ride ${rideId} that is already in progress or completed`);
+      return existing;
+    }
+
     const nowIso = new Date().toISOString();
     const updatedRide: MotorideRide = {
       ...existing,
@@ -815,7 +841,34 @@ export const motorideApi = {
       realtimeSync.broadcast('EARNINGS_UPDATED', { captain_id: updatedRide.captain_id, ride: updatedRide });
     }
 
-    // 3. Post to local server immediately with full ride payload so in-memory store and SSE stream fire without latency
+    // 3. Update Supabase first if configured
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const updatePayload: any = {
+          status,
+          updated_at: nowIso,
+        };
+        if (extra?.cancellation_reason) updatePayload.cancellation_reason = extra.cancellation_reason;
+        if (extra?.final_distance_km) updatePayload.distance_km = extra.final_distance_km;
+        if (extra?.final_fare) updatePayload.final_fare = extra.final_fare;
+        if (status === 'trip_started') updatePayload.trip_started_at = nowIso;
+        if (status === 'trip_completed' || status === 'completed') {
+          updatePayload.trip_completed_at = nowIso;
+          updatePayload.completed_at = nowIso;
+          updatePayload.payment_status = 'paid';
+          if (extra?.final_fare !== undefined) {
+            updatePayload.final_fare = extra.final_fare;
+            updatePayload.fare_amount = extra.final_fare;
+          }
+        }
+        await supabase.from('rides').update(updatePayload).eq('id', rideId);
+      } catch (err) {
+        console.warn('Supabase status sync notice:', err);
+      }
+    }
+
+    // 4. Post to local server immediately with full ride payload so in-memory store and SSE stream fire without latency
     try {
       const serverRes = await safeFetchJson<{ ride: MotorideRide }>(
         `${API_BASE}/rides/${rideId}/status`,
@@ -835,36 +888,63 @@ export const motorideApi = {
       console.warn('Local server status sync notice:', serverErr);
     }
 
-    // 4. Concurrently sync to Supabase in the background (never block local sync)
+    return updatedRide;
+  },
+
+  subscribeToRide(rideId: string, callback: (ride: MotorideRide) => void): () => void {
+    if (!rideId) return () => {};
+
+    const unsubUpdate = realtimeSync.on('RIDE_UPDATED', (ride: MotorideRide) => {
+      if (ride && ride.id === rideId) {
+        callback(ride);
+      }
+    });
+    const unsubStatus = realtimeSync.on('RIDE_STATUS_CHANGED', (payload: any) => {
+      const ride = payload?.ride || payload;
+      if (ride && ride.id === rideId) {
+        callback(ride);
+      }
+    });
+
+    let supaChannel: any = null;
     const supabase = getSupabase();
-    if (supabase) {
-      (async () => {
-        try {
-          const updatePayload: any = {
-            status,
-            updated_at: nowIso,
-          };
-          if (extra?.cancellation_reason) updatePayload.cancellation_reason = extra.cancellation_reason;
-          if (extra?.final_distance_km) updatePayload.distance_km = extra.final_distance_km;
-          if (extra?.final_fare) updatePayload.final_fare = extra.final_fare;
-          if (status === 'trip_started') updatePayload.trip_started_at = nowIso;
-          if (status === 'trip_completed' || status === 'completed') {
-            updatePayload.trip_completed_at = nowIso;
-            updatePayload.completed_at = nowIso;
-            updatePayload.payment_status = 'paid';
-            if (extra?.final_fare !== undefined) {
-              updatePayload.final_fare = extra.final_fare;
-              updatePayload.fare_amount = extra.final_fare;
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        supaChannel = supabase
+          .channel(`ride_channel_${rideId}`)
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'rides',
+              filter: `id=eq.${rideId}`,
+            },
+            (payload: any) => {
+              if (payload?.new) {
+                const existing = localRidesStore.get(rideId);
+                const merged = mergeRideSafely(existing, payload.new as MotorideRide);
+                localRidesStore.set(rideId, merged);
+                saveLocalRides();
+                callback(merged);
+              }
             }
-          }
-          await supabase.from('rides').update(updatePayload).eq('id', rideId);
-        } catch (err) {
-          console.warn('Supabase status background sync notice:', err);
-        }
-      })();
+          )
+          .subscribe();
+      } catch (err) {
+        console.warn('Supabase ride channel setup warning:', err);
+      }
     }
 
-    return updatedRide;
+    return () => {
+      unsubUpdate();
+      unsubStatus();
+      if (supaChannel && supabase) {
+        try {
+          supabase.removeChannel(supaChannel);
+        } catch {}
+      }
+    };
   },
 
   async submitRideRating(payload: {

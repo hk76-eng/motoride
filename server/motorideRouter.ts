@@ -642,6 +642,43 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
     return res.status(400).json({ error: `Invalid status: ${status}` });
   }
 
+  const STATUS_RANK: Record<string, number> = {
+    requested: 1,
+    searching: 1,
+    captain_offered: 2,
+    captain_assigned: 3,
+    captain_accepted: 3,
+    captain_arriving: 3,
+    captain_arrived: 4,
+    trip_started: 5,
+    in_progress: 5,
+    trip_completed: 6,
+    completed: 6,
+    cancelled_by_passenger: 7,
+    cancelled_by_captain: 7,
+    cancelled: 7,
+  };
+
+  const currentRank = STATUS_RANK[ride.status] || 0;
+  const newRank = STATUS_RANK[status] || 0;
+
+  // Strict forward-only state machine: reject backwards transitions
+  if (status && newRank < currentRank && !status.includes('cancelled')) {
+    return res.status(409).json({
+      error: `Invalid backwards status transition from ${ride.status} (rank ${currentRank}) to ${status} (rank ${newRank})`,
+      current_status: ride.status,
+      ride,
+    });
+  }
+
+  if (status && status.includes('cancelled') && currentRank >= 5) {
+    return res.status(409).json({
+      error: 'Cannot cancel a ride that is already in progress or completed',
+      current_status: ride.status,
+      ride,
+    });
+  }
+
   const now = new Date().toISOString();
   if (status) {
     ride.status = status;

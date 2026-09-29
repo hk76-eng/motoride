@@ -69,6 +69,13 @@
         "balance": 200,
         "currency": "₹"
       }
+    ],
+    [
+      "cpt_test_101",
+      {
+        "balance": 244,
+        "currency": "₹"
+      }
     ]
   ],
   "rides": [
@@ -166,6 +173,94 @@
         "updated_at": "2026-09-29T14:11:07.780Z",
         "offers": [],
         "cancellation_reason": "Passenger cancelled/closed the active ride"
+      }
+    ],
+    [
+      "ride_1790695185367_zz4nm",
+      {
+        "id": "ride_1790695185367_zz4nm",
+        "ride_code": "RIDE-2545",
+        "passenger_id": "psg_1790695185367_u12m8",
+        "passenger_name": "Passenger",
+        "passenger_phone": "",
+        "passenger_avatar": null,
+        "passenger_rating": 5,
+        "passenger_total_rides": 48,
+        "pickup_address": "Sector 70, Mohali",
+        "pickup_lat": 30.7046,
+        "pickup_lng": 76.7178,
+        "dropoff_address": "Phase 8B, Mohali",
+        "dropoff_lat": 30.7182,
+        "dropoff_lng": 76.7321,
+        "distance_km": 3.5,
+        "duration_minutes": 10,
+        "estimated_fare": 65,
+        "offered_fare": 80,
+        "final_fare": 80,
+        "ride_type": "bike",
+        "status": "trip_completed",
+        "payment_method": "cash",
+        "payment_status": "paid",
+        "created_at": "2026-09-29T15:19:45.367Z",
+        "updated_at": "2026-09-29T15:19:45.408Z",
+        "offers": [],
+        "captain_id": "cpt_test_101",
+        "captain_name": "Harpreet Singh",
+        "captain_phone": "",
+        "vehicle_model": "Bike",
+        "plate_number": "",
+        "captain_avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        "captain_current_lat": 30.7182,
+        "captain_current_lng": 76.7321,
+        "captain_heading": 42,
+        "trip_started_at": "2026-09-29T15:19:45.397Z",
+        "trip_completed_at": "2026-09-29T15:19:45.408Z",
+        "completed_at": "2026-09-29T15:19:45.408Z",
+        "fare_amount": 80
+      }
+    ],
+    [
+      "ride_1790695484758_jfnqz",
+      {
+        "id": "ride_1790695484758_jfnqz",
+        "ride_code": "RIDE-6659",
+        "passenger_id": "psg_1790695484758_cn4h6",
+        "passenger_name": "Passenger",
+        "passenger_phone": "",
+        "passenger_avatar": null,
+        "passenger_rating": 5,
+        "passenger_total_rides": 48,
+        "pickup_address": "Sector 70, Mohali",
+        "pickup_lat": 30.7046,
+        "pickup_lng": 76.7178,
+        "dropoff_address": "Phase 8B, Mohali",
+        "dropoff_lat": 30.7182,
+        "dropoff_lng": 76.7321,
+        "distance_km": 3.5,
+        "duration_minutes": 10,
+        "estimated_fare": 65,
+        "offered_fare": 80,
+        "final_fare": 80,
+        "ride_type": "bike",
+        "status": "trip_completed",
+        "payment_method": "cash",
+        "payment_status": "paid",
+        "created_at": "2026-09-29T15:24:44.758Z",
+        "updated_at": "2026-09-29T15:24:44.796Z",
+        "offers": [],
+        "captain_id": "cpt_test_101",
+        "captain_name": "Harpreet Singh",
+        "captain_phone": "",
+        "vehicle_model": "Bike",
+        "plate_number": "",
+        "captain_avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+        "captain_current_lat": 30.7182,
+        "captain_current_lng": 76.7321,
+        "captain_heading": 42,
+        "trip_started_at": "2026-09-29T15:24:44.785Z",
+        "trip_completed_at": "2026-09-29T15:24:44.796Z",
+        "completed_at": "2026-09-29T15:24:44.796Z",
+        "fare_amount": 80
       }
     ]
   ],

@@ -11,7 +11,7 @@ import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
 import { TopupChatModal } from '../components/common/TopupChatModal';
 import { CaptainPassengerRatingModal } from './CaptainPassengerRatingModal';
-import { motorideApi, getRideAgreedFare } from '../services/motorideApi';
+import { motorideApi, getRideAgreedFare, mergeRideSafely, STATUS_RANK } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm } from '../utils/distanceCalculator';
 import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
@@ -652,7 +652,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       }
     });
 
-    const unsubRideUpdated = realtimeSync.on('RIDE_UPDATED', (updatedRide: MotorideRide) => {
+    const handleCaptainRideUpdate = (updatedRide: MotorideRide) => {
       if (!updatedRide || !updatedRide.id) return;
       if (isRideForThisCaptain(updatedRide)) {
         const ratedIds = getCaptainRatedRideIds(captainIdRef.current || captainRef.current?.id || '');
@@ -664,7 +664,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           loadCaptainData();
         } else {
           safeStorage.setItem('motoride_active_captain_ride_id', updatedRide.id);
-          setActiveRide(updatedRide);
+          setActiveRide((prev) => {
+            if (!prev || prev.id !== updatedRide.id) return updatedRide;
+            return mergeRideSafely(prev, updatedRide);
+          });
           if ((updatedRide.status === 'trip_completed' || updatedRide.status === 'completed') && !updatedRide.captain_rated && !ratedIds.includes(updatedRide.id)) {
             setCompletedRideForRating(updatedRide);
             setShowPassengerRatingModal(true);
@@ -681,10 +684,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         }
         const exists = prev.some((r) => r.id === updatedRide.id);
         if (exists) {
-          return prev.map((r) => (r.id === updatedRide.id ? { ...r, ...updatedRide } : r));
+          return prev.map((r) => (r.id === updatedRide.id ? mergeRideSafely(r, updatedRide) : r));
         }
         return [updatedRide, ...prev];
       });
+    };
+
+    const unsubRideUpdated = realtimeSync.on('RIDE_UPDATED', handleCaptainRideUpdate);
+    const unsubRideStatusChanged = realtimeSync.on('RIDE_STATUS_CHANGED', (payload: any) => {
+      const ride = payload?.ride || payload;
+      if (ride) handleCaptainRideUpdate(ride);
     });
 
     const unsubRideAccepted = realtimeSync.on('RIDE_ACCEPTED', (acceptedRide: MotorideRide) => {
@@ -840,6 +849,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     return () => {
       unsubRideCreated();
       unsubRideUpdated();
+      unsubRideStatusChanged();
       unsubRideAccepted();
       unsubRideOffer();
       unsubRideDeleted();
@@ -857,6 +867,47 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [captainId, activeRide?.id]);
+
+  // Dedicated Supabase Realtime channel subscription for the active ride
+  useEffect(() => {
+    if (!activeRide?.id) return;
+    const rideId = activeRide.id;
+    let isCancelled = false;
+
+    const unsubSpecificRide = motorideApi.subscribeToRide(rideId, (latestRide) => {
+      if (isCancelled || !latestRide) return;
+      const ratedIds = getCaptainRatedRideIds(captainIdRef.current || captainRef.current?.id || '');
+      if (latestRide.status.includes('cancelled') || latestRide.captain_rated || ratedIds.includes(latestRide.id)) {
+        safeStorage.removeItem('motoride_active_captain_ride_id');
+        setActiveRide(null);
+        setShowPassengerRatingModal(false);
+        setCompletedRideForRating(null);
+        loadCaptainData();
+      } else {
+        safeStorage.setItem('motoride_active_captain_ride_id', latestRide.id);
+        setActiveRide((prev) => {
+          if (!prev || prev.id !== latestRide.id) return latestRide;
+          return mergeRideSafely(prev, latestRide);
+        });
+        if (
+          (latestRide.status === 'trip_completed' || latestRide.status === 'completed') &&
+          !latestRide.captain_rated &&
+          !ratedIds.includes(latestRide.id)
+        ) {
+          setCompletedRideForRating(latestRide);
+          setShowPassengerRatingModal(true);
+        } else {
+          setShowPassengerRatingModal(false);
+          setCompletedRideForRating(null);
+        }
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+      unsubSpecificRide();
+    };
+  }, [activeRide?.id]);
 
   useEffect(() => {
     if (inspectedRide && (inspectedRide.id.includes('demo') || inspectedRide.passenger_id === 'usr_demo_100')) {
@@ -1295,7 +1346,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
         if (current) {
           safeStorage.setItem('motoride_active_captain_ride_id', current.id);
-          setActiveRide(current);
+          setActiveRide((prev) => {
+            if (!prev || prev.id !== current.id) return current;
+            return mergeRideSafely(prev, current);
+          });
           if (
             (current.status === 'trip_completed' || current.status === 'completed') &&
             !current.captain_rated &&
@@ -1492,6 +1546,13 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   // Advance Trip Status with immediate optimistic local update & resilient sync
   const handleStatusChange = async (nextStatus: any) => {
     if (!activeRide) return;
+
+    const currentRank = STATUS_RANK[activeRide.status] || 0;
+    const nextRank = STATUS_RANK[nextStatus] || 0;
+    if (nextRank < currentRank) {
+      console.warn(`[Captain State Machine] Blocked backwards status transition from ${activeRide.status} to ${nextStatus}`);
+      return;
+    }
 
     // 1. Instant optimistic state update - 0ms UI delay!
     const nowIso = new Date().toISOString();
@@ -1731,8 +1792,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 })()}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <h3 className="text-base font-black text-slate-950 capitalize">
-                  {activeRide.status.replace(/_/g, ' ')}
+                <h3 className="text-base font-black text-slate-950">
+                  {activeRide.status === 'captain_arrived'
+                    ? 'You have arrived at pickup location'
+                    : activeRide.status === 'trip_started'
+                    ? 'Trip started'
+                    : activeRide.status === 'trip_completed' || activeRide.status === 'completed'
+                    ? 'Trip completed'
+                    : activeRide.status === 'captain_accepted'
+                    ? 'En Route to Pickup'
+                    : activeRide.status.replace(/_/g, ' ')}
                 </h3>
               </div>
             </div>
