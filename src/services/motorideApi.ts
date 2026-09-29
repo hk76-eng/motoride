@@ -1168,8 +1168,42 @@ export const motorideApi = {
           if (!c || isDemoAccount(c)) return;
           const key = c.id || c.profile_id || c.phone;
           if (!key) return;
-          const matchingVeh = vehs.find((v: any) => v.captain_id === c.id || v.captain_id === c.profile_id);
-          const matchingWal = wals.find((w: any) => w.user_id === c.id || w.user_id === c.profile_id || w.user_id === c.phone);
+          const matchingVeh = vehs.find((v: any) =>
+            v.captain_id === c.id ||
+            v.captain_id === c.profile_id ||
+            v.profile_id === c.id ||
+            v.user_id === c.id
+          );
+          const matchingWal = wals.find((w: any) =>
+            w.user_id === c.id ||
+            w.user_id === c.profile_id ||
+            w.user_id === c.phone
+          );
+
+          const modelName =
+            c.vehicle_model ||
+            c.vehicleModel ||
+            c.vehicle_name ||
+            c.model ||
+            matchingVeh?.model ||
+            matchingVeh?.vehicle_model ||
+            'Motorcycle';
+
+          const plateNo =
+            c.plate_number ||
+            c.plateNumber ||
+            c.vehicle_number ||
+            matchingVeh?.plate_number ||
+            matchingVeh?.plateNumber ||
+            matchingVeh?.vehicle_number ||
+            '';
+
+          const vehType =
+            c.vehicle_type ||
+            c.vehicleType ||
+            matchingVeh?.vehicle_type ||
+            'bike';
+
           mergedMap.set(key, {
             id: c.id || c.profile_id || key,
             profile_id: c.profile_id || c.id || key,
@@ -1189,9 +1223,9 @@ export const motorideApi = {
             vehicle: {
               id: matchingVeh?.id || `veh_${key}`,
               captain_id: key,
-              model: c.vehicle_model || matchingVeh?.model || 'Motorcycle',
-              plate_number: c.plate_number || matchingVeh?.plate_number || '',
-              vehicle_type: matchingVeh?.vehicle_type || 'bike',
+              model: modelName,
+              plate_number: plateNo,
+              vehicle_type: vehType,
               color: matchingVeh?.color || 'Black',
               is_active: true,
             },
@@ -1202,20 +1236,60 @@ export const motorideApi = {
         // Add from profiles table (where role = 'captain' or has vehicle info)
         profs.forEach((sp: any) => {
           if (!sp || isDemoAccount(sp)) return;
-          const isCaptain = sp.role === 'captain' || sp.user_type === 'captain' || sp.is_captain || Boolean(sp.vehicle_model || sp.plate_number);
+          const isCaptain = sp.role === 'captain' || sp.user_type === 'captain' || sp.is_captain || Boolean(sp.vehicle_model || sp.plate_number || sp.vehicleModel || sp.plateNumber);
           if (!isCaptain) return;
 
           const key = sp.id || sp.phone;
           if (!key) return;
 
           const existing = mergedMap.get(key) || (sp.id ? mergedMap.get(sp.id) : null);
-          const matchingVeh = vehs.find((v: any) => v.captain_id === sp.id || v.captain_id === sp.phone);
+          const matchingVeh = vehs.find((v: any) =>
+            v.captain_id === sp.id ||
+            v.captain_id === sp.phone ||
+            v.profile_id === sp.id ||
+            v.user_id === sp.id
+          );
           const matchingWal = wals.find((w: any) => w.user_id === sp.id || w.user_id === sp.phone);
 
           const resolvedApproved =
             existing?.is_approved !== undefined && existing?.is_approved !== null
               ? existing.is_approved
               : (sp.is_approved !== undefined && sp.is_approved !== null ? Boolean(sp.is_approved) : true);
+
+          const modelName =
+            sp.vehicle_model ||
+            sp.vehicleModel ||
+            sp.vehicle_name ||
+            sp.bike_model ||
+            sp.model ||
+            sp.vehicle?.model ||
+            matchingVeh?.model ||
+            matchingVeh?.vehicle_model ||
+            existing?.vehicle?.model ||
+            'Motorcycle';
+
+          const plateNo =
+            sp.plate_number ||
+            sp.plateNumber ||
+            sp.vehicle_number ||
+            sp.registration_number ||
+            sp.plate_no ||
+            sp.bike_number ||
+            sp.vehicle?.plate_number ||
+            sp.vehicle?.plateNumber ||
+            matchingVeh?.plate_number ||
+            matchingVeh?.plateNumber ||
+            matchingVeh?.vehicle_number ||
+            existing?.vehicle?.plate_number ||
+            '';
+
+          const vehType =
+            sp.vehicle_type ||
+            sp.vehicleType ||
+            sp.vehicle?.vehicle_type ||
+            matchingVeh?.vehicle_type ||
+            existing?.vehicle?.vehicle_type ||
+            'bike';
 
           mergedMap.set(key, {
             id: sp.id || key,
@@ -1236,10 +1310,10 @@ export const motorideApi = {
             vehicle: {
               id: matchingVeh?.id || existing?.vehicle?.id || `veh_${key}`,
               captain_id: key,
-              model: sp.vehicle_model || matchingVeh?.model || existing?.vehicle?.model || 'Motorcycle',
-              plate_number: sp.plate_number || matchingVeh?.plate_number || existing?.vehicle?.plate_number || '',
-              vehicle_type: matchingVeh?.vehicle_type || existing?.vehicle?.vehicle_type || 'bike',
-              color: 'Black',
+              model: modelName,
+              plate_number: plateNo,
+              vehicle_type: vehType,
+              color: matchingVeh?.color || existing?.vehicle?.color || 'Black',
               is_active: true,
             },
             created_at: sp.created_at || existing?.created_at || new Date().toISOString(),

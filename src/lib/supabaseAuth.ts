@@ -91,6 +91,9 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
       phone: user.phone?.trim() || null,
       role: user.role,
       avatar_url: avatarToSave,
+      vehicle_model: user.vehicleModel?.trim() || null,
+      plate_number: user.plateNumber?.trim() || null,
+      vehicle_type: user.vehicleType || (user.role === 'captain' ? 'bike' : null),
       wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
       is_active: true,
       updated_at: new Date().toISOString(),
@@ -183,14 +186,15 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
         const { data: existingVeh } = await supabase
           .from('vehicles')
           .select('id')
-          .eq('captain_id', actualCaptainId)
+          .or(`captain_id.eq.${actualCaptainId},captain_id.eq.${actualProfileId},captain_id.eq.${user.id}`)
           .maybeSingle();
 
         if (existingVeh) {
           await supabase
             .from('vehicles')
             .update({
-              model: user.vehicleModel?.trim() || '',
+              captain_id: actualProfileId,
+              model: user.vehicleModel?.trim() || 'Motorcycle',
               plate_number: plateNo,
               vehicle_type: user.vehicleType || 'bike',
             })
@@ -199,8 +203,8 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
           await supabase.from('vehicles').insert([
             {
               id: generateUUID(),
-              captain_id: actualCaptainId,
-              model: user.vehicleModel?.trim() || '',
+              captain_id: actualProfileId,
+              model: user.vehicleModel?.trim() || 'Motorcycle',
               plate_number: plateNo,
               vehicle_type: user.vehicleType || 'bike',
               color: 'Black',
