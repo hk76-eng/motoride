@@ -2055,7 +2055,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 className="w-full py-3.5 rounded-2xl hover:opacity-90 text-slate-950 font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-amber-500/20"
               >
                 <Navigation2 className="w-4 h-4 stroke-[2.5] text-slate-950 fill-slate-950" />
-                <span className="text-slate-950">Passenger Boarded • Start Trip</span>
+                <span className="text-slate-950">Trip Started</span>
               </button>
             )}
 
@@ -2067,7 +2067,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 className="w-full py-3.5 rounded-2xl hover:opacity-90 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-rose-900/25"
               >
                 <CheckCircle2 className="w-4 h-4 stroke-[2.5] text-white" />
-                <span className="text-white">Arrived at Destination • Complete Trip</span>
+                <span className="text-white">Trip Completed</span>
               </button>
             )}
 
