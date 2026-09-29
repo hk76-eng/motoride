@@ -2649,7 +2649,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 </span>
                 <h2 className="text-base font-black text-black">
                   {activeRide.status === 'captain_arrived'
-                    ? '🚕 Captain has arrived at your pickup location'
+                    ? '🚕 Captain Arrived'
                     : activeRide.status === 'trip_started'
                     ? '🚕 Trip is in progress'
                     : activeRide.status === 'trip_completed' || activeRide.status === 'completed'
@@ -2862,7 +2862,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-slate-950 animate-ping shrink-0" />
                       <span className="text-xs sm:text-sm font-black tracking-wide">
-                        🚕 Captain has arrived at your pickup location
+                        🚕 Captain Arrived
                       </span>
                     </div>
                     <span className="text-[10px] bg-slate-950 text-white px-2 py-0.5 rounded-lg font-bold shrink-0">

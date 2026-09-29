@@ -1794,7 +1794,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               <div className="flex items-center gap-1.5 mt-0.5">
                 <h3 className="text-base font-black text-slate-950">
                   {activeRide.status === 'captain_arrived'
-                    ? 'You have arrived at pickup location'
+                    ? 'Arrived at Pickup location'
                     : activeRide.status === 'trip_started'
                     ? 'Trip started'
                     : activeRide.status === 'trip_completed' || activeRide.status === 'completed'
