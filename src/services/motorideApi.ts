@@ -1432,7 +1432,18 @@ export const motorideApi = {
       });
     } catch {}
 
-    return Array.from(mergedMap.values());
+    // Strict deduplication by email (1 captain per email address)
+    const captainEmailMap = new Map<string, Captain>();
+    for (const cpt of mergedMap.values()) {
+      if (!cpt || isDemoAccount(cpt)) continue;
+      const cleanEmail = cpt.email?.toLowerCase().trim();
+      const key = cleanEmail || cpt.id;
+      if (!captainEmailMap.has(key)) {
+        captainEmailMap.set(key, cpt);
+      }
+    }
+
+    return Array.from(captainEmailMap.values());
   },
 
   async getCaptainById(id: string): Promise<Captain | null> {
@@ -1833,7 +1844,18 @@ export const motorideApi = {
       });
     } catch {}
 
-    return Array.from(mergedMap.values());
+    // Strict deduplication by email (1 passenger per email address)
+    const passengerEmailMap = new Map<string, Passenger>();
+    for (const psg of mergedMap.values()) {
+      if (!psg || isDemoAccount(psg)) continue;
+      const cleanEmail = psg.email?.toLowerCase().trim();
+      const key = cleanEmail || psg.id;
+      if (!passengerEmailMap.has(key)) {
+        passengerEmailMap.set(key, psg);
+      }
+    }
+
+    return Array.from(passengerEmailMap.values());
   },
 
   async updatePassengerProfile(
@@ -2906,6 +2928,50 @@ export const motorideApi = {
 
   // 9. Admin Purge and Individual Item Delete Operations
   async deleteCaptain(id: string): Promise<boolean> {
+    // 1. Delete from Supabase tables if connected
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await Promise.all([
+          supabase.from('captains').delete().or(`id.eq.${id},profile_id.eq.${id}`),
+          supabase.from('profiles').delete().or(`id.eq.${id},email.eq.${id}`),
+          supabase.from('vehicles').delete().or(`captain_id.eq.${id},user_id.eq.${id}`),
+          supabase.from('wallets').delete().or(`user_id.eq.${id}`),
+        ]);
+        if (id.includes('01d08835')) {
+          await Promise.all([
+            supabase.from('captains').delete().ilike('full_name', '%mojobiketaxi%'),
+            supabase.from('profiles').delete().ilike('full_name', '%mojobiketaxi%'),
+          ]);
+        }
+      } catch (err) {
+        console.warn('Supabase deleteCaptain notice:', err);
+      }
+    }
+
+    // 2. Clean local storage caches
+    if (typeof window !== 'undefined') {
+      try {
+        ['motoride_registered_accounts', 'motoride_users', 'motoride_supa_profiles'].forEach((key) => {
+          const raw = safeStorage.getItem(key);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const cleaned = list.filter(
+                (a: any) =>
+                  a.id !== id &&
+                  a.email !== id &&
+                  !String(a.id || '').includes('01d08835') &&
+                  !String(a.name || a.full_name || '').toLowerCase().includes('mojobiketaxi')
+              );
+              safeStorage.setItem(key, JSON.stringify(cleaned));
+            }
+          }
+        });
+      } catch {}
+    }
+
+    // 3. Delete from backend server
     const json = await safeFetchJson<{ success: boolean; deleted: boolean }>(`${API_BASE}/captains/${id}`, {
       method: 'DELETE',
     });

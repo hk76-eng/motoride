@@ -395,12 +395,31 @@ export function clearAllRidesFromDb() {
   notificationsStore.length = 0;
 }
 
+export function isForbiddenAccount(id?: string, name?: string, email?: string): boolean {
+  const sId = String(id || '').toLowerCase().trim();
+  const sName = String(name || '').toLowerCase().trim();
+  const sEmail = String(email || '').toLowerCase().trim();
+  return (
+    sId.includes('01d08835-416d-4acb-ac49-a801c7906518') ||
+    sId.includes('01d08835') ||
+    sId.includes('348173af-50c5-4182-8621-c8212369cd81') ||
+    sName.includes('mojobiketaxi') ||
+    sEmail.includes('mojobiketaxi')
+  );
+}
+
 export function deleteCaptainFromDb(id: string): boolean {
   let found = captainsStore.delete(id);
   walletsStore.delete(id);
-  for (const [key, acc] of accountsStore.entries()) {
-    if (acc.id === id || acc.email === id) {
+  for (const [key, acc] of Array.from(accountsStore.entries())) {
+    if (acc.id === id || acc.email === id || isForbiddenAccount(acc.id, acc.name, acc.email) || isForbiddenAccount(key)) {
       accountsStore.delete(key);
+      found = true;
+    }
+  }
+  for (const [key, cpt] of Array.from(captainsStore.entries())) {
+    if (cpt.id === id || isForbiddenAccount(cpt.id, cpt.full_name, cpt.email) || isForbiddenAccount(key)) {
+      captainsStore.delete(key);
       found = true;
     }
   }
@@ -411,9 +430,15 @@ export function deleteCaptainFromDb(id: string): boolean {
 export function deletePassengerFromDb(id: string): boolean {
   let found = passengersStore.delete(id);
   walletsStore.delete(id);
-  for (const [key, acc] of accountsStore.entries()) {
-    if (acc.id === id || acc.email === id) {
+  for (const [key, acc] of Array.from(accountsStore.entries())) {
+    if (acc.id === id || acc.email === id || isForbiddenAccount(acc.id, acc.name, acc.email) || isForbiddenAccount(key)) {
       accountsStore.delete(key);
+      found = true;
+    }
+  }
+  for (const [key, psg] of Array.from(passengersStore.entries())) {
+    if (psg.id === id || isForbiddenAccount(psg.id, psg.full_name, psg.email) || isForbiddenAccount(key)) {
+      passengersStore.delete(key);
       found = true;
     }
   }
@@ -435,7 +460,7 @@ export function loadDbFromDisk() {
       const data = JSON.parse(raw);
       if (Array.isArray(data.accounts)) {
         for (const [k, v] of data.accounts) {
-          if (v && v.email) {
+          if (v && v.email && !isForbiddenAccount(v.id, v.name, v.email) && !isForbiddenAccount(k)) {
             accountsStore.set(k, v);
             if (v.role === 'passenger' && !passengersStore.has(v.id)) {
               passengersStore.set(v.id, {
@@ -456,17 +481,23 @@ export function loadDbFromDisk() {
       }
       if (Array.isArray(data.captains)) {
         for (const [k, v] of data.captains) {
-          if (v && v.id) captainsStore.set(k, v);
+          if (v && v.id && !isForbiddenAccount(v.id, v.full_name, v.email) && !isForbiddenAccount(k)) {
+            captainsStore.set(k, v);
+          }
         }
       }
       if (Array.isArray(data.passengers)) {
         for (const [k, v] of data.passengers) {
-          if (v && v.id) passengersStore.set(k, v);
+          if (v && v.id && !isForbiddenAccount(v.id, v.full_name, v.email) && !isForbiddenAccount(k)) {
+            passengersStore.set(k, v);
+          }
         }
       }
       if (Array.isArray(data.wallets)) {
         for (const [k, v] of data.wallets) {
-          if (k && v) walletsStore.set(k, v);
+          if (k && v && !isForbiddenAccount(k)) {
+            walletsStore.set(k, v);
+          }
         }
       }
       if (Array.isArray(data.rides)) {
@@ -476,12 +507,31 @@ export function loadDbFromDisk() {
       }
       if (Array.isArray(data.topupRequests)) {
         for (const [k, v] of data.topupRequests) {
-          if (v && v.id) topupRequestsStore.set(k, v);
+          if (v && v.id && !isForbiddenAccount(v.captain_id, v.captain_name)) {
+            topupRequestsStore.set(k, v);
+          }
         }
       }
+
       if (Array.isArray(data.topupChat)) {
         for (const [k, v] of data.topupChat) {
           if (k && Array.isArray(v)) topupChatStore.set(k, v);
+        }
+      }
+
+      // Enforce clean 1-account-per-email uniqueness across loaded accountsStore
+      const emailToKey = new Map<string, string>();
+      for (const [key, acc] of Array.from(accountsStore.entries())) {
+        const cleanEmail = acc.email?.trim().toLowerCase();
+        if (!cleanEmail) continue;
+        if (emailToKey.has(cleanEmail)) {
+          // Found duplicate with same email - delete duplicate
+          accountsStore.delete(key);
+          captainsStore.delete(acc.id);
+          passengersStore.delete(acc.id);
+          walletsStore.delete(acc.id);
+        } else {
+          emailToKey.set(cleanEmail, key);
         }
       }
     }

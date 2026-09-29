@@ -110,6 +110,20 @@ const DEFAULT_ADMIN_FARE_SETTINGS: FareSettings = {
   courier_charges: { ...DEFAULT_COURIER_CHARGES },
 };
 
+export function isTargetAccountToRemove(acc: any): boolean {
+  if (!acc) return false;
+  const id = String(acc.id || acc.profile_id || '').toLowerCase().trim();
+  const name = String(acc.name || acc.full_name || '').toLowerCase().trim();
+  const email = String(acc.email || '').toLowerCase().trim();
+  return (
+    id.includes('01d08835-416d-4acb-ac49-a801c7906518') ||
+    id.includes('01d08835') ||
+    id.includes('348173af-50c5-4182-8621-c8212369cd81') ||
+    name.includes('mojobiketaxi') ||
+    email.includes('mojobiketaxi')
+  );
+}
+
 interface AdminWorkspaceProps {
   currentUser?: AuthUser | null;
   onSignOut?: () => void;
@@ -493,6 +507,32 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     };
   }, []);
 
+  // Immediate startup purge for duplicate captain account 01d08835-416d-4acb-ac49-a801c7906518 / Mojobiketaxi
+  useEffect(() => {
+    motorideApi.deleteCaptain('01d08835-416d-4acb-ac49-a801c7906518').catch(() => {});
+    if (typeof window !== 'undefined') {
+      try {
+        ['motoride_registered_accounts', 'motoride_users', 'motoride_supa_profiles'].forEach((key) => {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const cleaned = list.filter((a: any) => !isTargetAccountToRemove(a));
+              localStorage.setItem(key, JSON.stringify(cleaned));
+            }
+          }
+        });
+      } catch {}
+    }
+    const supa = getSupabase();
+    if (supa) {
+      supa.from('captains').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518').then(() => {}).catch(() => {});
+      supa.from('profiles').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518').then(() => {}).catch(() => {});
+      supa.from('captains').delete().ilike('full_name', '%mojobiketaxi%').then(() => {}).catch(() => {});
+      supa.from('profiles').delete().ilike('full_name', '%mojobiketaxi%').then(() => {}).catch(() => {});
+    }
+  }, []);
+
   const loadAllData = async () => {
     try {
       const [s, c, p, r, q, serverAccounts, topupsList] = await Promise.all([
@@ -582,18 +622,20 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
         }
       }
 
-      // Clean up demo accounts from localStorage so only real accounts persist
+      // Clean up target account 01d08835 / Mojobiketaxi and demo accounts from localStorage
       try {
-        const rawUsers = localStorage.getItem('motoride_users');
-        if (rawUsers) {
-          const users = JSON.parse(rawUsers);
-          if (Array.isArray(users)) {
-            const cleaned = users.filter((u: any) => !isDemoAccount(u));
-            if (cleaned.length !== users.length) {
-              localStorage.setItem('motoride_users', JSON.stringify(cleaned));
+        ['motoride_users', 'motoride_registered_accounts', 'motoride_supa_profiles'].forEach((storageKey) => {
+          const raw = localStorage.getItem(storageKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              const cleaned = parsed.filter((u: any) => !isDemoAccount(u) && !isTargetAccountToRemove(u));
+              if (cleaned.length !== parsed.length) {
+                localStorage.setItem(storageKey, JSON.stringify(cleaned));
+              }
             }
           }
-        }
+        });
       } catch {}
 
       // 3. Load profiles and passengers directly from Supabase if configured (real profiles only)
@@ -614,7 +656,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           const supaWallets = walRes.data || [];
 
           for (const sp of supaProfiles) {
-            if (isDemoAccount(sp)) continue;
+            if (isDemoAccount(sp) || isTargetAccountToRemove(sp)) continue;
             const matchingWal = supaWallets.find((w: any) => w.user_id === sp.id || w.user_id === sp.profile_id);
             const balance = matchingWal ? matchingWal.balance : undefined;
 
@@ -678,7 +720,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       // Filter out any demo data and deduplicate across all sources
       const captainMap = new Map<string, Captain>();
       for (const cpt of [...(c || []), ...localCaptains]) {
-        if (!cpt || isDemoAccount(cpt) || cpt.id?.includes('348173af-50c5-4182-8621-c8212369cd81')) continue;
+        if (!cpt || isDemoAccount(cpt) || isTargetAccountToRemove(cpt)) continue;
         const emailKey = cpt.email?.toLowerCase().trim();
         const primaryKey = emailKey || cpt.id || cpt.phone;
         if (!primaryKey) continue;
@@ -703,24 +745,51 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           }
         }
       }
-      const filteredCaptains = Array.from(new Set(captainMap.values()));
+      // Guarantee strictly unique list of captains (1 entry per unique email)
+      const captainEmailDedupeMap = new Map<string, Captain>();
+      for (const cpt of captainMap.values()) {
+        const cleanEmail = cpt.email?.toLowerCase().trim();
+        const key = cleanEmail || cpt.id;
+        if (!captainEmailDedupeMap.has(key)) {
+          captainEmailDedupeMap.set(key, cpt);
+        }
+      }
+      const filteredCaptains = Array.from(captainEmailDedupeMap.values());
+      const captainEmailSet = new Set(
+        filteredCaptains.map((cpt) => cpt.email?.toLowerCase().trim()).filter(Boolean)
+      );
 
       const passengerMap = new Map<string, Passenger>();
       for (const psg of [...(p || []), ...localPassengers]) {
-        if (!psg || isDemoAccount(psg)) continue;
-        const key = psg.id || psg.email?.toLowerCase() || psg.phone;
-        if (!key) continue;
-        const existing = passengerMap.get(key) || (psg.email ? passengerMap.get(psg.email.toLowerCase()) : null);
+        if (!psg || isDemoAccount(psg) || isTargetAccountToRemove(psg)) continue;
+        const emailKey = psg.email?.toLowerCase().trim();
+        // Cross-tab mutual exclusion: If this email already belongs to a captain, DO NOT create/display duplicate in passenger profiles tab!
+        if (emailKey && captainEmailSet.has(emailKey)) continue;
+
+        const primaryKey = emailKey || psg.id || psg.phone;
+        if (!primaryKey) continue;
+        const existing = (emailKey ? passengerMap.get(emailKey) : null) || passengerMap.get(psg.id) || (psg.phone ? passengerMap.get(psg.phone) : null);
         if (!existing) {
-          passengerMap.set(key, psg);
+          passengerMap.set(primaryKey, psg);
           if (psg.id) passengerMap.set(psg.id, psg);
+          if (emailKey) passengerMap.set(emailKey, psg);
         } else {
           if (psg.full_name && (!existing.full_name || existing.full_name === 'Passenger')) existing.full_name = psg.full_name;
           if (psg.phone && !existing.phone) existing.phone = psg.phone;
           if (psg.email && !existing.email) existing.email = psg.email;
         }
       }
-      const filteredPassengers = Array.from(new Set(passengerMap.values()));
+      // Guarantee strictly unique list of passengers (1 entry per unique email, zero overlap with captains)
+      const passengerEmailDedupeMap = new Map<string, Passenger>();
+      for (const psg of passengerMap.values()) {
+        const cleanEmail = psg.email?.toLowerCase().trim();
+        if (cleanEmail && captainEmailSet.has(cleanEmail)) continue;
+        const key = cleanEmail || psg.id;
+        if (!passengerEmailDedupeMap.has(key)) {
+          passengerEmailDedupeMap.set(key, psg);
+        }
+      }
+      const filteredPassengers = Array.from(passengerEmailDedupeMap.values());
 
       const filteredRides = (r || []).filter(ride => !isDemoRide(ride));
 
@@ -941,49 +1010,77 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     return true;
   });
 
-  const filteredCaptains = captains.filter((cpt) => {
-    if (
-      isDemoAccount(cpt) ||
-      (cpt as any).role === 'admin' ||
-      cpt.email === 'freelanceseoservices01@gmail.com' ||
-      cpt.id?.includes('348173af-50c5-4182-8621-c8212369cd81') ||
-      cpt.profile_id?.includes('348173af-50c5-4182-8621-c8212369cd81')
-    ) {
-      return false;
-    }
-    if (captainFilter === 'online' && !cpt.is_online) return false;
-    if (captainFilter === 'approved' && !cpt.is_approved) return false;
-    if (captainFilter === 'suspended' && cpt.is_approved) return false;
-    if (captainSearch) {
-      const q = captainSearch.toLowerCase();
-      return (
-        (cpt.full_name && cpt.full_name.toLowerCase().includes(q)) ||
-        (cpt.email && cpt.email.toLowerCase().includes(q)) ||
-        (cpt.phone && cpt.phone.toLowerCase().includes(q)) ||
-        (cpt.vehicle?.model && cpt.vehicle.model.toLowerCase().includes(q)) ||
-        (cpt.vehicle?.plate_number && cpt.vehicle.plate_number.toLowerCase().includes(q)) ||
-        (cpt.id && cpt.id.toLowerCase().includes(q)) ||
-        (cpt.profile_id && cpt.profile_id.toLowerCase().includes(q))
-      );
-    }
-    return true;
-  });
+  const filteredCaptains = useMemo(() => {
+    const seenEmails = new Set<string>();
+    return captains.filter((cpt) => {
+      if (
+        isDemoAccount(cpt) ||
+        isTargetAccountToRemove(cpt) ||
+        (cpt as any).role === 'admin' ||
+        cpt.email === 'freelanceseoservices01@gmail.com'
+      ) {
+        return false;
+      }
+      const email = cpt.email?.toLowerCase().trim();
+      if (email) {
+        if (seenEmails.has(email)) return false;
+        seenEmails.add(email);
+      }
+      if (captainFilter === 'online' && !cpt.is_online) return false;
+      if (captainFilter === 'approved' && !cpt.is_approved) return false;
+      if (captainFilter === 'suspended' && cpt.is_approved) return false;
+      if (captainSearch) {
+        const q = captainSearch.toLowerCase();
+        return (
+          (cpt.full_name && cpt.full_name.toLowerCase().includes(q)) ||
+          (cpt.email && cpt.email.toLowerCase().includes(q)) ||
+          (cpt.phone && cpt.phone.toLowerCase().includes(q)) ||
+          (cpt.vehicle?.model && cpt.vehicle.model.toLowerCase().includes(q)) ||
+          (cpt.vehicle?.plate_number && cpt.vehicle.plate_number.toLowerCase().includes(q)) ||
+          (cpt.id && cpt.id.toLowerCase().includes(q)) ||
+          (cpt.profile_id && cpt.profile_id.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [captains, captainFilter, captainSearch]);
 
-  const filteredPassengers = passengers.filter((p) => {
-    if (isDemoAccount(p) || (p as any).role === 'admin' || p.email === 'freelanceseoservices01@gmail.com') return false;
-    if (passengerSearch) {
-      const q = passengerSearch.toLowerCase();
-      return (
-        (p.full_name && p.full_name.toLowerCase().includes(q)) ||
-        (p.email && p.email.toLowerCase().includes(q)) ||
-        (p.phone && p.phone.toLowerCase().includes(q)) ||
-        (p.emergency_contact && p.emergency_contact.toLowerCase().includes(q)) ||
-        (p.id && p.id.toLowerCase().includes(q)) ||
-        (p.profile_id && p.profile_id.toLowerCase().includes(q))
-      );
-    }
-    return true;
-  });
+  const filteredPassengers = useMemo(() => {
+    const captainEmails = new Set(
+      captains.map((c) => c.email?.toLowerCase().trim()).filter(Boolean)
+    );
+    const seenEmails = new Set<string>();
+    return passengers.filter((p) => {
+      if (
+        isDemoAccount(p) ||
+        isTargetAccountToRemove(p) ||
+        (p as any).role === 'admin' ||
+        p.email === 'freelanceseoservices01@gmail.com'
+      ) {
+        return false;
+      }
+      const email = p.email?.toLowerCase().trim();
+      if (email) {
+        // Enforce cross-tab mutual exclusion: do not show same email in passenger profiles tab
+        if (captainEmails.has(email)) return false;
+        // Enforce within-tab uniqueness: never show duplicate accounts with the same email ID
+        if (seenEmails.has(email)) return false;
+        seenEmails.add(email);
+      }
+      if (passengerSearch) {
+        const q = passengerSearch.toLowerCase();
+        return (
+          (p.full_name && p.full_name.toLowerCase().includes(q)) ||
+          (p.email && p.email.toLowerCase().includes(q)) ||
+          (p.phone && p.phone.toLowerCase().includes(q)) ||
+          (p.emergency_contact && p.emergency_contact.toLowerCase().includes(q)) ||
+          (p.id && p.id.toLowerCase().includes(q)) ||
+          (p.profile_id && p.profile_id.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [passengers, captains, passengerSearch]);
 
   return (
     <div className="max-w-7xl mx-auto p-3 sm:p-6 flex flex-col gap-6">
@@ -1026,8 +1123,8 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           { key: 'overview', label: 'Dashboard Overview', icon: Activity },
           { key: 'topup_approvals', label: `Top-Up Approvals (${topupRequests.filter(r => r.status === 'pending').length} Pending)`, icon: CheckCircle2 },
           { key: 'rides', label: `Live Rides (${rides.length})`, icon: Bike },
-          { key: 'captains', label: `Captains (${captains.length})`, icon: Users },
-          { key: 'passengers', label: `Passengers (${passengers.length})`, icon: Users },
+          { key: 'captains', label: `Captains (${filteredCaptains.length})`, icon: Users },
+          { key: 'passengers', label: `Passengers (${filteredPassengers.length})`, icon: Users },
           { key: 'ride_charges', label: 'Ride Charges / KM', icon: Bike },
           { key: 'courier_charges', label: 'Courier Charges / KM', icon: Settings },
           { key: 'qr', label: 'Official QR Code', icon: QrCode },
@@ -1234,24 +1331,24 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm">
               <span className="text-[10px] font-bold text-slate-400">REGISTERED CAPTAINS</span>
-              <div className="mt-1 text-xl font-black text-white font-mono-num">{captains.length}</div>
+              <div className="mt-1 text-xl font-black text-white font-mono-num">{filteredCaptains.length}</div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm">
               <span className="text-[10px] font-bold text-slate-400">ONLINE ON FLEET</span>
               <div className="mt-1 text-xl font-black text-emerald-400 font-mono-num">
-                {captains.filter((c) => c.is_online).length}
+                {filteredCaptains.filter((c) => c.is_online).length}
               </div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm">
               <span className="text-[10px] font-bold text-slate-400">APPROVED DRIVERS</span>
               <div className="mt-1 text-xl font-black text-sky-400 font-mono-num">
-                {captains.filter((c) => c.is_approved).length}
+                {filteredCaptains.filter((c) => c.is_approved).length}
               </div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm">
               <span className="text-[10px] font-bold text-slate-400">TOTAL FLEET RIDES</span>
               <div className="mt-1 text-xl font-black text-amber-400 font-mono-num">
-                {captains.reduce((sum, c) => sum + (c.total_rides || 0), 0)}
+                {filteredCaptains.reduce((sum, c) => sum + (c.total_rides || 0), 0)}
               </div>
             </div>
           </div>
@@ -1598,12 +1695,12 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm">
               <span className="text-[10px] font-bold text-slate-400">TOTAL PASSENGERS</span>
-              <div className="mt-1 text-xl font-black text-white font-mono-num">{passengers.length}</div>
+              <div className="mt-1 text-xl font-black text-white font-mono-num">{filteredPassengers.length}</div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm">
               <span className="text-[10px] font-bold text-slate-400">COMPLETED PASSENGER RIDES</span>
               <div className="mt-1 text-xl font-black text-emerald-400 font-mono-num">
-                {passengers.reduce((sum, p) => sum + (p.total_rides || 0), 0)}
+                {filteredPassengers.reduce((sum, p) => sum + (p.total_rides || 0), 0)}
               </div>
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-sm col-span-2 sm:col-span-1">

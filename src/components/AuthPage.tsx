@@ -259,6 +259,19 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       return;
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+    const existingAccounts = supabaseAuth.getRegisteredAccounts();
+    const duplicateAcc = existingAccounts.find(
+      (a) => a.email && a.email.trim().toLowerCase() === cleanEmail
+    );
+    if (duplicateAcc) {
+      setErrorMessage(
+        `An account with email "${cleanEmail}" already exists (${duplicateAcc.role} profile). Duplicate accounts with the same email ID cannot be created. Please sign in or use a different email.`
+      );
+      setSignInEmail(cleanEmail);
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Keep sign in email pre-populated with registered email

@@ -37,6 +37,7 @@ import {
   updateAccountPassword,
   topupRequestsStore,
   topupChatStore,
+  isForbiddenAccount,
 } from './motorideDb';
 import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain, Passenger, TopupDepositRequest, TopupChatMessage } from '../src/types/motoride';
 import { backendHaversineDistanceKm } from './fareEngine';
@@ -1658,6 +1659,7 @@ motorideRouter.post('/captain-location', (req: Request, res: Response) => {
 motorideRouter.get('/captains', (req: Request, res: Response) => {
   // Sync all captain accounts from accountsStore to captainsStore
   for (const acc of accountsStore.values()) {
+    if (isForbiddenAccount(acc.id, acc.name, acc.email)) continue;
     if (acc.role === 'captain') {
       const existing = captainsStore.get(acc.id);
       if (!existing) {
@@ -1696,7 +1698,18 @@ motorideRouter.get('/captains', (req: Request, res: Response) => {
     }
   }
 
-  const list = Array.from(captainsStore.values()).map((cpt) => ({
+  // Deduplicate strictly by email address (1 captain per email ID)
+  const captainByEmail = new Map<string, Captain>();
+  for (const cpt of captainsStore.values()) {
+    if (isForbiddenAccount(cpt.id, cpt.full_name, cpt.email)) continue;
+    const cleanEmail = cpt.email?.trim().toLowerCase();
+    const primaryKey = cleanEmail || cpt.id;
+    if (!captainByEmail.has(primaryKey)) {
+      captainByEmail.set(primaryKey, cpt);
+    }
+  }
+
+  const list = Array.from(captainByEmail.values()).map((cpt) => ({
     ...cpt,
     today_earnings: calculateCaptainTodayEarnings(cpt.id),
     total_earnings: calculateCaptainTotalEarnings(cpt.id),
@@ -1929,6 +1942,7 @@ motorideRouter.post('/captains/:id/status', (req: Request, res: Response) => {
 motorideRouter.get('/passengers', (req: Request, res: Response) => {
   // Sync all passenger accounts from accountsStore to passengersStore
   for (const acc of accountsStore.values()) {
+    if (isForbiddenAccount(acc.id, acc.name, acc.email)) continue;
     if (acc.role === 'passenger') {
       const existing = passengersStore.get(acc.id);
       if (!existing) {
@@ -1955,7 +1969,27 @@ motorideRouter.get('/passengers', (req: Request, res: Response) => {
     }
   }
 
-  const list = Array.from(passengersStore.values()).map((psg) => ({
+  // Collect all captain emails to prevent cross-tab duplicate accounts
+  const captainEmails = new Set(
+    Array.from(captainsStore.values())
+      .map((c) => c.email?.trim().toLowerCase())
+      .filter((e): e is string => Boolean(e))
+  );
+
+  // Deduplicate strictly by email address (1 passenger per email ID, zero overlap with captains)
+  const passengerByEmail = new Map<string, Passenger>();
+  for (const psg of passengersStore.values()) {
+    if (isForbiddenAccount(psg.id, psg.full_name, psg.email)) continue;
+    const cleanEmail = psg.email?.trim().toLowerCase();
+    // Do not show captain account as a duplicate in passenger tab
+    if (cleanEmail && captainEmails.has(cleanEmail)) continue;
+    const primaryKey = cleanEmail || psg.id;
+    if (!passengerByEmail.has(primaryKey)) {
+      passengerByEmail.set(primaryKey, psg);
+    }
+  }
+
+  const list = Array.from(passengerByEmail.values()).map((psg) => ({
     ...psg,
     wallet_balance: (walletsStore.get(psg.id) || { balance: psg.wallet_balance ?? 200 }).balance,
   }));
@@ -2499,9 +2533,34 @@ motorideRouter.post('/auth/register', (req: Request, res: Response) => {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanRole = (role === 'captain' || role === 'admin' ? role : 'passenger') as 'passenger' | 'captain' | 'admin';
-    const storeKey = `${cleanEmail}_${cleanRole}`;
 
-    const existingAcc = accountsStore.get(storeKey);
+    // 1. Block forbidden / duplicate target account
+    if (isForbiddenAccount(id, name, cleanEmail)) {
+      return res.status(400).json({ success: false, error: 'Account registration not permitted' });
+    }
+
+    // 2. Strict Email Uniqueness Check across ALL accounts:
+    // Do not create same email id duplicate account in passenger and captain profiles!
+    const existingWithSameEmail = Array.from(accountsStore.values()).find(
+      (a) => a.email && a.email.trim().toLowerCase() === cleanEmail
+    );
+
+    if (existingWithSameEmail && existingWithSameEmail.id !== id) {
+      return res.status(409).json({
+        success: false,
+        error: `An account with email "${cleanEmail}" is already registered as a ${existingWithSameEmail.role}. Duplicate accounts with the same email ID cannot be created. Please sign in.`,
+      });
+    }
+
+    // Clean up any legacy store keys for this email to avoid duplicates
+    for (const [k, acc] of Array.from(accountsStore.entries())) {
+      if (acc.email?.trim().toLowerCase() === cleanEmail && acc.id !== id) {
+        accountsStore.delete(k);
+      }
+    }
+
+    const storeKey = cleanEmail;
+    const existingAcc = existingWithSameEmail || accountsStore.get(storeKey);
     const accountId = id || existingAcc?.id || `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const now = existingAcc?.created_at || existingAcc?.member_since || new Date().toISOString();
 
@@ -2531,8 +2590,15 @@ motorideRouter.post('/auth/register', (req: Request, res: Response) => {
       });
     }
 
-    // If Captain, register into captains catalog
+    // If Captain, register into captains catalog and ensure removed from passenger catalog
     if (cleanRole === 'captain') {
+      passengersStore.delete(accountId);
+      for (const [pk, psg] of Array.from(passengersStore.entries())) {
+        if (psg.email?.trim().toLowerCase() === cleanEmail) {
+          passengersStore.delete(pk);
+        }
+      }
+
       const existingCpt = captainsStore.get(accountId);
       const cpt: Captain = {
         id: accountId,
@@ -2563,8 +2629,15 @@ motorideRouter.post('/auth/register', (req: Request, res: Response) => {
       broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
     }
 
-    // If Passenger, register into passengers catalog
+    // If Passenger, register into passengers catalog and ensure removed from captain catalog
     if (cleanRole === 'passenger') {
+      captainsStore.delete(accountId);
+      for (const [ck, cpt] of Array.from(captainsStore.entries())) {
+        if (cpt.email?.trim().toLowerCase() === cleanEmail) {
+          captainsStore.delete(ck);
+        }
+      }
+
       const existingPsg = passengersStore.get(accountId);
       const psg: Passenger = {
         id: accountId,
@@ -2834,19 +2907,27 @@ motorideRouter.post('/auth/reset-password', (req: Request, res: Response) => {
 });
 
 motorideRouter.get('/auth/accounts', (req: Request, res: Response) => {
-  const list = Array.from(accountsStore.values()).map((acc) => ({
-    id: acc.id,
-    email: acc.email,
-    name: acc.name,
-    role: acc.role,
-    phone: acc.phone,
-    vehicle_model: acc.vehicle_model,
-    plate_number: acc.plate_number,
-    vehicle_type: acc.vehicle_type,
-    wallet_balance: acc.wallet_balance,
-    member_since: acc.member_since,
-  }));
-  res.json({ success: true, accounts: list });
+  const accountByEmail = new Map<string, any>();
+  for (const acc of accountsStore.values()) {
+    if (isForbiddenAccount(acc.id, acc.name, acc.email)) continue;
+    const cleanEmail = acc.email?.trim().toLowerCase();
+    const primaryKey = cleanEmail || acc.id;
+    if (!accountByEmail.has(primaryKey)) {
+      accountByEmail.set(primaryKey, {
+        id: acc.id,
+        email: acc.email,
+        name: acc.name,
+        role: acc.role,
+        phone: acc.phone,
+        vehicle_model: acc.vehicle_model,
+        plate_number: acc.plate_number,
+        vehicle_type: acc.vehicle_type,
+        wallet_balance: acc.wallet_balance,
+        member_since: acc.member_since,
+      });
+    }
+  }
+  res.json({ success: true, accounts: Array.from(accountByEmail.values()) });
 });
 
 // 9. Admin Purge & Delete Operations (Zero leftover mock or old test data)

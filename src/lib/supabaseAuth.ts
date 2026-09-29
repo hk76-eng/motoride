@@ -268,6 +268,10 @@ export function isDemoAccount(acc: any): boolean {
     email === 'freelanceseoservices01@gmail.com' ||
     id.includes('fb95d290-c925-4c93-ad9c-ebdc') ||
     id.includes('348173af-50c5-4182-8621-c8212369cd81') ||
+    id.includes('01d08835-416d-4acb-ac49-a801c7906518') ||
+    id.includes('01d08835') ||
+    name.includes('mojobiketaxi') ||
+    email.includes('mojobiketaxi') ||
     id === 'usr-admin-001'
   ) {
     return true;
@@ -341,7 +345,18 @@ export const supabaseAuth = {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          accounts = parsed.filter((a) => !isDemoAccount(a));
+          // Strictly filter out demo accounts and duplicate target accounts
+          const cleaned = parsed.filter((a) => !isDemoAccount(a));
+          // Strictly deduplicate by email: 1 account per email address
+          const dedupedMap = new Map<string, StoredAccount>();
+          for (const acc of cleaned) {
+            const cleanEmail = acc.email?.toLowerCase().trim();
+            const key = cleanEmail || acc.id;
+            if (!dedupedMap.has(key)) {
+              dedupedMap.set(key, acc);
+            }
+          }
+          accounts = Array.from(dedupedMap.values());
         }
       }
     } catch (e) {
@@ -378,8 +393,9 @@ export const supabaseAuth = {
   saveAccount(account: StoredAccount) {
     try {
       const accounts = this.getRegisteredAccounts();
+      // Strict 1-account-per-email uniqueness: overwrite if same email exists
       const existingIdx = accounts.findIndex(
-        (a) => a.email.toLowerCase() === account.email.toLowerCase() && a.role === account.role
+        (a) => a.email.toLowerCase().trim() === account.email.toLowerCase().trim()
       );
       const existingAvatar = existingIdx >= 0 ? accounts[existingIdx].avatarUrl : undefined;
       const fallbackStorageAvatar = safeStorage.getItem(`motoride_${account.role}_avatar`) || undefined;
@@ -400,13 +416,13 @@ export const supabaseAuth = {
         safeStorage.setItem(`motoride_${account.role}_avatar`, resolvedAvatar);
       }
 
-      // Also sync into motoride_users
+      // Also sync into motoride_users with strict email deduplication
       try {
         const rawUsers = safeStorage.getItem('motoride_users');
         const users = rawUsers ? JSON.parse(rawUsers) : [];
         if (Array.isArray(users)) {
           const uIdx = users.findIndex(
-            (u: any) => u.email?.toLowerCase() === account.email.toLowerCase() && u.role === account.role
+            (u: any) => u.email?.toLowerCase().trim() === account.email.toLowerCase().trim()
           );
           if (uIdx >= 0) users[uIdx] = accountToSave;
           else users.push(accountToSave);
@@ -712,6 +728,19 @@ export const supabaseAuth = {
       return { user: null as any, error: 'Full name is required.' };
     }
 
+    // Strict Email Uniqueness Check:
+    // Do not create same email id duplicate account in passenger and captain profiles
+    const existingAccounts = this.getRegisteredAccounts();
+    const existingUser = existingAccounts.find(
+      (a) => a.email && a.email.trim().toLowerCase() === cleanEmail
+    );
+    if (existingUser) {
+      return {
+        user: null as any,
+        error: `An account with email "${cleanEmail}" is already registered (${existingUser.role} profile). Duplicate accounts with the same email ID cannot be created. Please sign in to your existing account.`,
+      };
+    }
+
     const userId = generateUUID();
 
     // 1. Register on backend server
@@ -733,6 +762,12 @@ export const supabaseAuth = {
         }),
       });
       const serverData = await serverResp.json();
+      if (!serverResp.ok || !serverData.success) {
+        return {
+          user: null as any,
+          error: serverData.error || 'Account registration failed.',
+        };
+      }
       if (serverData.success && serverData.account) {
         const authUser: AuthUser = {
           id: serverData.account.id || userId,
@@ -755,8 +790,12 @@ export const supabaseAuth = {
         }
         return { user: authUser };
       }
-    } catch (err) {
-      console.warn('Backend register failed, falling back to local storage:', err);
+    } catch (err: any) {
+      console.warn('Backend register request notice:', err);
+      return {
+        user: null as any,
+        error: err.message || 'Unable to register account. Please try again.',
+      };
     }
 
     // 2. Fallback / local registration:
