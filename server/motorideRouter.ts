@@ -2731,55 +2731,68 @@ motorideRouter.post('/auth/login', (req: Request, res: Response) => {
     const cleanRole = (role === 'captain' || role === 'admin' ? role : 'passenger') as 'passenger' | 'captain' | 'admin';
     const exactKey = `${cleanEmail}_${cleanRole}`;
 
-    // 1. Check exact match for role
-    let account = accountsStore.get(exactKey);
+    // 1. Check if account exists for this email across any role
+    let foundAccount: ServerRegisteredAccount | undefined;
+    for (const acc of accountsStore.values()) {
+      if (acc.email.toLowerCase() === cleanEmail) {
+        foundAccount = acc;
+        break;
+      }
+    }
 
-    // 2. If not found for this role, search all accounts for this email across other roles
-    if (!account) {
-      let otherRoleAccount: ServerRegisteredAccount | undefined;
-      for (const acc of accountsStore.values()) {
-        if (acc.email.toLowerCase() === cleanEmail) {
-          otherRoleAccount = acc;
-          break;
+    if (foundAccount) {
+      let passwordMatches = foundAccount.password_hash === String(password).trim();
+      if (cleanEmail === 'osmskart@gmail.com') {
+        const pLower = String(password).trim().toLowerCase();
+        if (pLower === 'password123' || pLower === 'password' || pLower === 'ritu' || pLower === 'ritu123') {
+          passwordMatches = true;
         }
       }
 
-      if (otherRoleAccount) {
-        // Found account with same email under another role
-        let passwordMatches = otherRoleAccount.password_hash === String(password).trim();
-        if (cleanEmail === 'osmskart@gmail.com') {
-          const pLower = String(password).trim().toLowerCase();
-          if (pLower === 'password123' || pLower === 'password' || pLower === 'ritu' || pLower === 'ritu123') {
-            passwordMatches = true;
-          }
-        }
-        if (passwordMatches) {
-          // Auto-adapt to the user's registered role!
-          return res.json({
-            success: true,
-            role_switched: true,
-            original_role: otherRoleAccount.role,
-            message: `Found your registered ${otherRoleAccount.role} account!`,
-            account: {
-              id: otherRoleAccount.id,
-              email: otherRoleAccount.email,
-              name: otherRoleAccount.name,
-              role: otherRoleAccount.role,
-              phone: otherRoleAccount.phone,
-              vehicle_model: otherRoleAccount.vehicle_model,
-              plate_number: otherRoleAccount.plate_number,
-              vehicle_type: otherRoleAccount.vehicle_type,
-              wallet_balance: otherRoleAccount.wallet_balance,
-              member_since: otherRoleAccount.member_since,
-            },
-          });
-        } else {
-          return res.status(401).json({
-            success: false,
-            error: 'Incorrect password. Please verify your credentials.',
-          });
-        }
+      if (!passwordMatches) {
+        return res.status(401).json({
+          success: false,
+          error: 'Incorrect password. Please verify your credentials.',
+        });
       }
+
+      // Check role portal match
+      if (foundAccount.role !== cleanRole) {
+        let msg = `This account is registered as ${foundAccount.role}.`;
+        if (cleanRole === 'passenger') {
+          if (foundAccount.role === 'captain') msg = 'This account is registered as a Captain. Please use Captain Login.';
+          if (foundAccount.role === 'admin') msg = 'This account is registered as an Admin. Please use Admin Login.';
+        } else if (cleanRole === 'captain') {
+          if (foundAccount.role === 'passenger') msg = 'This account is registered as a Passenger. Please use Passenger Login.';
+          if (foundAccount.role === 'admin') msg = 'This account is registered as an Admin. Please use Admin Login.';
+        } else if (cleanRole === 'admin') {
+          if (foundAccount.role === 'passenger') msg = 'Access denied. This account is registered as a Passenger.';
+          if (foundAccount.role === 'captain') msg = 'Access denied. This account is registered as a Captain.';
+        }
+
+        return res.status(403).json({
+          success: false,
+          error: msg,
+          actual_role: foundAccount.role,
+        });
+      }
+
+      return res.json({
+        success: true,
+        account: {
+          id: foundAccount.id,
+          email: foundAccount.email,
+          name: foundAccount.name,
+          role: foundAccount.role,
+          phone: foundAccount.phone,
+          vehicle_model: foundAccount.vehicle_model,
+          plate_number: foundAccount.plate_number,
+          vehicle_type: foundAccount.vehicle_type,
+          wallet_balance: foundAccount.wallet_balance,
+          member_since: foundAccount.member_since,
+        },
+      });
+    }
 
       // 3. Seamless Auto-Registration on first sign in!
       // Eliminates the "No account found... switch to Create Account tab" blocker
@@ -2871,39 +2884,6 @@ motorideRouter.post('/auth/login', (req: Request, res: Response) => {
           member_since: newAccount.member_since,
         },
       });
-    }
-
-    // 3. Exact role match verification
-    let isPasswordValid = account.password_hash === String(password).trim();
-    if (cleanEmail === 'osmskart@gmail.com') {
-      const pLower = String(password).trim().toLowerCase();
-      if (pLower === 'password123' || pLower === 'password' || pLower === 'ritu' || pLower === 'ritu123') {
-        isPasswordValid = true;
-      }
-    }
-
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        error: 'Incorrect password. Please verify your credentials.',
-      });
-    }
-
-    return res.json({
-      success: true,
-      account: {
-        id: account.id,
-        email: account.email,
-        name: account.name,
-        role: account.role,
-        phone: account.phone,
-        vehicle_model: account.vehicle_model,
-        plate_number: account.plate_number,
-        vehicle_type: account.vehicle_type,
-        wallet_balance: account.wallet_balance,
-        member_since: account.member_since,
-      },
-    });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message || 'Login failed' });
   }

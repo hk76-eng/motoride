@@ -1,6 +1,6 @@
 import { getSupabase, isSupabaseConfigured } from './supabase';
 import { safeStorage } from './safeStorage';
-import { UserRole } from '../types/motoride';
+import { UserRole, RideTypeCode } from '../types/motoride';
 import { getApiUrl } from '../utils/apiUrl';
 
 export interface AuthUser {
@@ -565,7 +565,7 @@ export const supabaseAuth = {
   },
 
   /**
-   * Sign In via Server Auth, Supabase, or Registered Accounts
+   * Sign In via Supabase Auth + Profiles Role Validation
    */
   async signIn(params: {
     email: string;
@@ -574,6 +574,7 @@ export const supabaseAuth = {
   }): Promise<{ user: AuthUser; error?: string; roleSwitched?: boolean; isNewAccount?: boolean }> {
     const cleanEmail = params.email.trim().toLowerCase();
     const cleanPass = (params.password || '').trim();
+    const targetRole = params.role;
 
     if (!cleanEmail || !cleanEmail.includes('@')) {
       return { user: null as any, error: 'Please enter a valid email address.' };
@@ -582,7 +583,7 @@ export const supabaseAuth = {
       return { user: null as any, error: 'Password is required.' };
     }
 
-    // 1. Primary: Authenticate with Backend Database API
+    // 1. Check with backend API for password verification / role validation
     try {
       const serverResp = await fetch(getApiUrl('/api/motoride/auth/login'), {
         method: 'POST',
@@ -590,118 +591,183 @@ export const supabaseAuth = {
         body: JSON.stringify({
           email: cleanEmail,
           password: cleanPass,
-          role: params.role,
+          role: targetRole,
         }),
       });
       const serverData = await serverResp.json();
-      if (serverData.success && serverData.account) {
-        const storedAvatar =
-          serverData.account.avatar_url ||
-          serverData.account.avatarUrl ||
-          safeStorage.getItem(`motoride_${serverData.account.role || params.role}_avatar`) ||
-          undefined;
-        const authUser: AuthUser = {
-          id: serverData.account.id,
-          email: serverData.account.email,
-          name: serverData.account.name,
-          role: serverData.account.role,
-          phone: serverData.account.phone,
-          avatarUrl: storedAvatar,
-          vehicleModel: serverData.account.vehicle_model,
-          plateNumber: serverData.account.plate_number,
-          vehicleType: serverData.account.vehicle_type,
-          walletBalance: serverData.account.wallet_balance,
-          memberSince: serverData.account.member_since,
-        };
-        this.saveAccount({ ...authUser, passwordHash: cleanPass });
-        this.setCurrentUser(authUser);
-        return {
-          user: authUser,
-          roleSwitched: Boolean(serverData.role_switched),
-          isNewAccount: Boolean(serverData.is_new_account),
-        };
-      } else if (serverData.error && serverData.error.toLowerCase().includes('password')) {
+      if (!serverResp.ok && serverData.error) {
         return { user: null as any, error: serverData.error };
       }
-    } catch (err) {
-      console.warn('Backend login fetch failed, checking cached local accounts:', err);
-    }
+    } catch {}
 
-    // 2. Check locally registered accounts cache
-    const accounts = this.getRegisteredAccounts();
-    
-    // Check exact role match first
-    let matchingAccount = accounts.find(
-      (a) => a.email.toLowerCase() === cleanEmail && a.role === params.role
-    );
+    // 2. Authenticate with Supabase Auth (Primary Source of Truth)
+    const supabase = getSupabase();
+    let authUserId: string | null = null;
+    let authUserObj: any = null;
 
-    // If not found for current tab role, check if account exists for other role
-    let roleSwitched = false;
-    if (!matchingAccount) {
-      const anyRoleAccount = accounts.find(
-        (a) => a.email.toLowerCase() === cleanEmail
-      );
-      if (anyRoleAccount) {
-        matchingAccount = anyRoleAccount;
-        roleSwitched = true;
+    if (supabase && isSupabaseConfigured()) {
+      const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: cleanPass,
+      });
+
+      if (authErr) {
+        // Check if user profile already exists in public.profiles table
+        const { data: existingProf } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+
+        if (existingProf) {
+          // Attempt sign up to establish Supabase Auth user record for existing profile
+          const { data: newAuthData } = await supabase.auth.signUp({
+            email: cleanEmail,
+            password: cleanPass,
+            options: {
+              data: { name: existingProf.full_name || cleanEmail.split('@')[0], role: existingProf.role },
+            },
+          });
+          if (newAuthData?.user) {
+            authUserObj = newAuthData.user;
+            authUserId = newAuthData.user.id;
+            await supabase.from('profiles').update({ id: newAuthData.user.id, updated_at: new Date().toISOString() }).eq('email', cleanEmail);
+          } else {
+            return { user: null as any, error: authErr.message || 'Invalid email address or password.' };
+          }
+        } else {
+          return { user: null as any, error: 'Invalid email address or password. Please check your login credentials.' };
+        }
+      } else {
+        authUserObj = authData.user;
+        authUserId = authData.user.id;
       }
     }
 
-    if (matchingAccount) {
-      let isLocalPasswordValid = Boolean(cleanPass) && matchingAccount.passwordHash === cleanPass;
-      if (cleanEmail === 'osmskart@gmail.com') {
-        const pLower = cleanPass.toLowerCase();
-        if (pLower === 'password123' || pLower === 'password' || pLower === 'ritu' || pLower === 'ritu123') {
-          isLocalPasswordValid = true;
+    // Fallback if Supabase client unavailable
+    if (!authUserId) {
+      const accounts = this.getRegisteredAccounts();
+      const match = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
+      if (match) {
+        if (match.role !== targetRole) {
+          if (targetRole === 'passenger') {
+            if (match.role === 'captain') return { user: null as any, error: 'This account is registered as a Captain. Please use Captain Login.' };
+            if (match.role === 'admin') return { user: null as any, error: 'This account is registered as an Admin. Please use Admin Login.' };
+          } else if (targetRole === 'captain') {
+            if (match.role === 'passenger') return { user: null as any, error: 'This account is registered as a Passenger. Please use Passenger Login.' };
+            if (match.role === 'admin') return { user: null as any, error: 'This account is registered as an Admin. Please use Admin Login.' };
+          } else if (targetRole === 'admin') {
+            return { user: null as any, error: `Access denied. This account is registered as a ${match.role}.` };
+          }
+        }
+        if (match.passwordHash !== cleanPass) {
+          return { user: null as any, error: 'Incorrect password. Please verify your credentials.' };
+        }
+        authUserId = match.id;
+      } else {
+        authUserId = generateUUID();
+      }
+    }
+
+    // 3. Retrieve user profile from secure profiles table using the authenticated user ID
+    let profile: any = null;
+    if (supabase && isSupabaseConfigured() && authUserId) {
+      const { data: pById } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUserId)
+        .maybeSingle();
+
+      if (pById) {
+        profile = pById;
+      } else {
+        // Look up by email
+        const { data: pByEmail } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+
+        if (pByEmail) {
+          profile = pByEmail;
+          await supabase.from('profiles').update({ id: authUserId }).eq('id', pByEmail.id);
+        } else {
+          // Create new profile row linked to authUserId
+          const newProfilePayload = {
+            id: authUserId,
+            email: cleanEmail,
+            full_name: authUserObj?.user_metadata?.name || cleanEmail.split('@')[0],
+            role: targetRole,
+            wallet_balance: targetRole === 'captain' ? 500 : 200,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          await supabase.from('profiles').upsert([newProfilePayload]);
+          profile = newProfilePayload;
         }
       }
-
-      if (isLocalPasswordValid) {
-        const authUser: AuthUser = {
-          id: matchingAccount.id,
-          email: matchingAccount.email,
-          name: matchingAccount.name,
-          role: matchingAccount.role,
-          phone: matchingAccount.phone,
-          avatarUrl: matchingAccount.avatarUrl,
-          vehicleModel: matchingAccount.vehicleModel,
-          plateNumber: matchingAccount.plateNumber,
-          vehicleType: matchingAccount.vehicleType,
-          walletBalance: matchingAccount.walletBalance ?? (matchingAccount.role === 'captain' ? 500 : 200),
-          memberSince: matchingAccount.memberSince,
-        };
-        this.setCurrentUser(authUser);
-        return { user: authUser, roleSwitched };
-      } else {
-        return { user: null as any, error: 'Incorrect password. Please verify your password.' };
-      }
     }
 
-    // 3. Fallback seamless provisioning: auto-register so user is never blocked
-    const userId = generateUUID();
-    const existingNamed = accounts.find((a) => a.email.toLowerCase() === cleanEmail && a.name && a.name !== 'MotoRide User');
-    const rawPrefix = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
-    const displayName = existingNamed?.name || (rawPrefix ? rawPrefix.charAt(0).toUpperCase() + rawPrefix.slice(1) : 'MotoRide User');
+    if (!profile) {
+      const accounts = this.getRegisteredAccounts();
+      const match = accounts.find((a) => a.email.toLowerCase() === cleanEmail);
+      profile = match || {
+        id: authUserId,
+        email: cleanEmail,
+        full_name: cleanEmail.split('@')[0],
+        role: targetRole,
+      };
+    }
+
+    const actualRole: UserRole = profile.role || 'passenger';
+
+    // 4. STRICT ROLE AUTHORIZATION CHECK PER LOGIN PORTAL
+    if (actualRole !== targetRole) {
+      if (supabase && isSupabaseConfigured()) {
+        await supabase.auth.signOut();
+      }
+      this.setCurrentUser(null);
+
+      if (targetRole === 'passenger') {
+        if (actualRole === 'captain') return { user: null as any, error: 'This account is registered as a Captain. Please use Captain Login.' };
+        if (actualRole === 'admin') return { user: null as any, error: 'This account is registered as an Admin. Please use Admin Login.' };
+      }
+      if (targetRole === 'captain') {
+        if (actualRole === 'passenger') return { user: null as any, error: 'This account is registered as a Passenger. Please use Passenger Login.' };
+        if (actualRole === 'admin') return { user: null as any, error: 'This account is registered as an Admin. Please use Admin Login.' };
+      }
+      if (targetRole === 'admin') {
+        if (actualRole === 'passenger') return { user: null as any, error: 'Access denied. This account is registered as a Passenger. Please use Passenger Login.' };
+        if (actualRole === 'captain') return { user: null as any, error: 'Access denied. This account is registered as a Captain. Please use Captain Login.' };
+      }
+
+      return { user: null as any, error: `This account is registered as a ${actualRole}. Please use the correct login portal.` };
+    }
+
+    // Role matches portal! Access Granted.
     const authUser: AuthUser = {
-      id: userId,
-      email: cleanEmail,
-      name: displayName,
-      role: params.role,
-      phone: existingNamed?.phone || '',
-      vehicleModel: params.role === 'captain' ? (existingNamed?.vehicleModel || '') : '',
-      plateNumber: params.role === 'captain' ? (existingNamed?.plateNumber || '') : '',
-      vehicleType: existingNamed?.vehicleType || 'bike',
-      walletBalance: params.role === 'captain' ? 500 : 200,
-      memberSince: new Date().toISOString(),
+      id: authUserId,
+      email: profile.email || cleanEmail,
+      name: profile.full_name || 'MotoRide User',
+      role: actualRole,
+      phone: profile.phone || '',
+      avatarUrl: profile.avatar_url || null,
+      vehicleModel: profile.vehicle_model || '',
+      plateNumber: profile.plate_number || '',
+      vehicleType: profile.vehicle_type || 'bike',
+      walletBalance: profile.wallet_balance ?? (actualRole === 'captain' ? 500 : 200),
+      memberSince: profile.created_at || new Date().toISOString(),
     };
 
+    await syncUserToSupabase(authUser);
     this.saveAccount({ ...authUser, passwordHash: cleanPass });
     this.setCurrentUser(authUser);
-    return { user: authUser, isNewAccount: true };
+    return { user: authUser };
   },
 
   /**
-   * Sign Up: Register a fresh Account
+   * Sign Up: Register a fresh Account via Supabase Auth
    */
   async signUp(params: {
     email: string;
@@ -711,12 +777,16 @@ export const supabaseAuth = {
     phone?: string;
     vehicleModel?: string;
     plateNumber?: string;
-    vehicleType?: 'bike' | 'auto' | 'car' | 'courier';
+    vehicleType?: RideTypeCode;
   }): Promise<{ user: AuthUser; error?: string }> {
     const cleanEmail = params.email.trim().toLowerCase();
     const cleanRole = params.role;
     const cleanPass = (params.password || '').trim();
     const cleanName = params.name.trim();
+
+    if (cleanRole === 'admin') {
+      return { user: null as any, error: 'Admin accounts cannot be created via public sign up. Admin accounts are managed by system administrators.' };
+    }
 
     if (!cleanEmail || !cleanEmail.includes('@')) {
       return { user: null as any, error: 'A valid email address is required.' };
@@ -728,77 +798,79 @@ export const supabaseAuth = {
       return { user: null as any, error: 'Full name is required.' };
     }
 
-    // Strict Email Uniqueness Check:
-    // Do not create same email id duplicate account in passenger and captain profiles
-    const existingAccounts = this.getRegisteredAccounts();
-    const existingUser = existingAccounts.find(
-      (a) => a.email && a.email.trim().toLowerCase() === cleanEmail
-    );
-    if (existingUser) {
-      return {
-        user: null as any,
-        error: `An account with email "${cleanEmail}" is already registered (${existingUser.role} profile). Duplicate accounts with the same email ID cannot be created. Please sign in to your existing account.`,
-      };
-    }
+    const supabase = getSupabase();
 
-    const userId = generateUUID();
+    if (supabase && isSupabaseConfigured()) {
+      // Check if profile with email already exists
+      const { data: existingProf } = await supabase
+        .from('profiles')
+        .select('email, role')
+        .eq('email', cleanEmail)
+        .maybeSingle();
 
-    // 1. Register on backend server
-    try {
-      const serverResp = await fetch(getApiUrl('/api/motoride/auth/register'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        keepalive: true,
-        body: JSON.stringify({
-          id: userId,
-          email: cleanEmail,
-          password: cleanPass,
-          name: cleanName,
-          role: cleanRole,
-          phone: params.phone?.trim() || '',
-          vehicle_model: params.vehicleModel?.trim(),
-          plate_number: params.plateNumber?.trim(),
-          vehicle_type: params.vehicleType || 'bike',
-        }),
-      });
-      const serverData = await serverResp.json();
-      if (!serverResp.ok || !serverData.success) {
+      if (existingProf) {
         return {
           user: null as any,
-          error: serverData.error || 'Account registration failed.',
+          error: `An account with email "${cleanEmail}" is already registered as a ${existingProf.role}. Please sign in to your account.`,
         };
       }
-      if (serverData.success && serverData.account) {
-        const authUser: AuthUser = {
-          id: serverData.account.id || userId,
-          email: serverData.account.email,
-          name: serverData.account.name || cleanName,
-          role: serverData.account.role,
-          phone: serverData.account.phone,
-          vehicleModel: serverData.account.vehicle_model,
-          plateNumber: serverData.account.plate_number,
-          vehicleType: serverData.account.vehicle_type,
-          walletBalance: serverData.account.wallet_balance,
-          memberSince: serverData.account.member_since,
-        };
-        this.saveAccount({ ...authUser, passwordHash: cleanPass });
-        this.setCurrentUser(authUser);
-        try {
-          await syncUserToSupabase(authUser);
-        } catch (e) {
-          console.warn('Initial Supabase sync on registration error:', e);
-        }
-        return { user: authUser };
+
+      // Register with Supabase Auth
+      const { data: authData, error: authErr } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password: cleanPass,
+        options: {
+          data: {
+            name: cleanName,
+            role: cleanRole,
+          },
+        },
+      });
+
+      if (authErr) {
+        return { user: null as any, error: authErr.message };
       }
-    } catch (err: any) {
-      console.warn('Backend register request notice:', err);
-      return {
-        user: null as any,
-        error: err.message || 'Unable to register account. Please try again.',
+
+      const authUserId = authData.user?.id || generateUUID();
+
+      const profilePayload = {
+        id: authUserId,
+        email: cleanEmail,
+        full_name: cleanName,
+        phone: params.phone?.trim() || null,
+        role: cleanRole,
+        wallet_balance: cleanRole === 'captain' ? 500 : 200,
+        vehicle_model: cleanRole === 'captain' ? (params.vehicleModel?.trim() || 'Motorcycle') : null,
+        plate_number: cleanRole === 'captain' ? (params.plateNumber?.trim() || '') : null,
+        vehicle_type: cleanRole === 'captain' ? (params.vehicleType || 'bike') : null,
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
+
+      await supabase.from('profiles').upsert([profilePayload]);
+
+      const authUser: AuthUser = {
+        id: authUserId,
+        email: cleanEmail,
+        name: cleanName,
+        role: cleanRole,
+        phone: params.phone?.trim() || '',
+        vehicleModel: params.vehicleModel?.trim() || '',
+        plateNumber: params.plateNumber?.trim() || '',
+        vehicleType: params.vehicleType || 'bike',
+        walletBalance: cleanRole === 'captain' ? 500 : 200,
+        memberSince: new Date().toISOString(),
+      };
+
+      await syncUserToSupabase(authUser);
+      this.saveAccount({ ...authUser, passwordHash: cleanPass });
+      this.setCurrentUser(authUser);
+      return { user: authUser };
     }
 
-    // 2. Fallback / local registration:
+    // Fallback if local
+    const userId = generateUUID();
     const authUser: AuthUser = {
       id: userId,
       email: cleanEmail,
@@ -812,17 +884,54 @@ export const supabaseAuth = {
       memberSince: new Date().toISOString(),
     };
 
-    this.saveAccount({
-      ...authUser,
-      passwordHash: cleanPass,
-    });
+    this.saveAccount({ ...authUser, passwordHash: cleanPass });
     this.setCurrentUser(authUser);
-    try {
-      await syncUserToSupabase(authUser);
-    } catch (e) {
-      console.warn('Fallback Supabase sync on registration error:', e);
-    }
     return { user: authUser };
+  },
+
+  async getSessionUser(): Promise<AuthUser | null> {
+    const supabase = getSupabase();
+    if (!supabase || !isSupabaseConfigured()) {
+      return this.getCurrentUser();
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !session.user) {
+        this.setCurrentUser(null);
+        return null;
+      }
+
+      const authUserId = session.user.id;
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUserId)
+        .maybeSingle();
+
+      if (!profile) {
+        return this.getCurrentUser();
+      }
+
+      const authUser: AuthUser = {
+        id: authUserId,
+        email: profile.email || session.user.email || '',
+        name: profile.full_name || session.user.user_metadata?.name || 'MotoRide User',
+        role: profile.role,
+        phone: profile.phone || '',
+        avatarUrl: profile.avatar_url || null,
+        vehicleModel: profile.vehicle_model || '',
+        plateNumber: profile.plate_number || '',
+        vehicleType: profile.vehicle_type || 'bike',
+        walletBalance: profile.wallet_balance ?? (profile.role === 'captain' ? 500 : 200),
+        memberSince: profile.created_at || new Date().toISOString(),
+      };
+
+      this.setCurrentUser(authUser);
+      return authUser;
+    } catch {
+      return this.getCurrentUser();
+    }
   },
 
   /**

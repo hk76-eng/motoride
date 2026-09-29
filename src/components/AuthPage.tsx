@@ -107,11 +107,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     setSuccessMessage(null);
 
     const cleanEmail = signInEmail.trim().toLowerCase();
-    if (selectedRole === 'admin' && cleanEmail !== 'freelanceseoservices01@gmail.com') {
-      setErrorMessage('Restricted area do not proceed');
-      return;
-    }
-
     if (!cleanEmail || !signInEmail.includes('@')) {
       setErrorMessage('Please enter a valid email address');
       return;
@@ -123,7 +118,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     setIsLoading(true);
     try {
-      const { user, error, roleSwitched, isNewAccount } = await supabaseAuth.signIn({
+      const { user, error } = await supabaseAuth.signIn({
         email: signInEmail.trim(),
         password: signInPassword,
         role: selectedRole,
@@ -132,20 +127,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       if (error) {
         setErrorMessage(error);
       } else if (user) {
-        if (isNewAccount) {
-          setSuccessMessage(`Welcome to MotoRide! Account created for ${user.email}. Opening dashboard...`);
-          setTimeout(() => {
-            onAuthenticated(user);
-          }, 600);
-        } else if (roleSwitched && user.role !== selectedRole) {
-          setSelectedRole(user.role);
-          setSuccessMessage(`Found your registered ${user.role} account! Entering workspace...`);
-          setTimeout(() => {
-            onAuthenticated(user);
-          }, 500);
-        } else {
-          onAuthenticated(user);
-        }
+        onAuthenticated(user);
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Failed to sign in. Please check credentials.');
@@ -249,8 +231,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       password = admPassword;
     }
 
-    if (selectedRole === 'admin' && email.trim().toLowerCase() !== 'freelanceseoservices01@gmail.com') {
-      setErrorMessage('Restricted area do not proceed');
+    if (selectedRole === 'admin') {
+      setErrorMessage('Admin accounts cannot be created via public sign up. Admin accounts are managed by system administrators.');
       return;
     }
 

@@ -19,33 +19,43 @@ export default function App() {
     return supabaseAuth.getCurrentUser();
   });
 
-  // Active Workspace Role: 'passenger' | 'captain' | 'admin'
+  // Active Workspace Role: locked to authenticated user's role
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     const savedUser = supabaseAuth.getCurrentUser();
-    if (savedUser?.role) return savedUser.role;
-    const saved = safeStorage.getItem('motoride_active_role');
-    if (saved === 'captain' || saved === 'passenger') {
-      return saved;
-    }
-    return 'passenger';
+    return savedUser?.role || 'passenger';
   });
 
-  const [walletBalance, setWalletBalance] = useState<number>(() => {
-    return currentUser?.walletBalance || 0;
-  });
   const [isCaptainOnline, setIsCaptainOnline] = useState<boolean>(true);
   const [isWalletOpen, setIsWalletOpen] = useState<boolean>(false);
+  const [walletBalance, setWalletBalance] = useState<number>(() => {
+    const savedUser = supabaseAuth.getCurrentUser();
+    return savedUser?.walletBalance ?? 500;
+  });
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
-  const [showTestingGuide, setShowTestingGuide] = useState<boolean>(true);
 
-  // Keep active role synced in safe storage and locked to user role if authenticated
+  // Check Supabase session on startup and enforce role-based workspace locking
   useEffect(() => {
-    if (currentUser?.role && currentUser.role !== 'admin') {
+    let isMounted = true;
+    const verifySession = async () => {
+      const sessionUser = await supabaseAuth.getSessionUser();
+      if (isMounted) {
+        if (sessionUser) {
+          setCurrentUser(sessionUser);
+          setCurrentRole(sessionUser.role);
+        } else {
+          setCurrentUser(null);
+        }
+      }
+    };
+    verifySession();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser?.role) {
       setCurrentRole(currentUser.role);
     }
-    safeStorage.setItem('motoride_active_role', currentRole);
-  }, [currentRole, currentUser]);
+  }, [currentUser]);
 
   // Handle Authentication Completion
   const handleAuthenticated = (user: AuthUser) => {
