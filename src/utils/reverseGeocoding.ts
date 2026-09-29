@@ -216,7 +216,7 @@ export async function reverseGeocodeCoordinates(
       if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
         const data = JSON.parse(text);
         if (data && (data.address || data.name)) {
-          const rawAddress = (data.address || data.name || '').trim();
+          const rawAddress = (data.address || data.name || '').replace(/^near\s+/i, '').trim();
           // Filter out raw coordinate strings
           if (
             rawAddress &&
@@ -224,9 +224,10 @@ export async function reverseGeocodeCoordinates(
             !rawAddress.startsWith('Location (') &&
             !/^\s*-?\d+\.\d+\s*,\s*-?\d+\.\d+\s*$/.test(rawAddress)
           ) {
+            const rawPlace = (data.name || rawAddress.split(',')[0] || '').replace(/^near\s+/i, '').trim();
             const result: GeocodedAddressResult = {
               fullAddress: rawAddress,
-              placeName: data.name || rawAddress.split(',')[0].trim(),
+              placeName: rawPlace || undefined,
               locality: data.locality || undefined,
               city: data.city || undefined,
               postalCode: data.postal_code || undefined,
@@ -284,14 +285,7 @@ function findNearestTricityArea(lat: number, lng: number): string {
   }
 
   if (closest) {
-    if (closest.dist <= 350) {
-      return closest.name;
-    }
-    const parts = closest.name.split(',');
-    if (parts.length >= 2) {
-      return `Near ${parts[0].trim()}, ${parts[parts.length - 1].trim()}`;
-    }
-    return `Near ${closest.name}`;
+    return closest.name.replace(/^near\s+/i, '').trim();
   }
 
   return 'Location unavailable';
