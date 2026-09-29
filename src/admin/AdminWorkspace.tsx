@@ -1010,7 +1010,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     return true;
   });
 
-  const filteredCaptains = useMemo(() => {
+  const filteredCaptains = React.useMemo(() => {
     const seenEmails = new Set<string>();
     return captains.filter((cpt) => {
       if (
@@ -1045,7 +1045,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     });
   }, [captains, captainFilter, captainSearch]);
 
-  const filteredPassengers = useMemo(() => {
+  const filteredPassengers = React.useMemo(() => {
     const captainEmails = new Set(
       captains.map((c) => c.email?.toLowerCase().trim()).filter(Boolean)
     );

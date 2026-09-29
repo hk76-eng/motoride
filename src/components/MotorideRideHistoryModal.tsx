@@ -118,7 +118,7 @@ export const MotorideRideHistoryModal: React.FC<MotorideRideHistoryModalProps> =
   }, [isOpen, userId, userName, role]);
 
   // Today's Date String for Business timezone (Asia/Kolkata)
-  const todayDateStr = useMemo(() => {
+  const todayDateStr = React.useMemo(() => {
     try {
       return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
     } catch {
@@ -127,7 +127,7 @@ export const MotorideRideHistoryModal: React.FC<MotorideRideHistoryModalProps> =
   }, []);
 
   // Summary Metrics
-  const stats = useMemo(() => {
+  const stats = React.useMemo(() => {
     const completedRides = rides.filter(
       (r) => r.status === 'completed' || r.status === 'trip_completed'
     );
@@ -168,7 +168,7 @@ export const MotorideRideHistoryModal: React.FC<MotorideRideHistoryModalProps> =
   }, [rides, todayIncome, todayDateStr]);
 
   // Filtered List
-  const filteredRides = useMemo(() => {
+  const filteredRides = React.useMemo(() => {
     return rides.filter((ride) => {
       // 1. Status Filter
       if (statusFilter === 'completed') {
