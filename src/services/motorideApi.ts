@@ -1512,12 +1512,52 @@ export const motorideApi = {
   },
 
   async updateCaptainApproval(id: string, is_approved: boolean, is_active?: boolean): Promise<Captain> {
-    const json = await safeFetchJson<{ captain: Captain }>(`${API_BASE}/captains/${id}/status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_approved, is_active }),
-    });
-    return json.captain;
+    let resultCaptain: Captain | null = null;
+    try {
+      const json = await safeFetchJson<{ captain: Captain }>(`${API_BASE}/captains/${id}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_approved, is_active }),
+      });
+      if (json?.captain) resultCaptain = json.captain;
+    } catch {}
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await Promise.all([
+          supabase.from('captains').update({ is_approved, is_active: is_active ?? true }).or(`id.eq.${id},profile_id.eq.${id}`),
+          supabase.from('profiles').update({ is_approved, is_active: is_active ?? true }).or(`id.eq.${id}`),
+        ]);
+      } catch (err) {
+        console.warn('Supabase captain approval update error:', err);
+      }
+    }
+
+    try {
+      const sources = ['motoride_registered_accounts', 'motoride_supa_profiles'];
+      sources.forEach((src) => {
+        const raw = safeStorage.getItem(src);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            let updated = false;
+            list.forEach((a: any) => {
+              if (a.id === id || a.profile_id === id) {
+                a.is_approved = is_approved;
+                if (is_active !== undefined) a.is_active = is_active;
+                updated = true;
+              }
+            });
+            if (updated) safeStorage.setItem(src, JSON.stringify(list));
+          }
+        }
+      });
+    } catch {}
+
+    realtimeSync.emit('CAPTAINS_UPDATED', { id, is_approved });
+
+    return resultCaptain || ({ id, is_approved } as any);
   },
 
   // 3. Passengers

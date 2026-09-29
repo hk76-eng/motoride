@@ -1416,6 +1416,46 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                       </div>
                     </div>
 
+                    {/* Require Approval Switch Bar */}
+                    <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-900 border border-slate-800 shadow-inner">
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className={`w-4 h-4 ${!cpt.is_approved ? 'text-amber-400' : 'text-emerald-400'}`} />
+                        <span className="text-xs font-black text-slate-200">Require Approval:</span>
+                        <span
+                          className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
+                            !cpt.is_approved
+                              ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                              : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                          }`}
+                        >
+                          {!cpt.is_approved ? 'ON (Pending Approval)' : 'OFF (Approved)'}
+                        </span>
+                      </div>
+
+                      {/* Interactive Switch Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleCaptainStatus(cpt.id, cpt.is_approved);
+                        }}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          !cpt.is_approved ? 'bg-amber-500' : 'bg-slate-700'
+                        }`}
+                        title={
+                          !cpt.is_approved
+                            ? 'Require Approval is ON. Click to Approve Captain credentials'
+                            : 'Require Approval is OFF. Click to Require Approval / Suspend'
+                        }
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                            !cpt.is_approved ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
                     {/* Financial & Activity Metrics */}
                     <div className="grid grid-cols-4 gap-2 text-center text-xs pt-1">
                       <div className="p-2 rounded-xl bg-slate-900/50 border border-slate-800/50">
@@ -3020,6 +3060,53 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                         {selectedCaptain.is_approved ? 'Approved' : 'Suspended'}
                       </span>
                     </div>
+                  </div>
+
+                  {/* Require Approval Switch Row in Modal */}
+                  <div className="col-span-1 sm:col-span-2 pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-slate-200 block flex items-center gap-1.5">
+                        <ShieldCheck className={`w-4 h-4 ${!selectedCaptain.is_approved ? 'text-amber-400' : 'text-emerald-400'}`} />
+                        <span>Require Approval:</span>
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${
+                          !selectedCaptain.is_approved
+                            ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                            : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                        }`}>
+                          {!selectedCaptain.is_approved ? 'ON (Action Required)' : 'OFF (Approved)'}
+                        </span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        {!selectedCaptain.is_approved
+                          ? 'Approval is required. Captain cannot go online or accept ride requests.'
+                          : 'Captain credentials verified & approved for active trip matching.'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleToggleCaptainStatus(selectedCaptain.id, selectedCaptain.is_approved);
+                        setSelectedCaptain({
+                          ...selectedCaptain,
+                          is_approved: !selectedCaptain.is_approved,
+                        });
+                      }}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        !selectedCaptain.is_approved ? 'bg-amber-500' : 'bg-slate-700'
+                      }`}
+                      title={
+                        !selectedCaptain.is_approved
+                          ? 'Require Approval is ON. Click to Approve Captain'
+                          : 'Require Approval is OFF. Click to Require Approval / Suspend'
+                      }
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                          !selectedCaptain.is_approved ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
                   </div>
                 </div>
               </div>
