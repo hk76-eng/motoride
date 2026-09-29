@@ -120,6 +120,16 @@ export function loadFareSettingsFromDisk() {
   }
 }
 
+// 2. Official Admin QR Code & Payment Setting
+export let qrSettings: QRCodeSetting = {
+  qr_image_url: '/official_admin_qr.svg',
+  upi_id: 'hemant76@idbi',
+  merchant_name: 'Hemant',
+  note: 'Scan to Pay with any UPI App (Google Pay, PhonePe, Paytm, BHIM) to deposit platform commission or top-up wallet balance.',
+  is_active: true,
+  updated_at: new Date().toISOString(),
+};
+
 export function saveQRSettingsToDisk() {
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -251,15 +261,7 @@ export function updateFareSettings(newSettings: Partial<FareSettings>): FareSett
   return fareSettings;
 }
 
-// 2. Official Admin QR Code & Payment Setting
-export let qrSettings: QRCodeSetting = {
-  qr_image_url: '/official_admin_qr.svg',
-  upi_id: 'hemant76@idbi',
-  merchant_name: 'Hemant',
-  note: 'Scan to Pay with any UPI App (Google Pay, PhonePe, Paytm, BHIM) to deposit platform commission or top-up wallet balance.',
-  is_active: true,
-  updated_at: new Date().toISOString(),
-};
+// Official Admin QR Code & Payment Setting
 
 export function updateQRSettings(newSettings: Partial<QRCodeSetting>): QRCodeSetting {
   // Only update fields that are explicitly provided (not undefined)
