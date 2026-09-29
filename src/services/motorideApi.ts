@@ -1177,7 +1177,7 @@ export const motorideApi = {
             email: c.email || '',
             phone: c.phone || '',
             is_online: Boolean(c.is_online ?? true),
-            is_approved: Boolean(c.is_approved ?? true),
+            is_approved: c.is_approved !== undefined && c.is_approved !== null ? Boolean(c.is_approved) : true,
             is_active: Boolean(c.is_active ?? true),
             current_lat: Number(c.current_lat || 30.7046),
             current_lng: Number(c.current_lng || 76.7178),
@@ -1208,9 +1208,14 @@ export const motorideApi = {
           const key = sp.id || sp.phone;
           if (!key) return;
 
-          const existing = mergedMap.get(key);
+          const existing = mergedMap.get(key) || (sp.id ? mergedMap.get(sp.id) : null);
           const matchingVeh = vehs.find((v: any) => v.captain_id === sp.id || v.captain_id === sp.phone);
           const matchingWal = wals.find((w: any) => w.user_id === sp.id || w.user_id === sp.phone);
+
+          const resolvedApproved =
+            existing?.is_approved !== undefined && existing?.is_approved !== null
+              ? existing.is_approved
+              : (sp.is_approved !== undefined && sp.is_approved !== null ? Boolean(sp.is_approved) : true);
 
           mergedMap.set(key, {
             id: sp.id || key,
@@ -1219,7 +1224,7 @@ export const motorideApi = {
             email: sp.email || existing?.email || '',
             phone: sp.phone || existing?.phone || '',
             is_online: existing?.is_online ?? Boolean(sp.is_online ?? true),
-            is_approved: existing?.is_approved ?? Boolean(sp.is_approved ?? true),
+            is_approved: resolvedApproved,
             is_active: existing?.is_active ?? true,
             current_lat: existing?.current_lat ?? Number(sp.current_lat || 30.7046),
             current_lng: existing?.current_lng ?? Number(sp.current_lng || 76.7178),
@@ -1335,8 +1340,8 @@ export const motorideApi = {
                   full_name: a.full_name || a.name || 'Captain',
                   email: a.email || '',
                   phone: a.phone || '',
-                  is_online: true,
-                  is_approved: true,
+                  is_online: Boolean(a.is_online ?? true),
+                  is_approved: a.is_approved !== false,
                   is_active: true,
                   current_lat: 30.7046,
                   current_lng: 76.7178,

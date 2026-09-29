@@ -882,10 +882,38 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   };
 
   const handleToggleCaptainStatus = async (captainId: string, currentApproved: boolean) => {
+    const newApproved = !currentApproved;
+
+    // 1. Optimistic state update: flip switch UI instantly
+    setCaptains((prev) =>
+      prev.map((c) =>
+        c.id === captainId || c.profile_id === captainId
+          ? { ...c, is_approved: newApproved }
+          : c
+      )
+    );
+
+    if (selectedCaptain && (selectedCaptain.id === captainId || selectedCaptain.profile_id === captainId)) {
+      setSelectedCaptain((prev) => (prev ? { ...prev, is_approved: newApproved } : null));
+    }
+
+    showToast(newApproved ? '✅ Captain credentials approved & activated!' : '⚠️ Require Approval turned ON (Captain Suspended)');
+
+    // 2. Persist update to database & storage broadcast
     try {
-      await motorideApi.updateCaptainApproval(captainId, !currentApproved);
-      loadAllData();
-    } catch {}
+      await motorideApi.updateCaptainApproval(captainId, newApproved);
+      await loadAllData();
+    } catch (err: any) {
+      console.warn('Failed to update captain approval status:', err);
+      // Revert state if backend update fails
+      setCaptains((prev) =>
+        prev.map((c) =>
+          c.id === captainId || c.profile_id === captainId
+            ? { ...c, is_approved: currentApproved }
+            : c
+        )
+      );
+    }
   };
 
   const filteredRides = rides.filter((r) => {
