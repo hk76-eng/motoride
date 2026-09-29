@@ -262,11 +262,12 @@ export function isDemoAccount(acc: any): boolean {
   const name = String(acc.name || acc.full_name || '').toLowerCase().trim();
   const role = String(acc.role || '').toLowerCase().trim();
 
-  // Exclude Admin profiles from user/captain/passenger lists
+  // Exclude Admin profiles & requested duplicate profiles
   if (
     role === 'admin' ||
     email === 'freelanceseoservices01@gmail.com' ||
     id.includes('fb95d290-c925-4c93-ad9c-ebdc') ||
+    id.includes('348173af-50c5-4182-8621-c8212369cd81') ||
     id === 'usr-admin-001'
   ) {
     return true;

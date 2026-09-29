@@ -678,18 +678,29 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
       // Filter out any demo data and deduplicate across all sources
       const captainMap = new Map<string, Captain>();
       for (const cpt of [...(c || []), ...localCaptains]) {
-        if (!cpt || isDemoAccount(cpt)) continue;
-        const key = cpt.id || cpt.email?.toLowerCase() || cpt.phone;
-        if (!key) continue;
-        const existing = captainMap.get(key) || (cpt.email ? captainMap.get(cpt.email.toLowerCase()) : null);
+        if (!cpt || isDemoAccount(cpt) || cpt.id?.includes('348173af-50c5-4182-8621-c8212369cd81')) continue;
+        const emailKey = cpt.email?.toLowerCase().trim();
+        const primaryKey = emailKey || cpt.id || cpt.phone;
+        if (!primaryKey) continue;
+
+        const existing = (emailKey ? captainMap.get(emailKey) : null) || captainMap.get(cpt.id) || (cpt.phone ? captainMap.get(cpt.phone) : null);
+
         if (!existing) {
-          captainMap.set(key, cpt);
+          captainMap.set(primaryKey, cpt);
           if (cpt.id) captainMap.set(cpt.id, cpt);
+          if (emailKey) captainMap.set(emailKey, cpt);
         } else {
-          if (cpt.full_name && (!existing.full_name || existing.full_name === 'Captain')) existing.full_name = cpt.full_name;
+          if (cpt.full_name && (!existing.full_name || existing.full_name === 'Captain' || existing.full_name === 'Captain Partner')) {
+            existing.full_name = cpt.full_name;
+          }
           if (cpt.phone && !existing.phone) existing.phone = cpt.phone;
-          if (cpt.vehicle?.model && !existing.vehicle?.model) existing.vehicle.model = cpt.vehicle.model;
-          if (cpt.vehicle?.plate_number && !existing.vehicle?.plate_number) existing.vehicle.plate_number = cpt.vehicle.plate_number;
+          if (cpt.email && !existing.email) existing.email = cpt.email;
+          if (cpt.vehicle?.model && (!existing.vehicle?.model || existing.vehicle.model === 'Motorcycle')) {
+            existing.vehicle.model = cpt.vehicle.model;
+          }
+          if (cpt.vehicle?.plate_number && (!existing.vehicle?.plate_number || existing.vehicle.plate_number === 'Not registered')) {
+            existing.vehicle.plate_number = cpt.vehicle.plate_number;
+          }
         }
       }
       const filteredCaptains = Array.from(new Set(captainMap.values()));
@@ -931,7 +942,15 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   });
 
   const filteredCaptains = captains.filter((cpt) => {
-    if (isDemoAccount(cpt) || (cpt as any).role === 'admin' || cpt.email === 'freelanceseoservices01@gmail.com') return false;
+    if (
+      isDemoAccount(cpt) ||
+      (cpt as any).role === 'admin' ||
+      cpt.email === 'freelanceseoservices01@gmail.com' ||
+      cpt.id?.includes('348173af-50c5-4182-8621-c8212369cd81') ||
+      cpt.profile_id?.includes('348173af-50c5-4182-8621-c8212369cd81')
+    ) {
+      return false;
+    }
     if (captainFilter === 'online' && !cpt.is_online) return false;
     if (captainFilter === 'approved' && !cpt.is_approved) return false;
     if (captainFilter === 'suspended' && cpt.is_approved) return false;
