@@ -294,7 +294,7 @@ export interface RideMessage {
   id: string;
   ride_id: string;
   sender_id: string;
-  sender_role: 'passenger' | 'captain';
+  sender_role: 'passenger' | 'captain' | 'admin';
   sender_name: string;
   message: string;
   created_at: string;

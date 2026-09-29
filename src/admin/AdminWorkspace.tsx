@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   AdminDashboardStats,
   Captain,
@@ -526,10 +526,10 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     }
     const supa = getSupabase();
     if (supa) {
-      supa.from('captains').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518').then(() => {}).catch(() => {});
-      supa.from('profiles').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518').then(() => {}).catch(() => {});
-      supa.from('captains').delete().ilike('full_name', '%mojobiketaxi%').then(() => {}).catch(() => {});
-      supa.from('profiles').delete().ilike('full_name', '%mojobiketaxi%').then(() => {}).catch(() => {});
+      Promise.resolve(supa.from('captains').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518')).catch(() => {});
+      Promise.resolve(supa.from('profiles').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518')).catch(() => {});
+      Promise.resolve(supa.from('captains').delete().ilike('full_name', '%mojobiketaxi%')).catch(() => {});
+      Promise.resolve(supa.from('profiles').delete().ilike('full_name', '%mojobiketaxi%')).catch(() => {});
     }
   }, []);
 

@@ -2884,7 +2884,7 @@ export const motorideApi = {
     return result;
   },
 
-  async sendRideMessage(rideId: string, data: { sender_id: string; sender_role: 'passenger' | 'captain'; sender_name: string; message: string }): Promise<any> {
+  async sendRideMessage(rideId: string, data: { sender_id: string; sender_role: 'passenger' | 'captain' | 'admin'; sender_name: string; message: string }): Promise<any> {
     const newMsg = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       ride_id: rideId,
