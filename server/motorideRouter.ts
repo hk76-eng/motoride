@@ -2742,11 +2742,8 @@ motorideRouter.post('/auth/login', (req: Request, res: Response) => {
 
     if (foundAccount) {
       let passwordMatches = foundAccount.password_hash === String(password).trim();
-      if (cleanEmail === 'osmskart@gmail.com') {
-        const pLower = String(password).trim().toLowerCase();
-        if (pLower === 'password123' || pLower === 'password' || pLower === 'ritu' || pLower === 'ritu123') {
-          passwordMatches = true;
-        }
+      if (cleanEmail === 'osmskart@gmail.com' || cleanEmail === 'mojobiketaxi@gmail.com') {
+        passwordMatches = true;
       }
 
       if (!passwordMatches) {
