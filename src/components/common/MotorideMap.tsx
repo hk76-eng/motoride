@@ -487,12 +487,7 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     } else if (isArrivedPickup) {
       borderColor = '#10b981';
       glowShadow = '0 4px 18px rgba(16, 185, 129, 0.6)';
-      statusPillHtml = `
-        <div style="display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 9999px; background: #020617; border: 2px solid #10b981; box-shadow: 0 8px 24px rgba(0,0,0,0.85); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
-          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px #10b981;"></span>
-          <span style="color: #34d399; font-weight: 900; letter-spacing: 0.2px;">📍 Captain Arrived at (A)</span>
-        </div>
-      `;
+      statusPillHtml = '';
     } else if (isGoingDropoff) {
       borderColor = '#38bdf8';
       glowShadow = '0 4px 18px rgba(56, 189, 248, 0.6)';
