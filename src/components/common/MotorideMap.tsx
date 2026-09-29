@@ -850,9 +850,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           if (onPickupDragEnd) {
             onPickupDragEnd(latlng.lat, latlng.lng);
           }
-          if (onMapClick) {
-            onMapClick(latlng.lat, latlng.lng);
-          }
         });
       } else {
         pickupMarkerRef.current.setLatLng([pickupLat, pickupLng]);
@@ -875,9 +872,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           const latlng = e.target.getLatLng();
           if (onPickupDragEnd) {
             onPickupDragEnd(latlng.lat, latlng.lng);
-          }
-          if (onMapClick) {
-            onMapClick(latlng.lat, latlng.lng);
           }
         });
       }
@@ -969,9 +963,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           if (onDropoffDragEnd) {
             onDropoffDragEnd(latlng.lat, latlng.lng);
           }
-          if (onMapClick) {
-            onMapClick(latlng.lat, latlng.lng);
-          }
         });
       } else {
         dropoffMarkerRef.current.setLatLng([displayDropoffLat, displayDropoffLng]);
@@ -987,9 +978,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           const latlng = e.target.getLatLng();
           if (onDropoffDragEnd) {
             onDropoffDragEnd(latlng.lat, latlng.lng);
-          }
-          if (onMapClick) {
-            onMapClick(latlng.lat, latlng.lng);
           }
         });
       }

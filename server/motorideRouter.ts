@@ -1286,18 +1286,69 @@ motorideRouter.get('/geocode/reverse', async (req: Request, res: Response) => {
   const gMapsKey = process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDRr4NXZmlLOiuZ-ApDpqeuS3niSlWoPKg';
   try {
     if (gMapsKey) {
-      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${gMapsKey}&region=in`;
-      const gRes = await fetch(gUrl, { signal: AbortSignal.timeout(2000) });
+      const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${gMapsKey}&region=in&language=en`;
+      const gRes = await fetch(gUrl, { signal: AbortSignal.timeout(2500) });
       if (gRes.ok) {
         const gData = await gRes.json();
         if (gData.status === 'OK' && Array.isArray(gData.results) && gData.results.length > 0) {
-          const poi = gData.results.find((r: any) =>
-            r.types?.includes('establishment') ||
-            r.types?.includes('point_of_interest') ||
-            r.types?.includes('premise')
-          ) || gData.results[0];
-          const shortName = poi.formatted_address.split(',').slice(0, 3).join(', ').trim();
-          return res.json({ success: true, address: shortName });
+          const best =
+            gData.results.find((r: any) =>
+              r.types?.some((t: string) =>
+                ['establishment', 'point_of_interest', 'premise', 'subpremise', 'shopping_mall', 'hospital', 'transit_station', 'park'].includes(t)
+              )
+            ) ||
+            gData.results.find((r: any) =>
+              r.types?.some((t: string) => ['sublocality_level_1', 'sublocality_level_2', 'neighborhood', 'route'].includes(t))
+            ) ||
+            gData.results[0];
+
+          let placeName = '';
+          let streetNumber = '';
+          let route = '';
+          let sublocality = '';
+          let locality = '';
+          let city = '';
+          let postalCode = '';
+
+          if (Array.isArray(best.address_components)) {
+            for (const comp of best.address_components) {
+              const types = comp.types || [];
+              if (types.includes('point_of_interest') || types.includes('establishment') || types.includes('premise')) {
+                if (!placeName) placeName = comp.long_name;
+              }
+              if (types.includes('street_number')) streetNumber = comp.long_name;
+              if (types.includes('route')) route = comp.long_name;
+              if (types.includes('sublocality_level_1') || types.includes('sublocality') || types.includes('neighborhood')) {
+                if (!sublocality) sublocality = comp.long_name;
+              }
+              if (types.includes('locality')) locality = comp.long_name;
+              if (types.includes('administrative_area_level_2')) city = comp.long_name;
+              if (types.includes('postal_code')) postalCode = comp.long_name;
+            }
+          }
+
+          const street = [streetNumber, route].filter(Boolean).join(' ');
+          const finalCity = locality || city || 'Chandigarh';
+          const parts: string[] = [];
+          if (placeName && !parts.includes(placeName)) parts.push(placeName);
+          if (street && !parts.some((p) => p.toLowerCase().includes(street.toLowerCase()))) parts.push(street);
+          if (sublocality && !parts.some((p) => p.toLowerCase().includes(sublocality.toLowerCase()))) parts.push(sublocality);
+          if (finalCity && !parts.some((p) => p.toLowerCase().includes(finalCity.toLowerCase()))) parts.push(finalCity);
+          if (postalCode && !parts.some((p) => p.includes(postalCode))) parts.push(postalCode);
+
+          let fullAddr = parts.join(', ');
+          if (!fullAddr || fullAddr.length < 5) {
+            fullAddr = (best.formatted_address || '').replace(/, India$/, '').trim();
+          }
+
+          return res.json({
+            success: true,
+            address: fullAddr || best.formatted_address,
+            name: placeName || sublocality || fullAddr.split(',')[0].trim(),
+            locality: sublocality,
+            city: finalCity,
+            postal_code: postalCode,
+          });
         }
       }
     }

@@ -14,6 +14,7 @@ import { LocationPickerMapModal } from './LocationPickerMapModal';
 import { motorideApi, getRideAgreedFare } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
+import { reverseGeocodeCoordinates } from '../utils/reverseGeocoding';
 import { safeStorage } from '../lib/safeStorage';
 import {
   MapPin,
@@ -761,52 +762,122 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     return getRegionalAreaName(lat, lng);
   };
 
-  // Precise reverse geocoding via OpenStreetMap / backend geocode endpoint
+  // Loading state for automatic reverse geocoding when markers move
+  const [isResolvingPickup, setIsResolvingPickup] = useState<boolean>(false);
+  const [isResolvingDropoff, setIsResolvingDropoff] = useState<boolean>(false);
+  const pickupDebounceTimerRef = useRef<any>(null);
+  const dropoffDebounceTimerRef = useRef<any>(null);
+
+  // Stored coordinates together with resolved address
+  const pickupLatitude = pickup.lat;
+  const pickupLongitude = pickup.lng;
+  const pickupAddress = pickup.name;
+  const dropoffLatitude = dropoff.lat;
+  const dropoffLongitude = dropoff.lng;
+  const dropoffAddress = dropoff.name;
+
+  // Precise reverse geocoding via Google Maps Geocoding API with multi-source fallback
   const resolveLocationNameAsync = async (lat: number, lng: number): Promise<string> => {
+    if (!lat || !lng || isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return 'Selected Location';
     const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
     const cached = coordsNameCacheRef.current.get(key);
     if (cached) return cached;
 
-    // 1. Try exact reverse geocoding first (Photon POI discovery + Nominatim address resolution)
     try {
-      const res = await fetch(getApiUrl(`/api/motoride/geocode/reverse?lat=${lat}&lng=${lng}`));
-      if (res.ok) {
-        const text = await res.text();
-        if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
-          const data = JSON.parse(text);
-          const explicitName = data.name || data.building || data.hotel || data.amenity || data.shop || data.tourism;
-          if (explicitName && typeof explicitName === 'string' && explicitName.trim()) {
-            coordsNameCacheRef.current.set(key, explicitName.trim());
-            return explicitName.trim();
-          }
-          if (data && data.address && typeof data.address === 'string' && data.address.trim()) {
-            const cleanAddr = data.address.trim();
-            if (!cleanAddr.toLowerCase().includes('pin point') && !cleanAddr.startsWith('Location (') && !/\b30\.\d+\b/.test(cleanAddr) && !/\b76\.\d+\b/.test(cleanAddr)) {
-              coordsNameCacheRef.current.set(key, cleanAddr);
-              return cleanAddr;
-            }
-          }
-        }
+      const res = await reverseGeocodeCoordinates(lat, lng);
+      if (res && res.fullAddress && !res.fullAddress.toLowerCase().includes('pin point') && !res.fullAddress.startsWith('Location (')) {
+        coordsNameCacheRef.current.set(key, res.fullAddress);
+        return res.fullAddress;
       }
-    } catch {}
-
-    // 2. Fallback to closest preset landmark if within 180m
-    const allPool = [...KNOWN_LOCATIONS, ...PRESET_LOCATIONS];
-    let closestPreset: { name: string; dist: number } | null = null;
-    for (const loc of allPool) {
-      const dist = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
-      if (!closestPreset || dist < closestPreset.dist) {
-        closestPreset = { name: loc.name, dist };
-      }
-    }
-    if (closestPreset && closestPreset.dist <= 180) {
-      coordsNameCacheRef.current.set(key, closestPreset.name);
-      return closestPreset.name;
+    } catch (err) {
+      console.warn('Reverse geocoding note:', err);
     }
 
-    const fallback = getRegionalAreaName(lat, lng);
+    const fallback = getFastLocationName(lat, lng);
     coordsNameCacheRef.current.set(key, fallback);
     return fallback;
+  };
+
+  // Dedicated Auto Reverse-Geocoding Handler for Pickup Marker (Green Marker) Drag/Move/Select
+  const handlePickupMarkerPositionChange = (lat: number, lng: number) => {
+    if (!lat || !lng || isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
+
+    // Fast initial feedback with loading state
+    setIsResolvingPickup(true);
+    setPickup({
+      name: 'Getting location...',
+      lat,
+      lng,
+    });
+    setPickupInputText('Getting location...');
+
+    if (pickupDebounceTimerRef.current) {
+      clearTimeout(pickupDebounceTimerRef.current);
+    }
+
+    pickupDebounceTimerRef.current = setTimeout(async () => {
+      try {
+        const result = await reverseGeocodeCoordinates(lat, lng);
+        const resolvedName = result.fullAddress || getFastLocationName(lat, lng) || 'Selected Pickup Point';
+        setPickup({
+          name: resolvedName,
+          lat,
+          lng,
+        });
+        setPickupInputText(resolvedName);
+        setPickupToastMessage(`📍 Pickup: ${resolvedName}`);
+        setShowPickupToast(true);
+        setTimeout(() => setShowPickupToast(false), 3500);
+      } catch (err) {
+        console.warn('Pickup reverse geocode warning:', err);
+        const fallback = getFastLocationName(lat, lng) || 'Location unavailable';
+        setPickup({ name: fallback, lat, lng });
+        setPickupInputText(fallback);
+      } finally {
+        setIsResolvingPickup(false);
+      }
+    }, 200);
+  };
+
+  // Dedicated Auto Reverse-Geocoding Handler for Drop-off Marker (Red Marker) Drag/Move/Select
+  const handleDropoffMarkerPositionChange = (lat: number, lng: number) => {
+    if (!lat || !lng || isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
+
+    // Fast initial feedback with loading state
+    setIsResolvingDropoff(true);
+    setDropoff({
+      name: 'Getting location...',
+      lat,
+      lng,
+    });
+    setDropoffInputText('Getting location...');
+
+    if (dropoffDebounceTimerRef.current) {
+      clearTimeout(dropoffDebounceTimerRef.current);
+    }
+
+    dropoffDebounceTimerRef.current = setTimeout(async () => {
+      try {
+        const result = await reverseGeocodeCoordinates(lat, lng);
+        const resolvedName = result.fullAddress || getFastLocationName(lat, lng) || 'Selected Destination';
+        setDropoff({
+          name: resolvedName,
+          lat,
+          lng,
+        });
+        setDropoffInputText(resolvedName);
+        setPickupToastMessage(`🎯 Drop-off: ${resolvedName}`);
+        setShowPickupToast(true);
+        setTimeout(() => setShowPickupToast(false), 3500);
+      } catch (err) {
+        console.warn('Dropoff reverse geocode warning:', err);
+        const fallback = getFastLocationName(lat, lng) || 'Location unavailable';
+        setDropoff({ name: fallback, lat, lng });
+        setDropoffInputText(fallback);
+      } finally {
+        setIsResolvingDropoff(false);
+      }
+    }, 200);
   };
 
   // Keep currentGpsLocationName resolved whenever passenger GPS updates
@@ -1041,14 +1112,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const targetLat = (lat && lat > 0) ? lat : (passengerGps.lat > 0 ? passengerGps.lat : (pickup.lat > 0 ? pickup.lat : 30.704649));
     const targetLng = (lng && lng > 0) ? lng : (passengerGps.lng > 0 ? passengerGps.lng : (pickup.lng > 0 ? pickup.lng : 76.717873));
 
-    const liveName = 'My Live Location';
+    setIsResolvingPickup(true);
+    const initialName = currentGpsLocationName && currentGpsLocationName !== 'My Live Location'
+      ? currentGpsLocationName
+      : (getFastLocationName(targetLat, targetLng) || 'Getting location...');
+
     setPickup({
-      name: liveName,
+      name: initialName,
       lat: targetLat,
       lng: targetLng,
     });
-    setPickupInputText(liveName);
-    setCurrentGpsLocationName(liveName);
+    setPickupInputText(initialName);
     setActiveMapTarget('dropoff');
 
     // Automatically expand card, switch to drop location search, and focus input
@@ -1060,9 +1134,26 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       dropoffContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
 
-    setPickupToastMessage(`📍 Pickup set to ${liveName}`);
-    setShowPickupToast(true);
-    setTimeout(() => setShowPickupToast(false), 3500);
+    try {
+      const result = await reverseGeocodeCoordinates(targetLat, targetLng);
+      const resolved = result.fullAddress || getFastLocationName(targetLat, targetLng) || initialName;
+      setPickup({
+        name: resolved,
+        lat: targetLat,
+        lng: targetLng,
+      });
+      setPickupInputText(resolved);
+      setCurrentGpsLocationName(resolved);
+      setPickupToastMessage(`📍 Pickup: ${resolved}`);
+      setShowPickupToast(true);
+      setTimeout(() => setShowPickupToast(false), 3500);
+    } catch {
+      const fallback = getFastLocationName(targetLat, targetLng) || 'Location unavailable';
+      setPickup({ name: fallback, lat: targetLat, lng: targetLng });
+      setPickupInputText(fallback);
+    } finally {
+      setIsResolvingPickup(false);
+    }
   };
   const [fareSettings, setFareSettings] = useState<FareSettings>(() => {
     try {
@@ -2504,54 +2595,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         showOverlayControls={false}
         interactive={!activeRide}
         onSetPickupToPassengerLocation={(lat, lng) => handleSetPickupFromPassengerPosition(lat, lng)}
+        onPickupDragEnd={(lat, lng) => handlePickupMarkerPositionChange(lat, lng)}
+        onDropoffDragEnd={(lat, lng) => handleDropoffMarkerPositionChange(lat, lng)}
         onMapClick={async (lat, lng) => {
           if (activeRide) return;
 
           const isTargetingPickup = activeMapTarget === 'pickup' || !pickup.name || !pickup.lat;
 
           if (isTargetingPickup) {
-            const initialName = getFastLocationName(lat, lng);
-            setPickup({
-              name: initialName,
-              lat,
-              lng,
-            });
-            setPickupInputText(initialName);
+            handlePickupMarkerPositionChange(lat, lng);
             setActiveMapTarget('dropoff');
-
-            setPickupToastMessage(`📍 From: ${initialName}`);
-            setShowPickupToast(true);
-            setTimeout(() => setShowPickupToast(false), 3500);
-
-            try {
-              const accurateName = await resolveLocationNameAsync(lat, lng);
-              if (accurateName) {
-                setPickup((prev) => (prev.lat === lat && prev.lng === lng ? { ...prev, name: accurateName } : prev));
-                setPickupInputText((prev) => (prev === initialName ? accurateName : prev));
-                setPickupToastMessage(`📍 From: ${accurateName}`);
-              }
-            } catch {}
           } else {
-            const initialName = getFastLocationName(lat, lng);
-            setDropoff({
-              name: initialName,
-              lat,
-              lng,
-            });
-            setDropoffInputText(initialName);
-
-            setPickupToastMessage(`🎯 Destination: ${initialName}`);
-            setShowPickupToast(true);
-            setTimeout(() => setShowPickupToast(false), 3500);
-
-            try {
-              const accurateName = await resolveLocationNameAsync(lat, lng);
-              if (accurateName) {
-                setDropoff((prev) => (prev.lat === lat && prev.lng === lng ? { ...prev, name: accurateName } : prev));
-                setDropoffInputText((prev) => (prev === initialName ? accurateName : prev));
-                setPickupToastMessage(`🎯 Destination: ${accurateName}`);
-              }
-            } catch {}
+            handleDropoffMarkerPositionChange(lat, lng);
           }
         }}
         className={`w-full h-full ${isFullBackground ? 'rounded-none border-0' : 'shadow-2xl border border-slate-800'}`}
@@ -3088,6 +3143,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 <label className="text-[11px] font-black text-black tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
                   <span className="font-black">From</span>
+                  {isResolvingPickup && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 animate-pulse">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Getting location...</span>
+                    </span>
+                  )}
                 </label>
                 <div className="flex items-center gap-1">
                   <button
@@ -3184,6 +3245,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   
                   {/* Right Corner: Clear Cross Sign & Dropdown Indicator */}
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
+                    {isResolvingPickup && (
+                      <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
+                    )}
                     {pickup.name ? (
                       <button
                         type="button"
@@ -3213,16 +3277,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         setShowPickupSuggestions(true);
                         setActiveMapTarget('pickup');
                       }}
-                      placeholder="Type custom pickup location..."
+                      placeholder={isResolvingPickup ? 'Getting location...' : 'Type custom pickup location...'}
                       className="w-full pl-8 pr-20 py-1.5 rounded-lg bg-slate-100 text-xs text-black placeholder-slate-500 font-semibold focus:outline-none focus:ring-2 focus:ring-black shadow-xs"
                     />
                     <MapPin className="w-3.5 h-3.5 text-emerald-600 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
 
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
-                      {isSearchingPickup && (
-                        <Loader2 className="w-3 h-3 text-black animate-spin" />
+                      {(isSearchingPickup || isResolvingPickup) && (
+                        <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
                       )}
-                      {pickup.name && pickup.lat > 0 && (
+                      {pickup.name && pickup.lat > 0 && !isResolvingPickup && (
                         <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 py-0.5 rounded flex items-center gap-0.5 shrink-0">
                           <Check className="w-2.5 h-2.5 stroke-[3]" />
                           {pickup.name === pickupInputText ? 'Selected' : 'On Map'}
@@ -3284,6 +3348,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 <label className="text-[11px] font-black text-black tracking-wider flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-rose-500" />
                   <span className="font-black">To</span>
+                  {isResolvingDropoff && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-rose-600 animate-pulse">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Getting location...</span>
+                    </span>
+                  )}
                 </label>
                 <div className="flex items-center gap-1">
                   <button
@@ -3370,6 +3440,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                   {/* Right Corner: Clear Cross Sign & Dropdown Indicator */}
                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
+                    {isResolvingDropoff && (
+                      <Loader2 className="w-3.5 h-3.5 text-rose-600 animate-spin" />
+                    )}
                     {dropoff.name ? (
                       <button
                         type="button"
@@ -3403,16 +3476,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                         setShowDropoffSuggestions(true);
                       }}
                       onKeyDown={handleDropoffKeyDown}
-                      placeholder="Search drop location (e.g. Sector 7)..."
+                      placeholder={isResolvingDropoff ? 'Getting location...' : 'Search drop location (e.g. Sector 7)...'}
                       className="w-full pl-8 pr-20 py-1.5 rounded-lg bg-slate-100 text-xs text-black placeholder-slate-500 font-semibold focus:outline-none focus:ring-2 focus:ring-black shadow-xs"
                     />
                     <Navigation className="w-3.5 h-3.5 text-black absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none stroke-[2.5]" />
 
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
-                      {isSearchingDropoff && (
-                        <Loader2 className="w-3 h-3 text-black animate-spin" />
+                      {(isSearchingDropoff || isResolvingDropoff) && (
+                        <Loader2 className="w-3 h-3 text-rose-600 animate-spin" />
                       )}
-                      {dropoff.name && dropoff.lat > 0 && (
+                      {dropoff.name && dropoff.lat > 0 && !isResolvingDropoff && (
                         <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 py-0.5 rounded flex items-center gap-0.5 shrink-0">
                           <Check className="w-2.5 h-2.5 stroke-[3]" />
                           {dropoff.name === dropoffInputText ? 'Selected' : 'On Map'}
