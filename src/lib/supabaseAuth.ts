@@ -542,6 +542,12 @@ export const supabaseAuth = {
           if (storedAvatar && !user.avatarUrl) {
             user.avatarUrl = storedAvatar;
           }
+          if (user.role === 'captain') {
+            const storedBal = safeStorage.getItem('motoride_captain_wallet_balance');
+            if (storedBal && !isNaN(Number(storedBal))) {
+              user.walletBalance = Number(storedBal);
+            }
+          }
         }
         return user;
       }
@@ -566,6 +572,12 @@ export const supabaseAuth = {
       safeStorage.setItem('motoride_active_role', user.role);
       if (resolvedAvatar) {
         safeStorage.setItem(`motoride_${user.role}_avatar`, resolvedAvatar);
+      }
+      if (user.role === 'captain' && typeof user.walletBalance === 'number') {
+        safeStorage.setItem('motoride_captain_wallet_balance', user.walletBalance.toString());
+        if (user.id) {
+          safeStorage.setItem(`motoride_wallet_${user.id}`, JSON.stringify({ balance: user.walletBalance, currency: '₹' }));
+        }
       }
     } else {
       safeStorage.removeItem(STORAGE_SESSION_KEY);

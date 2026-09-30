@@ -981,9 +981,12 @@ export const motorideApi = {
     const earning = Number((agreedFare - commission).toFixed(2));
     const currUser = supabaseAuth.getCurrentUser();
     const storedCaptainBal = safeStorage.getItem('motoride_captain_wallet_balance');
-    const walletBefore = Number(
-      currUser?.walletBalance ?? (storedCaptainBal && !isNaN(Number(storedCaptainBal)) ? Number(storedCaptainBal) : 500.0)
-    );
+    let walletBefore = 500.0;
+    if (storedCaptainBal && !isNaN(Number(storedCaptainBal))) {
+      walletBefore = Number(storedCaptainBal);
+    } else if (currUser && typeof currUser.walletBalance === 'number' && !isNaN(currUser.walletBalance)) {
+      walletBefore = Number(currUser.walletBalance);
+    }
     const walletAfter = Number(Math.max(0, walletBefore - commission).toFixed(2));
     const nowIso = new Date().toISOString();
     const isCourier = clientRide?.ride_type === 'courier';
