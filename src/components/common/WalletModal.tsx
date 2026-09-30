@@ -7,6 +7,7 @@ interface WalletModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
+  userPhone?: string;
   userRole: UserRole;
   currentBalance?: number;
   onBalanceUpdated?: (newBalance: number) => void;
@@ -16,8 +17,9 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   isOpen,
   onClose,
   userId,
+  userPhone,
   userRole,
-  currentBalance = 250,
+  currentBalance = 500,
   onBalanceUpdated,
 }) => {
   const [balance, setBalance] = useState(currentBalance);
@@ -27,18 +29,26 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   const [qrSettings, setQrSettings] = useState<QRCodeSetting | null>(null);
 
   useEffect(() => {
+    if (currentBalance !== undefined) {
+      setBalance(currentBalance);
+    }
+  }, [currentBalance]);
+
+  useEffect(() => {
     if (isOpen) {
       loadWallet();
       loadQR();
     }
-  }, [isOpen, userId]);
+  }, [isOpen, userId, userPhone]);
 
   const loadWallet = async () => {
     try {
-      const res = await motorideApi.getWallet(userId);
-      setBalance(res.wallet.balance);
-      setTransactions(res.transactions);
-      onBalanceUpdated?.(res.wallet.balance);
+      const res = await motorideApi.getWallet(userId, userPhone);
+      if (res?.wallet && typeof res.wallet.balance === 'number') {
+        setBalance(res.wallet.balance);
+        setTransactions(res.transactions || []);
+        onBalanceUpdated?.(res.wallet.balance);
+      }
     } catch {}
   };
 
@@ -161,31 +171,90 @@ export const WalletModal: React.FC<WalletModalProps> = ({
 
         {/* Transactions list */}
         <div className="flex flex-col gap-2">
-          <span className="text-xs font-bold text-slate-300">Recent Transactions</span>
-          <div className="flex flex-col gap-2 max-h-36 overflow-y-auto pr-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-300">Recent Transactions & Deductions</span>
+            <span className="text-[11px] font-mono text-slate-400">{transactions.length} items</span>
+          </div>
+          <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
             {transactions.length === 0 ? (
-              <span className="text-xs text-slate-500 text-center py-2">No transactions yet</span>
+              <span className="text-xs text-slate-500 text-center py-4">No transactions yet</span>
             ) : (
-              transactions.map((t) => (
-                <div
-                  key={t.id}
-                  className="p-2 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs"
-                >
-                  <div>
-                    <p className="font-medium text-slate-200">{t.description}</p>
-                    <span className="text-[10px] text-slate-500">
-                      {new Date(t.created_at).toLocaleTimeString()}
+              transactions.map((t) => {
+                const isCommission = t.category === 'commission_fee' || (t.category as string) === 'platform_commission' || t.description?.includes('Commission') || Boolean(t.reference_ride_id);
+                const grossFare = t.gross_fare || (isCommission ? Number((t.amount / 0.1).toFixed(2)) : 0);
+                const captainEarn = t.captain_earning || (grossFare ? Number((grossFare - t.amount).toFixed(2)) : 0);
+
+                if (isCommission) {
+                  return (
+                    <div
+                      key={t.id}
+                      className="p-3 rounded-2xl bg-slate-950 border border-amber-500/30 flex flex-col gap-2 text-xs shadow-inner"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 font-extrabold text-[10px] uppercase tracking-wider">
+                            10% Platform Commission
+                          </span>
+                          {t.ride_code && (
+                            <span className="font-mono font-bold text-white text-[11px]">
+                              #{t.ride_code}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-mono font-black text-rose-400 text-sm">
+                          -₹{Number(t.amount).toFixed(2)}
+                        </span>
+                      </div>
+
+                      {/* Tripwise Financial Breakdown */}
+                      <div className="grid grid-cols-3 gap-1.5 p-2 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px]">
+                        <div>
+                          <span className="text-[9px] text-slate-400 block uppercase font-bold">Gross Fare</span>
+                          <span className="font-mono font-bold text-white">₹{grossFare > 0 ? grossFare.toFixed(2) : '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-amber-400 block uppercase font-bold">10% Platform Fee</span>
+                          <span className="font-mono font-bold text-amber-300">-₹{Number(t.amount).toFixed(2)}</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] text-emerald-400 block uppercase font-bold">Net Take-Home</span>
+                          <span className="font-mono font-bold text-emerald-400">+{captainEarn > 0 ? `₹${captainEarn.toFixed(2)}` : '-'}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-900">
+                        <span>{t.created_at ? new Date(t.created_at).toLocaleString() : 'Recent'}</span>
+                        {t.wallet_balance_after !== undefined && (
+                          <span className="font-mono text-slate-300 font-medium">
+                            Balance after: ₹{t.wallet_balance_after.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={t.id}
+                    className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <p className="font-medium text-slate-200">{t.description || (t.type === 'credit' ? 'Wallet Top-Up' : 'Wallet Debit')}</p>
+                      <span className="text-[10px] text-slate-500 font-mono">
+                        {t.created_at ? new Date(t.created_at).toLocaleTimeString() : 'Just now'}
+                      </span>
+                    </div>
+                    <span
+                      className={`font-mono font-bold text-sm ${
+                        t.type === 'credit' ? 'text-emerald-400' : 'text-rose-400'
+                      }`}
+                    >
+                      {t.type === 'credit' ? '+' : '-'}₹{Number(t.amount).toFixed(2)}
                     </span>
                   </div>
-                  <span
-                    className={`font-mono-num font-bold ${
-                      t.type === 'credit' ? 'text-emerald-400' : 'text-rose-400'
-                    }`}
-                  >
-                    {t.type === 'credit' ? '+' : '-'}₹{t.amount}
-                  </span>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

@@ -705,7 +705,13 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
   }
 
   if (status === 'trip_completed' || status === 'completed') {
-    const compRes = completeRideAndDeductCommissionServer(ride.id, ride.captain_id);
+    const effectiveCptId = req.body.captain_id || ride.captain_id;
+    const compRes = completeRideAndDeductCommissionServer(
+      ride.id,
+      effectiveCptId,
+      req.body.ride || ride,
+      Number(req.body.final_fare || ride.final_fare || ride.fare_amount || 80)
+    );
     if (!compRes.success && compRes.insufficient_balance) {
       return res.status(400).json({
         success: false,
@@ -2100,23 +2106,58 @@ motorideRouter.post('/qr-settings', (req: Request, res: Response) => {
 // 6. Wallet API
 motorideRouter.get('/wallet/:userId', async (req: Request, res: Response) => {
   const { userId } = req.params;
-  
-  try {
-    const { data: profile } = await supabase.from('profiles').select('wallet_balance').eq('id', userId).maybeSingle();
-    if (profile && typeof profile.wallet_balance === 'number') {
-      walletsStore.set(userId, { balance: Number(profile.wallet_balance), currency: '₹' });
-    } else {
-      const { data: pByPhone } = await supabase.from('profiles').select('wallet_balance').eq('phone', userId).maybeSingle();
-      if (pByPhone && typeof pByPhone.wallet_balance === 'number') {
-        walletsStore.set(userId, { balance: Number(pByPhone.wallet_balance), currency: '₹' });
-      }
+  const userPhone = (req.query.phone as string) || '';
+
+  // 1. Resolve existing in-memory wallet first across all aliases
+  let existingWallet = walletsStore.get(userId);
+  if (!existingWallet && userPhone) {
+    existingWallet = walletsStore.get(userPhone);
+  }
+  const cpt = captainsStore.get(userId) || (userPhone ? captainsStore.get(userPhone) : null);
+  if (!existingWallet && cpt) {
+    existingWallet = (cpt.id ? walletsStore.get(cpt.id) : null) || (cpt.phone ? walletsStore.get(cpt.phone) : null);
+  }
+  if (!existingWallet) {
+    const acc = accountsStore.get(userId) || (userPhone ? accountsStore.get(userPhone) : null);
+    if (acc && typeof acc.wallet_balance === 'number') {
+      existingWallet = { balance: acc.wallet_balance, currency: '₹' };
+      walletsStore.set(userId, existingWallet);
     }
-  } catch (err) {
-    console.warn('Backend server failed to fetch wallet balance from Supabase:', err);
   }
 
-  const wallet = walletsStore.get(userId) || { balance: 500.0, currency: '₹' };
-  const transactions = walletTransactionsStore.filter((tx) => tx.user_id === userId);
+  // 2. Only if not yet known in memory, query Supabase
+  if (!existingWallet) {
+    try {
+      const { data: profile } = await supabase.from('profiles').select('wallet_balance').eq('id', userId).maybeSingle();
+      if (profile && typeof profile.wallet_balance === 'number') {
+        existingWallet = { balance: Number(profile.wallet_balance), currency: '₹' };
+        walletsStore.set(userId, existingWallet);
+      } else {
+        const phoneToQuery = userPhone || userId;
+        const { data: pByPhone } = await supabase.from('profiles').select('wallet_balance').eq('phone', phoneToQuery).maybeSingle();
+        if (pByPhone && typeof pByPhone.wallet_balance === 'number') {
+          existingWallet = { balance: Number(pByPhone.wallet_balance), currency: '₹' };
+          walletsStore.set(userId, existingWallet);
+        }
+      }
+    } catch (err) {
+      console.warn('Backend server failed to fetch wallet balance from Supabase:', err);
+    }
+  }
+
+  const wallet = existingWallet || { balance: 500.0, currency: '₹' };
+  walletsStore.set(userId, wallet);
+  if (userPhone) walletsStore.set(userPhone, wallet);
+  if (cpt?.id) walletsStore.set(cpt.id, wallet);
+  if (cpt?.phone) walletsStore.set(cpt.phone, wallet);
+
+  // Match all aliases for transactions
+  const aliasIds = new Set([userId, userPhone, cpt?.id, cpt?.phone].filter(Boolean) as string[]);
+
+  const transactions = walletTransactionsStore
+    .filter((tx) => aliasIds.has(tx.user_id) || (tx.wallet_id && aliasIds.has(tx.wallet_id.replace(/^w_/, ''))))
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
   res.json({ success: true, wallet, transactions });
 });
 

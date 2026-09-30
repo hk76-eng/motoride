@@ -224,6 +224,14 @@ export interface WalletTransaction {
   category: 'ride_earning' | 'commission_fee' | 'topup' | 'ride_payment' | 'refund' | 'withdrawal';
   description: string;
   reference_ride_id?: string;
+  ride_code?: string;
+  gross_fare?: number;
+  commission_amount?: number;
+  captain_earning?: number;
+  pickup_address?: string;
+  dropoff_address?: string;
+  wallet_balance_before?: number;
+  wallet_balance_after?: number;
   created_at: string;
 }
 

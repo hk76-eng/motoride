@@ -1092,26 +1092,60 @@ export function completeRideAndDeductCommissionServer(
   captainWallet.balance = walletAfter;
   walletsStore.set(effectiveCaptainId, captainWallet);
 
-  const captainAcc = accountsStore.get(effectiveCaptainId);
-  if (captainAcc) {
-    captainAcc.wallet_balance = walletAfter;
-    accountsStore.set(effectiveCaptainId, captainAcc);
+  // Link captain aliases (ID, phone, ride captain) so query by any identifier always returns the exact same deducted balance
+  const resolvedCaptainPhone = ride.captain_phone || captainsStore.get(effectiveCaptainId)?.phone || accountsStore.get(effectiveCaptainId)?.phone;
+  if (resolvedCaptainPhone && resolvedCaptainPhone !== effectiveCaptainId) {
+    walletsStore.set(resolvedCaptainPhone, { balance: walletAfter, currency: '₹' });
+  }
+  if (captainId && captainId !== effectiveCaptainId) {
+    walletsStore.set(captainId, { balance: walletAfter, currency: '₹' });
+  }
+  if (ride.captain_id && ride.captain_id !== effectiveCaptainId) {
+    walletsStore.set(ride.captain_id, { balance: walletAfter, currency: '₹' });
   }
 
-  // B. Record wallet transaction
+  // Update all associated in-memory accounts so page reloads read the updated deducted balance
+  const captainAcc = accountsStore.get(effectiveCaptainId) || (resolvedCaptainPhone ? accountsStore.get(resolvedCaptainPhone) : null) || (captainId ? accountsStore.get(captainId) : null);
+  if (captainAcc) {
+    captainAcc.wallet_balance = walletAfter;
+    accountsStore.set(captainAcc.id, captainAcc);
+    if (captainAcc.phone) accountsStore.set(captainAcc.phone, captainAcc);
+  }
+
+  // B. Record rich tripwise wallet transaction
   const txId = `tx_comm_${rideId}`;
   const isCourier = ride.ride_type === 'courier';
-  walletTransactionsStore.unshift({
+  const rideCode = ride.ride_code || rideId.slice(0, 8).toUpperCase();
+  const tripTx: WalletTransaction = {
     id: txId,
     wallet_id: `w_${effectiveCaptainId}`,
     user_id: effectiveCaptainId,
     amount: commissionAmount,
     type: 'debit',
     category: 'commission_fee',
-    description: `10% Platform Commission for ${isCourier ? 'Delivery' : 'Ride'} #${ride.ride_code} (Fare: ₹${finalFare}, Fee: ₹${commissionAmount}, Earning: ₹${captainEarning})`,
+    description: `10% Platform Commission for ${isCourier ? 'Delivery' : 'Trip'} #${rideCode} (Fare: ₹${finalFare}, Fee: -₹${commissionAmount}, Net Earning: +₹${captainEarning})`,
     reference_ride_id: rideId,
+    ride_code: rideCode,
+    gross_fare: finalFare,
+    commission_amount: commissionAmount,
+    captain_earning: captainEarning,
+    pickup_address: ride.pickup_address,
+    dropoff_address: ride.dropoff_address,
+    wallet_balance_before: walletBefore,
+    wallet_balance_after: walletAfter,
     created_at: new Date().toISOString(),
-  });
+  };
+  walletTransactionsStore.unshift(tripTx);
+
+  // Also duplicate reference for phone and captainId aliases so queries never miss transactions
+  if (resolvedCaptainPhone && resolvedCaptainPhone !== effectiveCaptainId) {
+    const phoneTx = { ...tripTx, id: `tx_comm_p_${rideId}`, user_id: resolvedCaptainPhone };
+    walletTransactionsStore.unshift(phoneTx);
+  }
+  if (captainId && captainId !== effectiveCaptainId) {
+    const cidTx = { ...tripTx, id: `tx_comm_c_${rideId}`, user_id: captainId };
+    walletTransactionsStore.unshift(cidTx);
+  }
 
   // C. Mark Ride completed & status = 'completed'
   const now = new Date().toISOString();
@@ -1124,12 +1158,13 @@ export function completeRideAndDeductCommissionServer(
   ridesStore.set(rideId, ride);
 
   // D. Increment Captain stats
-  const cpt = captainsStore.get(effectiveCaptainId);
+  const cpt = captainsStore.get(effectiveCaptainId) || (resolvedCaptainPhone ? captainsStore.get(resolvedCaptainPhone) : null) || (captainId ? captainsStore.get(captainId) : null);
   if (cpt) {
     cpt.total_rides = (cpt.total_rides || 0) + 1;
     cpt.total_earnings = Number(((cpt.total_earnings || 0) + captainEarning).toFixed(2));
     cpt.today_earnings = Number(((cpt.today_earnings || 0) + captainEarning).toFixed(2));
-    captainsStore.set(effectiveCaptainId, cpt);
+    captainsStore.set(cpt.id, cpt);
+    if (cpt.phone) captainsStore.set(cpt.phone, cpt);
   }
 
   // Synchronize atomically with Supabase (profiles, wallets, wallet_transactions, rides, earnings, captains) in the background so that the 10% commission is permanently stored in Supabase
@@ -1142,24 +1177,30 @@ export function completeRideAndDeductCommissionServer(
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       const isUuid = uuidRegex.test(effectiveCaptainId);
 
-      // A. Update profiles wallet_balance (Only if effectiveCaptainId is a valid UUID, as profiles.id is of type UUID)
+      // A. Update profiles wallet_balance
       if (isUuid) {
-        const { error: profileErr } = await sb.from('profiles')
+        await sb.from('profiles')
           .update({ wallet_balance: walletAfter, updated_at: now })
           .eq('id', effectiveCaptainId);
-        if (profileErr) {
-          console.warn(`[Supabase Sync Warning] Failed to update profiles balance for ${effectiveCaptainId}: ${profileErr.message}`);
-        }
       } else {
-        console.log(`[Supabase Sync Info] Skipper profiles balance update for non-UUID key: ${effectiveCaptainId}`);
+        await sb.from('profiles')
+          .update({ wallet_balance: walletAfter, updated_at: now })
+          .eq('phone', effectiveCaptainId);
+      }
+
+      if (resolvedCaptainPhone) {
+        await sb.from('profiles')
+          .update({ wallet_balance: walletAfter, updated_at: now })
+          .eq('phone', resolvedCaptainPhone);
       }
       
-      // B. Update wallets balance
-      const { error: walletErr } = await sb.from('wallets')
-        .update({ balance: walletAfter, updated_at: now })
-        .eq('user_id', effectiveCaptainId);
-      if (walletErr) {
-        console.warn(`[Supabase Sync Warning] Failed to update wallets balance for ${effectiveCaptainId}: ${walletErr.message}`);
+      // B. Update wallets balance (upsert so it works whether row exists or not)
+      await sb.from('wallets')
+        .upsert([{ user_id: effectiveCaptainId, balance: walletAfter, currency: '₹', updated_at: now }], { onConflict: 'user_id' });
+
+      if (resolvedCaptainPhone) {
+        await sb.from('wallets')
+          .upsert([{ user_id: resolvedCaptainPhone, balance: walletAfter, currency: '₹', updated_at: now }], { onConflict: 'user_id' });
       }
       
       // C. Record wallet_transaction in Supabase
@@ -1170,7 +1211,7 @@ export function completeRideAndDeductCommissionServer(
         amount: commissionAmount,
         type: 'debit',
         category: 'commission_fee',
-        description: `10% Platform Commission for ${isCourier ? 'Delivery' : 'Ride'} #${ride.ride_code} (Fare: ₹${finalFare}, Fee: ₹${commissionAmount}, Earning: ₹${captainEarning})`,
+        description: `10% Platform Commission for ${isCourier ? 'Delivery' : 'Ride'} #${rideCode} (Fare: ₹${finalFare}, Fee: -₹${commissionAmount}, Net Earning: +₹${captainEarning})`,
         reference_ride_id: rideId,
         created_at: now,
       }]);
@@ -1263,7 +1304,25 @@ export function completeRideAndDeductCommissionServer(
   broadcastEvent('WALLET_UPDATED', {
     user_id: effectiveCaptainId,
     balance: walletAfter,
+    wallet: { balance: walletAfter, currency: '₹' },
+    transaction: tripTx,
   });
+  if (captainId && captainId !== effectiveCaptainId) {
+    broadcastEvent('WALLET_UPDATED', {
+      user_id: captainId,
+      balance: walletAfter,
+      wallet: { balance: walletAfter, currency: '₹' },
+      transaction: tripTx,
+    });
+  }
+  if (resolvedCaptainPhone) {
+    broadcastEvent('WALLET_UPDATED', {
+      user_id: resolvedCaptainPhone,
+      balance: walletAfter,
+      wallet: { balance: walletAfter, currency: '₹' },
+      transaction: tripTx,
+    });
+  }
 
   return {
     success: true,

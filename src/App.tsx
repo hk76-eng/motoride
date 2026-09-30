@@ -179,6 +179,8 @@ export default function App() {
             captainId={currentUser.id}
             captainName={currentUser.name}
             currentUser={currentUser}
+            walletBalance={walletBalance}
+            onWalletBalanceUpdated={(newBal) => setWalletBalance(newBal)}
             onOpenWallet={() => setIsWalletOpen(true)}
             onSignOut={handleSignOut}
             isOnline={isCaptainOnline}
@@ -251,6 +253,7 @@ export default function App() {
         isOpen={isWalletOpen}
         onClose={() => setIsWalletOpen(false)}
         userId={currentUser.id}
+        userPhone={currentUser.phone}
         userRole={currentRole}
         currentBalance={walletBalance}
         onBalanceUpdated={(newBal) => setWalletBalance(newBal)}

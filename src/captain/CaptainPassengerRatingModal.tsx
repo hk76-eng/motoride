@@ -98,14 +98,40 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
               </div>
             </div>
 
-            {/* Earnings Badge */}
+            {/* Total Fare Badge */}
             <div className="text-right">
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
-                Fare Collected
+                Total Ride Fare
               </span>
-              <span className="text-lg font-black font-mono text-emerald-600">
-                ₹{fareEarned}
+              <span className="text-xl font-black font-mono text-slate-900">
+                ₹{fareEarned.toFixed(2)}
               </span>
+            </div>
+          </div>
+
+          {/* Tripwise 10% Commission Deduction Breakdown */}
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs font-bold text-amber-900">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                <span>10% Platform Commission Deduction</span>
+              </span>
+              <span className="font-mono text-rose-600 font-black">
+                -₹{(fareEarned * 0.10).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-amber-500/20 text-[11px]">
+              <div>
+                <span className="text-[10px] text-slate-600 uppercase font-semibold block">Deducted From</span>
+                <span className="font-bold text-slate-800">Captain Wallet</span>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-emerald-800 uppercase font-semibold block">Net Driver Take-Home</span>
+                <span className="font-mono font-black text-emerald-700 text-sm">
+                  +₹{(fareEarned * 0.90).toFixed(2)}
+                </span>
+              </div>
             </div>
           </div>
 

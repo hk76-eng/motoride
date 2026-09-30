@@ -729,6 +729,42 @@ Vehicle: ${ride.vehicle_model || 'Motorcycle'} (${ride.plate_number || 'PB 65 AB
                   </div>
                 </div>
 
+                {/* Captain Tripwise 10% Commission Deduction Card */}
+                {role === 'captain' && (
+                  <div className="p-4 rounded-2xl bg-slate-900 border border-amber-500/30 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-amber-300 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-amber-400" />
+                        <span>10% Platform Commission Breakdown</span>
+                      </span>
+                      <span className="font-mono text-rose-400">
+                        -₹{(Number(selectedRide.fare_amount ?? selectedRide.final_fare ?? selectedRide.offered_fare ?? 0) * 0.10).toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px]">
+                      <div>
+                        <span className="text-[10px] text-slate-400 uppercase font-semibold block">Gross Fare</span>
+                        <span className="font-mono font-bold text-white">
+                          ₹{Number(selectedRide.fare_amount ?? selectedRide.final_fare ?? selectedRide.offered_fare ?? 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-amber-400 uppercase font-semibold block">10% Platform Fee</span>
+                        <span className="font-mono font-bold text-amber-300">
+                          -₹{(Number(selectedRide.fare_amount ?? selectedRide.final_fare ?? selectedRide.offered_fare ?? 0) * 0.10).toFixed(2)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-emerald-400 uppercase font-semibold block">Net Take-Home</span>
+                        <span className="font-mono font-black text-emerald-400">
+                          +₹{(Number(selectedRide.fare_amount ?? selectedRide.final_fare ?? selectedRide.offered_fare ?? 0) * 0.90).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Ride Details Card */}
                 <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-800">
