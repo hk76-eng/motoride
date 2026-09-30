@@ -2098,9 +2098,25 @@ motorideRouter.post('/qr-settings', (req: Request, res: Response) => {
 });
 
 // 6. Wallet API
-motorideRouter.get('/wallet/:userId', (req: Request, res: Response) => {
-  const wallet = walletsStore.get(req.params.userId) || { balance: 250.0, currency: '₹' };
-  const transactions = walletTransactionsStore.filter((tx) => tx.user_id === req.params.userId);
+motorideRouter.get('/wallet/:userId', async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  
+  try {
+    const { data: profile } = await supabase.from('profiles').select('wallet_balance').eq('id', userId).maybeSingle();
+    if (profile && typeof profile.wallet_balance === 'number') {
+      walletsStore.set(userId, { balance: Number(profile.wallet_balance), currency: '₹' });
+    } else {
+      const { data: pByPhone } = await supabase.from('profiles').select('wallet_balance').eq('phone', userId).maybeSingle();
+      if (pByPhone && typeof pByPhone.wallet_balance === 'number') {
+        walletsStore.set(userId, { balance: Number(pByPhone.wallet_balance), currency: '₹' });
+      }
+    }
+  } catch (err) {
+    console.warn('Backend server failed to fetch wallet balance from Supabase:', err);
+  }
+
+  const wallet = walletsStore.get(userId) || { balance: 500.0, currency: '₹' };
+  const transactions = walletTransactionsStore.filter((tx) => tx.user_id === userId);
   res.json({ success: true, wallet, transactions });
 });
 

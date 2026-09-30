@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { createClient } from '@supabase/supabase-js';
 import {
   MotorideRide,
   Captain,
@@ -16,6 +17,11 @@ import {
   AdminDashboardStats,
   RideMessage,
 } from '../src/types/motoride';
+
+const supabaseUrl = 'https://ucyvkdpkhtrlmvjtilso.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjeXZrZHBraHRybG12anRpbHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMDU5MjcsImV4cCI6MjEwNDg4MTkyN30.oQwprT_mdnXphzQYBd0OLq_JCU2TJy3GWrNHPlk_Sco';
+
+const dbSupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
 // Real-time Event Broadcaster Subscribers (SSE)
 type SSEClient = (data: { event: string; payload: any }) => void;
@@ -1075,6 +1081,94 @@ export function completeRideAndDeductCommissionServer(
     cpt.total_earnings = Number(((cpt.total_earnings || 0) + captainEarning).toFixed(2));
     cpt.today_earnings = Number(((cpt.today_earnings || 0) + captainEarning).toFixed(2));
     captainsStore.set(effectiveCaptainId, cpt);
+  }
+
+  // Synchronize atomically with Supabase (profiles, wallets, wallet_transactions, rides, earnings, captains) in the background so that the 10% commission is permanently stored in Supabase
+  try {
+    const sb = dbSupabaseClient;
+    
+    // A. Update profiles wallet_balance
+    sb.from('profiles').update({ wallet_balance: walletAfter, updated_at: now }).eq('id', effectiveCaptainId).then();
+    
+    // B. Update wallets balance
+    sb.from('wallets').update({ balance: walletAfter, updated_at: now }).eq('user_id', effectiveCaptainId).then();
+    
+    // C. Record wallet_transaction in Supabase
+    sb.from('wallet_transactions').insert([{
+      id: txId,
+      wallet_id: `w_${effectiveCaptainId}`,
+      user_id: effectiveCaptainId,
+      amount: commissionAmount,
+      type: 'debit',
+      category: 'commission_fee',
+      description: `10% Platform Commission for ${isCourier ? 'Delivery' : 'Ride'} #${ride.ride_code} (Fare: ₹${finalFare}, Fee: ₹${commissionAmount}, Earning: ₹${captainEarning})`,
+      reference_ride_id: rideId,
+      created_at: now,
+    }]).then();
+
+    // D. Record earnings table entry in Supabase
+    sb.from('earnings').insert([{
+      id: `earn_${rideId}`,
+      captain_id: effectiveCaptainId,
+      ride_id: rideId,
+      ride_date: now.split('T')[0],
+      gross_fare: finalFare,
+      platform_commission: commissionAmount,
+      net_earnings: captainEarning,
+      created_at: now,
+    }]).then();
+
+    // E. Mark Ride completed and payment status paid in Supabase
+    sb.from('rides').update({
+      status: 'completed',
+      payment_status: 'paid',
+      completed_at: now,
+      trip_completed_at: now,
+      updated_at: now,
+    }).eq('id', rideId).then();
+
+    // F. Increment captain total rides and earnings in Supabase
+    const supabaseCaptainId = effectiveCaptainId;
+    if (sb) {
+      sb.from('captains')
+        .select('total_rides, total_earnings, today_earnings')
+        .eq('id', supabaseCaptainId)
+        .maybeSingle()
+        .then(({ data: sbCpt }) => {
+          if (sbCpt) {
+            const currentRides = Number(sbCpt.total_rides || 0);
+            const currentTotalEarn = Number(sbCpt.total_earnings || 0);
+            const currentTodayEarn = Number(sbCpt.today_earnings || 0);
+            sb.from('captains').update({
+              total_rides: currentRides + 1,
+              total_earnings: Number((currentTotalEarn + captainEarning).toFixed(2)),
+              today_earnings: Number((currentTodayEarn + captainEarning).toFixed(2)),
+              updated_at: now
+            }).eq('id', supabaseCaptainId).then();
+          } else {
+            // Also try by profile_id
+            sb.from('captains')
+              .select('total_rides, total_earnings, today_earnings')
+              .eq('profile_id', supabaseCaptainId)
+              .maybeSingle()
+              .then(({ data: sbCpt2 }) => {
+                if (sbCpt2) {
+                  const currentRides = Number(sbCpt2.total_rides || 0);
+                  const currentTotalEarn = Number(sbCpt2.total_earnings || 0);
+                  const currentTodayEarn = Number(sbCpt2.today_earnings || 0);
+                  sb.from('captains').update({
+                    total_rides: currentRides + 1,
+                    total_earnings: Number((currentTotalEarn + captainEarning).toFixed(2)),
+                    today_earnings: Number((currentTodayEarn + captainEarning).toFixed(2)),
+                    updated_at: now
+                  }).eq('profile_id', supabaseCaptainId).then();
+                }
+              });
+          }
+        });
+    }
+  } catch (sbErr) {
+    console.warn('Background Supabase commission sync error:', sbErr);
   }
 
   persistDbToDisk();
