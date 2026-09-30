@@ -22,6 +22,17 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Universal CORS middleware for all clients (browser, mobile web, APK, Capacitor, file://)
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Range');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // Support high-speed direct binary streaming for Android APK packages up to 250MB
   app.use('/api/motoride/admin/upload-apk-binary', express.raw({ type: () => true, limit: '250mb' }));
   app.use(express.json({ limit: '150mb' }));

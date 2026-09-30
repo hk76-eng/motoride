@@ -118,6 +118,36 @@
         },
         "created_at": "2026-09-29T15:46:23.958Z"
       }
+    ],
+    [
+      "a77ff2d8-e2f5-475f-a935-a6a1a8ace5dd",
+      {
+        "id": "a77ff2d8-e2f5-475f-a935-a6a1a8ace5dd",
+        "profile_id": "prof_a77ff2d8-e2f5-475f-a935-a6a1a8ace5dd",
+        "full_name": "Captain Online",
+        "phone": "+91 98765 00000",
+        "is_online": true,
+        "is_approved": true,
+        "is_active": true,
+        "current_lat": 30.612183,
+        "current_lng": 76.852417,
+        "current_heading": 45,
+        "rating": 4.92,
+        "total_rides": 38,
+        "today_earnings": 0,
+        "total_earnings": 8200,
+        "vehicle": {
+          "id": "veh_a77ff2d8-e2f5-475f-a935-a6a1a8ace5dd",
+          "captain_id": "a77ff2d8-e2f5-475f-a935-a6a1a8ace5dd",
+          "model": "Honda CB Shine PB65B1010",
+          "plate_number": "PB65B1010",
+          "vehicle_type": "bike",
+          "color": "Black",
+          "is_active": true
+        },
+        "created_at": "2026-09-30T13:40:25.556Z",
+        "updated_at": "2026-09-30T13:44:34.119Z"
+      }
     ]
   ],
   "passengers": [
@@ -172,7 +202,7 @@
     [
       "cpt_test_101",
       {
-        "balance": 244,
+        "balance": 226,
         "currency": "₹"
       }
     ],
@@ -194,6 +224,13 @@
       "usr_1790696783964_frllr",
       {
         "balance": 200,
+        "currency": "₹"
+      }
+    ],
+    [
+      "a77ff2d8-e2f5-475f-a935-a6a1a8ace5dd",
+      {
+        "balance": 500,
         "currency": "₹"
       }
     ]
@@ -362,7 +399,7 @@
         "offered_fare": 80,
         "final_fare": 80,
         "ride_type": "bike",
-        "status": "trip_completed",
+        "status": "completed",
         "payment_method": "cash",
         "payment_status": "paid",
         "created_at": "2026-09-29T15:24:44.758Z",
@@ -381,6 +418,32 @@
         "trip_completed_at": "2026-09-29T15:24:44.796Z",
         "completed_at": "2026-09-29T15:24:44.796Z",
         "fare_amount": 80
+      }
+    ],
+    [
+      "test_ride_999",
+      {
+        "id": "test_ride_999",
+        "ride_code": "TEST_RID",
+        "captain_id": "cpt_test_101",
+        "passenger_id": "psg_user",
+        "pickup_address": "Pickup Location",
+        "pickup_lat": 30.7046,
+        "pickup_lng": 76.7178,
+        "dropoff_address": "Dropoff Location",
+        "dropoff_lat": 30.7182,
+        "dropoff_lng": 76.7321,
+        "final_fare": 100,
+        "offered_fare": 100,
+        "fare_amount": 100,
+        "status": "completed",
+        "ride_type": "bike",
+        "payment_method": "cash",
+        "payment_status": "paid",
+        "created_at": "2026-09-30T13:51:19.926Z",
+        "updated_at": "2026-09-30T13:51:19.926Z",
+        "completed_at": "2026-09-30T13:51:19.926Z",
+        "trip_completed_at": "2026-09-30T13:51:19.926Z"
       }
     ]
   ],

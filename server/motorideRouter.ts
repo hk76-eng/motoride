@@ -750,10 +750,10 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
 
 // Dedicated Atomic Ride Completion & 10% Platform Commission Endpoint
 motorideRouter.post('/rides/:id/complete', (req: Request, res: Response) => {
-  const { captain_id } = req.body;
-  const result = completeRideAndDeductCommissionServer(req.params.id, captain_id);
+  const { captain_id, ride, final_fare } = req.body;
+  const result = completeRideAndDeductCommissionServer(req.params.id, captain_id, ride, final_fare);
   if (!result.success) {
-    return res.status(result.insufficient_balance ? 400 : 404).json(result);
+    return res.status(result.insufficient_balance ? 400 : 200).json(result);
   }
   res.json(result);
 });

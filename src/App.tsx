@@ -85,12 +85,14 @@ export default function App() {
     }).catch(() => {});
 
     const unsubscribe = realtimeSync.on('WALLET_UPDATED', (payload: any) => {
-      if (payload && payload.user_id === currentUser.id) {
-        setWalletBalance(payload.balance);
+      if (payload && (payload.user_id === currentUser.id || !payload.user_id || currentUser.role === 'captain')) {
+        if (typeof payload.balance === 'number') {
+          setWalletBalance(payload.balance);
+        }
         
         // Also update local storage session cache
         const curr = supabaseAuth.getCurrentUser();
-        if (curr && curr.id === currentUser.id) {
+        if (curr) {
           curr.walletBalance = payload.balance;
           supabaseAuth.setCurrentUser(curr);
         }
