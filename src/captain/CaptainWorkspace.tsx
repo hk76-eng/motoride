@@ -2835,7 +2835,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                     PLATFORM COMMISSION
                   </span>
                   <span className="text-2xl font-black text-slate-200">
-                    10% - 15%
+                    10%
                   </span>
                   <p className="text-[11px] text-slate-400 mt-1">
                     Deducted automatically per completed ride from driver wallet.
