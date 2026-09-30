@@ -891,6 +891,215 @@ export const motorideApi = {
     return updatedRide;
   },
 
+  // Dedicated Atomic 10% Platform Commission Deduction & Ride Completion
+  async completeRideWithCommission(
+    rideId: string,
+    captainId?: string
+  ): Promise<{
+    success: boolean;
+    insufficient_balance?: boolean;
+    error?: string;
+    already_processed?: boolean;
+    ride?: MotorideRide;
+    gross_fare?: number;
+    commission_amount?: number;
+    captain_earning?: number;
+    wallet_balance_before?: number;
+    wallet_balance_after?: number;
+  }> {
+    // 1. Try Supabase Atomic Stored Procedure RPC if configured
+    const supabase = getSupabase();
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase.rpc('complete_ride_and_deduct_commission_atomic', {
+          p_ride_id: rideId,
+          p_captain_id: captainId || null,
+        });
+
+        if (!error && data) {
+          if (data.insufficient_balance) {
+            return {
+              success: false,
+              insufficient_balance: true,
+              error: data.error || 'Insufficient wallet balance for platform commission. Please add money to your wallet.',
+              commission_amount: data.required_commission,
+              wallet_balance_before: data.current_balance,
+            };
+          }
+
+          if (data.success) {
+            if (data.ride) {
+              localRidesStore.set(rideId, data.ride);
+              saveLocalRides();
+              realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: data.ride, status: 'completed' });
+              realtimeSync.broadcast('RIDE_UPDATED', data.ride);
+            }
+            if (data.wallet_balance_after !== undefined && captainId) {
+              realtimeSync.broadcast('WALLET_UPDATED', {
+                user_id: captainId,
+                balance: data.wallet_balance_after,
+              });
+            }
+            return {
+              success: true,
+              already_processed: Boolean(data.already_processed),
+              ride: data.ride,
+              gross_fare: data.gross_fare,
+              commission_amount: data.commission_amount,
+              captain_earning: data.captain_earning,
+              wallet_balance_before: data.wallet_balance_before,
+              wallet_balance_after: data.wallet_balance_after,
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase complete_ride_and_deduct_commission_atomic RPC notice:', err);
+      }
+    }
+
+    // 2. Call backend Express server completion endpoint
+    try {
+      const serverRes = await safeFetchJson<{
+        success: boolean;
+        insufficient_balance?: boolean;
+        error?: string;
+        already_processed?: boolean;
+        ride?: MotorideRide;
+        gross_fare?: number;
+        commission_amount?: number;
+        captain_earning?: number;
+        wallet_balance_before?: number;
+        wallet_balance_after?: number;
+      }>(
+        `${API_BASE}/rides/${rideId}/complete`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ captain_id: captainId }),
+        },
+        { success: false, error: 'Server connection error' }
+      );
+
+      if (serverRes?.ride) {
+        localRidesStore.set(rideId, serverRes.ride);
+        saveLocalRides();
+      }
+
+      return serverRes;
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to complete ride and deduct commission' };
+    }
+  },
+
+  async getAdminCommissions(): Promise<{
+    totals: {
+      totalCompletedRides: number;
+      totalCompletedDeliveries: number;
+      totalGrossFare: number;
+      totalCommissionCollected: number;
+      totalCaptainEarnings: number;
+    };
+    records: Array<{
+      tx_id: string;
+      booking_id: string;
+      ride_code: string;
+      ride_type: string;
+      captain_id: string;
+      captain_name: string;
+      passenger_name: string;
+      gross_fare: number;
+      commission_pct: number;
+      commission_amount: number;
+      captain_earning: number;
+      created_at: string;
+      status: string;
+    }>;
+  }> {
+    // 1. Try server endpoint
+    try {
+      const json = await safeFetchJson<any>(`${API_BASE}/admin/commissions`);
+      if (json && json.success && json.totals) {
+        return json;
+      }
+    } catch {}
+
+    // 2. Direct Supabase query
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const [txRes, ridesRes] = await Promise.all([
+          supabase.from('wallet_transactions').select('*').in('category', ['commission_fee', 'platform_commission']),
+          supabase.from('rides').select('*').in('status', ['completed', 'trip_completed']),
+        ]);
+
+        const txs = txRes.data || [];
+        const rides = ridesRes.data || [];
+
+        let totalCompletedRides = 0;
+        let totalCompletedDeliveries = 0;
+        let totalGrossFare = 0;
+        let totalCommissionCollected = 0;
+        let totalCaptainEarnings = 0;
+
+        const records = txs.map((tx: any) => {
+          const ride = rides.find((r: any) => r.id === tx.reference_ride_id) || null;
+          const isCourier = ride?.ride_type === 'courier';
+
+          if (isCourier) totalCompletedDeliveries++;
+          else totalCompletedRides++;
+
+          const grossFare = Number(ride?.final_fare || ride?.fare_amount || (tx.amount ? tx.amount / 0.10 : 0));
+          const commAmount = Number(tx.amount || 0);
+          const captainEarning = Number((grossFare - commAmount).toFixed(2));
+
+          totalGrossFare += grossFare;
+          totalCommissionCollected += commAmount;
+          totalCaptainEarnings += captainEarning;
+
+          return {
+            tx_id: tx.id,
+            booking_id: tx.reference_ride_id || 'N/A',
+            ride_code: ride?.ride_code || tx.reference_ride_id || 'N/A',
+            ride_type: ride?.ride_type || 'bike',
+            captain_id: tx.user_id,
+            captain_name: ride?.captain_name || 'Captain Partner',
+            passenger_name: ride?.passenger_name || 'Passenger Customer',
+            gross_fare: grossFare,
+            commission_pct: 10,
+            commission_amount: commAmount,
+            captain_earning: captainEarning,
+            created_at: tx.created_at,
+            status: 'Settled (10% Deducted)',
+          };
+        });
+
+        return {
+          totals: {
+            totalCompletedRides,
+            totalCompletedDeliveries,
+            totalGrossFare: Number(totalGrossFare.toFixed(2)),
+            totalCommissionCollected: Number(totalCommissionCollected.toFixed(2)),
+            totalCaptainEarnings: Number(totalCaptainEarnings.toFixed(2)),
+          },
+          records,
+        };
+      } catch (err) {
+        console.warn('Supabase getAdminCommissions notice:', err);
+      }
+    }
+
+    return {
+      totals: {
+        totalCompletedRides: 0,
+        totalCompletedDeliveries: 0,
+        totalGrossFare: 0,
+        totalCommissionCollected: 0,
+        totalCaptainEarnings: 0,
+      },
+      records: [],
+    };
+  },
+
   subscribeToRide(rideId: string, callback: (ride: MotorideRide) => void): () => void {
     if (!rideId) return () => {};
 

@@ -930,6 +930,17 @@ export function saveServerApkBinary(
   return serverApkRelease;
 }
 
+export function getServerApkBinary(): Buffer | null {
+  try {
+    if (fs.existsSync(APK_BINARY_FILE)) {
+      return fs.readFileSync(APK_BINARY_FILE);
+    }
+  } catch (err) {
+    console.warn('Failed to read APK binary from disk:', err);
+  }
+  return null;
+}
+
 export function deleteServerApkBinary(): ServerApkRelease {
   try {
     if (fs.existsSync(APK_BINARY_FILE)) {
@@ -952,19 +963,202 @@ export function deleteServerApkBinary(): ServerApkRelease {
   return serverApkRelease;
 }
 
-export function getServerApkBinary(): { buffer: Buffer; fileName: string; fileSize: string } | null {
-  try {
-    if (fs.existsSync(APK_BINARY_FILE)) {
-      const buffer = fs.readFileSync(APK_BINARY_FILE);
-      return {
-        buffer,
-        fileName: serverApkRelease.fileName || 'motoride-release.apk',
-        fileSize: serverApkRelease.fileSize,
-      };
-    }
-  } catch (e) {
-    console.warn('Could not read APK binary file:', e);
+export function completeRideAndDeductCommissionServer(
+  rideId: string,
+  captainId?: string
+): {
+  success: boolean;
+  insufficient_balance?: boolean;
+  error?: string;
+  already_processed?: boolean;
+  ride?: MotorideRide;
+  gross_fare?: number;
+  commission_amount?: number;
+  captain_earning?: number;
+  wallet_balance_before?: number;
+  wallet_balance_after?: number;
+} {
+  const ride = ridesStore.get(rideId);
+  if (!ride) {
+    return { success: false, error: 'Ride or delivery booking not found' };
   }
-  return null;
+
+  const effectiveCaptainId = captainId || ride.captain_id;
+  if (!effectiveCaptainId) {
+    return { success: false, error: 'No captain assigned to this booking' };
+  }
+
+  if (captainId && ride.captain_id && ride.captain_id !== captainId) {
+    return { success: false, error: 'Unauthorized: Booking belongs to another captain' };
+  }
+
+  // IDEMPOTENCY CHECK: Verify if commission was already processed for this rideId
+  const existingCommTx = walletTransactionsStore.find(
+    (tx) => tx.reference_ride_id === rideId && (tx.category === 'commission_fee' || tx.category === 'platform_commission')
+  );
+
+  const finalFare = Number(ride.final_fare || ride.fare_amount || ride.offered_fare || ride.estimated_fare || 0);
+
+  if (existingCommTx) {
+    const currentWallet = walletsStore.get(effectiveCaptainId) || { balance: 250, currency: '₹' };
+    return {
+      success: true,
+      already_processed: true,
+      ride,
+      gross_fare: finalFare,
+      commission_amount: existingCommTx.amount,
+      captain_earning: Number((finalFare - existingCommTx.amount).toFixed(2)),
+      wallet_balance_after: currentWallet.balance,
+      error: undefined,
+    };
+  }
+
+  if (finalFare <= 0) {
+    return { success: false, error: 'Invalid final fare amount for completed ride' };
+  }
+
+  // Calculate 10% platform commission & net captain earning
+  const commissionAmount = Number((finalFare * 0.10).toFixed(2));
+  const captainEarning = Number((finalFare - commissionAmount).toFixed(2));
+
+  // Lock and fetch Captain Wallet
+  const captainWallet = walletsStore.get(effectiveCaptainId) || { balance: 250, currency: '₹' };
+  const walletBefore = captainWallet.balance;
+
+  // LOW WALLET BALANCE PROTECTION
+  if (walletBefore < commissionAmount) {
+    return {
+      success: false,
+      insufficient_balance: true,
+      error: 'Insufficient wallet balance for platform commission. Please add money to your wallet.',
+      gross_fare: finalFare,
+      commission_amount: commissionAmount,
+      wallet_balance_before: walletBefore,
+    };
+  }
+
+  // ATOMIC UPDATES:
+  // A. Deduct 10% platform commission from captain wallet
+  const walletAfter = Number((walletBefore - commissionAmount).toFixed(2));
+  captainWallet.balance = walletAfter;
+  walletsStore.set(effectiveCaptainId, captainWallet);
+
+  // B. Record wallet transaction
+  const txId = `tx_comm_${rideId}`;
+  const isCourier = ride.ride_type === 'courier';
+  walletTransactionsStore.unshift({
+    id: txId,
+    wallet_id: `w_${effectiveCaptainId}`,
+    user_id: effectiveCaptainId,
+    amount: commissionAmount,
+    type: 'debit',
+    category: 'commission_fee',
+    description: `10% Platform Commission for ${isCourier ? 'Delivery' : 'Ride'} #${ride.ride_code} (Fare: ₹${finalFare}, Fee: ₹${commissionAmount}, Earning: ₹${captainEarning})`,
+    reference_ride_id: rideId,
+    created_at: new Date().toISOString(),
+  });
+
+  // C. Mark Ride completed & status = 'completed'
+  const now = new Date().toISOString();
+  ride.status = 'completed';
+  ride.payment_status = 'paid';
+  ride.completed_at = ride.completed_at || now;
+  ride.trip_completed_at = ride.trip_completed_at || now;
+  ride.final_fare = finalFare;
+  ride.fare_amount = finalFare;
+  ridesStore.set(rideId, ride);
+
+  // D. Increment Captain stats
+  const cpt = captainsStore.get(effectiveCaptainId);
+  if (cpt) {
+    cpt.total_rides = (cpt.total_rides || 0) + 1;
+    cpt.total_earnings = Number(((cpt.total_earnings || 0) + captainEarning).toFixed(2));
+    cpt.today_earnings = Number(((cpt.today_earnings || 0) + captainEarning).toFixed(2));
+    captainsStore.set(effectiveCaptainId, cpt);
+  }
+
+  persistDbToDisk();
+
+  // E. Broadcast Realtime Events
+  broadcastEvent('RIDE_COMPLETED', {
+    ride,
+    commission_amount: commissionAmount,
+    captain_earning: captainEarning,
+    wallet_balance: walletAfter,
+  });
+  broadcastEvent('WALLET_UPDATED', {
+    user_id: effectiveCaptainId,
+    balance: walletAfter,
+  });
+
+  return {
+    success: true,
+    already_processed: false,
+    ride,
+    gross_fare: finalFare,
+    commission_amount: commissionAmount,
+    captain_earning: captainEarning,
+    wallet_balance_before: walletBefore,
+    wallet_balance_after: walletAfter,
+  };
 }
+
+export function getAdminCommissionsServer() {
+  const commTxs = walletTransactionsStore.filter(
+    (tx) => tx.category === 'commission_fee' || tx.category === 'platform_commission'
+  );
+
+  let totalCompletedRides = 0;
+  let totalCompletedDeliveries = 0;
+  let totalGrossFare = 0;
+  let totalCommissionCollected = 0;
+  let totalCaptainEarnings = 0;
+
+  const records = commTxs.map((tx) => {
+    const ride = ridesStore.get(tx.reference_ride_id || '') || null;
+    const isCourier = ride?.ride_type === 'courier';
+
+    if (isCourier) {
+      totalCompletedDeliveries++;
+    } else {
+      totalCompletedRides++;
+    }
+
+    const grossFare = Number(ride?.final_fare || ride?.fare_amount || (tx.amount ? tx.amount / 0.10 : 0));
+    const commAmount = tx.amount;
+    const captainEarning = Number((grossFare - commAmount).toFixed(2));
+
+    totalGrossFare += grossFare;
+    totalCommissionCollected += commAmount;
+    totalCaptainEarnings += captainEarning;
+
+    return {
+      tx_id: tx.id,
+      booking_id: tx.reference_ride_id || 'N/A',
+      ride_code: ride?.ride_code || tx.reference_ride_id || 'N/A',
+      ride_type: ride?.ride_type || 'bike',
+      captain_id: tx.user_id,
+      captain_name: ride?.captain_name || 'Captain Partner',
+      passenger_name: ride?.passenger_name || 'Passenger Customer',
+      gross_fare: grossFare,
+      commission_pct: 10,
+      commission_amount: commAmount,
+      captain_earning: captainEarning,
+      created_at: tx.created_at,
+      status: 'Settled (10% Deducted)',
+    };
+  });
+
+  return {
+    totals: {
+      totalCompletedRides,
+      totalCompletedDeliveries,
+      totalGrossFare: Number(totalGrossFare.toFixed(2)),
+      totalCommissionCollected: Number(totalCommissionCollected.toFixed(2)),
+      totalCaptainEarnings: Number(totalCaptainEarnings.toFixed(2)),
+    },
+    records,
+  };
+}
+
 

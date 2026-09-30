@@ -38,6 +38,8 @@ import {
   topupRequestsStore,
   topupChatStore,
   isForbiddenAccount,
+  completeRideAndDeductCommissionServer,
+  getAdminCommissionsServer,
 } from './motorideDb';
 import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain, Passenger, TopupDepositRequest, TopupChatMessage } from '../src/types/motoride';
 import { backendHaversineDistanceKm } from './fareEngine';
@@ -703,60 +705,16 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
   }
 
   if (status === 'trip_completed' || status === 'completed') {
-    ride.trip_completed_at = ride.trip_completed_at || now;
-    ride.completed_at = now;
-    ride.captain_current_lat = ride.dropoff_lat;
-    ride.captain_current_lng = ride.dropoff_lng;
-    if (final_distance_km !== undefined) {
-      ride.distance_km = Number(final_distance_km);
-    }
-    if (final_fare !== undefined) {
-      ride.final_fare = Number(final_fare);
-      ride.fare_amount = Number(final_fare);
-    } else {
-      ride.fare_amount = Number(ride.final_fare || ride.offered_fare || 0);
-    }
-    ride.payment_status = 'paid';
-
-    // Credit captain earnings and deduct platform commission once per ride
-    const alreadyCredited = walletTransactionsStore.some(
-      (tx) => tx.reference_ride_id === ride.id && tx.category === 'ride_earning'
-    );
-
-    if (ride.captain_id && !alreadyCredited) {
-      const gross = Number(ride.final_fare);
-      const commPct = ride.ride_type === 'courier'
-        ? (fareSettings.courier_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct)
-        : (fareSettings.ride_charges?.platform_commission_pct ?? fareSettings.platform_commission_pct);
-      const commission = (gross * commPct) / 100;
-      const net = gross - commission;
-
-      const currentWallet = walletsStore.get(ride.captain_id) || { balance: 100, currency: '₹' };
-      currentWallet.balance = Number((currentWallet.balance + net).toFixed(2));
-      walletsStore.set(ride.captain_id, currentWallet);
-
-      walletTransactionsStore.unshift({
-        id: `tx_${Date.now()}`,
-        wallet_id: `w_${ride.captain_id}`,
-        user_id: ride.captain_id,
-        amount: net,
-        type: 'credit',
-        category: 'ride_earning',
-        description: `Net earnings from ${ride.ride_type === 'courier' ? 'courier delivery' : 'ride'} ${ride.ride_code} (Gross: ₹${gross}, Commission ${commPct}%: -₹${commission.toFixed(2)})`,
-        reference_ride_id: ride.id,
-        created_at: now,
+    const compRes = completeRideAndDeductCommissionServer(ride.id, ride.captain_id);
+    if (!compRes.success && compRes.insufficient_balance) {
+      return res.status(400).json({
+        success: false,
+        insufficient_balance: true,
+        error: compRes.error || 'Insufficient wallet balance for platform commission. Please add money to your wallet.',
+        required_commission: compRes.commission_amount,
+        wallet_balance_before: compRes.wallet_balance_before,
+        ride,
       });
-
-      // Update captain stats
-      const cpt = captainsStore.get(ride.captain_id);
-      if (cpt) {
-        cpt.total_rides = (cpt.total_rides || 0) + 1;
-        const todayIncomeInfo = calculateCaptainTodayIncome(cpt.id);
-        cpt.today_income = todayIncomeInfo.today_income;
-        cpt.completed_rides_today = todayIncomeInfo.completed_rides_today;
-        cpt.today_earnings = calculateCaptainTodayEarnings(cpt.id);
-        cpt.total_earnings = calculateCaptainTotalEarnings(cpt.id);
-      }
     }
   }
 
@@ -788,6 +746,22 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
   });
 
   res.json({ success: true, ride });
+});
+
+// Dedicated Atomic Ride Completion & 10% Platform Commission Endpoint
+motorideRouter.post('/rides/:id/complete', (req: Request, res: Response) => {
+  const { captain_id } = req.body;
+  const result = completeRideAndDeductCommissionServer(req.params.id, captain_id);
+  if (!result.success) {
+    return res.status(result.insufficient_balance ? 400 : 404).json(result);
+  }
+  res.json(result);
+});
+
+// Admin Platform Commission Ledger Endpoint
+motorideRouter.get('/admin/commissions', (req: Request, res: Response) => {
+  const data = getAdminCommissionsServer();
+  res.json({ success: true, ...data });
 });
 
 // Update Captain Live GPS Coordinates during active ride

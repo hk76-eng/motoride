@@ -358,6 +358,205 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ==============================================================================
+-- ATOMIC 10% PLATFORM COMMISSION DEDUCTION STORED PROCEDURE
+-- Checks idempotent execution, verifies wallet balance, deducts 10% from captain wallet,
+-- records wallet_transactions & earnings, and updates ride status to completed.
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.complete_ride_and_deduct_commission_atomic(
+    p_ride_id TEXT,
+    p_captain_id TEXT DEFAULT NULL
+) RETURNS JSONB AS $$
+DECLARE
+    v_ride RECORD;
+    v_captain_wallet RECORD;
+    v_existing_tx RECORD;
+    v_final_fare NUMERIC(10, 2);
+    v_commission_pct NUMERIC(5, 2) := 10.00;
+    v_commission_amount NUMERIC(10, 2);
+    v_captain_earning NUMERIC(10, 2);
+    v_wallet_before NUMERIC(12, 2);
+    v_wallet_after NUMERIC(12, 2);
+    v_wallet_id TEXT;
+    v_tx_id TEXT;
+    v_now TIMESTAMPTZ := TIMEZONE('utc', NOW());
+    v_effective_captain TEXT;
+BEGIN
+    -- 1. Lock and fetch ride details
+    SELECT * INTO v_ride FROM public.rides WHERE id = p_ride_id FOR UPDATE;
+
+    IF v_ride.id IS NULL THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Ride or delivery booking not found');
+    END IF;
+
+    -- Verify captain ownership if specified
+    v_effective_captain := COALESCE(p_captain_id, v_ride.captain_id);
+    IF v_effective_captain IS NULL OR v_effective_captain = '' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'No captain assigned to this booking');
+    END IF;
+
+    IF p_captain_id IS NOT NULL AND p_captain_id != '' AND v_ride.captain_id IS NOT NULL AND v_ride.captain_id != '' AND v_ride.captain_id != p_captain_id THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Unauthorized: Booking belongs to a different captain');
+    END IF;
+
+    -- 2. IDEMPOTENCY CHECK: Verify if commission was already processed for this ride_id
+    SELECT * INTO v_existing_tx FROM public.wallet_transactions 
+    WHERE reference_ride_id = p_ride_id AND category IN ('commission_fee', 'platform_commission') LIMIT 1;
+
+    IF v_existing_tx.id IS NOT NULL THEN
+        SELECT balance INTO v_wallet_after FROM public.wallets WHERE user_id = v_effective_captain;
+        RETURN jsonb_build_object(
+            'success', true,
+            'already_processed', true,
+            'ride', row_to_json(v_ride),
+            'gross_fare', COALESCE(v_ride.final_fare, v_ride.fare_amount, 0),
+            'commission_amount', v_existing_tx.amount,
+            'captain_earning', COALESCE(v_ride.final_fare, v_ride.fare_amount, 0) - v_existing_tx.amount,
+            'wallet_balance_after', COALESCE(v_wallet_after, 0),
+            'message', 'Ride platform commission was already deducted previously.'
+        );
+    END IF;
+
+    -- Read trusted database fare amount
+    v_final_fare := COALESCE(v_ride.final_fare, v_ride.fare_amount, v_ride.offered_fare, v_ride.estimated_fare, 0);
+
+    IF v_final_fare <= 0 THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Invalid final fare amount');
+    END IF;
+
+    -- Calculate exact 10% platform fee and 90% captain earning
+    v_commission_amount := ROUND((v_final_fare * 0.10)::numeric, 2);
+    v_captain_earning := ROUND((v_final_fare - v_commission_amount)::numeric, 2);
+
+    -- 3. Lock and fetch Captain Wallet
+    SELECT * INTO v_captain_wallet FROM public.wallets WHERE user_id = v_effective_captain FOR UPDATE;
+
+    IF v_captain_wallet.id IS NULL THEN
+        v_wallet_id := 'w_' || v_effective_captain;
+        INSERT INTO public.wallets (id, user_id, role, balance, currency, updated_at)
+        VALUES (v_wallet_id, v_effective_captain, 'captain', 250.00, '₹', v_now)
+        ON CONFLICT (user_id) DO UPDATE SET updated_at = v_now
+        RETURNING * INTO v_captain_wallet;
+    ELSE
+        v_wallet_id := v_captain_wallet.id;
+    END IF;
+
+    v_wallet_before := COALESCE(v_captain_wallet.balance, 0.00);
+
+    -- 4. LOW WALLET BALANCE PROTECTION
+    IF v_wallet_before < v_commission_amount THEN
+        RETURN jsonb_build_object(
+            'success', false,
+            'insufficient_balance', true,
+            'error', 'Insufficient wallet balance for platform commission. Please add money to your wallet.',
+            'required_commission', v_commission_amount,
+            'current_balance', v_wallet_before,
+            'shortfall', ROUND((v_commission_amount - v_wallet_before)::numeric, 2)
+        );
+    END IF;
+
+    v_wallet_after := ROUND((v_wallet_before - v_commission_amount)::numeric, 2);
+
+    -- 5. PERFORM ATOMIC DB WRITES
+    -- A. Deduct 10% platform commission from captain wallet
+    UPDATE public.wallets
+    SET balance = v_wallet_after, updated_at = v_now
+    WHERE id = v_wallet_id;
+
+    -- Sync profile table wallet balance as well
+    UPDATE public.profiles
+    SET wallet_balance = v_wallet_after, updated_at = v_now
+    WHERE id = v_effective_captain;
+
+    -- B. Record wallet transaction
+    v_tx_id := 'tx_comm_' || p_ride_id;
+    INSERT INTO public.wallet_transactions (
+        id,
+        wallet_id,
+        user_id,
+        amount,
+        type,
+        category,
+        description,
+        reference_ride_id,
+        created_at
+    ) VALUES (
+        v_tx_id,
+        v_wallet_id,
+        v_effective_captain,
+        v_commission_amount,
+        'debit',
+        'commission_fee',
+        '10% Platform Commission for ' || (CASE WHEN v_ride.ride_type = 'courier' THEN 'Delivery' ELSE 'Ride' END) || ' #' || COALESCE(v_ride.ride_code, p_ride_id) || ' (Fare: ₹' || v_final_fare || ', Fee: ₹' || v_commission_amount || ', Earning: ₹' || v_captain_earning || ')',
+        p_ride_id,
+        v_now
+    )
+    ON CONFLICT (id) DO NOTHING;
+
+    -- C. Record earnings table entry
+    INSERT INTO public.earnings (
+        id,
+        captain_id,
+        ride_id,
+        ride_date,
+        gross_fare,
+        platform_commission,
+        net_earnings,
+        created_at
+    ) VALUES (
+        'earn_' || p_ride_id,
+        v_effective_captain,
+        p_ride_id,
+        CURRENT_DATE,
+        v_final_fare,
+        v_commission_amount,
+        v_captain_earning,
+        v_now
+    )
+    ON CONFLICT (id) DO NOTHING;
+
+    -- D. Mark Ride completed and status = 'completed'
+    UPDATE public.rides
+    SET 
+        status = 'completed',
+        payment_status = 'paid',
+        completed_at = COALESCE(completed_at, v_now),
+        trip_completed_at = COALESCE(trip_completed_at, v_now),
+        updated_at = v_now
+    WHERE id = p_ride_id;
+
+    -- E. Increment captain total rides & earnings
+    UPDATE public.captains
+    SET 
+        total_rides = COALESCE(total_rides, 0) + 1,
+        total_earnings = COALESCE(total_earnings, 0) + v_captain_earning,
+        today_earnings = COALESCE(today_earnings, 0) + v_captain_earning,
+        updated_at = v_now
+    WHERE id = v_effective_captain OR profile_id = v_effective_captain;
+
+    -- Log status transition
+    INSERT INTO public.ride_status_history (ride_id, previous_status, new_status, changed_by, notes)
+    VALUES (p_ride_id, v_ride.status, 'completed', v_ride.captain_name, 'Completed & 10% platform commission deducted');
+
+    -- Re-fetch updated ride record
+    SELECT * INTO v_ride FROM public.rides WHERE id = p_ride_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'already_processed', false,
+        'ride', row_to_json(v_ride),
+        'ride_id', p_ride_id,
+        'gross_fare', v_final_fare,
+        'platform_commission_pct', 10,
+        'commission_amount', v_commission_amount,
+        'captain_earning', v_captain_earning,
+        'wallet_balance_before', v_wallet_before,
+        'wallet_balance_after', v_wallet_after,
+        'completed_at', v_now
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
