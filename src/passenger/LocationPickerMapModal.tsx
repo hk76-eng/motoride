@@ -379,7 +379,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           
           focusCoords={mapFocusCoords}
           bottomSheetPadding={0}
-          showOverlayControls={false}
+          showOverlayControls={true}
           interactive={true}
           onMapClick={(lat, lng) => handleMapClick(lat, lng)}
           onMapMoveStart={() => setIsDragging(true)}

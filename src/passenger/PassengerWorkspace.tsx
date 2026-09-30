@@ -1555,6 +1555,90 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     };
   }, [activeRide?.id, activeRide?.status]);
 
+  // Mobile audio unlock listener so autoplay restrictions don't block arrival alerts
+  useEffect(() => {
+    const unlockAudio = () => {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          if (ctx.state === 'suspended') {
+            ctx.resume();
+          }
+          const buf = ctx.createBuffer(1, 1, 22050);
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+          src.connect(ctx.destination);
+          src.start(0);
+        }
+      } catch {}
+    };
+
+    window.addEventListener('click', unlockAudio, { once: true, passive: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
+
+  // Play clear, prominent sound alert and announcement when captain arrives at pickup point
+  const playCaptainArrivedTune = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        const ctx = new AudioContextClass();
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+
+        // Attention-grabbing dual two-tone doorbell chime + celebratory flourish (Ding-Dong Ding-Dong)
+        const notes = [
+          { f: 880.00, t: 0.0, d: 0.45, v: 0.45 },   // A5 (Ding)
+          { f: 659.25, t: 0.22, d: 0.55, v: 0.50 },  // E5 (Dong)
+          { f: 987.77, t: 0.65, d: 0.45, v: 0.45 },  // B5 (Ding)
+          { f: 1318.51, t: 0.85, d: 0.70, v: 0.55 }, // E6 (Dong flourish)
+        ];
+
+        notes.forEach(({ f, t, d, v }) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(f, ctx.currentTime + t);
+
+          gain.gain.setValueAtTime(0, ctx.currentTime + t);
+          gain.gain.linearRampToValueAtTime(v, ctx.currentTime + t + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + d);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(ctx.currentTime + t);
+          osc.stop(ctx.currentTime + t + d + 0.05);
+        });
+      }
+
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([250, 120, 250, 120, 400]);
+      }
+
+      // Spoken voice announcement for extra accessibility
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance('Captain has arrived at your pickup location');
+          utterance.rate = 1.05;
+          utterance.pitch = 1.1;
+          utterance.volume = 1.0;
+          window.speechSynthesis.speak(utterance);
+        } catch {}
+      }
+    } catch (e) {
+      console.warn('Audio playback notice:', e);
+    }
+  };
+
   // Play triumphant sound alert when ride is accepted by captain
   const playRideAcceptedTune = () => {
     try {
@@ -1814,10 +1898,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         (storedActiveId && storedActiveId === ride.id)
       );
 
-      if (isRideMatch || (isPassengerMatch && (currentActive || storedActiveId || ride.status === 'captain_accepted' || ride.status === 'captain_offered' || ride.status === 'requested'))) {
+      if (isRideMatch || (isPassengerMatch && (currentActive || storedActiveId || ride.status === 'captain_accepted' || ride.status === 'captain_arrived' || ride.status === 'captain_offered' || ride.status === 'requested'))) {
         if (ride.status === 'captain_accepted') {
           if (!currentActive || currentActive.status !== 'captain_accepted') {
             playRideAcceptedTune();
+          }
+        }
+        if (ride.status === 'captain_arrived') {
+          if (!currentActive || currentActive.status !== 'captain_arrived') {
+            playCaptainArrivedTune();
           }
         }
         if (ride.status === 'trip_started') {
@@ -1950,8 +2039,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   }, [currentPassengerId, currentUser?.id, authUser?.id]);
 
   // Active ride live subscription & polling backup (ensures 0% missed status change across Supabase Realtime & network reconnects)
+  const prevActiveRideStatusRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!activeRide?.id) return;
+    if (!activeRide?.id) {
+      prevActiveRideStatusRef.current = null;
+      return;
+    }
     const rideId = activeRide.id;
     let isCancelled = false;
 
@@ -1959,6 +2053,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const unsubRide = motorideApi.subscribeToRide(rideId, (latest) => {
       if (isCancelled || !latest) return;
       const ratedIds = getRatedRideIds();
+
+      if (latest.status === 'captain_arrived' && prevActiveRideStatusRef.current !== 'captain_arrived') {
+        playCaptainArrivedTune();
+      } else if (latest.status === 'captain_accepted' && prevActiveRideStatusRef.current !== 'captain_accepted') {
+        playRideAcceptedTune();
+      } else if (latest.status === 'trip_started' && prevActiveRideStatusRef.current !== 'trip_started') {
+        playTripStartedTune();
+      }
+      prevActiveRideStatusRef.current = latest.status;
+
       if (latest.status.includes('cancelled')) {
         safeStorage.removeItem('motoride_active_passenger_ride_id');
         setActiveRide(null);
@@ -1989,6 +2093,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         const latest = await motorideApi.getRideById(rideId);
         if (!isCancelled && latest) {
           const ratedIds = getRatedRideIds();
+
+          if (latest.status === 'captain_arrived' && prevActiveRideStatusRef.current !== 'captain_arrived') {
+            playCaptainArrivedTune();
+          } else if (latest.status === 'captain_accepted' && prevActiveRideStatusRef.current !== 'captain_accepted') {
+            playRideAcceptedTune();
+          } else if (latest.status === 'trip_started' && prevActiveRideStatusRef.current !== 'trip_started') {
+            playTripStartedTune();
+          }
+          prevActiveRideStatusRef.current = latest.status;
+
           if (latest.status.includes('cancelled')) {
             safeStorage.removeItem('motoride_active_passenger_ride_id');
             setActiveRide(null);
@@ -2024,6 +2138,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       clearInterval(interval);
     };
   }, [activeRide?.id]);
+
+  // Guaranteed Sound Alert trigger on Captain Arrival
+  const lastPlayedArrivedRideIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeRide && activeRide.status === 'captain_arrived') {
+      if (lastPlayedArrivedRideIdRef.current !== activeRide.id) {
+        lastPlayedArrivedRideIdRef.current = activeRide.id;
+        playCaptainArrivedTune();
+      }
+    } else if (!activeRide || activeRide.status !== 'captain_arrived') {
+      if (lastPlayedArrivedRideIdRef.current && activeRide?.id !== lastPlayedArrivedRideIdRef.current) {
+        lastPlayedArrivedRideIdRef.current = null;
+      }
+    }
+  }, [activeRide?.id, activeRide?.status]);
 
   // Animated Captain Progression for Active Ride on Passenger Map:
   // When 'captain_accepted': smoothly animate captain arriving to Pickup Location A
@@ -2592,8 +2721,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         focusCoords={mapFocusCoords}
         onFocusCoordsProcessed={() => setMapFocusCoords(null)}
         zoomAction={mapZoomAction}
-        showOverlayControls={false}
-        interactive={!activeRide}
+        showOverlayControls={true}
+        interactive={true}
         onSetPickupToPassengerLocation={(lat, lng) => handleSetPickupFromPassengerPosition(lat, lng)}
         onPickupDragEnd={(lat, lng) => handlePickupMarkerPositionChange(lat, lng)}
         onDropoffDragEnd={(lat, lng) => handleDropoffMarkerPositionChange(lat, lng)}
@@ -3793,8 +3922,34 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         }}
       />
 
-      {/* Floating Map Recenter Control on Right-Hand Side in Middle of Background Map */}
+      {/* Floating Map Zoom & Recenter Controls on Right-Hand Side in Middle of Background Map */}
       <div className="fixed sm:absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-[450] flex flex-col items-center gap-2 select-none">
+        {/* Zoom In (+) */}
+        <button
+          type="button"
+          onClick={() => {
+            setMapZoomAction({ type: 'in', timestamp: Date.now() });
+          }}
+          title="Zoom In (+)"
+          aria-label="Zoom In"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white/95 hover:bg-slate-50 text-slate-900 border border-slate-200/90 shadow-xl backdrop-blur-md flex items-center justify-center active:scale-95 transition-all cursor-pointer font-black"
+        >
+          <Plus className="w-5 h-5 text-slate-900 stroke-[2.5]" />
+        </button>
+
+        {/* Zoom Out (-) */}
+        <button
+          type="button"
+          onClick={() => {
+            setMapZoomAction({ type: 'out', timestamp: Date.now() });
+          }}
+          title="Zoom Out (-)"
+          aria-label="Zoom Out"
+          className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-white/95 hover:bg-slate-50 text-slate-900 border border-slate-200/90 shadow-xl backdrop-blur-md flex items-center justify-center active:scale-95 transition-all cursor-pointer font-black"
+        >
+          <Minus className="w-5 h-5 text-slate-900 stroke-[2.5]" />
+        </button>
+
         {/* Recenter Tab / Button */}
         <button
           type="button"

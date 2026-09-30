@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Navigation, Crosshair, Compass, Mountain, Moon, LocateFixed } from 'lucide-react';
+import { Navigation, Crosshair, Compass, Mountain, Moon, LocateFixed, Plus, Minus } from 'lucide-react';
 import { calculateHaversineDistanceKm } from '../../utils/distanceCalculator';
 
 export type MapLayerType = 'google-street' | 'google-terrain' | 'voyager-dark';
@@ -578,6 +578,20 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       zoom: 15,
       zoomControl: false,
       attributionControl: false,
+      dragging: true,
+      touchZoom: true,
+      scrollWheelZoom: true,
+      doubleClickZoom: true,
+      boxZoom: true,
+      tapHold: false,
+      trackResize: true,
+      inertia: true,
+      inertiaDeceleration: 2500,
+      inertiaMaxSpeed: Infinity,
+      easeLinearity: 0.2,
+      worldCopyJump: false,
+      bounceAtZoomLimits: false,
+      maxBoundsViscosity: 0.0,
     });
 
     const initialConfig = MAP_LAYERS[activeLayer];
@@ -586,8 +600,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       subdomains: initialConfig.subdomains,
     }).addTo(map);
     tileLayerRef.current = tiles;
-
-    L.control.zoom({ position: 'topright' }).addTo(map);
 
     if (interactive && onMapClick) {
       map.on('click', (e) => {
@@ -1554,17 +1566,64 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
   };
 
+  const handleZoomIn = () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.zoomIn(1, { animate: true });
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.zoomOut(1, { animate: true });
+    }
+  };
+
   return (
     <div
+      style={{ touchAction: 'none', overscrollBehavior: 'none' }}
       className={`relative ${className} overflow-hidden transition-colors duration-300 ${
         activeLayer === 'voyager-dark' ? 'bg-slate-950' : 'bg-slate-100'
       }`}
     >
-      <div ref={mapContainerRef} className="w-full h-full" />
+      <div ref={mapContainerRef} style={{ touchAction: 'none', overscrollBehavior: 'none' }} className="w-full h-full" />
 
       {/* Map Overlay Controls - Hidden by default */}
       {showOverlayControls && (
         <>
+          {/* Right Center: Floating Zoom Controls */}
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 z-[450] flex flex-col items-center gap-2 select-none pointer-events-auto">
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              title="Zoom In (+)"
+              aria-label="Zoom In"
+              style={{ touchAction: 'manipulation' }}
+              className="w-11 h-11 rounded-2xl bg-white/95 hover:bg-white text-slate-900 border border-slate-300 shadow-2xl backdrop-blur-md flex items-center justify-center active:scale-90 transition-all cursor-pointer font-black text-xl hover:shadow-cyan-500/20 active:bg-slate-100"
+            >
+              <Plus className="w-5 h-5 text-slate-900 stroke-[3]" />
+            </button>
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              title="Zoom Out (-)"
+              aria-label="Zoom Out"
+              style={{ touchAction: 'manipulation' }}
+              className="w-11 h-11 rounded-2xl bg-white/95 hover:bg-white text-slate-900 border border-slate-300 shadow-2xl backdrop-blur-md flex items-center justify-center active:scale-90 transition-all cursor-pointer font-black text-xl hover:shadow-cyan-500/20 active:bg-slate-100"
+            >
+              <Minus className="w-5 h-5 text-slate-900 stroke-[3]" />
+            </button>
+            <button
+              type="button"
+              onClick={handleLocateMe}
+              title="Center Map on Location"
+              aria-label="Center Map on Location"
+              style={{ touchAction: 'manipulation' }}
+              className="w-11 h-11 rounded-2xl bg-white/95 hover:bg-white text-slate-900 border border-slate-300 shadow-2xl backdrop-blur-md flex items-center justify-center active:scale-90 transition-all cursor-pointer group active:bg-slate-100"
+            >
+              <LocateFixed className="w-5 h-5 text-emerald-600 stroke-[2.5] group-hover:rotate-12 transition-transform" />
+            </button>
+          </div>
+
           {/* Top Left: Live Passenger GPS Status HUD & Nearest Captain (Hidden in Captain Mode) */}
           {!isCaptainMode && !showLocationsABOnly && (
             <div className="absolute top-3 left-3 z-[400] flex flex-wrap items-center gap-2 max-w-[calc(100%-1.5rem)]">

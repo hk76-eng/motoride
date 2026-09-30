@@ -1031,6 +1031,49 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     } catch {}
   };
 
+  // Play arrival confirmation chime when captain arrives at pickup
+  const playCaptainArrivedTune = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        const ctx = new AudioContextClass();
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+
+        const notes = [
+          { f: 880.00, t: 0.0, d: 0.45, v: 0.4 },
+          { f: 659.25, t: 0.22, d: 0.55, v: 0.45 },
+          { f: 987.77, t: 0.65, d: 0.45, v: 0.4 },
+          { f: 1318.51, t: 0.85, d: 0.70, v: 0.5 },
+        ];
+
+        notes.forEach(({ f, t, d, v }) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(f, ctx.currentTime + t);
+
+          gain.gain.setValueAtTime(0, ctx.currentTime + t);
+          gain.gain.linearRampToValueAtTime(v, ctx.currentTime + t + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + d);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(ctx.currentTime + t);
+          osc.stop(ctx.currentTime + t + d + 0.05);
+        });
+      }
+
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200, 100, 300]);
+      }
+    } catch (e) {
+      console.warn('Audio playback notice:', e);
+    }
+  };
+
   // Soft nice caller tune alert for incoming ride requests
   const playIncomingCallTune = () => {
     try {
@@ -1587,6 +1630,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     setActiveRide(optimisticRide);
 
     if (nextStatus === 'captain_arrived') {
+      playCaptainArrivedTune();
       setCaptainGps((prev) => ({
         ...prev,
         lat: activeRide.pickup_lat,
