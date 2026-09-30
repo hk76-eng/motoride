@@ -2744,7 +2744,7 @@ export const motorideApi = {
       };
     }
 
-    // 2. Direct Supabase query (Only if backend server not reachable)
+    // 2. Direct Supabase query (Authoritative remote cloud database for cross-device sync)
     const supabase = getSupabase();
     let supabaseBal: number | null = null;
     let supabaseTxs: WalletTransaction[] = [];
@@ -2752,21 +2752,48 @@ export const motorideApi = {
       try {
         let profileData: any = null;
         if (userId) {
-          const { data: pById } = await supabase.from('profiles').select('id, phone, wallet_balance').eq('id', userId).maybeSingle();
+          const { data: pById } = await supabase.from('profiles').select('id, phone, email, wallet_balance').eq('id', userId).maybeSingle();
           if (pById) profileData = pById;
         }
         if (!profileData && (userPhone || userId)) {
           const phoneToQuery = userPhone || userId;
-          const { data: pByPhone } = await supabase.from('profiles').select('id, phone, wallet_balance').eq('phone', phoneToQuery).maybeSingle();
+          const { data: pByPhone } = await supabase.from('profiles').select('id, phone, email, wallet_balance').eq('phone', phoneToQuery).maybeSingle();
           if (pByPhone) profileData = pByPhone;
+        }
+
+        const sessionUser = supabaseAuth.getCurrentUser();
+        if (!profileData && sessionUser?.email) {
+          const { data: pByEmail } = await supabase.from('profiles').select('id, phone, email, wallet_balance').eq('email', sessionUser.email.toLowerCase().trim()).maybeSingle();
+          if (pByEmail) profileData = pByEmail;
         }
 
         if (profileData && typeof profileData.wallet_balance === 'number') {
           supabaseBal = Number(profileData.wallet_balance);
         }
 
-        const idsToTry = Array.from(new Set([userId, userPhone, profileData?.id, profileData?.phone].filter(Boolean)));
+        const idsToTry = Array.from(new Set([
+          userId,
+          userPhone,
+          profileData?.id,
+          profileData?.phone,
+          sessionUser?.id,
+          sessionUser?.phone,
+        ].filter(Boolean) as string[]));
+
         if (idsToTry.length > 0) {
+          // Check wallets table
+          const { data: walData } = await supabase
+            .from('wallets')
+            .select('balance')
+            .in('user_id', idsToTry)
+            .maybeSingle();
+          if (walData && typeof walData.balance === 'number') {
+            if (supabaseBal === null || walData.balance < supabaseBal) {
+              supabaseBal = Number(walData.balance);
+            }
+          }
+
+          // Check wallet_transactions table
           const { data: txData } = await supabase
             .from('wallet_transactions')
             .select('*')
@@ -2774,6 +2801,50 @@ export const motorideApi = {
             .order('created_at', { ascending: false });
           if (Array.isArray(txData)) {
             supabaseTxs = txData;
+          }
+
+          // Check completed rides for this captain in rides table to ensure no deductions are missed
+          const { data: cptRides } = await supabase
+            .from('rides')
+            .select('*')
+            .or(`captain_id.in.(${idsToTry.map(id => `"${id}"`).join(',')}),captain_phone.in.(${idsToTry.map(id => `"${id}"`).join(',')})`)
+            .in('status', ['completed', 'trip_completed']);
+
+          if (Array.isArray(cptRides) && cptRides.length > 0) {
+            let totalCommissionFromRides = 0;
+            for (const r of cptRides) {
+              const fare = Number(r.final_fare || r.fare_amount || r.accepted_fare || 0);
+              const comm = Number((r.platform_commission || fare * 0.10).toFixed(2));
+              const earn = Number((fare - comm).toFixed(2));
+              totalCommissionFromRides += comm;
+
+              // If transaction not in list, synthesize it so it shows in history
+              if (!supabaseTxs.some((t) => t.reference_ride_id === r.id || t.id === `tx_comm_${r.id}`)) {
+                const synthesizedTx: WalletTransaction = {
+                  id: `tx_comm_${r.id}`,
+                  wallet_id: `w_${userId}`,
+                  user_id: userId,
+                  amount: comm,
+                  type: 'debit',
+                  category: 'commission_fee',
+                  description: `10% Platform Commission for ${r.ride_type === 'courier' ? 'Delivery' : 'Trip'} #${r.ride_code || r.id.slice(0, 8).toUpperCase()} (Fare: ₹${fare}, Fee: -₹${comm}, Net Take-Home: +₹${earn})`,
+                  reference_ride_id: r.id,
+                  ride_code: r.ride_code || r.id.slice(0, 8).toUpperCase(),
+                  gross_fare: fare,
+                  commission_amount: comm,
+                  captain_earning: earn,
+                  pickup_address: r.pickup_address || 'Pickup Location',
+                  dropoff_address: r.dropoff_address || 'Dropoff Location',
+                  created_at: r.completed_at || r.updated_at || r.created_at || new Date().toISOString(),
+                };
+                supabaseTxs.push(synthesizedTx);
+              }
+            }
+
+            // If supabaseBal was still default 500 but rides had deductions, calculate the true balance
+            if (supabaseBal === null || (supabaseBal === 500 && totalCommissionFromRides > 0)) {
+              supabaseBal = Number(Math.max(0, 500.0 - totalCommissionFromRides).toFixed(2));
+            }
           }
         }
       } catch (err) {
@@ -2802,7 +2873,8 @@ export const motorideApi = {
       }
     } catch {}
 
-    const finalBal = localBal ?? supabaseBal ?? 500.0;
+    // Cloud database truth (supabaseBal) takes precedence across webapp & mobile devices
+    const finalBal = supabaseBal ?? localBal ?? 500.0;
     const finalWallet = { balance: finalBal, currency: '₹' };
 
     const mergedTxsMap = new Map<string, WalletTransaction>();
@@ -2817,6 +2889,7 @@ export const motorideApi = {
       if (userId) safeStorage.setItem(`motoride_wallet_${userId}`, JSON.stringify(finalWallet));
       if (userPhone) safeStorage.setItem(`motoride_wallet_${userPhone}`, JSON.stringify(finalWallet));
       safeStorage.setItem('motoride_captain_wallet_balance', finalBal.toString());
+      safeStorage.setItem(`motoride_wallet_txs_${userId}`, JSON.stringify(finalTxs));
     } catch {}
 
     return {

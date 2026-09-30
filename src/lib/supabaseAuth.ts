@@ -75,15 +75,20 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
     // 1. Check existing profile by ID or Email
     let existingProfile: any = null;
     if (validProfileId) {
-      const { data: pById } = await supabase.from('profiles').select('id').eq('id', validProfileId).maybeSingle();
+      const { data: pById } = await supabase.from('profiles').select('id, wallet_balance').eq('id', validProfileId).maybeSingle();
       if (pById) existingProfile = pById;
     }
     if (!existingProfile && cleanEmail) {
-      const { data: pByEmail } = await supabase.from('profiles').select('id').eq('email', cleanEmail).maybeSingle();
+      const { data: pByEmail } = await supabase.from('profiles').select('id, wallet_balance').eq('email', cleanEmail).maybeSingle();
       if (pByEmail) existingProfile = pByEmail;
     }
 
     const actualProfileId = existingProfile?.id || validProfileId;
+    const existingDbBal = existingProfile?.wallet_balance;
+    const finalBalToSync = typeof existingDbBal === 'number'
+      ? (typeof user.walletBalance === 'number' && user.walletBalance < existingDbBal ? user.walletBalance : existingDbBal)
+      : (user.walletBalance ?? (user.role === 'captain' ? 500 : 200));
+
     const profilePayload = {
       id: actualProfileId,
       email: cleanEmail,
@@ -94,7 +99,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
       vehicle_model: user.vehicleModel?.trim() || null,
       plate_number: user.plateNumber?.trim() || null,
       vehicle_type: user.vehicleType || (user.role === 'captain' ? 'bike' : null),
-      wallet_balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
+      wallet_balance: finalBalToSync,
       is_active: true,
       updated_at: new Date().toISOString(),
     };
@@ -222,7 +227,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
     // 4. Upsert into public.wallets
     const { data: existingWal } = await supabase
       .from('wallets')
-      .select('id')
+      .select('id, balance')
       .eq('user_id', actualProfileId)
       .maybeSingle();
 
@@ -232,7 +237,7 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
           id: generateUUID(),
           user_id: actualProfileId,
           role: user.role,
-          balance: user.walletBalance ?? (user.role === 'captain' ? 500 : 200),
+          balance: finalBalToSync,
           currency: '₹',
         },
       ]);
