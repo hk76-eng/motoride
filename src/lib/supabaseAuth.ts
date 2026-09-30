@@ -798,6 +798,11 @@ export const supabaseAuth = {
     }
 
     // Role matches portal! Access Granted.
+    const storedCaptainBal = safeStorage.getItem('motoride_captain_wallet_balance');
+    const fallbackBal = actualRole === 'captain'
+      ? (storedCaptainBal && !isNaN(Number(storedCaptainBal)) ? Number(storedCaptainBal) : 500)
+      : 200;
+
     const authUser: AuthUser = {
       id: authUserId,
       email: profile.email || cleanEmail,
@@ -808,7 +813,7 @@ export const supabaseAuth = {
       vehicleModel: profile.vehicle_model || '',
       plateNumber: profile.plate_number || '',
       vehicleType: profile.vehicle_type || 'bike',
-      walletBalance: profile.wallet_balance ?? (actualRole === 'captain' ? 500 : 200),
+      walletBalance: profile.wallet_balance ?? fallbackBal,
       memberSince: profile.created_at || new Date().toISOString(),
     };
 
@@ -960,6 +965,11 @@ export const supabaseAuth = {
           .maybeSingle();
 
         if (profile) {
+          const storedCaptainBal = safeStorage.getItem('motoride_captain_wallet_balance');
+          const fallbackBal = profile.role === 'captain'
+            ? (storedCaptainBal && !isNaN(Number(storedCaptainBal)) ? Number(storedCaptainBal) : 500)
+            : 200;
+
           const authUser: AuthUser = {
             id: authUserId,
             email: profile.email || session.user.email || '',
@@ -970,7 +980,7 @@ export const supabaseAuth = {
             vehicleModel: profile.vehicle_model || '',
             plateNumber: profile.plate_number || '',
             vehicleType: profile.vehicle_type || 'bike',
-            walletBalance: profile.wallet_balance ?? (profile.role === 'captain' ? 500 : 200),
+            walletBalance: profile.wallet_balance ?? fallbackBal,
             memberSince: profile.created_at || new Date().toISOString(),
           };
 
