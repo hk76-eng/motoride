@@ -925,47 +925,76 @@ export const supabaseAuth = {
   },
 
   async getSessionUser(): Promise<AuthUser | null> {
+    const cachedUser = this.getCurrentUser();
+
     const supabase = getSupabase();
     if (!supabase || !isSupabaseConfigured()) {
-      return this.getCurrentUser();
+      return cachedUser;
     }
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session || !session.user) {
-        this.setCurrentUser(null);
-        return null;
+      if (session && session.user) {
+        const authUserId = session.user.id;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authUserId)
+          .maybeSingle();
+
+        if (profile) {
+          const authUser: AuthUser = {
+            id: authUserId,
+            email: profile.email || session.user.email || '',
+            name: profile.full_name || session.user.user_metadata?.name || 'MotoRide User',
+            role: profile.role,
+            phone: profile.phone || '',
+            avatarUrl: profile.avatar_url || cachedUser?.avatarUrl || null,
+            vehicleModel: profile.vehicle_model || '',
+            plateNumber: profile.plate_number || '',
+            vehicleType: profile.vehicle_type || 'bike',
+            walletBalance: profile.wallet_balance ?? (profile.role === 'captain' ? 500 : 200),
+            memberSince: profile.created_at || new Date().toISOString(),
+          };
+
+          this.setCurrentUser(authUser);
+          return authUser;
+        }
       }
 
-      const authUserId = session.user.id;
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUserId)
-        .maybeSingle();
+      // If Supabase Auth session is not active or timed out, but a valid signed-in user exists in storage cache,
+      // preserve the signed-in session so the user (Passenger, Captain, or Admin) is NOT automatically signed out on page refresh!
+      if (cachedUser) {
+        try {
+          const cleanEmail = cachedUser.email?.toLowerCase().trim();
+          if (cleanEmail) {
+            const { data: pByEmail } = await supabase
+              .from('profiles')
+              .select('*')
+              .or(`id.eq.${cachedUser.id},email.eq.${cleanEmail}`)
+              .maybeSingle();
 
-      if (!profile) {
-        return this.getCurrentUser();
+            if (pByEmail) {
+              const refreshedUser: AuthUser = {
+                ...cachedUser,
+                name: pByEmail.full_name || cachedUser.name,
+                role: pByEmail.role || cachedUser.role,
+                phone: pByEmail.phone || cachedUser.phone,
+                avatarUrl: pByEmail.avatar_url || cachedUser.avatarUrl,
+                walletBalance: pByEmail.wallet_balance ?? cachedUser.walletBalance,
+              };
+              this.setCurrentUser(refreshedUser);
+              return refreshedUser;
+            }
+          }
+        } catch {}
+
+        return cachedUser;
       }
 
-      const authUser: AuthUser = {
-        id: authUserId,
-        email: profile.email || session.user.email || '',
-        name: profile.full_name || session.user.user_metadata?.name || 'MotoRide User',
-        role: profile.role,
-        phone: profile.phone || '',
-        avatarUrl: profile.avatar_url || null,
-        vehicleModel: profile.vehicle_model || '',
-        plateNumber: profile.plate_number || '',
-        vehicleType: profile.vehicle_type || 'bike',
-        walletBalance: profile.wallet_balance ?? (profile.role === 'captain' ? 500 : 200),
-        memberSince: profile.created_at || new Date().toISOString(),
-      };
-
-      this.setCurrentUser(authUser);
-      return authUser;
+      return null;
     } catch {
-      return this.getCurrentUser();
+      return cachedUser;
     }
   },
 
