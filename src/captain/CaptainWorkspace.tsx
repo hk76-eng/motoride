@@ -1646,13 +1646,27 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     try {
       markCaptainRideAsRated(captainId, rideToFinish.id);
       const finalFare = getRideAgreedFare(rideToFinish);
-      const finalDist = rideToFinish.distance_km;
 
-      // 1. Mark ride as fully finalized and completed in Supabase / Local storage
-      await motorideApi.updateRideStatus(rideToFinish.id, 'completed', {
-        final_fare: finalFare,
-        final_distance_km: finalDist,
-      });
+      // 1. Call atomic completeRideWithCommission to execute 10% deduction and handle low-balance check
+      const compRes = await motorideApi.completeRideWithCommission(rideToFinish.id, captainId);
+      if (!compRes.success) {
+        if (compRes.insufficient_balance) {
+          alert(`⚠️ Insufficient Wallet Balance!\n\nPlatform Commission (10%): ₹${compRes.commission_amount || (finalFare * 0.1).toFixed(2)}\nYour Current Balance: ₹${compRes.wallet_balance_before || walletBalance}\n\nPlease add money to your wallet to complete this ride.`);
+          setActiveTab('wallet');
+          setShowPassengerRatingModal(false);
+          setIsFinishingRide(false);
+          return;
+        } else {
+          alert(compRes.error || 'Failed to complete trip and process commission. Please try again.');
+          setIsFinishingRide(false);
+          return;
+        }
+      }
+
+      // Update wallet balance immediately in UI state from the successful atomic operation
+      if (compRes.wallet_balance_after !== undefined) {
+        setWalletBalance(compRes.wallet_balance_after);
+      }
 
       // 2. Submit Captain's rating for passenger
       if (!skipRating && rideToFinish.passenger_id) {

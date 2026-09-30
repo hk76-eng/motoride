@@ -3054,12 +3054,12 @@ motorideRouter.get('/download/apk', (req: Request, res: Response) => {
   const apkData = getServerApkBinary();
   const fileName = serverApkRelease.fileName || 'motoride-release.apk';
 
-  if (apkData && apkData.buffer && apkData.buffer.length > 0) {
+  if (apkData && apkData.length > 0) {
     saveServerApkRelease({ downloadsCount: (serverApkRelease.downloadsCount || 0) + 1 });
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
     res.setHeader('Content-Type', 'application/vnd.android.package-archive');
-    res.setHeader('Content-Length', apkData.buffer.length);
-    return res.send(apkData.buffer);
+    res.setHeader('Content-Length', apkData.length);
+    return res.send(apkData);
   }
 
   // Do NOT generate fake file buffers. If no APK binary is uploaded, return 404

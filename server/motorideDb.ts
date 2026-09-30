@@ -994,7 +994,7 @@ export function completeRideAndDeductCommissionServer(
 
   // IDEMPOTENCY CHECK: Verify if commission was already processed for this rideId
   const existingCommTx = walletTransactionsStore.find(
-    (tx) => tx.reference_ride_id === rideId && (tx.category === 'commission_fee' || tx.category === 'platform_commission')
+    (tx) => tx.reference_ride_id === rideId && (tx.category === 'commission_fee' || (tx.category as string) === 'platform_commission')
   );
 
   const finalFare = Number(ride.final_fare || ride.fare_amount || ride.offered_fare || ride.estimated_fare || 0);
@@ -1105,7 +1105,7 @@ export function completeRideAndDeductCommissionServer(
 
 export function getAdminCommissionsServer() {
   const commTxs = walletTransactionsStore.filter(
-    (tx) => tx.category === 'commission_fee' || tx.category === 'platform_commission'
+    (tx) => tx.category === 'commission_fee' || (tx.category as string) === 'platform_commission'
   );
 
   let totalCompletedRides = 0;
