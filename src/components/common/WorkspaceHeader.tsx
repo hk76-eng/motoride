@@ -26,8 +26,10 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   onRoleChange,
   currentUser,
   onSignOut,
+  walletBalance,
   isCaptainOnline = true,
   onToggleCaptainOnline,
+  onOpenWallet,
 }) => {
   const handleToggleApp = () => {
     if (currentRole === 'passenger') {
@@ -81,7 +83,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                 <span>Passenger App Account</span>
               </div>
             ) : currentUser?.role === 'captain' ? (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/15 border border-amber-500/40 text-amber-300">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 border border-amber-500/30 text-amber-300">
                 <div className="w-4 h-4 rounded bg-black/40 border border-white/20 flex items-center justify-center p-0.5 shrink-0">
                   <img
                     src="/captain-bike-icon.svg"
@@ -90,7 +92,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                     className="w-full h-full object-contain"
                   />
                 </div>
-                <span>Captain App Account</span>
+                <span>Captain Partner</span>
               </div>
             ) : (
               <button
@@ -156,6 +158,34 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                   }`}
                 />
                 <span>{isCaptainOnline ? 'Online' : 'Offline'}</span>
+              </button>
+            )}
+
+            {/* Captain Wallet Tab / Button next to Online Pill */}
+            {currentRole === 'captain' && onOpenWallet && (
+              <button
+                type="button"
+                onClick={onOpenWallet}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 border border-amber-500/40 text-amber-300 hover:bg-amber-500/20 active:scale-95 transition-all cursor-pointer shadow-sm"
+                title="Open Captain Wallet & Transactions"
+              >
+                <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="2.5"
+                    stroke="currentColor"
+                    className="w-3.5 h-3.5 text-amber-400"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 00-2-2h-3"
+                    />
+                  </svg>
+                </div>
+                <span>Wallet: ₹{walletBalance !== undefined ? walletBalance.toFixed(2) : '0.00'}</span>
               </button>
             )}
           </div>

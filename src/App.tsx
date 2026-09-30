@@ -13,6 +13,7 @@ import { safeStorage } from './lib/safeStorage';
 import { motorideApi } from './services/motorideApi';
 import { initAnalytics, trackPageView, enforceAdminNoIndex } from './utils/analytics';
 import { ArrowLeftRight, User, Bike } from 'lucide-react';
+import { realtimeSync } from './services/realtimeSync';
 
 export default function App() {
   // Supabase Authenticated User Session
@@ -72,6 +73,33 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Synchronize the header's global walletBalance state in real-time when the captain's balance is updated on the server
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    
+    // Initial fetch to make sure global balance is perfectly accurate on load
+    motorideApi.getWallet(currentUser.id, currentUser.phone || '').then((w) => {
+      if (w && w.wallet) {
+        setWalletBalance(w.wallet.balance);
+      }
+    }).catch(() => {});
+
+    const unsubscribe = realtimeSync.on('WALLET_UPDATED', (payload: any) => {
+      if (payload && payload.user_id === currentUser.id) {
+        setWalletBalance(payload.balance);
+        
+        // Also update local storage session cache
+        const curr = supabaseAuth.getCurrentUser();
+        if (curr && curr.id === currentUser.id) {
+          curr.walletBalance = payload.balance;
+          supabaseAuth.setCurrentUser(curr);
+        }
+      }
+    });
+    
+    return unsubscribe;
+  }, [currentUser?.id]);
+
   // Handle Authentication Completion
   const handleAuthenticated = (user: AuthUser) => {
     setCurrentUser(user);
@@ -128,6 +156,8 @@ export default function App() {
         onSignOut={handleSignOut}
         isCaptainOnline={isCaptainOnline}
         onToggleCaptainOnline={handleToggleCaptainOnline}
+        walletBalance={walletBalance}
+        onOpenWallet={() => setIsWalletOpen(true)}
       />
 
       {/* Main Workspace Render (Gated - Accessible only after authentication) */}

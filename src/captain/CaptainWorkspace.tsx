@@ -205,6 +205,22 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.BroadcastChannel) {
+      try {
+        const bc = new BroadcastChannel('motoride-local-realtime');
+        bc.onmessage = (e) => {
+          if (e && e.data && e.data.type === 'SWITCH_TAB') {
+            setActiveTab(e.data.payload);
+          }
+        };
+        return () => {
+          bc.close();
+        };
+      } catch (err) {}
+    }
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'wallet' && captainId) {
       loadCaptainTopupRequests();
     }
