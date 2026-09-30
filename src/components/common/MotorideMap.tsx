@@ -1623,50 +1623,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
               <LocateFixed className="w-5 h-5 text-emerald-600 stroke-[2.5] group-hover:rotate-12 transition-transform" />
             </button>
           </div>
-
-          {/* Top Left: Live Passenger GPS Status HUD & Nearest Captain (Hidden in Captain Mode) */}
-          {!isCaptainMode && !showLocationsABOnly && (
-            <div className="absolute top-3 left-3 z-[400] flex flex-wrap items-center gap-2 max-w-[calc(100%-1.5rem)]">
-              {passengerLat && passengerLng && (
-                <button
-                  type="button"
-                  onClick={handleLocateMe}
-                  title="Passenger Live Location GPS - Click to Recenter on My Location"
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-950/90 text-white backdrop-blur-md border border-slate-700/90 shadow-xl text-xs font-semibold hover:border-blue-500/80 transition-all cursor-pointer active:scale-95"
-                >
-                  <div className="relative flex items-center justify-center w-2.5 h-2.5">
-                    <span className="absolute w-full h-full rounded-full bg-blue-400 animate-ping opacity-75" />
-                    <span className="relative w-2 h-2 rounded-full bg-blue-500" />
-                  </div>
-                  <span className="text-slate-200">🎯 My Location</span>
-                  <span className="text-emerald-400 font-mono-num font-bold text-[11px] bg-emerald-500/10 px-1.5 py-0.5 rounded-lg border border-emerald-500/30">
-                    {passengerAccuracy ? `±${Math.round(passengerAccuracy)}m` : 'Live'}
-                  </span>
-                </button>
-              )}
-
-              {nearestCaptain && (
-                <button
-                  type="button"
-                  onClick={handleFocusNearestCaptain}
-                  title={`Nearest Captain: ${nearestCaptain.name} (${nearestCaptain.distanceKm ? (nearestCaptain.distanceKm < 1 ? Math.round(nearestCaptain.distanceKm * 1000) + 'm' : nearestCaptain.distanceKm.toFixed(1) + ' km') : 'Nearby'}) - Click to view on map`}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-950/95 text-white backdrop-blur-md border border-emerald-500/90 shadow-xl text-xs font-semibold hover:border-emerald-400 hover:bg-slate-900 transition-all cursor-pointer active:scale-95"
-                >
-                  <div className="relative flex items-center justify-center w-2.5 h-2.5">
-                    <span className="absolute w-full h-full rounded-full bg-emerald-400 animate-ping opacity-75" />
-                    <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
-                  </div>
-                  <span className="text-emerald-400 font-bold">🏍️ Nearest Captain</span>
-                  {nearestCaptain.distanceKm != null && (
-                    <span className="text-emerald-300 font-mono-num font-bold text-[11px] bg-emerald-500/20 px-1.5 py-0.5 rounded-lg border border-emerald-500/30">
-                      {nearestCaptain.distanceKm < 1 ? `${Math.round(nearestCaptain.distanceKm * 1000)}m` : `${nearestCaptain.distanceKm.toFixed(1)} km`}
-                      {nearestCaptain.etaMinutes ? ` (~${nearestCaptain.etaMinutes}m)` : ''}
-                    </span>
-                  )}
-                </button>
-              )}
-            </div>
-          )}
         </>
       )}
     </div>
