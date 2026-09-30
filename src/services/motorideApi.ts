@@ -282,12 +282,10 @@ async function safeFetchJson<T = any>(url: string, options?: RequestInit, fallba
       if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
         try {
           const errJson = JSON.parse(text);
-          if (errJson.error) {
-            throw new Error(errJson.error);
+          if (errJson && (errJson.error || errJson.success === false)) {
+            return { success: false, error: errJson.error || 'Server error', ...errJson } as any;
           }
-        } catch (e: any) {
-          if (e.message && e.message !== 'Unexpected token') throw e;
-        }
+        } catch (e: any) {}
       }
       return fallback;
     }
