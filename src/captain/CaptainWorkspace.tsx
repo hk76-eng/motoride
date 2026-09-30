@@ -205,22 +205,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.BroadcastChannel) {
-      try {
-        const bc = new BroadcastChannel('motoride-local-realtime');
-        bc.onmessage = (e) => {
-          if (e && e.data && e.data.type === 'SWITCH_TAB') {
-            setActiveTab(e.data.payload);
-          }
-        };
-        return () => {
-          bc.close();
-        };
-      } catch (err) {}
-    }
-  }, []);
-
-  useEffect(() => {
     if (activeTab === 'wallet' && captainId) {
       loadCaptainTopupRequests();
     }
@@ -2734,47 +2718,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         <span className="w-5 h-0.5 bg-amber-400 rounded-full group-hover:w-5.5 transition-all" />
         <span className="w-3.5 h-0.5 bg-amber-400 rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
       </button>
-
-      {/* Top Floating Captain Workspace Navigation Tabs Bar */}
-      <div className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-20 z-[1100] flex items-center gap-1.5 p-1 rounded-2xl bg-black/85 border border-amber-500/30 backdrop-blur-xl shadow-2xl">
-        <button
-          type="button"
-          onClick={() => setActiveTab('requests')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
-            activeTab === 'requests'
-              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-950/40'
-              : 'text-slate-300 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <Bike className="w-3.5 h-3.5 stroke-[2.5]" />
-          <span className="hidden xs:inline">Live Requests</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('wallet')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer ${
-            activeTab === 'wallet'
-              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-950/40'
-              : 'text-slate-300 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <Wallet className="w-3.5 h-3.5 stroke-[2.5]" />
-          <span>Wallet</span>
-          <span className="text-[10px] font-mono-num font-bold px-1.5 py-0.5 rounded-md bg-black/40 text-amber-300 border border-amber-500/30">
-            ₹{walletBalance.toFixed(0)}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setIsRideHistoryOpen(true)}
-          className="px-3 py-1.5 rounded-xl text-xs font-extrabold text-slate-300 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition-all cursor-pointer hidden sm:flex"
-        >
-          <History className="w-3.5 h-3.5 text-amber-400 stroke-[2.5]" />
-          <span>History</span>
-        </button>
-      </div>
 
       {/* Dedicated Captain Wallet View Tab Overlay */}
       {activeTab === 'wallet' && (
