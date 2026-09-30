@@ -101,8 +101,11 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
 
     if (existingProfile) {
       await supabase.from('profiles').update(profilePayload).eq('id', actualProfileId);
+      if (cleanEmail) {
+        await supabase.from('profiles').update(profilePayload).eq('email', cleanEmail);
+      }
     } else {
-      await supabase.from('profiles').insert([profilePayload]);
+      await supabase.from('profiles').upsert([profilePayload]);
     }
 
     // 2. If passenger, insert/update in public.passengers
@@ -393,13 +396,15 @@ export const supabaseAuth = {
       const accounts = this.getRegisteredAccounts();
       // Strict 1-account-per-email uniqueness: overwrite if same email exists
       const existingIdx = accounts.findIndex(
-        (a) => a.email.toLowerCase().trim() === account.email.toLowerCase().trim()
+        (a) => a.email.toLowerCase().trim() === account.email.toLowerCase().trim() || (account.id && a.id === account.id)
       );
+      const existingPassHash = existingIdx >= 0 ? accounts[existingIdx].passwordHash : 'password123';
       const existingAvatar = existingIdx >= 0 ? accounts[existingIdx].avatarUrl : undefined;
       const fallbackStorageAvatar = safeStorage.getItem(`motoride_${account.role}_avatar`) || undefined;
       const resolvedAvatar = account.avatarUrl || existingAvatar || fallbackStorageAvatar;
       const accountToSave: StoredAccount = {
         ...account,
+        passwordHash: account.passwordHash || existingPassHash || 'password123',
         avatarUrl: resolvedAvatar,
       };
 

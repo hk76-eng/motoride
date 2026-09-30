@@ -1651,14 +1651,90 @@ export const motorideApi = {
 
   async updateCaptainProfile(
     id: string,
-    profileData: { full_name?: string; phone?: string; avatar_url?: string }
+    profileData: { full_name?: string; name?: string; phone?: string; avatar_url?: string; email?: string }
   ): Promise<Captain> {
-    const json = await safeFetchJson<{ captain: Captain }>(`${API_BASE}/captains/${id}/profile`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profileData),
-    });
-    return json.captain;
+    const newName = (profileData.full_name || profileData.name || '').trim();
+    const newPhone = (profileData.phone || '').trim();
+    const newEmail = (profileData.email || '').toLowerCase().trim();
+    const now = new Date().toISOString();
+
+    let serverRes: Captain | null = null;
+    try {
+      const json = await safeFetchJson<{ captain: Captain }>(`${API_BASE}/captains/${id}/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileData),
+      });
+      if (json?.captain) serverRes = json.captain;
+    } catch {}
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const updatePayload: any = { updated_at: now };
+        if (newName) updatePayload.full_name = newName;
+        if (newPhone) updatePayload.phone = newPhone;
+        if (newEmail) updatePayload.email = newEmail;
+        if (profileData.avatar_url) updatePayload.avatar_url = profileData.avatar_url;
+
+        if (id) {
+          await supabase.from('profiles').update(updatePayload).eq('id', id);
+        }
+        if (newEmail) {
+          await supabase.from('profiles').update(updatePayload).eq('email', newEmail);
+        }
+
+        const cptPayload: any = { updated_at: now };
+        if (newName) cptPayload.full_name = newName;
+        if (newPhone) cptPayload.phone = newPhone;
+        if (profileData.avatar_url) cptPayload.avatar_url = profileData.avatar_url;
+
+        if (id) {
+          await supabase.from('captains').update(cptPayload).or(`id.eq.${id},profile_id.eq.${id}`);
+        }
+      } catch (err) {
+        console.warn('Supabase updateCaptainProfile notice:', err);
+      }
+    }
+
+    try {
+      const curr = supabaseAuth.getCurrentUser();
+      if (curr && (curr.id === id || (newEmail && curr.email.toLowerCase() === newEmail))) {
+        const updatedUser = {
+          ...curr,
+          name: newName || curr.name,
+          phone: newPhone || curr.phone,
+          email: newEmail || curr.email,
+          avatarUrl: profileData.avatar_url || curr.avatarUrl,
+        };
+        supabaseAuth.setCurrentUser(updatedUser);
+        supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
+      }
+
+      ['motoride_registered_accounts', 'motoride_supa_profiles', 'motoride_users'].forEach((key) => {
+        const raw = safeStorage.getItem(key);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            let changed = false;
+            list.forEach((acc: any) => {
+              if (acc.id === id || (newEmail && acc.email?.toLowerCase() === newEmail)) {
+                if (newName) { acc.name = newName; acc.full_name = newName; }
+                if (newPhone) acc.phone = newPhone;
+                if (newEmail) acc.email = newEmail;
+                if (profileData.avatar_url) acc.avatarUrl = profileData.avatar_url;
+                changed = true;
+              }
+            });
+            if (changed) safeStorage.setItem(key, JSON.stringify(list));
+          }
+        }
+      });
+    } catch {}
+
+    realtimeSync.broadcast('CAPTAINS_UPDATED', { id, ...profileData });
+
+    return serverRes || ({ id, full_name: newName, phone: newPhone } as any);
   },
 
   async updateCaptainVehicle(
@@ -1940,14 +2016,101 @@ export const motorideApi = {
 
   async updatePassengerProfile(
     id: string,
-    profileData: { full_name?: string; name?: string; phone?: string; email?: string; emergency_contact?: string }
+    profileData: { full_name?: string; name?: string; phone?: string; email?: string; emergency_contact?: string; avatar_url?: string }
   ): Promise<Passenger> {
-    const json = await safeFetchJson<{ passenger: Passenger }>(`${API_BASE}/passengers/${id}/profile`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profileData),
-    });
-    return json?.passenger || ({} as Passenger);
+    const newName = (profileData.full_name || profileData.name || '').trim();
+    const newPhone = (profileData.phone || '').trim();
+    const newEmail = (profileData.email || '').toLowerCase().trim();
+    const now = new Date().toISOString();
+
+    let serverRes: Passenger | null = null;
+    try {
+      const json = await safeFetchJson<{ passenger: Passenger }>(`${API_BASE}/passengers/${id}/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileData),
+      });
+      if (json?.passenger) serverRes = json.passenger;
+    } catch {}
+
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const updatePayload: any = { updated_at: now };
+        if (newName) updatePayload.full_name = newName;
+        if (newPhone) updatePayload.phone = newPhone;
+        if (newEmail) updatePayload.email = newEmail;
+        if (profileData.avatar_url) updatePayload.avatar_url = profileData.avatar_url;
+
+        if (id) {
+          await supabase.from('profiles').update(updatePayload).eq('id', id);
+        }
+        if (newEmail) {
+          await supabase.from('profiles').update(updatePayload).eq('email', newEmail);
+        }
+
+        const passPayload: any = { updated_at: now };
+        if (newName) passPayload.full_name = newName;
+        if (newPhone) passPayload.phone = newPhone;
+        if (profileData.emergency_contact) passPayload.emergency_contact = profileData.emergency_contact;
+
+        if (id) {
+          await supabase.from('passengers').update(passPayload).or(`id.eq.${id},profile_id.eq.${id}`);
+        }
+      } catch (err) {
+        console.warn('Supabase updatePassengerProfile notice:', err);
+      }
+    }
+
+    try {
+      const curr = supabaseAuth.getCurrentUser();
+      if (curr && (curr.id === id || (newEmail && curr.email.toLowerCase() === newEmail))) {
+        const updatedUser = {
+          ...curr,
+          name: newName || curr.name,
+          phone: newPhone || curr.phone,
+          email: newEmail || curr.email,
+          avatarUrl: profileData.avatar_url || curr.avatarUrl,
+        };
+        supabaseAuth.setCurrentUser(updatedUser);
+        supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
+      }
+
+      ['motoride_registered_accounts', 'motoride_supa_profiles', 'motoride_users'].forEach((key) => {
+        const raw = safeStorage.getItem(key);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            let changed = false;
+            list.forEach((acc: any) => {
+              if (acc.id === id || (newEmail && acc.email?.toLowerCase() === newEmail)) {
+                if (newName) { acc.name = newName; acc.full_name = newName; }
+                if (newPhone) acc.phone = newPhone;
+                if (newEmail) acc.email = newEmail;
+                if (profileData.avatar_url) acc.avatarUrl = profileData.avatar_url;
+                changed = true;
+              }
+            });
+            if (changed) safeStorage.setItem(key, JSON.stringify(list));
+          }
+        }
+      });
+    } catch {}
+
+    realtimeSync.broadcast('PASSENGERS_UPDATED', { id, ...profileData });
+
+    return serverRes || {
+      id,
+      profile_id: id,
+      full_name: newName || 'Passenger',
+      email: newEmail || '',
+      phone: newPhone || '',
+      total_rides: 0,
+      rating: 5.0,
+      wallet_balance: 200,
+      emergency_contact: profileData.emergency_contact || newPhone || '',
+      created_at: now,
+    };
   },
 
   // 4. Fare Settings

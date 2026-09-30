@@ -32,7 +32,7 @@ import {
   Smartphone,
 } from 'lucide-react';
 
-import { AuthUser, supabaseAuth } from '../lib/supabaseAuth';
+import { AuthUser, supabaseAuth, syncUserToSupabase } from '../lib/supabaseAuth';
 import { safeStorage } from '../lib/safeStorage';
 import { uploadMediaToSupabase, compressImageToDataUrl } from '../lib/supabaseStorage';
 import { motorideApi } from '../services/motorideApi';
@@ -262,7 +262,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     },
   ];
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsEditing(false);
 
@@ -281,13 +281,16 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
         supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
         if (onUpdateUser) onUpdateUser(updatedUser);
 
-        motorideApi.updatePassengerProfile(user.id, {
+        await motorideApi.updatePassengerProfile(user.id, {
           name: updatedUser.name,
           full_name: updatedUser.name,
           email: updatedUser.email,
           phone: updatedUser.phone,
           emergency_contact: emergencyContact,
-        }).catch((e) => console.warn('Failed to sync passenger profile to API:', e));
+          avatar_url: finalAvatar,
+        });
+
+        await syncUserToSupabase(updatedUser);
       }
     } catch (err) {
       console.warn('Could not persist updated passenger profile:', err);
