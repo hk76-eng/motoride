@@ -20,6 +20,13 @@ import { realtimeSync } from '../services/realtimeSync';
 import { AuthUser, supabaseAuth, syncAllAccountsToSupabase, isDemoAccount, isDemoRide } from '../lib/supabaseAuth';
 import { ensureMediaBucketExists, uploadMediaToSupabase, MOTORIDE_MEDIA_BUCKET, StorageStatus } from '../lib/supabaseStorage';
 import {
+  getGaMeasurementId,
+  saveGaMeasurementId,
+  trackEvent,
+  getAnalyticsLogBuffer,
+  AnalyticsEventLog,
+} from '../utils/analytics';
+import {
   Shield,
   Users,
   Bike,
@@ -134,8 +141,13 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
   onSignOut,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'topup_approvals' | 'rides' | 'captains' | 'passengers' | 'ride_charges' | 'courier_charges' | 'qr' | 'app_link' | 'supabase'
+    'overview' | 'topup_approvals' | 'rides' | 'captains' | 'passengers' | 'ride_charges' | 'courier_charges' | 'qr' | 'app_link' | 'supabase' | 'seo_analytics'
   >('overview');
+
+  // GA4 Measurement ID & SEO State
+  const [gaInput, setGaInput] = useState<string>(() => getGaMeasurementId());
+  const [gaSaveStatus, setGaSaveStatus] = useState<string | null>(null);
+  const [analyticsLogs, setAnalyticsLogs] = useState<AnalyticsEventLog[]>(() => getAnalyticsLogBuffer());
 
   const [stats, setStats] = useState<AdminDashboardStats>({
     totalPassengers: 0,
@@ -1129,6 +1141,7 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
           { key: 'courier_charges', label: 'Courier Charges / KM', icon: Settings },
           { key: 'qr', label: 'Official QR Code', icon: QrCode },
           { key: 'app_link', label: 'Motoride App Link', icon: Smartphone },
+          { key: 'seo_analytics', label: 'SEO & Analytics', icon: Globe },
           { key: 'supabase', label: 'Supabase SQL Setup', icon: Database },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -2859,6 +2872,300 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 8: SEO METADATA & GOOGLE ANALYTICS 4 INTEGRATION */}
+      {activeTab === 'seo_analytics' && (
+        <div className="p-5 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col gap-6 shadow-xl text-left">
+          {/* Section Header */}
+          <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-slate-800">
+            <div>
+              <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                <Globe className="w-5 h-5 text-indigo-400" />
+                <span>SEO Metadata & Google Analytics 4 (GA4) Operations</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Manage search engine optimization, Open Graph social share cards, GA4 Measurement ID, and private route index protection.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>SEO Metadata Active</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Grid Layout: 2 Columns */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Col 1: Google Analytics 4 Configuration */}
+            <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-4">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-indigo-400" />
+                    <span>Google Analytics 4 Configuration</span>
+                  </h3>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    gaInput && gaInput.startsWith('G-')
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                  }`}>
+                    {gaInput && gaInput.startsWith('G-') ? 'GA4 Connected' : 'ID Missing / Pending'}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Enter your official GA4 Measurement ID below. Uses the environment variable <code className="text-indigo-300 font-mono">VITE_GA_MEASUREMENT_ID</code> as the default fallback.
+                </p>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
+                    GA4 Measurement ID:
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={gaInput}
+                      onChange={(e) => setGaInput(e.target.value)}
+                      placeholder="e.g. G-XXXXXXXXXX"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const success = saveGaMeasurementId(gaInput);
+                        if (success) {
+                          setGaSaveStatus('✅ GA4 Measurement ID saved & initialized successfully!');
+                          showToast('GA4 Analytics active and initialized!');
+                          setAnalyticsLogs(getAnalyticsLogBuffer());
+                        } else {
+                          setGaSaveStatus('⚠️ Please enter a valid GA4 Measurement ID starting with "G-"');
+                        }
+                        setTimeout(() => setGaSaveStatus(null), 4000);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs transition-all shadow-md active:scale-95 cursor-pointer shrink-0 flex items-center gap-1.5"
+                    >
+                      <Save className="w-3.5 h-3.5 stroke-[2.5]" />
+                      <span>Save & Apply</span>
+                    </button>
+                  </div>
+                </div>
+
+                {gaSaveStatus && (
+                  <div className="p-2.5 rounded-xl bg-indigo-950/60 border border-indigo-500/30 text-xs font-bold text-indigo-300">
+                    {gaSaveStatus}
+                  </div>
+                )}
+
+                <div className="pt-2 flex items-center justify-between border-t border-slate-800 text-[11px] text-slate-400">
+                  <span>Environment Variable:</span>
+                  <code className="font-mono text-indigo-300 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    {import.meta.env.VITE_GA_MEASUREMENT_ID || 'Not set in env (using UI value)'}
+                  </code>
+                </div>
+              </div>
+
+              {/* Action Buttons: Live Test Ping */}
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-400">Verify GA4 Realtime Tracking:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    trackEvent('admin_analytics_test_ping', {
+                      timestamp: new Date().toISOString(),
+                      triggered_by: 'Motoride Admin',
+                    });
+                    setAnalyticsLogs(getAnalyticsLogBuffer());
+                    showToast('✅ Sent test event "admin_analytics_test_ping" to GA4!');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Send Test Event</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Col 2: Search Console Readiness & Route Indexing Security */}
+            <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-4">
+              <div className="flex flex-col gap-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Search Engine Directives & Route Security</span>
+                </h3>
+
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Public Motoride routes are indexed for Google Search, while authenticated Admin routes enforce strictly protected <code className="text-amber-300 font-mono">noindex, nofollow</code> directives.
+                </p>
+
+                <div className="flex flex-col gap-2">
+                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-white block">Admin Dashboard Indexing Status</span>
+                      <span className="text-[11px] text-slate-400">Protected route directives in &lt;head&gt;</span>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-300 font-mono font-bold text-[11px]">
+                      noindex, nofollow
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-white block">Public App Routes (Passenger / Captain)</span>
+                      <span className="text-[11px] text-slate-400">Search engine discoverability</span>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-[11px]">
+                      index, follow
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sitemap & Robots.txt Links */}
+              <div className="pt-3 border-t border-slate-800 flex items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-400">SEO Crawl Endpoints:</span>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="/robots.txt"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-bold border border-slate-700 flex items-center gap-1"
+                  >
+                    <span>robots.txt</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <a
+                    href="/sitemap.xml"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-bold border border-slate-700 flex items-center gap-1"
+                  >
+                    <span>sitemap.xml</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Google Search Result & OpenGraph Live Cards Preview */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+            {/* Google Search Card Preview */}
+            <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Search className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Google Search Result Snippet Preview</span>
+              </span>
+
+              <div className="p-4 rounded-xl bg-white text-left font-sans text-black shadow-inner flex flex-col gap-1">
+                <div className="flex items-center gap-2 text-xs text-slate-700">
+                  <div className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center font-bold text-[9px]">M</div>
+                  <span className="truncate">https://motoride-roan.vercel.app</span>
+                </div>
+                <h3 className="text-base font-medium text-[#1a0dab] hover:underline cursor-pointer leading-snug">
+                  Motoride-Ride &amp; Courier Management
+                </h3>
+                <p className="text-xs text-[#4d5156] leading-relaxed">
+                  Motoride webApp Dashboard for managing rides, passengers, captains, fare bidding, courier bookings and platform operations.
+                </p>
+              </div>
+            </div>
+
+            {/* Social Sharing / Open Graph Card Preview */}
+            <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Social Sharing Card (Open Graph / Twitter) Preview</span>
+              </span>
+
+              <div className="rounded-2xl overflow-hidden border border-slate-700 bg-slate-900 flex flex-col">
+                <div className="h-32 bg-gradient-to-br from-indigo-900 via-slate-900 to-black p-4 flex items-center justify-center relative overflow-hidden">
+                  <img
+                    src="/motoride-logo.png"
+                    alt="Motoride Logo"
+                    className="h-16 w-auto object-contain drop-shadow-lg"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                  <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/60 text-[10px] text-slate-300 font-mono">
+                    og:image
+                  </div>
+                </div>
+                <div className="p-3.5 flex flex-col gap-1 text-left bg-slate-900">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">MOTORIDE-ROAN.VERCEL.APP</span>
+                  <h4 className="text-xs font-bold text-white">Motoride-Ride &amp; Courier Management</h4>
+                  <p className="text-[11px] text-slate-400 line-clamp-2">
+                    Motoride webApp Dashboard for managing rides, passengers, captains, fare bidding, courier bookings and platform operations.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Realtime Analytics Stream Console */}
+          <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Activity className="w-4 h-4 text-emerald-400" />
+                <span>Real-Time Analytics Event Buffer Log ({analyticsLogs.length})</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setAnalyticsLogs(getAnalyticsLogBuffer())}
+                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-bold transition-all cursor-pointer flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3 text-indigo-400" />
+                <span>Refresh Log</span>
+              </button>
+            </div>
+
+            {analyticsLogs.length === 0 ? (
+              <div className="p-6 rounded-xl bg-slate-900 border border-slate-800 text-center text-xs text-slate-500">
+                No events recorded yet in session buffer. Click &quot;Send Test Event&quot; above to verify real-time event pipeline!
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border border-slate-800">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead className="bg-slate-900 text-slate-400 border-b border-slate-800 text-[11px]">
+                    <tr>
+                      <th className="p-2.5">TIME</th>
+                      <th className="p-2.5">TYPE</th>
+                      <th className="p-2.5">EVENT NAME</th>
+                      <th className="p-2.5">MEASUREMENT ID</th>
+                      <th className="p-2.5">PARAMETERS / PAYLOAD</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 bg-slate-950">
+                    {analyticsLogs.slice(0, 10).map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-900/50">
+                        <td className="p-2.5 text-slate-400 text-[11px] whitespace-nowrap">{log.timestamp}</td>
+                        <td className="p-2.5">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                            log.type === 'init'
+                              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                              : log.type === 'page_view'
+                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          }`}>
+                            {log.type}
+                          </span>
+                        </td>
+                        <td className="p-2.5 font-bold text-white">{log.name}</td>
+                        <td className="p-2.5 text-slate-400">{log.measurementId}</td>
+                        <td className="p-2.5 text-slate-300 text-[11px] max-w-xs truncate">
+                          {JSON.stringify(log.params || {})}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

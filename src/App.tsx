@@ -11,6 +11,7 @@ import { supabaseAuth, AuthUser } from './lib/supabaseAuth';
 import { isSupabaseConfigured } from './lib/supabase';
 import { safeStorage } from './lib/safeStorage';
 import { motorideApi } from './services/motorideApi';
+import { initAnalytics, trackPageView, enforceAdminNoIndex } from './utils/analytics';
 import { ArrowLeftRight, User, Bike } from 'lucide-react';
 
 export default function App() {
@@ -33,6 +34,20 @@ export default function App() {
   });
   const [isNotificationsOpen, setIsNotificationsOpen] = useState<boolean>(false);
   const [unreadNotifications, setUnreadNotifications] = useState<number>(0);
+
+  // Initialize GA4 and enforce admin noindex on route/role change
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  useEffect(() => {
+    const isAdmin = currentRole === 'admin';
+    enforceAdminNoIndex(isAdmin);
+    trackPageView(
+      isAdmin ? '/admin' : currentRole === 'captain' ? '/captain' : '/passenger',
+      isAdmin ? 'Motoride Admin Panel' : currentRole === 'captain' ? 'Motoride Captain Portal' : 'Motoride Passenger App'
+    );
+  }, [currentRole, currentUser]);
 
   // Check Supabase session on startup and enforce role-based workspace locking
   useEffect(() => {
