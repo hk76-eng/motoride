@@ -403,7 +403,7 @@ BEGIN
     WHERE reference_ride_id = p_ride_id AND category IN ('commission_fee', 'platform_commission') LIMIT 1;
 
     IF v_existing_tx.id IS NOT NULL THEN
-        SELECT balance INTO v_wallet_after FROM public.wallets WHERE user_id = v_effective_captain;
+        SELECT balance INTO v_wallet_after FROM public.wallets WHERE user_id = v_effective_captain::uuid;
         RETURN jsonb_build_object(
             'success', true,
             'already_processed', true,
@@ -428,12 +428,12 @@ BEGIN
     v_captain_earning := ROUND((v_final_fare - v_commission_amount)::numeric, 2);
 
     -- 3. Lock and fetch Captain Wallet
-    SELECT * INTO v_captain_wallet FROM public.wallets WHERE user_id = v_effective_captain FOR UPDATE;
+    SELECT * INTO v_captain_wallet FROM public.wallets WHERE user_id = v_effective_captain::uuid FOR UPDATE;
 
     IF v_captain_wallet.id IS NULL THEN
         v_wallet_id := 'w_' || v_effective_captain;
         INSERT INTO public.wallets (id, user_id, role, balance, currency, updated_at)
-        VALUES (v_wallet_id, v_effective_captain, 'captain', 250.00, '₹', v_now)
+        VALUES (v_wallet_id, v_effective_captain::uuid, 'captain', 250.00, '₹', v_now)
         ON CONFLICT (user_id) DO UPDATE SET updated_at = v_now
         RETURNING * INTO v_captain_wallet;
     ELSE
@@ -465,7 +465,7 @@ BEGIN
     -- Sync profile table wallet balance as well
     UPDATE public.profiles
     SET wallet_balance = v_wallet_after, updated_at = v_now
-    WHERE id = v_effective_captain;
+    WHERE id = v_effective_captain::uuid;
 
     -- B. Record wallet transaction
     v_tx_id := 'tx_comm_' || p_ride_id;
@@ -482,7 +482,7 @@ BEGIN
     ) VALUES (
         v_tx_id,
         v_wallet_id,
-        v_effective_captain,
+        v_effective_captain::uuid,
         v_commission_amount,
         'debit',
         'commission_fee',
@@ -504,7 +504,7 @@ BEGIN
         created_at
     ) VALUES (
         'earn_' || p_ride_id,
-        v_effective_captain,
+        v_effective_captain::uuid,
         p_ride_id,
         CURRENT_DATE,
         v_final_fare,
@@ -531,7 +531,7 @@ BEGIN
         total_earnings = COALESCE(total_earnings, 0) + v_captain_earning,
         today_earnings = COALESCE(today_earnings, 0) + v_captain_earning,
         updated_at = v_now
-    WHERE id = v_effective_captain OR profile_id = v_effective_captain;
+    WHERE id = v_effective_captain::uuid OR profile_id = v_effective_captain::uuid;
 
     -- Log status transition
     INSERT INTO public.ride_status_history (ride_id, previous_status, new_status, changed_by, notes)

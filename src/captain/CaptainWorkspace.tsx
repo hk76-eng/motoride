@@ -1665,7 +1665,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
       // Update wallet balance immediately in UI state from the successful atomic operation
       if (compRes.wallet_balance_after !== undefined) {
-        setWalletBalance(compRes.wallet_balance_after);
+        const newBal = compRes.wallet_balance_after;
+        setWalletBalance(newBal);
+        
+        // Synchronize with locally cached AuthUser and StoredAccount so the updated balance persists on page refresh!
+        const curr = supabaseAuth.getCurrentUser();
+        if (curr) {
+          curr.walletBalance = newBal;
+          supabaseAuth.setCurrentUser(curr);
+          supabaseAuth.saveAccount({ ...curr, passwordHash: '' });
+        }
       }
 
       // 2. Submit Captain's rating for passenger
