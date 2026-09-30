@@ -980,8 +980,54 @@ export const motorideApi = {
     const commission = Number((agreedFare * 0.10).toFixed(2));
     const earning = Number((agreedFare - commission).toFixed(2));
     const currUser = supabaseAuth.getCurrentUser();
-    const walletBefore = Number(currUser?.walletBalance ?? 500.0);
+    const storedCaptainBal = safeStorage.getItem('motoride_captain_wallet_balance');
+    const walletBefore = Number(
+      currUser?.walletBalance ?? (storedCaptainBal && !isNaN(Number(storedCaptainBal)) ? Number(storedCaptainBal) : 500.0)
+    );
     const walletAfter = Number(Math.max(0, walletBefore - commission).toFixed(2));
+    const nowIso = new Date().toISOString();
+    const isCourier = clientRide?.ride_type === 'courier';
+    const rideCode = clientRide?.ride_code || rideId.slice(0, 8).toUpperCase();
+
+    // Persist to safeStorage immediately so page refreshes and subsequent calls read the deducted balance
+    safeStorage.setItem('motoride_captain_wallet_balance', walletAfter.toString());
+    if (effectiveCaptainId) {
+      safeStorage.setItem(`motoride_wallet_${effectiveCaptainId}`, JSON.stringify({ balance: walletAfter, currency: '₹' }));
+    }
+    if (clientRide?.captain_phone) {
+      safeStorage.setItem(`motoride_wallet_${clientRide.captain_phone}`, JSON.stringify({ balance: walletAfter, currency: '₹' }));
+    }
+
+    // Record Rich Tripwise Wallet Transaction locally
+    const tripTx: WalletTransaction = {
+      id: `tx_comm_${rideId}`,
+      wallet_id: `w_${effectiveCaptainId}`,
+      user_id: effectiveCaptainId,
+      amount: commission,
+      type: 'debit',
+      category: 'commission_fee',
+      description: `10% Platform Commission for ${isCourier ? 'Delivery' : 'Trip'} #${rideCode} (Fare: ₹${agreedFare}, Fee: -₹${commission}, Net Take-Home: +₹${earning})`,
+      reference_ride_id: rideId,
+      ride_code: rideCode,
+      gross_fare: agreedFare,
+      commission_amount: commission,
+      captain_earning: earning,
+      pickup_address: clientRide?.pickup_address || 'Pickup Location',
+      dropoff_address: clientRide?.dropoff_address || 'Dropoff Location',
+      wallet_balance_before: walletBefore,
+      wallet_balance_after: walletAfter,
+      created_at: nowIso,
+    };
+
+    try {
+      const existingTxsRaw = safeStorage.getItem(`motoride_wallet_txs_${effectiveCaptainId}`) || safeStorage.getItem('motoride_all_wallet_txs');
+      const txsList: WalletTransaction[] = existingTxsRaw ? JSON.parse(existingTxsRaw) : [];
+      if (!txsList.some((t) => t.id === tripTx.id || t.reference_ride_id === rideId)) {
+        txsList.unshift(tripTx);
+        safeStorage.setItem(`motoride_wallet_txs_${effectiveCaptainId}`, JSON.stringify(txsList));
+        safeStorage.setItem('motoride_all_wallet_txs', JSON.stringify(txsList));
+      }
+    } catch {}
 
     // Update local cached AuthUser & accounts store
     if (currUser) {
@@ -999,8 +1045,8 @@ export const motorideApi = {
       payment_status: 'paid',
       final_fare: agreedFare,
       fare_amount: agreedFare,
-      completed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      completed_at: nowIso,
+      updated_at: nowIso,
     } as MotorideRide;
     localRidesStore.set(rideId, completedRide);
     saveLocalRides();
@@ -1008,20 +1054,46 @@ export const motorideApi = {
     // Broadcast realtime events to all open tabs and windows
     realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: completedRide, status: 'completed' });
     realtimeSync.broadcast('RIDE_UPDATED', completedRide);
-    if (effectiveCaptainId) {
-      realtimeSync.broadcast('WALLET_UPDATED', {
-        user_id: effectiveCaptainId,
-        balance: walletAfter,
-      });
-    }
+    realtimeSync.broadcast('WALLET_UPDATED', {
+      user_id: effectiveCaptainId,
+      balance: walletAfter,
+      wallet: { balance: walletAfter, currency: '₹' },
+    });
 
     // Background sync to Supabase tables
     const supabase = getSupabase();
     if (supabase && isSupabaseConfigured() && effectiveCaptainId) {
-      const now = new Date().toISOString();
-      Promise.resolve(supabase.from('profiles').update({ wallet_balance: walletAfter, updated_at: now }).eq('id', effectiveCaptainId)).catch(() => {});
-      Promise.resolve(supabase.from('wallets').update({ balance: walletAfter, updated_at: now }).eq('user_id', effectiveCaptainId)).catch(() => {});
-      Promise.resolve(supabase.from('rides').update({ status: 'completed', payment_status: 'paid', updated_at: now }).eq('id', rideId)).catch(() => {});
+      (async () => {
+        try {
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+          if (uuidRegex.test(effectiveCaptainId)) {
+            await supabase.from('profiles').update({ wallet_balance: walletAfter, updated_at: nowIso }).eq('id', effectiveCaptainId);
+          } else {
+            await supabase.from('profiles').update({ wallet_balance: walletAfter, updated_at: nowIso }).eq('phone', effectiveCaptainId);
+          }
+          if (clientRide?.captain_phone) {
+            await supabase.from('profiles').update({ wallet_balance: walletAfter, updated_at: nowIso }).eq('phone', clientRide.captain_phone);
+          }
+          if (currUser?.email) {
+            await supabase.from('profiles').update({ wallet_balance: walletAfter, updated_at: nowIso }).eq('email', currUser.email.toLowerCase().trim());
+          }
+          await supabase.from('wallets').upsert([{ user_id: effectiveCaptainId, balance: walletAfter, currency: '₹', updated_at: nowIso }], { onConflict: 'user_id' });
+          await supabase.from('wallet_transactions').insert([tripTx]);
+          await supabase.from('rides').update({ status: 'completed', payment_status: 'paid', final_fare: agreedFare, updated_at: nowIso }).eq('id', rideId);
+          await supabase.from('earnings').insert([{
+            id: `earn_${rideId}`,
+            captain_id: effectiveCaptainId,
+            ride_id: rideId,
+            ride_date: nowIso.split('T')[0],
+            gross_fare: agreedFare,
+            platform_commission: commission,
+            net_earnings: earning,
+            created_at: nowIso,
+          }]);
+        } catch (sbErr) {
+          console.warn('Supabase fallback background sync notice:', sbErr);
+        }
+      })();
     }
 
     return {
@@ -2711,6 +2783,7 @@ export const motorideApi = {
 
     // 3. Local safeStorage fallback
     let localBal: number | null = null;
+    let localTxs: WalletTransaction[] = [];
     try {
       const rawBal = safeStorage.getItem('motoride_captain_wallet_balance');
       if (rawBal && !isNaN(Number(rawBal))) {
@@ -2722,12 +2795,18 @@ export const motorideApi = {
           if (parsed && typeof parsed.balance === 'number') localBal = parsed.balance;
         }
       }
+      const rawTxs = safeStorage.getItem(`motoride_wallet_txs_${userId}`) || safeStorage.getItem('motoride_all_wallet_txs');
+      if (rawTxs) {
+        const parsedTxs = JSON.parse(rawTxs);
+        if (Array.isArray(parsedTxs)) localTxs = parsedTxs;
+      }
     } catch {}
 
-    const finalBal = supabaseBal ?? localBal ?? 500.0;
+    const finalBal = localBal ?? supabaseBal ?? 500.0;
     const finalWallet = { balance: finalBal, currency: '₹' };
 
     const mergedTxsMap = new Map<string, WalletTransaction>();
+    localTxs.forEach((t) => { if (t?.id) mergedTxsMap.set(t.id, t); });
     supabaseTxs.forEach((t) => { if (t?.id) mergedTxsMap.set(t.id, t); });
     serverTxs.forEach((t) => { if (t?.id) mergedTxsMap.set(t.id, t); });
     const finalTxs = Array.from(mergedTxsMap.values()).sort(

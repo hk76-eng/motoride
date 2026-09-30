@@ -1014,6 +1014,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (w && w.wallet) {
         setWalletBalance(w.wallet.balance || 0);
         setWalletTransactions(w.transactions || []);
+        onWalletBalanceUpdated?.(w.wallet.balance || 0);
       }
 
       // Fetch Today's Income calculated dynamically from the database

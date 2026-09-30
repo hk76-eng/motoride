@@ -180,7 +180,14 @@ export default function App() {
             captainName={currentUser.name}
             currentUser={currentUser}
             walletBalance={walletBalance}
-            onWalletBalanceUpdated={(newBal) => setWalletBalance(newBal)}
+            onWalletBalanceUpdated={(newBal) => {
+              setWalletBalance(newBal);
+              const curr = supabaseAuth.getCurrentUser();
+              if (curr) {
+                curr.walletBalance = newBal;
+                supabaseAuth.setCurrentUser(curr);
+              }
+            }}
             onOpenWallet={() => setIsWalletOpen(true)}
             onSignOut={handleSignOut}
             isOnline={isCaptainOnline}
