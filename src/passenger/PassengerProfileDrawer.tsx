@@ -37,7 +37,6 @@ import { AuthUser, supabaseAuth, syncUserToSupabase } from '../lib/supabaseAuth'
 import { safeStorage } from '../lib/safeStorage';
 import { uploadMediaToSupabase, compressImageToDataUrl } from '../lib/supabaseStorage';
 import { motorideApi } from '../services/motorideApi';
-import { nativeOverlayService } from '../services/nativeOverlayService';
 
 interface PassengerProfileDrawerProps {
   isOpen: boolean;
@@ -141,31 +140,19 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     window.dispatchEvent(new Event('motoride_theme_changed'));
   };
 
-  // Floating Ride Button (Native Android System Overlay & Web PiP)
-  const [floatingRideButton, setFloatingRideButton] = useState<boolean>(() => {
-    return nativeOverlayService.isOverlayEnabled();
+  // Run Over Other Apps (Floating PiP Widget)
+  const [runOverApps, setRunOverApps] = useState<boolean>(() => {
+    try {
+      return safeStorage.getItem('motoride_run_over_apps') === 'true';
+    } catch {
+      return false;
+    }
   });
 
-  const handleToggleFloatingRideButton = async () => {
-    if (!floatingRideButton) {
-      const res = await nativeOverlayService.enableOverlay();
-      if (res.requiresPermission) {
-        setToastMessage('Opening Android Settings. Please grant "Display over other apps" for MotoRide.');
-        setIsSavedToast(true);
-        setTimeout(() => setIsSavedToast(false), 4500);
-        return;
-      }
-      setFloatingRideButton(true);
-      setToastMessage('Floating Ride Button ON. MotoRide icon will float over other apps when minimized.');
-      setIsSavedToast(true);
-      setTimeout(() => setIsSavedToast(false), 4000);
-    } else {
-      await nativeOverlayService.disableOverlay();
-      setFloatingRideButton(false);
-      setToastMessage('Floating Ride Button turned OFF.');
-      setIsSavedToast(true);
-      setTimeout(() => setIsSavedToast(false), 3000);
-    }
+  const handleRunOverAppsToggle = (val: boolean) => {
+    setRunOverApps(val);
+    safeStorage.setItem('motoride_run_over_apps', String(val));
+    window.dispatchEvent(new CustomEvent('motoride_run_over_apps_changed', { detail: val }));
   };
 
   // Passenger Avatar Photo (Stored in state & safeStorage)
@@ -953,41 +940,25 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
               </button>
             </div>
 
-            {/* Floating Ride Button (Requirement 18, 19, 20) */}
+            {/* Run Over Other Apps (Floating PiP Widget) */}
             <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2.5 pr-2">
-                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs shrink-0 border border-cyan-500/30">
-                  🏍️
-                </div>
+              <div className="flex items-center gap-2.5">
+                <Download className="w-4 h-4 text-cyan-400" />
                 <div className="flex flex-col">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-white">Floating Ride Button</span>
-                    <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border transition-all ${
-                        floatingRideButton
-                          ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                          : 'bg-slate-800 text-slate-400 border-slate-700'
-                      }`}
-                    >
-                      {floatingRideButton ? 'ON' : 'OFF'}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-400">Show the MotoRide floating button over other apps.</span>
+                  <span className="text-xs font-bold text-white">Run Over Other Apps (PiP)</span>
+                  <span className="text-[10px] text-slate-400">Show floating ride bubble on mobile</span>
                 </div>
               </div>
               <button
                 type="button"
-                role="switch"
-                aria-checked={floatingRideButton}
-                onClick={handleToggleFloatingRideButton}
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer shrink-0 ${
-                  floatingRideButton ? 'bg-cyan-500' : 'bg-slate-700'
+                onClick={() => handleRunOverAppsToggle(!runOverApps)}
+                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                  runOverApps ? 'bg-cyan-500' : 'bg-slate-700'
                 }`}
-                title={floatingRideButton ? 'Floating Ride Button is ON' : 'Floating Ride Button is OFF'}
               >
                 <span
                   className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
-                    floatingRideButton ? 'left-6' : 'left-1'
+                    runOverApps ? 'left-6' : 'left-1'
                   }`}
                 />
               </button>
