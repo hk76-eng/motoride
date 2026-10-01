@@ -924,37 +924,6 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
                 />
               </button>
             </div>
-
-            {/* Theme Mode Selector (Dark / Light) */}
-            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2.5">
-                <Sun className="w-4 h-4 text-yellow-400" />
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">App Theme</span>
-                  <span className="text-[10px] text-slate-400">Select Dark or Light mode</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => handleThemeChange('dark')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                    themeMode === 'dark' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Dark
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleThemeChange('light')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                    themeMode === 'light' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Light
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* Help & Support */}

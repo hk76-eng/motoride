@@ -172,3 +172,25 @@
   animation: stretch-dash-flow 1.2s linear infinite;
   filter: drop-shadow(0 2px 6px rgba(16, 185, 129, 0.45));
 }
+
+/* Permanently suppress Vercel Live Feedback / Toolbar floating icon */
+vercel-live-feedback,
+vercel-toolbar,
+[data-vercel-toolbar],
+#vercel-live-feedback-host,
+#__vercel_toolbar,
+iframe[src*="vercel.live"],
+iframe[id*="vercel-live-feedback"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  max-width: 0 !important;
+  max-height: 0 !important;
+  position: absolute !important;
+  left: -99999px !important;
+  top: -99999px !important;
+  z-index: -99999 !important;
+}

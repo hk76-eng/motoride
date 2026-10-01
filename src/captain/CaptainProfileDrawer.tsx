@@ -887,33 +887,6 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
 
               <div className="flex items-center justify-between p-3 rounded-2xl bg-black/40 border border-white/10">
                 <div className="flex flex-col pr-2">
-                  <span className="text-xs font-bold text-white">App Theme</span>
-                  <span className="text-[10px] text-slate-400">Select Dark or Light mode</span>
-                </div>
-                <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => handleThemeChange('dark')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                      themeMode === 'dark' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Dark
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleThemeChange('light')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                      themeMode === 'light' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    Light
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-black/40 border border-white/10">
-                <div className="flex flex-col pr-2">
                   <span className="text-xs font-bold text-white">Ride Request Chime</span>
                   <span className="text-[10px] text-slate-400">Play audio alert on incoming passenger offers</span>
                 </div>
