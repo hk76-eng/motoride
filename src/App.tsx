@@ -14,16 +14,18 @@ import { motorideApi } from './services/motorideApi';
 import { initAnalytics, trackPageView, enforceAdminNoIndex } from './utils/analytics';
 import { ArrowLeftRight, User, Bike } from 'lucide-react';
 import { realtimeSync } from './services/realtimeSync';
+import { nativeOverlayService } from './services/nativeOverlayService';
 
 // Floating PiP Widget ("Run Over Other Apps") component
 export const FloatingPiPWidget: React.FC = () => {
-  const [enabled, setEnabled] = useState(() => safeStorage.getItem('motoride_run_over_apps') === 'true');
+  const [enabled, setEnabled] = useState(() => nativeOverlayService.isOverlayEnabled());
   const [activeRide, setActiveRide] = useState<MotorideRide | null>(null);
   const [minimized, setMinimized] = useState(false);
 
   useEffect(() => {
     const handleToggle = (e: any) => setEnabled(Boolean(e.detail));
     window.addEventListener('motoride_run_over_apps_changed', handleToggle as any);
+    window.addEventListener('motoride_floating_button_changed', handleToggle as any);
 
     const checkRide = async () => {
       try {
@@ -44,12 +46,14 @@ export const FloatingPiPWidget: React.FC = () => {
 
     return () => {
       window.removeEventListener('motoride_run_over_apps_changed', handleToggle as any);
+      window.removeEventListener('motoride_floating_button_changed', handleToggle as any);
       clearInterval(interval);
       unsub();
     };
   }, []);
 
-  if (!enabled) return null;
+  // Requirement 11: On native Android, the real system-wide Android WindowManager overlay handles the floating icon!
+  if (!enabled || nativeOverlayService.isNativeAndroid()) return null;
 
   return (
     <div className="fixed bottom-20 right-4 z-[99999] bg-slate-900/98 text-white p-3.5 rounded-3xl shadow-[0_0_35px_rgba(6,182,212,0.6)] border-2 border-cyan-400 backdrop-blur-xl flex flex-col gap-2 max-w-xs animate-in slide-in-from-bottom duration-300">
