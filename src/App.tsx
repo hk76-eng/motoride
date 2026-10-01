@@ -14,89 +14,7 @@ import { motorideApi } from './services/motorideApi';
 import { initAnalytics, trackPageView, enforceAdminNoIndex } from './utils/analytics';
 import { ArrowLeftRight, User, Bike } from 'lucide-react';
 import { realtimeSync } from './services/realtimeSync';
-
-// Floating PiP Widget ("Run Over Other Apps") component
-export const FloatingPiPWidget: React.FC = () => {
-  const [enabled, setEnabled] = useState(() => safeStorage.getItem('motoride_run_over_apps') === 'true');
-  const [activeRide, setActiveRide] = useState<MotorideRide | null>(null);
-  const [minimized, setMinimized] = useState(false);
-
-  useEffect(() => {
-    const handleToggle = (e: any) => setEnabled(Boolean(e.detail));
-    window.addEventListener('motoride_run_over_apps_changed', handleToggle as any);
-
-    const checkRide = async () => {
-      try {
-        const rides = await motorideApi.getRides();
-        const active = rides.find(r => r && ['requested', 'captain_offered', 'captain_accepted', 'captain_arrived', 'trip_started'].includes(r.status));
-        setActiveRide(active || null);
-      } catch {}
-    };
-    checkRide();
-    const interval = setInterval(checkRide, 2500);
-    const unsub = realtimeSync.on('RIDE_UPDATED', (r: any) => {
-      if (r && ['requested', 'captain_offered', 'captain_accepted', 'captain_arrived', 'trip_started'].includes(r.status)) {
-        setActiveRide(r);
-      } else if (r && ['completed', 'cancelled_by_passenger', 'cancelled_by_captain'].includes(r.status)) {
-        setActiveRide(null);
-      }
-    });
-
-    return () => {
-      window.removeEventListener('motoride_run_over_apps_changed', handleToggle as any);
-      clearInterval(interval);
-      unsub();
-    };
-  }, []);
-
-  if (!enabled) return null;
-
-  return (
-    <div className="fixed bottom-20 right-4 z-[99999] bg-slate-900/98 text-white p-3.5 rounded-3xl shadow-[0_0_35px_rgba(6,182,212,0.6)] border-2 border-cyan-400 backdrop-blur-xl flex flex-col gap-2 max-w-xs animate-in slide-in-from-bottom duration-300">
-      <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-          <span className="text-xs font-black tracking-wider text-cyan-300 uppercase">MotoRide PiP Overlay</span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setMinimized(!minimized)}
-          className="text-slate-400 hover:text-white text-xs font-bold px-1.5 py-0.5 rounded-lg bg-white/10 cursor-pointer"
-        >
-          {minimized ? '▲ Expand' : '▼ Minimize'}
-        </button>
-      </div>
-
-      {!minimized && (
-        <div className="flex flex-col gap-1.5 text-xs">
-          {activeRide ? (
-            <>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-300">Status:</span>
-                <span className="font-extrabold text-amber-300 uppercase tracking-wide">{activeRide.status.replace(/_/g, ' ')}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-300">Ride Code:</span>
-                <span className="font-mono font-bold text-white bg-black/40 px-2 py-0.5 rounded border border-white/10">#{activeRide.ride_code || activeRide.id.slice(0, 6)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-300">Agreed Fare:</span>
-                <span className="font-mono font-black text-emerald-400">₹{activeRide.final_fare || activeRide.fare_amount || 80}</span>
-              </div>
-              <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                📍 {activeRide.dropoff_address || 'Destination'}
-              </div>
-            </>
-          ) : (
-            <div className="py-2 text-center text-slate-400 text-xs font-medium">
-              🚗 Ready for next ride (PiP Floating Bubble Active)
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+import { RealSystemPiPOverlay } from './components/RealSystemPiPOverlay';
 
 export default function App() {
   // Supabase Authenticated User Session
@@ -374,8 +292,8 @@ export default function App() {
         onReadCountChange={(count) => setUnreadNotifications(count)}
       />
 
-      {/* Floating PiP Widget ("Run Over Other Apps") */}
-      <FloatingPiPWidget />
+      {/* Real System-Wide PiP Overlay (Floats over Uber, inDrive, Chrome when MotoRide is backgrounded) */}
+      <RealSystemPiPOverlay />
     </div>
   );
 }
