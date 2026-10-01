@@ -40,6 +40,16 @@ export const RealSystemPiPOverlay: React.FC = () => {
   const audioContextRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const blobUrlRef = useRef<string | null>(null);
+  const logoImageRef = useRef<HTMLImageElement | null>(null);
+
+  // Preload the official uploaded Motoride icon
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/motoride-logo.png';
+    img.onload = () => {
+      logoImageRef.current = img;
+    };
+  }, []);
 
   // Detect if running inside an Android WebView APK wrapper
   const isAndroidWebView = typeof navigator !== 'undefined' && (
@@ -93,7 +103,7 @@ export const RealSystemPiPOverlay: React.FC = () => {
     };
   }, []);
 
-  // Compact Circular Chat-Head: Solid Black Background, Bike Icon, White "Motoride" text
+  // Compact 100x100 Circular Chat-Head: Solid Black Background with Official Uploaded Motoride Icon
   const renderBadge = (_time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -104,7 +114,7 @@ export const RealSystemPiPOverlay: React.FC = () => {
     const height = canvas.height;
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = Math.min(centerX, centerY) - 6;
+    const radius = Math.min(centerX, centerY) - 2;
 
     ctx.clearRect(0, 0, width, height);
 
@@ -112,65 +122,70 @@ export const RealSystemPiPOverlay: React.FC = () => {
     ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.clip();
+
     ctx.fillStyle = '#000000';
-    ctx.fill();
+    ctx.fillRect(0, 0, width, height);
+
+    const logoImg = logoImageRef.current;
+    if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+      // Draw the exact uploaded official Motoride icon
+      ctx.drawImage(logoImg, 2, 2, width - 4, height - 4);
+    } else {
+      // Fallback clean vector logo if image is loading
+      ctx.save();
+      ctx.translate(centerX - 18, centerY - 24);
+      ctx.scale(0.65, 0.65);
+      // Wheels
+      ctx.beginPath();
+      ctx.arc(14, 28, 8, 0, Math.PI * 2);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(46, 28, 8, 0, Math.PI * 2);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      // Frame
+      ctx.beginPath();
+      ctx.moveTo(14, 28);
+      ctx.lineTo(26, 16);
+      ctx.lineTo(38, 16);
+      ctx.lineTo(46, 28);
+      ctx.moveTo(26, 16);
+      ctx.lineTo(31, 28);
+      ctx.moveTo(38, 16);
+      ctx.lineTo(42, 9);
+      ctx.lineTo(47, 9);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      // Helmet
+      ctx.beginPath();
+      ctx.arc(31, 6, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Motoride', centerX, centerY + 18);
+    }
+
+    ctx.restore();
 
     // Subtle dark border ring
-    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.lineWidth = 2;
     ctx.strokeStyle = '#27272a';
     ctx.stroke();
-
-    // Motorcycle Icon (Clean White vector lines with emerald accent)
-    ctx.save();
-    ctx.translate(centerX - 28, centerY - 36);
-    ctx.scale(0.95, 0.95);
-
-    // Rear Wheel
-    ctx.beginPath();
-    ctx.arc(14, 28, 8, 0, Math.PI * 2);
-    ctx.lineWidth = 2.8;
-    ctx.strokeStyle = '#ffffff';
-    ctx.stroke();
-
-    // Front Wheel
-    ctx.beginPath();
-    ctx.arc(46, 28, 8, 0, Math.PI * 2);
-    ctx.lineWidth = 2.8;
-    ctx.strokeStyle = '#ffffff';
-    ctx.stroke();
-
-    // Bike Frame
-    ctx.beginPath();
-    ctx.moveTo(14, 28);
-    ctx.lineTo(26, 16);
-    ctx.lineTo(38, 16);
-    ctx.lineTo(46, 28);
-    ctx.moveTo(26, 16);
-    ctx.lineTo(31, 28);
-    ctx.moveTo(38, 16);
-    ctx.lineTo(42, 9);
-    ctx.lineTo(47, 9);
-    ctx.lineWidth = 3.2;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineCap = 'round';
-    ctx.stroke();
-
-    // Rider Helmet
-    ctx.beginPath();
-    ctx.arc(31, 6, 5.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#10b981';
-    ctx.fill();
-
-    ctx.restore();
-
-    // Text: Just "Motoride" in clean Pure White Color
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Motoride', centerX, centerY + 24);
-
-    ctx.restore();
 
     animationFrameRef.current = requestAnimationFrame(renderBadge);
   };
@@ -393,27 +408,27 @@ export const RealSystemPiPOverlay: React.FC = () => {
 
   return (
     <>
-      {/* Offscreen Canvas rendering the compact Live Badge Stream */}
+      {/* Offscreen Canvas rendering the 100x100 compact Live Badge Stream */}
       <canvas
         ref={canvasRef}
-        width={200}
-        height={200}
+        width={100}
+        height={100}
         className="fixed -left-[9999px] -top-[9999px] pointer-events-none opacity-0"
         aria-hidden="true"
       />
 
-      {/* Video element with real layout dimensions for Android PiP persistence */}
+      {/* Video element with 100x100 dimensions for Android PiP persistence */}
       <video
         ref={videoRef}
         playsInline
         autoPlay
-        width={200}
-        height={200}
-        className="fixed bottom-1 right-1 w-8 h-8 pointer-events-none opacity-[0.05] z-0"
+        width={100}
+        height={100}
+        className="fixed bottom-1 right-1 w-6 h-6 pointer-events-none opacity-[0.05] z-0"
         aria-hidden="true"
       />
 
-      {/* Floating Quick Action Button: small compact black pill with white Motoride text */}
+      {/* Floating Quick Action Button: small compact black pill with official Motoride icon */}
       {isEnabled && (
         <aside
           aria-label="Floating Overlay Controls"
@@ -422,14 +437,18 @@ export const RealSystemPiPOverlay: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-lg backdrop-blur-xl font-bold text-xs transition-all cursor-pointer active:scale-95 group ${
+            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-full border shadow-lg backdrop-blur-xl font-bold text-xs transition-all cursor-pointer active:scale-95 group ${
               isInPiP
                 ? 'bg-black border-zinc-700 text-white'
                 : 'bg-black/95 border-zinc-700 text-white hover:bg-zinc-900'
             }`}
-            title="Motoride Floating Overlay"
+            title="Motoride Floating Overlay (100x100)"
           >
-            <span className="text-sm">🏍️</span>
+            <img
+              src="/motoride-logo.png"
+              alt="Motoride"
+              className="w-4 h-4 rounded-full object-cover"
+            />
             <span className="text-white font-bold text-xs tracking-wide">Motoride</span>
             <Layers className="w-3 h-3 text-zinc-400 group-hover:rotate-12 transition-transform" />
           </button>
@@ -495,14 +514,17 @@ export const RealSystemPiPOverlay: React.FC = () => {
 
             {activeTab === 'pip' ? (
               <>
-                {/* Live Chat-Head Preview: Small, Solid Black Background, Bike Icon, White "Motoride" text */}
+                {/* Live Chat-Head Preview: 100x100 size with uploaded icon */}
                 <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-black/70 border border-white/10 relative overflow-hidden">
-                  <div className="w-20 h-20 rounded-full border-2 border-zinc-700 bg-black flex flex-col items-center justify-center shadow-2xl relative">
-                    <span className="text-2xl -mt-1">🏍️</span>
-                    <span className="text-[11px] font-bold text-white tracking-wide mt-0.5">Motoride</span>
+                  <div className="w-[100px] h-[100px] rounded-full border-2 border-zinc-700 bg-black flex items-center justify-center shadow-2xl relative overflow-hidden">
+                    <img
+                      src="/motoride-logo.png"
+                      alt="Motoride"
+                      className="w-full h-full object-cover rounded-full"
+                    />
                   </div>
                   <p className="text-[11px] text-zinc-400 mt-2 text-center">
-                    Small black chat-head with white <b>Motoride</b> text.
+                    Reduced to <b>100x100</b> with official <b>Motoride</b> icon.
                   </p>
                 </div>
 
