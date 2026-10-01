@@ -93,8 +93,8 @@ export const RealSystemPiPOverlay: React.FC = () => {
     };
   }, []);
 
-  // Continuous Canvas Drawing Loop for High-DPI Circular Chat-Head
-  const renderBadge = (time: number) => {
+  // Compact Circular Chat-Head: Solid Black Background, Bike Icon, White "Motoride" text
+  const renderBadge = (_time: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -104,116 +104,71 @@ export const RealSystemPiPOverlay: React.FC = () => {
     const height = canvas.height;
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = 140;
+    const radius = Math.min(centerX, centerY) - 6;
 
     ctx.clearRect(0, 0, width, height);
 
-    // Outer Animated Glow
-    const pulse = (Math.sin(time / 200) + 1) / 2;
-    const glowRadius = radius + 6 + pulse * 12;
-    const glow = ctx.createRadialGradient(centerX, centerY, radius, centerX, centerY, glowRadius);
-    glow.addColorStop(0, 'rgba(16, 185, 129, 0.5)');
-    glow.addColorStop(1, 'rgba(16, 185, 129, 0)');
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, glowRadius, 0, Math.PI * 2);
-    ctx.fillStyle = glow;
-    ctx.fill();
-
-    // Dark Circular Background Body
+    // Pure Solid Black Circular Background (no white background)
     ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.clip();
-
-    const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
-    bgGradient.addColorStop(0, '#0f172a');
-    bgGradient.addColorStop(1, '#020617');
-    ctx.fillStyle = bgGradient;
+    ctx.fillStyle = '#000000';
     ctx.fill();
 
-    // Emerald Border Ring
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = '#10b981';
+    // Subtle dark border ring
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#27272a';
     ctx.stroke();
 
-    // Header Text
-    ctx.fillStyle = '#34d399';
-    ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('MOTORIDE', centerX, centerY - 64);
-
-    // Motorcycle Logo Icon
+    // Motorcycle Icon (Clean White vector lines with emerald accent)
     ctx.save();
-    ctx.translate(centerX - 35, centerY - 52);
-    ctx.scale(1.1, 1.1);
+    ctx.translate(centerX - 28, centerY - 36);
+    ctx.scale(0.95, 0.95);
 
-    // Wheels
+    // Rear Wheel
     ctx.beginPath();
-    ctx.arc(15, 30, 8, 0, Math.PI * 2);
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#10b981';
+    ctx.arc(14, 28, 8, 0, Math.PI * 2);
+    ctx.lineWidth = 2.8;
+    ctx.strokeStyle = '#ffffff';
     ctx.stroke();
 
+    // Front Wheel
     ctx.beginPath();
-    ctx.arc(48, 30, 8, 0, Math.PI * 2);
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#10b981';
+    ctx.arc(46, 28, 8, 0, Math.PI * 2);
+    ctx.lineWidth = 2.8;
+    ctx.strokeStyle = '#ffffff';
     ctx.stroke();
 
-    // Frame
+    // Bike Frame
     ctx.beginPath();
-    ctx.moveTo(15, 30);
-    ctx.lineTo(28, 16);
-    ctx.lineTo(40, 16);
-    ctx.lineTo(48, 30);
-    ctx.moveTo(28, 16);
-    ctx.lineTo(33, 30);
-    ctx.moveTo(40, 16);
-    ctx.lineTo(44, 9);
-    ctx.lineTo(49, 9);
-    ctx.lineWidth = 3.5;
-    ctx.strokeStyle = '#34d399';
+    ctx.moveTo(14, 28);
+    ctx.lineTo(26, 16);
+    ctx.lineTo(38, 16);
+    ctx.lineTo(46, 28);
+    ctx.moveTo(26, 16);
+    ctx.lineTo(31, 28);
+    ctx.moveTo(38, 16);
+    ctx.lineTo(42, 9);
+    ctx.lineTo(47, 9);
+    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = '#ffffff';
     ctx.lineCap = 'round';
     ctx.stroke();
 
-    // Helmet
+    // Rider Helmet
     ctx.beginPath();
-    ctx.arc(32, 6, 6, 0, Math.PI * 2);
-    ctx.fillStyle = '#f59e0b';
+    ctx.arc(31, 6, 5.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#10b981';
     ctx.fill();
 
     ctx.restore();
 
-    // Live Ride Status
-    const statusText = activeRide
-      ? activeRide.status.replace(/_/g, ' ').toUpperCase()
-      : 'ACTIVE IN BACKGROUND';
-
-    ctx.fillStyle = activeRide ? '#fbbf24' : '#38bdf8';
-    ctx.font = '800 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    // Text: Just "Motoride" in clean Pure White Color
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(statusText, centerX, centerY + 30);
-
-    // Agreed Fare or Floating Label
-    if (activeRide) {
-      const fareAmount = activeRide.final_fare || activeRide.fare_amount || 80;
-      ctx.fillStyle = '#10b981';
-      ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText(`₹${fareAmount}`, centerX, centerY + 65);
-
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '600 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      const dest = (activeRide.dropoff_address || 'Destination').slice(0, 22);
-      ctx.fillText(`📍 ${dest}`, centerX, centerY + 90);
-    } else {
-      ctx.fillStyle = '#10b981';
-      ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText('FLOAT OVER APPS', centerX, centerY + 62);
-
-      ctx.fillStyle = '#64748b';
-      ctx.font = '500 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText('Floating Above Other Apps', centerX, centerY + 86);
-    }
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Motoride', centerX, centerY + 24);
 
     ctx.restore();
 
@@ -438,11 +393,11 @@ export const RealSystemPiPOverlay: React.FC = () => {
 
   return (
     <>
-      {/* Offscreen Canvas rendering the continuous Live Badge Stream */}
+      {/* Offscreen Canvas rendering the compact Live Badge Stream */}
       <canvas
         ref={canvasRef}
-        width={320}
-        height={320}
+        width={200}
+        height={200}
         className="fixed -left-[9999px] -top-[9999px] pointer-events-none opacity-0"
         aria-hidden="true"
       />
@@ -452,13 +407,13 @@ export const RealSystemPiPOverlay: React.FC = () => {
         ref={videoRef}
         playsInline
         autoPlay
-        width={320}
-        height={320}
+        width={200}
+        height={200}
         className="fixed bottom-1 right-1 w-8 h-8 pointer-events-none opacity-[0.05] z-0"
         aria-hidden="true"
       />
 
-      {/* Floating Quick Action Button: appears when enabled to let user re-open floating window */}
+      {/* Floating Quick Action Button: small compact black pill with white Motoride text */}
       {isEnabled && (
         <aside
           aria-label="Floating Overlay Controls"
@@ -467,23 +422,16 @@ export const RealSystemPiPOverlay: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-full border-2 shadow-[0_0_25px_rgba(6,182,212,0.6)] backdrop-blur-xl font-bold text-xs transition-all cursor-pointer active:scale-95 group ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border shadow-lg backdrop-blur-xl font-bold text-xs transition-all cursor-pointer active:scale-95 group ${
               isInPiP
-                ? 'bg-emerald-950/90 border-emerald-400 text-emerald-300'
-                : 'bg-slate-900/95 border-cyan-400 text-cyan-300 hover:bg-slate-800'
+                ? 'bg-black border-zinc-700 text-white'
+                : 'bg-black/95 border-zinc-700 text-white hover:bg-zinc-900'
             }`}
-            title="MotoRide Floating Overlay Over Other Apps"
+            title="Motoride Floating Overlay"
           >
-            <span className="relative flex h-2.5 w-2.5">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                isInPiP ? 'bg-emerald-400' : 'bg-cyan-400'
-              }`} />
-              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                isInPiP ? 'bg-emerald-500' : 'bg-cyan-500'
-              }`} />
-            </span>
-            <span>{isInPiP ? 'Overlay Floating Above Apps' : 'Float Over Other Apps'}</span>
-            <Layers className="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" />
+            <span className="text-sm">🏍️</span>
+            <span className="text-white font-bold text-xs tracking-wide">Motoride</span>
+            <Layers className="w-3 h-3 text-zinc-400 group-hover:rotate-12 transition-transform" />
           </button>
         </aside>
       )}
@@ -547,20 +495,14 @@ export const RealSystemPiPOverlay: React.FC = () => {
 
             {activeTab === 'pip' ? (
               <>
-                {/* Live Chat-Head Preview */}
-                <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-black/50 border border-white/10 relative overflow-hidden">
-                  <div className="w-32 h-32 rounded-full border-2 border-emerald-400/80 bg-slate-950 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.35)] relative">
-                    <span className="text-[10px] font-black tracking-widest text-emerald-400 mb-0.5">MOTORIDE</span>
-                    <span className="text-2xl">🏍️</span>
-                    <span className="text-[11px] font-extrabold text-amber-400 mt-1 uppercase">
-                      {activeRide ? activeRide.status.replace(/_/g, ' ') : 'ONLINE'}
-                    </span>
-                    <span className="text-xs font-black text-emerald-400 font-mono">
-                      ₹{activeRide ? activeRide.final_fare || activeRide.fare_amount || 80 : 80}
-                    </span>
+                {/* Live Chat-Head Preview: Small, Solid Black Background, Bike Icon, White "Motoride" text */}
+                <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-black/70 border border-white/10 relative overflow-hidden">
+                  <div className="w-20 h-20 rounded-full border-2 border-zinc-700 bg-black flex flex-col items-center justify-center shadow-2xl relative">
+                    <span className="text-2xl -mt-1">🏍️</span>
+                    <span className="text-[11px] font-bold text-white tracking-wide mt-0.5">Motoride</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-2 text-center">
-                    This floating badge stays on screen above <b>Uber, inDrive & WhatsApp</b>.
+                  <p className="text-[11px] text-zinc-400 mt-2 text-center">
+                    Small black chat-head with white <b>Motoride</b> text.
                   </p>
                 </div>
 
