@@ -28,6 +28,8 @@ export const RealSystemPiPOverlay: React.FC = () => {
   const [isInPiP, setIsInPiP] = useState<boolean>(false);
   const [activeRide, setActiveRide] = useState<MotorideRide | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<'pip' | 'apk'>('pip');
+  const [isPreparingLoop, setIsPreparingLoop] = useState<boolean>(false);
   const [pipError, setPipError] = useState<string | null>(null);
   const [pipSuccess, setPipSuccess] = useState<boolean>(false);
 
@@ -37,6 +39,13 @@ export const RealSystemPiPOverlay: React.FC = () => {
   const intervalTimerRef = useRef<any>(null);
   const audioContextRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
+  // Detect if running inside an Android WebView APK wrapper
+  const isAndroidWebView = typeof navigator !== 'undefined' && (
+    /wv|WebView/i.test(navigator.userAgent) ||
+    (/Android/i.test(navigator.userAgent) && /Version\/[0-9.]+/i.test(navigator.userAgent))
+  );
 
   // Sync state when toggled in drawer
   useEffect(() => {
@@ -244,22 +253,87 @@ export const RealSystemPiPOverlay: React.FC = () => {
       return;
     }
 
-    // Check if Picture-in-Picture is supported by browser
-    if (!document.pictureInPictureEnabled) {
-      setPipError('Your browser has disabled Picture-in-Picture. Please check your Android Chrome settings.');
+    // Check if Picture-in-Picture is supported by browser or element
+    const supportsPiP = Boolean(
+      document.pictureInPictureEnabled ||
+      (video && typeof (video as any).requestPictureInPicture === 'function')
+    );
+
+    if (!supportsPiP) {
+      if (isAndroidWebView) {
+        setPipError('You are using the MotoRide APK app. Android WebViews disable browser PiP. Use "Open in Chrome" below, or enable native overlay in your APK.');
+      } else {
+        setPipError('Picture-in-Picture is disabled in this browser.');
+      }
       return;
     }
 
     try {
+      setIsPreparingLoop(true);
       // 1. Ensure canvas has rendered at least one frame
       renderBadge(performance.now());
 
-      // 2. Set up video stream with silent audio track (forces Android to keep media session active in background)
-      if (!streamRef.current) {
+      // 2. Generate a 1.2-second self-contained looping WebM video
+      // This is CRITICAL for Android: A looping video file never pauses when Chrome goes to the background!
+      let useLoopBlob = false;
+      try {
+        if (typeof MediaRecorder !== 'undefined') {
+          const stream = canvas.captureStream(25);
+          const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+            ? 'video/webm;codecs=vp8'
+            : MediaRecorder.isTypeSupported('video/webm')
+            ? 'video/webm'
+            : '';
+
+          if (mimeType) {
+            const blob = await new Promise<Blob>((resolve) => {
+              const recorder = new MediaRecorder(stream, { mimeType });
+              const chunks: Blob[] = [];
+
+              recorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) chunks.push(e.data);
+              };
+
+              recorder.onstop = () => {
+                resolve(new Blob(chunks, { type: mimeType }));
+              };
+
+              recorder.start();
+
+              let ticks = 0;
+              const loopInterval = setInterval(() => {
+                renderBadge(performance.now());
+                ticks++;
+                if (ticks >= 25) {
+                  clearInterval(loopInterval);
+                  try {
+                    recorder.stop();
+                  } catch {}
+                }
+              }, 40);
+            });
+
+            if (blob && blob.size > 500) {
+              if (blobUrlRef.current) {
+                URL.revokeObjectURL(blobUrlRef.current);
+              }
+              const url = URL.createObjectURL(blob);
+              blobUrlRef.current = url;
+              video.srcObject = null;
+              video.src = url;
+              video.loop = true;
+              useLoopBlob = true;
+            }
+          }
+        }
+      } catch (recErr) {
+        console.warn('MediaRecorder loop note (using stream fallback):', recErr);
+      }
+
+      // Fallback: If MediaRecorder is unsupported, use live stream with silent audio track
+      if (!useLoopBlob) {
         const canvasStream = canvas.captureStream(20);
         const videoTrack = canvasStream.getVideoTracks()[0];
-
-        // Create silent audio track using Web Audio API
         let tracks: MediaStreamTrack[] = [videoTrack];
         try {
           const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -268,29 +342,25 @@ export const RealSystemPiPOverlay: React.FC = () => {
             audioContextRef.current = audioCtx;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            // Near-silent audio so Android Chrome registers an active media session
             gain.gain.value = 0.0001;
             osc.connect(gain);
             const dest = audioCtx.createMediaStreamDestination();
             gain.connect(dest);
             osc.start();
             const audioTrack = dest.stream.getAudioTracks()[0];
-            if (audioTrack) {
-              tracks.push(audioTrack);
-            }
+            if (audioTrack) tracks.push(audioTrack);
           }
-        } catch (audioErr) {
-          console.warn('Silent audio keep-alive note:', audioErr);
-        }
+        } catch {}
 
         const combinedStream = new MediaStream(tracks);
         streamRef.current = combinedStream;
         video.srcObject = combinedStream;
-        video.setAttribute('playsinline', 'true');
-        video.setAttribute('webkit-playsinline', 'true');
-        video.setAttribute('autopictureinpicture', 'true');
-        (video as any).autoPictureInPicture = true;
       }
+
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.setAttribute('autopictureinpicture', 'true');
+      (video as any).autoPictureInPicture = true;
 
       // 3. Play video stream and configure MediaSession
       if ('mediaSession' in navigator) {
@@ -315,17 +385,21 @@ export const RealSystemPiPOverlay: React.FC = () => {
       setPipSuccess(true);
       setIsEnabled(true);
       safeStorage.setItem('motoride_run_over_apps', 'true');
+      setIsPreparingLoop(false);
 
       // Auto close modal after successful PiP activation
       setTimeout(() => {
         setIsModalOpen(false);
       }, 1500);
     } catch (err: any) {
+      setIsPreparingLoop(false);
       console.error('Failed to enter PiP:', err);
       if (err.name === 'NotAllowedError') {
         setPipError('Permission denied. Please tap the button again directly to allow floating.');
       } else if (err.name === 'InvalidStateError') {
         setPipError('Video stream is preparing. Please tap "Start Floating Overlay" again.');
+      } else if (isAndroidWebView) {
+        setPipError('You are inside the APK app wrapper. Android WebViews do not support browser PiP. Tap "Open in Google Chrome" below to float over other apps!');
       } else {
         setPipError(err.message || 'Unable to launch PiP. Check phone Settings > Apps > Chrome > Picture-in-picture.');
       }
@@ -373,15 +447,14 @@ export const RealSystemPiPOverlay: React.FC = () => {
         aria-hidden="true"
       />
 
-      {/* Hidden Video element with real layout dimensions for Chromium PiP compatibility */}
+      {/* Video element with real layout dimensions for Android PiP persistence */}
       <video
         ref={videoRef}
-        muted
         playsInline
         autoPlay
         width={320}
         height={320}
-        className="fixed bottom-0 right-0 w-16 h-16 pointer-events-none opacity-[0.01] -z-50"
+        className="fixed bottom-1 right-1 w-8 h-8 pointer-events-none opacity-[0.05] z-0"
         aria-hidden="true"
       />
 
@@ -443,82 +516,200 @@ export const RealSystemPiPOverlay: React.FC = () => {
               </button>
             </div>
 
-            {/* Live Chat-Head Preview */}
-            <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-black/50 border border-white/10 relative overflow-hidden">
-              <div className="w-32 h-32 rounded-full border-2 border-emerald-400/80 bg-slate-950 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.35)] relative">
-                <span className="text-[10px] font-black tracking-widest text-emerald-400 mb-0.5">MOTORIDE</span>
-                <span className="text-2xl">🏍️</span>
-                <span className="text-[11px] font-extrabold text-amber-400 mt-1 uppercase">
-                  {activeRide ? activeRide.status.replace(/_/g, ' ') : 'ONLINE'}
-                </span>
-                <span className="text-xs font-black text-emerald-400 font-mono">
-                  ₹{activeRide ? activeRide.final_fare || activeRide.fare_amount || 80 : 80}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 mt-2 text-center">
-                This floating badge will stay on screen above <b>Uber, inDrive, Chrome & WhatsApp</b>.
-              </p>
+            {/* Tab Selector: Overlay vs APK Wrapper */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-black/40 border border-white/10 text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveTab('pip')}
+                className={`flex-1 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  activeTab === 'pip'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Floating Overlay
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('apk')}
+                className={`flex-1 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  activeTab === 'apk'
+                    ? 'bg-cyan-500 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <span>APK Setup</span>
+                {isAndroidWebView && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                )}
+              </button>
             </div>
 
-            {/* Success Message */}
-            {pipSuccess && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                <span>Floating window is active! Open Uber or other apps now to test.</span>
-              </div>
-            )}
+            {activeTab === 'pip' ? (
+              <>
+                {/* Live Chat-Head Preview */}
+                <div className="flex flex-col items-center justify-center p-4 rounded-2xl bg-black/50 border border-white/10 relative overflow-hidden">
+                  <div className="w-32 h-32 rounded-full border-2 border-emerald-400/80 bg-slate-950 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.35)] relative">
+                    <span className="text-[10px] font-black tracking-widest text-emerald-400 mb-0.5">MOTORIDE</span>
+                    <span className="text-2xl">🏍️</span>
+                    <span className="text-[11px] font-extrabold text-amber-400 mt-1 uppercase">
+                      {activeRide ? activeRide.status.replace(/_/g, ' ') : 'ONLINE'}
+                    </span>
+                    <span className="text-xs font-black text-emerald-400 font-mono">
+                      ₹{activeRide ? activeRide.final_fare || activeRide.fare_amount || 80 : 80}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-2 text-center">
+                    This floating badge stays on screen above <b>Uber, inDrive & WhatsApp</b>.
+                  </p>
+                </div>
 
-            {/* Error Message with Help */}
-            {pipError && (
-              <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
-                <div className="flex flex-col">
-                  <span className="font-bold">Notice:</span>
-                  <span className="text-[11px] leading-relaxed text-rose-200">{pipError}</span>
+                {/* WebView Alert if running in APK */}
+                {isAndroidWebView && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+                    <div className="flex flex-col">
+                      <span className="font-bold">Detected: Android APK Wrapper</span>
+                      <span className="text-[11px] text-amber-200/90 leading-tight mt-0.5">
+                        Standard Android WebViews disable browser PiP. If this button doesn&apos;t pop out, switch to the <b>APK Setup</b> tab or open in Chrome!
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Success Message */}
+                {pipSuccess && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                    <span>Floating window active! Open Uber or another app now.</span>
+                  </div>
+                )}
+
+                {/* Error Message with Help */}
+                {pipError && (
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+                    <div className="flex flex-col">
+                      <span className="font-bold">Notice:</span>
+                      <span className="text-[11px] leading-relaxed text-rose-200">{pipError}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    disabled={isPreparingLoop}
+                    onClick={startFloatingPiP}
+                    className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 disabled:opacity-75 text-slate-950 font-black text-xs tracking-wide shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
+                  >
+                    <Layers className={`w-4 h-4 ${isPreparingLoop ? 'animate-spin' : ''}`} />
+                    <span>
+                      {isPreparingLoop
+                        ? 'Preparing Infinite Floating Loop...'
+                        : 'Start Floating Over Other Apps (Uber, etc.)'}
+                    </span>
+                  </button>
+
+                  {isInPiP && (
+                    <button
+                      type="button"
+                      onClick={exitPiP}
+                      className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
+                    >
+                      Stop Floating Overlay
+                    </button>
+                  )}
+
+                  {isAndroidWebView && (
+                    <a
+                      href="https://motoride-roan.vercel.app/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <ExternalLink className="w-4 h-4 text-slate-950" />
+                      <span>Open in Google Chrome & Float Over Uber</span>
+                    </a>
+                  )}
+                </div>
+
+                {/* Android Troubleshooting Guidance */}
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/5 text-[11px] text-slate-400 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-300">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>How to float over other apps on your phone:</span>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1 text-[10px] text-slate-400 leading-normal pl-0.5">
+                    <li>Tap <b>Start Floating Over Other Apps</b> above.</li>
+                    <li>Swipe up to go to your home screen or open <b>Uber / inDrive</b>.</li>
+                    <li>The MotoRide live badge will float over Uber as a movable window.</li>
+                  </ol>
+                  <div className="p-2 rounded-xl bg-black/40 border border-white/5 mt-1 text-[10px] space-y-1">
+                    <p className="font-bold text-amber-300">Phone Brand Permissions Check:</p>
+                    <p>• <b>Xiaomi / Redmi / Poco</b>: Settings &gt; Apps &gt; Manage Apps &gt; Chrome (or your APK) &gt; Other Permissions &gt; enable <b>&quot;Display pop-up windows while running in the background&quot;</b>.</p>
+                    <p>• <b>Samsung / Pixel / Motorola</b>: Settings &gt; Apps &gt; Chrome (or your APK) &gt; <b>Picture-in-picture &gt; Allowed</b>.</p>
+                    <p>• <b>Vivo / Oppo / Realme</b>: Settings &gt; App Management &gt; Chrome &gt; <b>Floating Windows &gt; Allowed</b>.</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* APK Wrapper Guidance Tab */
+              <div className="flex flex-col gap-3 text-xs">
+                <div className="p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-200">
+                  <h4 className="font-extrabold text-white text-xs mb-1">Why Web PiP doesn&apos;t float in an APK wrapper:</h4>
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    You generated this APK from <b>https://motoride-roan.vercel.app/</b>. Android WebView apps block browser PiP unless the APK Activity includes native PiP or SYSTEM_ALERT_WINDOW code.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <span className="font-bold text-white text-[11px]">Instant Solution (Test in Chrome):</span>
+                  <a
+                    href="https://motoride-roan.vercel.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-2 border border-white/10 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 text-cyan-400" />
+                    <span>Open in Google Chrome App</span>
+                  </a>
+                  <p className="text-[10px] text-slate-400">
+                    In the Chrome app, Android OS fully supports PiP over Uber!
+                  </p>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-black/60 border border-white/10 flex flex-col gap-1.5 font-mono text-[10px]">
+                  <span className="font-sans font-bold text-amber-300 text-[11px]">To make your APK float natively over Uber:</span>
+                  <p className="font-sans text-[10px] text-slate-400">
+                    Add this to your APK&apos;s <b>MainActivity.java</b>:
+                  </p>
+                  <pre className="p-2 rounded-lg bg-slate-950 text-emerald-400 text-[9px] overflow-x-auto">
+{`@Override
+protected void onUserLeaveHint() {
+    super.onUserLeaveHint();
+    if (Build.VERSION.SDK_INT >= 26) {
+        enterPictureInPictureMode(
+            new PictureInPictureParams.Builder()
+                .setAspectRatio(new Rational(1, 1))
+                .build()
+        );
+    }
+}`}
+                  </pre>
+                  <p className="font-sans text-[10px] text-slate-400 mt-1">
+                    And in <b>AndroidManifest.xml</b>:
+                  </p>
+                  <pre className="p-2 rounded-lg bg-slate-950 text-cyan-300 text-[9px]">
+{`android:supportsPictureInPicture="true"`}
+                  </pre>
+                  <p className="font-sans text-[10px] text-slate-300 mt-1">
+                    Whenever you switch from your APK to Uber, Android will automatically float MotoRide over Uber!
+                  </p>
                 </div>
               </div>
             )}
-
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={startFloatingPiP}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs tracking-wide shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
-              >
-                <Layers className="w-4 h-4" />
-                <span>Start Floating Over Other Apps (Uber, etc.)</span>
-              </button>
-
-              {isInPiP && (
-                <button
-                  type="button"
-                  onClick={exitPiP}
-                  className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
-                >
-                  Stop Floating Overlay
-                </button>
-              )}
-            </div>
-
-            {/* Android Troubleshooting Guidance */}
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/5 text-[11px] text-slate-400 flex flex-col gap-1.5">
-              <div className="flex items-center gap-1.5 font-bold text-slate-300">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>How to float over other apps on your phone:</span>
-              </div>
-              <ol className="list-decimal list-inside space-y-1 text-[10px] text-slate-400 leading-normal pl-0.5">
-                <li>Tap <b>Start Floating Over Other Apps</b> above.</li>
-                <li>Swipe up to go to your home screen or open <b>Uber / inDrive</b>.</li>
-                <li>The MotoRide live badge will float over Uber as a movable window.</li>
-              </ol>
-              <div className="p-2 rounded-xl bg-black/40 border border-white/5 mt-1 text-[10px] space-y-1">
-                <p className="font-bold text-amber-300">Phone Brand Permissions Check:</p>
-                <p>• <b>Xiaomi / Redmi / Poco</b>: Settings &gt; Apps &gt; Manage Apps &gt; Chrome &gt; Other Permissions &gt; enable <b>&quot;Display pop-up windows while running in the background&quot;</b>.</p>
-                <p>• <b>Samsung / Pixel / Motorola</b>: Settings &gt; Apps &gt; Chrome &gt; <b>Picture-in-picture &gt; Allowed</b>.</p>
-                <p>• <b>Vivo / Oppo / Realme</b>: Settings &gt; App Management &gt; Chrome &gt; <b>Floating Windows &gt; Allowed</b>.</p>
-              </div>
-            </div>
           </div>
         </div>
       )}
