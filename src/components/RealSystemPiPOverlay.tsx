@@ -34,6 +34,8 @@ export const RealSystemPiPOverlay: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const intervalTimerRef = useRef<any>(null);
+  const audioContextRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   // Sync state when toggled in drawer
@@ -213,9 +215,19 @@ export const RealSystemPiPOverlay: React.FC = () => {
     // Initial draw
     renderBadge(performance.now());
     animationFrameRef.current = requestAnimationFrame(renderBadge);
+
+    // CRITICAL for Android: requestAnimationFrame is paused when user opens Uber!
+    // setInterval keeps running in the background so the canvas stream never stalls!
+    intervalTimerRef.current = setInterval(() => {
+      renderBadge(Date.now());
+    }, 250);
+
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (intervalTimerRef.current) {
+        clearInterval(intervalTimerRef.current);
       }
     };
   }, [activeRide]);
@@ -242,18 +254,56 @@ export const RealSystemPiPOverlay: React.FC = () => {
       // 1. Ensure canvas has rendered at least one frame
       renderBadge(performance.now());
 
-      // 2. Set up video stream
+      // 2. Set up video stream with silent audio track (forces Android to keep media session active in background)
       if (!streamRef.current) {
-        const stream = canvas.captureStream(25);
-        streamRef.current = stream;
-        video.srcObject = stream;
+        const canvasStream = canvas.captureStream(20);
+        const videoTrack = canvasStream.getVideoTracks()[0];
+
+        // Create silent audio track using Web Audio API
+        let tracks: MediaStreamTrack[] = [videoTrack];
+        try {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioContextClass) {
+            const audioCtx = new AudioContextClass();
+            audioContextRef.current = audioCtx;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            // Near-silent audio so Android Chrome registers an active media session
+            gain.gain.value = 0.0001;
+            osc.connect(gain);
+            const dest = audioCtx.createMediaStreamDestination();
+            gain.connect(dest);
+            osc.start();
+            const audioTrack = dest.stream.getAudioTracks()[0];
+            if (audioTrack) {
+              tracks.push(audioTrack);
+            }
+          }
+        } catch (audioErr) {
+          console.warn('Silent audio keep-alive note:', audioErr);
+        }
+
+        const combinedStream = new MediaStream(tracks);
+        streamRef.current = combinedStream;
+        video.srcObject = combinedStream;
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
         video.setAttribute('autopictureinpicture', 'true');
         (video as any).autoPictureInPicture = true;
       }
 
-      // 3. Play video stream
+      // 3. Play video stream and configure MediaSession
+      if ('mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: activeRide ? `MotoRide: ${activeRide.status.toUpperCase()}` : 'MotoRide Floating Overlay',
+            artist: activeRide ? `Fare: ₹${activeRide.final_fare || activeRide.fare_amount || 80}` : 'Active over other apps',
+            album: 'MotoRide',
+          });
+          navigator.mediaSession.playbackState = 'playing';
+        } catch {}
+      }
+
       await video.play();
 
       // 4. Request Picture-in-Picture
@@ -452,20 +502,22 @@ export const RealSystemPiPOverlay: React.FC = () => {
             </div>
 
             {/* Android Troubleshooting Guidance */}
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/5 text-[11px] text-slate-400 flex flex-col gap-1">
+            <div className="p-3 rounded-2xl bg-white/5 border border-white/5 text-[11px] text-slate-400 flex flex-col gap-1.5">
               <div className="flex items-center gap-1.5 font-bold text-slate-300">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>How to see it over other apps:</span>
+                <span>How to float over other apps on your phone:</span>
               </div>
               <ol className="list-decimal list-inside space-y-1 text-[10px] text-slate-400 leading-normal pl-0.5">
                 <li>Tap <b>Start Floating Over Other Apps</b> above.</li>
                 <li>Swipe up to go to your home screen or open <b>Uber / inDrive</b>.</li>
-                <li>MotoRide will float over Uber as a movable chat-head.</li>
-                <li>
-                  If blocked, ensure your phone allows Chrome: <br />
-                  <span className="text-cyan-400 font-mono">Settings &gt; Apps &gt; Chrome &gt; Picture-in-picture &gt; Allowed</span>
-                </li>
+                <li>The MotoRide live badge will float over Uber as a movable window.</li>
               </ol>
+              <div className="p-2 rounded-xl bg-black/40 border border-white/5 mt-1 text-[10px] space-y-1">
+                <p className="font-bold text-amber-300">Phone Brand Permissions Check:</p>
+                <p>• <b>Xiaomi / Redmi / Poco</b>: Settings &gt; Apps &gt; Manage Apps &gt; Chrome &gt; Other Permissions &gt; enable <b>&quot;Display pop-up windows while running in the background&quot;</b>.</p>
+                <p>• <b>Samsung / Pixel / Motorola</b>: Settings &gt; Apps &gt; Chrome &gt; <b>Picture-in-picture &gt; Allowed</b>.</p>
+                <p>• <b>Vivo / Oppo / Realme</b>: Settings &gt; App Management &gt; Chrome &gt; <b>Floating Windows &gt; Allowed</b>.</p>
+              </div>
             </div>
           </div>
         </div>
