@@ -140,21 +140,6 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
     window.dispatchEvent(new Event('motoride_theme_changed'));
   };
 
-  // Run Over Other Apps (Floating PiP Widget)
-  const [runOverApps, setRunOverApps] = useState<boolean>(() => {
-    try {
-      return safeStorage.getItem('motoride_run_over_apps') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const handleRunOverAppsToggle = (val: boolean) => {
-    setRunOverApps(val);
-    safeStorage.setItem('motoride_run_over_apps', String(val));
-    window.dispatchEvent(new CustomEvent('motoride_run_over_apps_changed', { detail: val }));
-  };
-
   // Passenger Avatar Photo (Stored in state & safeStorage)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
     try {
@@ -935,30 +920,6 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
                 <span
                   className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
                     doNotScreenOff ? 'left-6' : 'left-1'
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Run Over Other Apps (Floating PiP Widget) */}
-            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2.5">
-                <Download className="w-4 h-4 text-cyan-400" />
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-white">Run Over Other Apps (PiP)</span>
-                  <span className="text-[10px] text-slate-400">Show floating ride bubble on mobile</span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleRunOverAppsToggle(!runOverApps)}
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
-                  runOverApps ? 'bg-cyan-500' : 'bg-slate-700'
-                }`}
-              >
-                <span
-                  className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
-                    runOverApps ? 'left-6' : 'left-1'
                   }`}
                 />
               </button>

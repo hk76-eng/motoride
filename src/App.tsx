@@ -14,7 +14,6 @@ import { motorideApi } from './services/motorideApi';
 import { initAnalytics, trackPageView, enforceAdminNoIndex } from './utils/analytics';
 import { ArrowLeftRight, User, Bike } from 'lucide-react';
 import { realtimeSync } from './services/realtimeSync';
-import { RealSystemPiPOverlay } from './components/RealSystemPiPOverlay';
 
 export default function App() {
   // Supabase Authenticated User Session
@@ -291,9 +290,6 @@ export default function App() {
         onClose={() => setIsNotificationsOpen(false)}
         onReadCountChange={(count) => setUnreadNotifications(count)}
       />
-
-      {/* Real System-Wide PiP Overlay (Floats over Uber, inDrive, Chrome when MotoRide is backgrounded) */}
-      <RealSystemPiPOverlay />
     </div>
   );
 }

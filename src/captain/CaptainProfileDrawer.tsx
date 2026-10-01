@@ -94,20 +94,6 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
     window.dispatchEvent(new Event('motoride_theme_changed'));
   };
 
-  // Run Over Other Apps (Floating PiP Widget)
-  const [runOverApps, setRunOverApps] = useState<boolean>(() => {
-    try {
-      return safeStorage.getItem('motoride_run_over_apps') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const handleRunOverAppsToggle = (val: boolean) => {
-    setRunOverApps(val);
-    safeStorage.setItem('motoride_run_over_apps', String(val));
-    window.dispatchEvent(new CustomEvent('motoride_run_over_apps_changed', { detail: val }));
-  };
   const [doNotScreenOff, setDoNotScreenOff] = useState<boolean>(() => {
     try {
       const saved = safeStorage.getItem('motoride_captain_do_not_screen_off');
@@ -894,26 +880,6 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                   <span
                     className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
                       doNotScreenOff ? 'translate-x-5' : 'translate-x-0'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-black/40 border border-white/10">
-                <div className="flex flex-col pr-2">
-                  <span className="text-xs font-bold text-white">Run Over Other Apps (PiP)</span>
-                  <span className="text-[10px] text-slate-400">Show floating ride bubble overlay on mobile</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRunOverAppsToggle(!runOverApps)}
-                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
-                    runOverApps ? 'bg-cyan-500' : 'bg-slate-800'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                      runOverApps ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />
                 </button>
