@@ -30,6 +30,7 @@ import {
   History,
   Download,
   Smartphone,
+  Sun,
 } from 'lucide-react';
 
 import { AuthUser, supabaseAuth, syncUserToSupabase } from '../lib/supabaseAuth';
@@ -82,6 +83,77 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
   const [toastMessage, setToastMessage] = useState('Profile details saved successfully!');
   const [shareTripWithContact, setShareTripWithContact] = useState(true);
   const [requireRidePin, setRequireRidePin] = useState(true);
+
+  // Do Not Screen Off (Wake Lock)
+  const [doNotScreenOff, setDoNotScreenOff] = useState<boolean>(() => {
+    try {
+      const saved = safeStorage.getItem('motoride_passenger_do_not_screen_off');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const wakeLockRef = useRef<any>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const requestWakeLock = async () => {
+      if (!doNotScreenOff) {
+        if (wakeLockRef.current) {
+          try { await wakeLockRef.current.release(); } catch {}
+          wakeLockRef.current = null;
+        }
+        return;
+      }
+      if ('wakeLock' in navigator && (navigator as any).wakeLock) {
+        try {
+          if (!wakeLockRef.current) {
+            const lock = await (navigator as any).wakeLock.request('screen');
+            if (isMounted) {
+              wakeLockRef.current = lock;
+              lock.addEventListener('release', () => { wakeLockRef.current = null; });
+            } else {
+              lock.release();
+            }
+          }
+        } catch {}
+      }
+    };
+    requestWakeLock();
+    safeStorage.setItem('motoride_passenger_do_not_screen_off', String(doNotScreenOff));
+    return () => { isMounted = false; };
+  }, [doNotScreenOff]);
+
+  // Theme Mode ('dark' | 'light')
+  const [themeMode, setThemeMode] = useState<string>(() => {
+    try {
+      return safeStorage.getItem('motoride_theme_mode') || 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  const handleThemeChange = (mode: string) => {
+    setThemeMode(mode);
+    safeStorage.setItem('motoride_theme_mode', mode);
+    window.dispatchEvent(new Event('motoride_theme_changed'));
+  };
+
+  // Run Over Other Apps (Floating PiP Widget)
+  const [runOverApps, setRunOverApps] = useState<boolean>(() => {
+    try {
+      return safeStorage.getItem('motoride_run_over_apps') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleRunOverAppsToggle = (val: boolean) => {
+    setRunOverApps(val);
+    safeStorage.setItem('motoride_run_over_apps', String(val));
+    window.dispatchEvent(new CustomEvent('motoride_run_over_apps_changed', { detail: val }));
+  };
 
   // Passenger Avatar Photo (Stored in state & safeStorage)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(() => {
@@ -835,6 +907,92 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
                   }`}
                 />
               </button>
+            </div>
+          </div>
+
+          {/* App Preferences & Display Settings */}
+          <div className="p-4 rounded-3xl bg-white/5 border border-white/15 flex flex-col gap-3">
+            <span className="text-xs font-black tracking-wider text-slate-300 uppercase">
+              App & Display Settings
+            </span>
+
+            {/* Do Not Screen Off Switch */}
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2.5">
+                <Smartphone className="w-4 h-4 text-amber-400" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-white">Do Not Screen Off</span>
+                  <span className="text-[10px] text-slate-400">Keep mobile display awake while waiting</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDoNotScreenOff(!doNotScreenOff)}
+                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                  doNotScreenOff ? 'bg-amber-500' : 'bg-slate-700'
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
+                    doNotScreenOff ? 'left-6' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Run Over Other Apps (Floating PiP Widget) */}
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2.5">
+                <Download className="w-4 h-4 text-cyan-400" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-white">Run Over Other Apps (PiP)</span>
+                  <span className="text-[10px] text-slate-400">Show floating ride bubble on mobile</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRunOverAppsToggle(!runOverApps)}
+                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                  runOverApps ? 'bg-cyan-500' : 'bg-slate-700'
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${
+                    runOverApps ? 'left-6' : 'left-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Theme Mode Selector (Dark / Light) */}
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2.5">
+                <Sun className="w-4 h-4 text-yellow-400" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-white">App Theme</span>
+                  <span className="text-[10px] text-slate-400">Select Dark or Light mode</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => handleThemeChange('dark')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    themeMode === 'dark' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Dark
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleThemeChange('light')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    themeMode === 'light' ? 'bg-amber-500 text-slate-950 shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Light
+                </button>
+              </div>
             </div>
           </div>
 

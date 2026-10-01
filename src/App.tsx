@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole } from './types/motoride';
+import { UserRole, MotorideRide } from './types/motoride';
 import { WorkspaceHeader } from './components/common/WorkspaceHeader';
 import { PassengerWorkspace } from './passenger/PassengerWorkspace';
 import { CaptainWorkspace } from './captain/CaptainWorkspace';
@@ -15,6 +15,55 @@ import { initAnalytics, trackPageView, enforceAdminNoIndex } from './utils/analy
 import { ArrowLeftRight, User, Bike } from 'lucide-react';
 import { realtimeSync } from './services/realtimeSync';
 
+// Floating PiP Widget ("Run Over Other Apps") component
+export const FloatingPiPWidget: React.FC = () => {
+  const [enabled, setEnabled] = useState(() => safeStorage.getItem('motoride_run_over_apps') === 'true');
+  const [activeRide, setActiveRide] = useState<MotorideRide | null>(null);
+
+  useEffect(() => {
+    const handleToggle = (e: any) => setEnabled(Boolean(e.detail));
+    window.addEventListener('motoride_run_over_apps_changed', handleToggle as any);
+
+    const checkRide = async () => {
+      try {
+        const rides = await motorideApi.getRides();
+        const active = rides.find(r => r && ['requested', 'captain_offered', 'captain_accepted', 'captain_arrived', 'trip_started'].includes(r.status));
+        setActiveRide(active || null);
+      } catch {}
+    };
+    checkRide();
+    const interval = setInterval(checkRide, 3000);
+    const unsub = realtimeSync.on('RIDE_UPDATED', (r: any) => {
+      if (r && ['requested', 'captain_offered', 'captain_accepted', 'captain_arrived', 'trip_started'].includes(r.status)) {
+        setActiveRide(r);
+      } else if (r && ['completed', 'cancelled_by_passenger', 'cancelled_by_captain'].includes(r.status)) {
+        setActiveRide(null);
+      }
+    });
+
+    return () => {
+      window.removeEventListener('motoride_run_over_apps_changed', handleToggle as any);
+      clearInterval(interval);
+      unsub();
+    };
+  }, []);
+
+  if (!enabled || !activeRide) return null;
+
+  return (
+    <div className="fixed bottom-24 right-4 z-[9999] bg-slate-900/95 text-white p-3.5 rounded-2xl shadow-2xl border border-cyan-500/60 backdrop-blur-md flex items-center gap-3 animate-bounce">
+      <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center font-bold text-lg">
+        🏍️
+      </div>
+      <div className="flex flex-col text-xs">
+        <span className="font-extrabold text-white">MotoRide PiP (Running Over Other Apps)</span>
+        <span className="text-cyan-300 font-semibold capitalize">Status: {activeRide.status.replace(/_/g, ' ')}</span>
+        <span className="text-[10px] text-slate-400 font-mono">Fare: ₹{activeRide.final_fare || activeRide.fare_amount || 80}</span>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   // Supabase Authenticated User Session
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
@@ -26,6 +75,18 @@ export default function App() {
     const savedUser = supabaseAuth.getCurrentUser();
     return savedUser?.role || 'passenger';
   });
+
+  const [themeMode, setThemeMode] = useState<string>(() => {
+    return safeStorage.getItem('motoride_theme_mode') || 'dark';
+  });
+
+  useEffect(() => {
+    const handleTheme = () => {
+      setThemeMode(safeStorage.getItem('motoride_theme_mode') || 'dark');
+    };
+    window.addEventListener('motoride_theme_changed', handleTheme);
+    return () => window.removeEventListener('motoride_theme_changed', handleTheme);
+  }, []);
 
   const [isCaptainOnline, setIsCaptainOnline] = useState<boolean>(true);
   const [isWalletOpen, setIsWalletOpen] = useState<boolean>(false);
@@ -149,7 +210,9 @@ export default function App() {
   // AUTHENTICATED: Show Full Application Features
   // =========================================================================
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+    <div className={`min-h-screen flex flex-col selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-300 ${
+      themeMode === 'light' ? 'bg-slate-50 text-slate-900 light' : 'bg-slate-950 text-slate-100 dark'
+    }`}>
       {/* Workspace Top Header & Navigation with User Profile & Sign Out */}
       <WorkspaceHeader
         currentRole={currentRole}
@@ -272,6 +335,9 @@ export default function App() {
         onClose={() => setIsNotificationsOpen(false)}
         onReadCountChange={(count) => setUnreadNotifications(count)}
       />
+
+      {/* Floating PiP Widget ("Run Over Other Apps") */}
+      <FloatingPiPWidget />
     </div>
   );
 }
