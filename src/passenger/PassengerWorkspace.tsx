@@ -14,7 +14,7 @@ import { LocationPickerMapModal } from './LocationPickerMapModal';
 import { motorideApi, getRideAgreedFare, mergeRideSafely, STATUS_RANK } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
-import { reverseGeocodeCoordinates } from '../utils/reverseGeocoding';
+import { reverseGeocodeCoordinates, findInstantExactLocationName } from '../utils/reverseGeocoding';
 import { safeStorage } from '../lib/safeStorage';
 import {
   MapPin,
@@ -746,8 +746,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     return 'Chandigarh Tricity Area';
   };
 
-  // Fast synchronous location name resolver (defers to regional area while async reverse geocoding resolves exact place)
+  // Fast synchronous location name resolver (checks high-density landmark/hotel/society/institute index first, then regional area)
   const getFastLocationName = (lat: number, lng: number): string => {
+    const instant = findInstantExactLocationName(lat, lng);
+    if (instant && !instant.includes('Location (') && instant !== 'Selected Location') {
+      return instant;
+    }
     return getRegionalAreaName(lat, lng);
   };
 

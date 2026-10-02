@@ -190,6 +190,7 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
 
   const handleMapClick = (lat: number, lng: number) => {
     setMapFocusCoords({ lat, lng, zoom: currentZoom, timestamp: Date.now() });
+    handleMapMoveEnd(lat, lng);
   };
 
   const handleMapMoveEnd = async (lat: number, lng: number) => {
