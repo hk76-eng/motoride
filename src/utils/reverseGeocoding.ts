@@ -14,13 +14,11 @@ export interface GeocodedAddressResult {
 const geocodeCache = new Map<string, GeocodedAddressResult>();
 
 // Google Maps API Key from environment or provisioned Maps key
-const GOOGLE_MAPS_KEY =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_MAPS_API_KEY) ||
-  'AIzaSyB9pAU6h7_1zk9j7hEWdhcwmwQA80Ep0ZE';
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyB9pAU6h7_1zk9j7hEWdhcwmwQA80Ep0ZE';
 
 // Comprehensive Tricity POI spatial index (Hotels, Hospitals, Markets, Homes/Societies, Gardens, Institutions, Buildings)
 export const KNOWN_LANDMARKS = [
-  // --- HOTELS, RESORTS & LUXURY LODGING ---
+  // --- HOTELS & RESORTS ---
   { name: 'JW Marriott Hotel, Sector 35, Chandigarh', lat: 30.724514, lng: 76.764124, type: 'hotel' },
   { name: 'Hotel Mountview, Sector 10, Chandigarh', lat: 30.751514, lng: 76.789124, type: 'hotel' },
   { name: 'Taj Chandigarh, Sector 17, Chandigarh', lat: 30.741214, lng: 76.783514, type: 'hotel' },
@@ -36,10 +34,10 @@ export const KNOWN_LANDMARKS = [
   { name: 'Hotel Paradise, Sector 22, Chandigarh', lat: 30.731514, lng: 76.772124, type: 'hotel' },
   { name: 'Hotel Paradise, Sector 52, Chandigarh', lat: 30.718514, lng: 76.726514, type: 'hotel' },
   { name: 'Holiday Inn, Sector 3, Panchkula', lat: 30.701514, lng: 76.842514, type: 'hotel' },
-  { name: 'The Bella Vista (Welcomhotel), Sector 5, Panchkula', lat: 30.698514, lng: 76.854514, type: 'hotel' },
+  { name: 'The Bella Vista, Sector 5, Panchkula', lat: 30.698514, lng: 76.854514, type: 'hotel' },
   { name: 'Park Plaza, Ambala-Chandigarh Highway, Zirakpur', lat: 30.642514, lng: 76.822514, type: 'hotel' },
   { name: 'Ramada Plaza, VIP Road, Zirakpur', lat: 30.645514, lng: 76.818514, type: 'hotel' },
-  { name: 'Country Inn & Suites by Radisson, Zirakpur', lat: 30.641514, lng: 76.824514, type: 'hotel' },
+  { name: 'Country Inn & Suites, Zirakpur', lat: 30.641514, lng: 76.824514, type: 'hotel' },
   { name: 'Glades Hotel, Sector 55, Phase 5, Mohali', lat: 30.723124, lng: 76.719514, type: 'hotel' },
   { name: 'The Altius Hotel, Industrial Area Phase 2, Chandigarh', lat: 30.698514, lng: 76.792514, type: 'hotel' },
   { name: 'Lemon Tree Hotel, Industrial Area Phase 1, Chandigarh', lat: 30.704514, lng: 76.801514, type: 'hotel' },
@@ -54,12 +52,6 @@ export const KNOWN_LANDMARKS = [
   { name: 'Hometel Chandigarh, Industrial Area Phase 1, Chandigarh', lat: 30.706514, lng: 76.803514, type: 'hotel' },
   { name: 'Regenta Central Cassia, Zirakpur', lat: 30.643814, lng: 76.821114, type: 'hotel' },
   { name: 'Velvet Clarks Exotica, Zirakpur', lat: 30.640514, lng: 76.826514, type: 'hotel' },
-  { name: 'Ginger Hotel, Industrial Area Phase 2, Chandigarh', lat: 30.701124, lng: 76.793514, type: 'hotel' },
-  { name: 'Golden Tulip Resort, Panchkula-Morni Road, Panchkula', lat: 30.718514, lng: 76.892514, type: 'hotel' },
-  { name: 'Clarion Inn, Ambala Highway, Zirakpur', lat: 30.639814, lng: 76.825114, type: 'hotel' },
-  { name: 'Best Western Maryland, Zirakpur', lat: 30.642114, lng: 76.823114, type: 'hotel' },
-  { name: 'Hotel KC Cross Road, Sector 10, Panchkula', lat: 30.692514, lng: 76.852514, type: 'hotel' },
-  { name: 'Hotel Orbit, Industrial Area Phase 2, Chandigarh', lat: 30.702514, lng: 76.791114, type: 'hotel' },
 
   // --- HOSPITALS & MEDICAL INSTITUTES ---
   { name: 'Fortis Hospital, Phase 8, Mohali', lat: 30.712514, lng: 76.734124, type: 'hospital' },
@@ -133,9 +125,6 @@ export const KNOWN_LANDMARKS = [
   { name: 'Golden Sand Apartments, Dhakoli, Zirakpur', lat: 30.636214, lng: 76.849514, type: 'society' },
   { name: 'Skynet Enclave, Dhakoli, Zirakpur', lat: 30.641814, lng: 76.840514, type: 'society' },
   { name: 'Imperial Apartments, Dhakoli, Zirakpur', lat: 30.638514, lng: 76.849814, type: 'society' },
-  { name: 'Guru Nanak Enclave, Dhakoli, Zirakpur', lat: 30.637114, lng: 76.845114, type: 'society' },
-  { name: 'Bollywood Heights, Peer Muchalla, Zirakpur', lat: 30.648214, lng: 76.858514, type: 'society' },
-  { name: 'New Generation Apartments, Dhakoli, Zirakpur', lat: 30.639114, lng: 76.843214, type: 'society' },
   { name: 'Modern Housing Complex (MHC), Mani Majra, Chandigarh', lat: 30.718514, lng: 76.838514, type: 'society' },
   { name: 'Homeland Heights, Sector 70, Mohali', lat: 30.702514, lng: 76.719514, type: 'society' },
   { name: 'Jal Vayu Vihar, Sector 67, Mohali', lat: 30.697514, lng: 76.721514, type: 'society' },
@@ -157,20 +146,10 @@ export const KNOWN_LANDMARKS = [
   { name: 'Mona Greens, Gazipur Road, Zirakpur', lat: 30.633514, lng: 76.832514, type: 'society' },
   { name: 'Hollywood Heights, VIP Road, Zirakpur', lat: 30.643514, lng: 76.817514, type: 'society' },
   { name: 'Sigma City, Zirakpur', lat: 30.639514, lng: 76.821514, type: 'society' },
-  { name: 'Affinity Greens, PR7 Airport Ring Road, Zirakpur', lat: 30.631114, lng: 76.828514, type: 'society' },
-  { name: 'Uptown Skylla, PR7 Airport Ring Road, Zirakpur', lat: 30.632514, lng: 76.827114, type: 'society' },
-  { name: 'Ananta Lifestyle, Gazipur Road, Zirakpur', lat: 30.629514, lng: 76.833514, type: 'society' },
-  { name: 'Riverdale Aerovista, Dayalpur Road, Zirakpur', lat: 30.624114, lng: 76.819514, type: 'society' },
-  { name: 'Rail Vihar Society, Sector 20, Panchkula', lat: 30.675514, lng: 76.862514, type: 'society' },
-  { name: 'Kendriya Vihar, Sector 14, Panchkula', lat: 30.686514, lng: 76.852514, type: 'society' },
-  { name: 'Progressive Society, Sector 50, Chandigarh', lat: 30.699514, lng: 76.735514, type: 'society' },
-  { name: 'Pushpac Complex, Sector 49, Chandigarh', lat: 30.703514, lng: 76.741514, type: 'society' },
-  { name: 'BHEL Society, Sector 20, Panchkula', lat: 30.673514, lng: 76.865514, type: 'society' },
-  { name: 'Peerless Society, Sector 20, Panchkula', lat: 30.674214, lng: 76.863814, type: 'society' },
 
-  // --- INSTITUTES, UNIVERSITIES, COLLEGES & SCHOOLS ---
+  // --- INSTITUTES, UNIVERSITIES & COLLEGES ---
   { name: 'Panjab University (PU Campus), Sector 14, Chandigarh', lat: 30.759514, lng: 76.768124, type: 'institute' },
-  { name: 'PEC (Punjab Engineering College), Sector 12, Chandigarh', lat: 30.766514, lng: 76.778514, type: 'institute' },
+  { name: 'PEC University of Technology, Sector 12, Chandigarh', lat: 30.766514, lng: 76.778514, type: 'institute' },
   { name: 'PGGC (Post Graduate Govt College), Sector 11, Chandigarh', lat: 30.756514, lng: 76.781514, type: 'institute' },
   { name: 'PGGCG (Govt College for Girls), Sector 11, Chandigarh', lat: 30.754514, lng: 76.784514, type: 'institute' },
   { name: 'PGGC (Post Graduate Govt College), Sector 46, Chandigarh', lat: 30.701514, lng: 76.758514, type: 'institute' },
@@ -195,10 +174,7 @@ export const KNOWN_LANDMARKS = [
   { name: 'Army Institute of Law (AIL), Sector 68, Mohali', lat: 30.701514, lng: 76.721514, type: 'institute' },
   { name: 'Govt Home Science College, Sector 10, Chandigarh', lat: 30.753514, lng: 76.786514, type: 'institute' },
   { name: 'Govt College of Art, Sector 10, Chandigarh', lat: 30.755514, lng: 76.788514, type: 'institute' },
-  { name: 'Chandigarh College of Architecture (CCA), Sector 12, Chandigarh', lat: 30.761514, lng: 76.780514, type: 'institute' },
-  { name: 'Institute of Hotel Management (IHM), Sector 42, Chandigarh', lat: 30.728114, lng: 76.746514, type: 'institute' },
-  { name: 'CSIO (Central Scientific Instruments Org.), Sector 30, Chandigarh', lat: 30.718514, lng: 76.789514, type: 'institute' },
-  { name: 'IMTECH (Inst. of Microbial Tech.), Sector 39, Chandigarh', lat: 30.738514, lng: 76.732514, type: 'institute' },
+  { name: 'Chandigarh College of Architecture, Sector 12, Chandigarh', lat: 30.761514, lng: 76.780514, type: 'institute' },
 
   // --- SHOPPING MALLS & COMMERCIAL CENTERS ---
   { name: 'Elante Mall, Industrial Area Phase 1, Chandigarh', lat: 30.705514, lng: 76.801124, type: 'mall' },
@@ -223,8 +199,6 @@ export const KNOWN_LANDMARKS = [
   { name: 'QuarkCity IT Special Economic Zone, Mohali', lat: 30.715514, lng: 76.702514, type: 'building' },
   { name: 'Bestech Business Towers, Sector 66, Mohali', lat: 30.689514, lng: 76.735514, type: 'building' },
   { name: 'World Trade Center (WTC), Sector 106, Mohali', lat: 30.655514, lng: 76.712514, type: 'building' },
-  { name: 'Rajiv Gandhi Chandigarh Technology Park (IT Park)', lat: 30.724514, lng: 76.841514, type: 'building' },
-  { name: 'Infosys Campus, Rajiv Gandhi IT Park, Chandigarh', lat: 30.726514, lng: 76.846514, type: 'building' },
 
   // --- TRANSIT & STADIUMS ---
   { name: 'Chandigarh Railway Station, Daria', lat: 30.702514, lng: 76.822514, type: 'transit' },
@@ -233,25 +207,23 @@ export const KNOWN_LANDMARKS = [
   { name: 'ISBT Sector 43 Bus Stand, Chandigarh', lat: 30.722514, lng: 76.745514, type: 'transit' },
   { name: 'ISBT Sector 17 Bus Stand, Chandigarh', lat: 30.738514, lng: 76.778514, type: 'transit' },
   { name: 'ISBT Phase 8 Mohali Bus Stand', lat: 30.715514, lng: 76.731514, type: 'transit' },
-  { name: 'PCA Cricket Stadium (IS Bindra Stadium), Sector 63, Mohali', lat: 30.690514, lng: 76.737514, type: 'stadium' },
+  { name: 'PCA Cricket Stadium (IS Bindra Stadium), Sector 63, Phase 9, Mohali', lat: 30.690514, lng: 76.737514, type: 'stadium' },
   { name: 'Tau Devi Lal Sports Complex & Stadium, Sector 3, Panchkula', lat: 30.698514, lng: 76.839514, type: 'stadium' },
   { name: 'Punjab & Haryana High Court, Sector 1, Chandigarh', lat: 30.758514, lng: 76.804514, type: 'building' },
   { name: 'Punjab Secretariat, Sector 1, Chandigarh', lat: 30.756514, lng: 76.801514, type: 'building' },
-  { name: 'District Courts Complex, Sector 43, Chandigarh', lat: 30.720514, lng: 76.743514, type: 'building' },
-  { name: 'District Courts Complex, Sector 76, Mohali', lat: 30.685514, lng: 76.721514, type: 'building' },
 ];
 
 /**
  * Finds the closest known POI / Hotel / Building / Society / Institute from our spatial index.
  */
-export function findClosestKnownLandmark(lat: number, lng: number, maxMeters = 850): { name: string; dist: number; type?: string } | null {
+export function findClosestKnownLandmark(lat: number, lng: number, maxMeters = 380): { name: string; dist: number } | null {
   if (!lat || !lng || isNaN(lat) || isNaN(lng)) return null;
 
-  let closest: { name: string; dist: number; type?: string } | null = null;
+  let closest: { name: string; dist: number } | null = null;
   for (const loc of KNOWN_LANDMARKS) {
     const distMeters = calculateRoadDistanceKm(lat, lng, loc.lat, loc.lng) * 1000;
     if (!closest || distMeters < closest.dist) {
-      closest = { name: loc.name, dist: distMeters, type: loc.type };
+      closest = { name: loc.name, dist: distMeters };
     }
   }
 
@@ -262,8 +234,7 @@ export function findClosestKnownLandmark(lat: number, lng: number, maxMeters = 8
 }
 
 /**
- * Fast synchronous exact location resolver (used immediately on marker drag in map picker modal).
- * Guarantees exact hotel, building, society, or institute name is always returned and never stripped.
+ * Fast synchronous exact location resolver (used immediately on marker drag in map picker modal)
  */
 export function findInstantExactLocationName(lat: number, lng: number): string {
   if (!lat || !lng || isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return 'Selected Location';
@@ -271,17 +242,12 @@ export function findInstantExactLocationName(lat: number, lng: number): string {
   // 1. Check cache first
   const cacheKey = `${lat.toFixed(5)},${lng.toFixed(5)}`;
   const cached = geocodeCache.get(cacheKey);
-  if (cached && cached.fullAddress && !cached.fullAddress.toLowerCase().includes('pin point') && !cached.fullAddress.startsWith('Location (')) {
-    return cached.fullAddress;
-  }
+  if (cached && cached.fullAddress) return cached.fullAddress;
 
-  // 2. Check closest high-density landmark/society/hotel/building within 850m
-  const landmark = findClosestKnownLandmark(lat, lng, 850);
+  // 2. Check closest high-density landmark/society/hotel/building within 380m
+  const landmark = findClosestKnownLandmark(lat, lng, 380);
   if (landmark) {
-    if (landmark.dist <= 350) {
-      return landmark.name;
-    }
-    return `Near ${landmark.name}`;
+    return landmark.name;
   }
 
   // 3. Fallback to closest named sector or locality centroid
@@ -420,13 +386,13 @@ export async function reverseGeocodeCoordinates(
     return cached;
   }
 
-  // 1. High-Precision Local POI Match (< 650m) for instant exact Hotel / Society / Building / Institute identification
-  const exactLandmark = findClosestKnownLandmark(lat, lng, 650);
+  // 1. High-Precision Local POI Match (< 320m) for instant exact Hotel / Society / Building / Institute identification
+  const exactLandmark = findClosestKnownLandmark(lat, lng, 320);
   if (exactLandmark) {
-    const cleanName = exactLandmark.dist <= 350 ? exactLandmark.name : `Near ${exactLandmark.name}`;
+    const cleanName = exactLandmark.name.replace(/,\s*(Chandigarh|Mohali|Panchkula|Zirakpur|Kharar).*/i, '');
     const parts = exactLandmark.name.split(',').map((p) => p.trim());
     const result: GeocodedAddressResult = {
-      fullAddress: cleanName,
+      fullAddress: exactLandmark.name,
       placeName: parts[0],
       locality: parts[1] || undefined,
       city: parts[2] || 'Chandigarh Tricity',

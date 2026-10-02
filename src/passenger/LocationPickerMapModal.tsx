@@ -104,23 +104,6 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
       const focusLat = startLoc.lat > 0 ? startLoc.lat : (effectivePassengerLat || 30.7333);
       const focusLng = startLoc.lng > 0 ? startLoc.lng : (effectivePassengerLng || 76.7794);
       setMapFocusCoords({ lat: focusLat, lng: focusLng, zoom: 15, timestamp: Date.now() });
-
-      // Immediately resolve exact hotel, building, society, or institute name
-      if (focusLat > 0 && focusLng > 0) {
-        const instantName = getFastLocationName(focusLat, focusLng);
-        if (instantName && !instantName.includes('Location (') && instantName !== 'Selected Location') {
-          setSelectedLocation((prev) => ({ ...prev, name: instantName }));
-          setCustomPlaceName(instantName);
-          setSearchQuery(instantName);
-        }
-        resolveLocationNameAsync(focusLat, focusLng).then((accurate) => {
-          if (accurate && !accurate.includes('Location (') && accurate !== 'Selected Location') {
-            setSelectedLocation((prev) => ({ ...prev, name: accurate }));
-            setCustomPlaceName(accurate);
-            setSearchQuery(accurate);
-          }
-        }).catch(() => {});
-      }
     } else if (!isOpen) {
       wasOpenRef.current = false;
     }
@@ -293,11 +276,8 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               <span className={`w-2.5 h-2.5 rounded-full ${targetType === 'pickup' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
               <span>{targetType === 'pickup' ? 'Set Pickup Location' : 'Set Drop-off Location'}</span>
             </h2>
-            <p className="text-[11px] font-semibold truncate flex items-center gap-1 text-slate-300">
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${targetType === 'pickup' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-              <span className="truncate">
-                {customPlaceName || selectedLocation.name || (targetType === 'pickup' ? 'Align green pin with pickup place' : 'Align red pin with drop-off place')}
-              </span>
+            <p className="text-[11px] text-slate-400 font-medium truncate">
+              {targetType === 'pickup' ? 'Drag map to align green pin 🟢 with pickup' : 'Drag map to align red pin 🔴 with drop-off'}
             </p>
           </div>
         </div>
@@ -314,25 +294,17 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
 
       {/* Main Map View Area */}
       <div className="relative flex-1 w-full h-full overflow-hidden">
-        {/* Top Active Place Name Tag (Replacing generic "align pickup" banner with live exact location name) */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300 max-w-[94vw]">
-          <div className={`px-4 py-1.5 rounded-full bg-slate-950/95 backdrop-blur-md border text-xs sm:text-sm font-black shadow-2xl flex items-center gap-2 max-w-full ${
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className={`px-3.5 py-1.5 rounded-full bg-slate-900/90 backdrop-blur-md border text-xs font-bold shadow-xl flex items-center gap-2 ${
             targetType === 'pickup'
-              ? 'border-emerald-500/60 text-emerald-300 shadow-emerald-950/60'
-              : 'border-rose-500/60 text-rose-300 shadow-rose-950/60'
+              ? 'border-emerald-500/50 text-emerald-300 shadow-emerald-950/50'
+              : 'border-rose-500/50 text-rose-300 shadow-rose-950/50'
           }`}>
-            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isResolvingName ? 'bg-cyan-400 animate-ping' : (targetType === 'pickup' ? 'bg-emerald-400' : 'bg-rose-500')}`} />
-            <span className="truncate">
-              {isResolvingName ? (
-                <span className="text-cyan-300 flex items-center gap-1.5 font-bold">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin inline shrink-0" />
-                  Locating exact place...
-                </span>
-              ) : (
-                <span className="text-white font-black truncate">
-                  📍 {customPlaceName || selectedLocation.name || (targetType === 'pickup' ? 'Pickup Location' : 'Drop-off Destination')}
-                </span>
-              )}
+            <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${targetType === 'pickup' ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+            <span>
+              {targetType === 'pickup'
+                ? 'Drag map to align green pin 🟢 with pickup location'
+                : 'Drag map to align red pin 🔴 with drop-off location'}
             </span>
           </div>
         </div>
@@ -353,8 +325,8 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         <div 
           className="absolute top-1/2 left-1/2 pointer-events-none z-[999] flex flex-col items-center justify-end"
           style={{
-            width: '340px',
-            height: '170px',
+            width: '320px',
+            height: '160px',
             left: '50%',
             top: '50%',
             transform: `translate(-50%, ${isDragging ? '-116px' : '-102px'})`,
@@ -362,11 +334,11 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
           }}
         >
           {targetType === 'pickup' ? (
-            <div className="flex flex-col items-center max-w-[280px] sm:max-w-[340px]">
+            <div className="flex flex-col items-center max-w-[260px] sm:max-w-[320px]">
               {/* Floating Place Name Tag */}
-              <div className="bg-slate-950/95 text-emerald-300 border-2 border-emerald-400 text-xs sm:text-[13px] font-black px-3.5 py-1.5 rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.85)] mb-1.5 flex items-center gap-1.5 backdrop-blur-md max-w-full truncate animate-in fade-in duration-150">
-                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isResolvingName ? 'bg-cyan-400 animate-ping' : 'bg-emerald-400'}`} />
-                <span className="truncate max-w-[220px] sm:max-w-[280px] text-white font-black">
+              <div className="bg-slate-950/95 text-emerald-300 border border-emerald-500/60 text-[11px] font-bold px-3 py-1.5 rounded-full shadow-2xl mb-1.5 flex items-center gap-1.5 backdrop-blur-md max-w-full truncate animate-in fade-in duration-150">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${isResolvingName ? 'bg-cyan-400 animate-ping' : 'bg-emerald-400'}`} />
+                <span className="truncate max-w-[210px] sm:max-w-[270px]">
                   {isResolvingName ? 'Locating...' : (customPlaceName || selectedLocation.name || 'Pickup Location')}
                 </span>
               </div>
@@ -377,12 +349,12 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               />
             </div>
           ) : (
-            <div className="flex flex-col items-center max-w-[280px] sm:max-w-[340px]">
+            <div className="flex flex-col items-center max-w-[260px] sm:max-w-[320px]">
               {/* Floating Place Name Tag */}
-              <div className="bg-slate-950/95 text-rose-300 border-2 border-rose-400 text-xs sm:text-[13px] font-black px-3.5 py-1.5 rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.85)] mb-1.5 flex items-center gap-1.5 backdrop-blur-md max-w-full truncate animate-in fade-in duration-150">
-                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${isResolvingName ? 'bg-cyan-400 animate-ping' : 'bg-rose-400'}`} />
-                <span className="truncate max-w-[220px] sm:max-w-[280px] text-white font-black">
-                  {isResolvingName ? 'Locating...' : (customPlaceName || selectedLocation.name || 'Drop-off Destination')}
+              <div className="bg-slate-950/95 text-rose-300 border border-rose-500/60 text-[11px] font-bold px-3 py-1.5 rounded-full shadow-2xl mb-1.5 flex items-center gap-1.5 backdrop-blur-md max-w-full truncate animate-in fade-in duration-150">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${isResolvingName ? 'bg-cyan-400 animate-ping' : 'bg-rose-400'}`} />
+                <span className="truncate max-w-[210px] sm:max-w-[270px]">
+                  {isResolvingName ? 'Locating...' : (customPlaceName || selectedLocation.name || 'Drop-off Location')}
                 </span>
               </div>
               <img 
