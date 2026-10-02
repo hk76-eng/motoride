@@ -2818,11 +2818,18 @@ export const motorideApi = {
 
     if (supabase) {
       const sessionUser = supabaseAuth.getCurrentUser();
+      const rawUserPhone = userPhone?.replace(/\D/g, '').slice(-10);
+      const rawSessionPhone = sessionUser?.phone?.replace(/\D/g, '').slice(-10);
       const idsToTry = Array.from(new Set([
         userId,
         userPhone,
+        rawUserPhone,
+        rawUserPhone ? `+91${rawUserPhone}` : '',
+        rawUserPhone ? `91${rawUserPhone}` : '',
         sessionUser?.id,
         sessionUser?.phone,
+        rawSessionPhone,
+        rawSessionPhone ? `+91${rawSessionPhone}` : '',
         'cpt_01',
         'cpt_instant_01',
       ].filter(Boolean) as string[]));
@@ -2833,9 +2840,8 @@ export const motorideApi = {
           const { data: pById } = await supabase.from('profiles').select('id, phone, email, wallet_balance').eq('id', userId).maybeSingle();
           if (pById && typeof pById.wallet_balance === 'number') supabaseBal = Number(pById.wallet_balance);
         }
-        if (supabaseBal === null && (userPhone || userId)) {
-          const phoneToQuery = userPhone || userId;
-          const { data: pByPhone } = await supabase.from('profiles').select('id, phone, email, wallet_balance').eq('phone', phoneToQuery).maybeSingle();
+        if (supabaseBal === null && idsToTry.length > 0) {
+          const { data: pByPhone } = await supabase.from('profiles').select('id, phone, email, wallet_balance').in('phone', idsToTry).maybeSingle();
           if (pByPhone && typeof pByPhone.wallet_balance === 'number') supabaseBal = Number(pByPhone.wallet_balance);
         }
         if (supabaseBal === null && sessionUser?.email) {
@@ -2856,7 +2862,7 @@ export const motorideApi = {
         }
       } catch {}
 
-      // C. Query completed rides table
+      // C. Query completed rides table for accurate platform commission calculation
       try {
         const { data: allRides } = await supabase
           .from('rides')
@@ -2897,7 +2903,43 @@ export const motorideApi = {
         }
       } catch {}
 
-      // D. Query wallets table
+      // D. Query approved topup_requests directly to guarantee any approved screenshot deposit is immediately counted
+      try {
+        const { data: approvedTopups } = await supabase
+          .from('topup_requests')
+          .select('*')
+          .eq('status', 'approved');
+
+        if (Array.isArray(approvedTopups)) {
+          const myTopups = approvedTopups.filter((t) =>
+            idsToTry.includes(t.captain_id) || idsToTry.includes(t.captain_phone)
+          );
+
+          for (const t of myTopups) {
+            const txId = `tx_topup_${t.id}`;
+            const existsInTxs = supabaseTxs.some((st) =>
+              st.id === txId ||
+              st.id === `tx_dep_${t.id}` ||
+              (st.type === 'credit' && st.description?.includes(t.id))
+            );
+
+            if (!existsInTxs) {
+              supabaseTxs.push({
+                id: txId,
+                wallet_id: `w_${userId}`,
+                user_id: userId,
+                amount: Number(t.amount || 100),
+                type: 'credit',
+                category: 'topup',
+                description: `Official QR Top-up Approved (₹${t.amount}${t.utr_number ? ` - UTR: ${t.utr_number}` : ''})`,
+                created_at: t.updated_at || t.created_at || new Date().toISOString(),
+              });
+            }
+          }
+        }
+      } catch {}
+
+      // E. Query wallets table
       try {
         const { data: walData } = await supabase
           .from('wallets')
@@ -2905,7 +2947,7 @@ export const motorideApi = {
           .in('user_id', idsToTry)
           .maybeSingle();
         if (walData && typeof walData.balance === 'number') {
-          if (supabaseBal === null || walData.balance < supabaseBal) {
+          if (supabaseBal === null || walData.balance > supabaseBal) {
             supabaseBal = Number(walData.balance);
           }
         }
@@ -2922,7 +2964,7 @@ export const motorideApi = {
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
-    // 5. Compute absolute mathematical ledger balance: Starting Balance (500) + Topups - Commission Deductions
+    // 5. Compute absolute mathematical ledger balance: Starting Base (500) + Approved Topups - Commission Deductions
     const totalCommissionDebits = finalTxs
       .filter((t) => t.category === 'commission_fee' || (t.category as string) === 'platform_commission' || t.description?.includes('Commission') || Boolean(t.reference_ride_id))
       .reduce((sum, t) => sum + Math.abs(Number(t.amount || 0)), 0);
@@ -2941,11 +2983,8 @@ export const motorideApi = {
     }
 
     let finalBal = computedLedgerBal;
-    if (totalCommissionDebits > 0) {
-      // If there are commission deductions, balance MUST be the deducted ledger balance
+    if (totalCredits > 0 || totalCommissionDebits > 0) {
       finalBal = computedLedgerBal;
-      if (supabaseBal !== null && supabaseBal < finalBal) finalBal = supabaseBal;
-      if (localStoredBal !== null && localStoredBal < finalBal) finalBal = localStoredBal;
     } else {
       finalBal = supabaseBal ?? localStoredBal ?? computedLedgerBal;
     }
@@ -3201,148 +3240,176 @@ export const motorideApi = {
   async approveTopupRequest(id: string): Promise<{ request: TopupDepositRequest; wallet: { balance: number } }> {
     const now = new Date().toISOString();
 
-    // 1. Try backend API
+    // 1. Fetch current deposit request
+    let currentRequest: TopupDepositRequest | null = null;
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        const { data } = await supabase.from('topup_requests').select('*').eq('id', id).maybeSingle();
+        if (data) currentRequest = data;
+      } catch {}
+    }
+    if (!currentRequest) {
+      try {
+        const cached = safeStorage.getItem('motoride_topup_requests_cache');
+        const list: TopupDepositRequest[] = cached ? JSON.parse(cached) : [];
+        currentRequest = list.find((r) => r.id === id) || null;
+      } catch {}
+    }
+
+    // Try backend API if reachable
     try {
       const json = await safeFetchJson<{ request: TopupDepositRequest; wallet: { balance: number } }>(
         `${API_BASE}/topup-requests/${id}/approve`,
         { method: 'POST', headers: { 'Content-Type': 'application/json' } }
       );
       if (json?.request) {
-        const bal = json.wallet?.balance ?? json.request.amount;
-        try {
-          safeStorage.setItem(`motoride_wallet_${json.request.captain_id}`, JSON.stringify({ balance: bal, currency: '₹' }));
-        } catch {}
-        realtimeSync.broadcast('TOPUP_REQUEST_UPDATED', { request: json.request, id, status: 'approved', wallet: json.wallet });
-        realtimeSync.broadcast('WALLET_UPDATED', { user_id: json.request.captain_id, captain_id: json.request.captain_id, balance: bal });
-        return json;
+        currentRequest = json.request;
       }
     } catch {}
 
-    // 2. Direct Supabase update
-    let updatedRequest: TopupDepositRequest = {
+    const amountToAdd = Number(currentRequest?.amount || 100);
+    const captId = currentRequest?.captain_id || '';
+    const captPhone = currentRequest?.captain_phone || '';
+
+    // Calculate all identifier aliases
+    const rawDigits = captPhone.replace(/\D/g, '').slice(-10);
+    const phoneFormats = Array.from(new Set([
+      captPhone,
+      rawDigits ? `+91${rawDigits}` : '',
+      rawDigits ? `91${rawDigits}` : '',
+      rawDigits,
+    ].filter(Boolean)));
+
+    const allKeysToUpdate = Array.from(new Set([
+      captId,
+      ...phoneFormats,
+      'cpt_01',
+      'cpt_instant_01',
+    ].filter(Boolean)));
+
+    // Fetch previous balance before top-up
+    let currentBal = 500;
+    try {
+      const prevW = await this.getWallet(captId, captPhone);
+      if (prevW && prevW.wallet && typeof prevW.wallet.balance === 'number') {
+        currentBal = prevW.wallet.balance;
+      }
+    } catch {}
+
+    const newBal = Number((currentBal + amountToAdd).toFixed(2));
+
+    const updatedRequest: TopupDepositRequest = currentRequest ? {
+      ...currentRequest,
+      status: 'approved',
+      updated_at: now,
+    } : {
       id,
-      captain_id: '',
+      captain_id: captId,
       captain_name: 'Captain',
-      amount: 0,
+      captain_phone: captPhone,
+      amount: amountToAdd,
       status: 'approved',
       created_at: now,
       updated_at: now,
     };
-    let newBal = 0;
-    let targetPhone = '';
-    let targetProfileId = '';
 
-    const supabase = getSupabase();
+    // 2. Persist directly to Supabase
     if (supabase) {
       try {
-        const { data: current } = await supabase.from('topup_requests').select('*').eq('id', id).single();
-        if (current) {
-          updatedRequest = { ...current, status: 'approved', updated_at: now };
-          await supabase.from('topup_requests').update({ status: 'approved', updated_at: now }).eq('id', id);
+        await supabase.from('topup_requests').update({ status: 'approved', updated_at: now }).eq('id', id);
 
-          // Find profile by ID or Phone
-          targetPhone = current.captain_phone || '';
-          targetProfileId = current.captain_id || '';
+        // Update profiles table for ID and Phones
+        if (captId) {
+          await supabase.from('profiles').update({ wallet_balance: newBal, updated_at: now }).eq('id', captId);
+        }
+        for (const ph of phoneFormats) {
+          await supabase.from('profiles').update({ wallet_balance: newBal, updated_at: now }).eq('phone', ph);
+        }
 
-          let profileObj: any = null;
-          if (targetProfileId) {
-            const { data: p1 } = await supabase.from('profiles').select('id, phone, wallet_balance').eq('id', targetProfileId).maybeSingle();
-            if (p1) profileObj = p1;
-          }
-          if (!profileObj && (targetPhone || targetProfileId)) {
-            const phoneSearch = targetPhone || targetProfileId;
-            const { data: p2 } = await supabase.from('profiles').select('id, phone, wallet_balance').eq('phone', phoneSearch).maybeSingle();
-            if (p2) profileObj = p2;
-          }
-
-          if (profileObj?.phone) targetPhone = profileObj.phone;
-          if (profileObj?.id) targetProfileId = profileObj.id;
-
-          // Calculate current balance
-          let currentBal = 0;
-          if (profileObj && typeof profileObj.wallet_balance === 'number') {
-            currentBal = Number(profileObj.wallet_balance);
-          } else {
-            const { data: wData } = await supabase.from('wallets').select('balance').eq('user_id', current.captain_id).maybeSingle();
-            if (wData && typeof wData.balance === 'number') {
-              currentBal = Number(wData.balance);
-            }
-          }
-
-          newBal = Number((currentBal + Number(current.amount)).toFixed(2));
-
-          // Update profiles table by ID and by Phone
-          if (targetProfileId) {
-            await supabase.from('profiles').update({ wallet_balance: newBal, updated_at: now }).eq('id', targetProfileId);
-          }
-          if (targetPhone) {
-            await supabase.from('profiles').update({ wallet_balance: newBal, updated_at: now }).eq('phone', targetPhone);
-          }
-
-          // Update wallets table for all matching keys
-          const keysToUpdate = Array.from(new Set([current.captain_id, targetProfileId, targetPhone].filter(Boolean)));
-          for (const key of keysToUpdate) {
-            await supabase.from('wallets').upsert([{
-              user_id: key,
-              balance: newBal,
-              currency: '₹',
-              updated_at: now,
-            }]);
-          }
-
-          // Insert wallet transaction
-          const tx: WalletTransaction = {
-            id: `tx_dep_${Date.now()}`,
-            wallet_id: `w_${targetProfileId || current.captain_id}`,
-            user_id: targetProfileId || current.captain_id,
-            amount: Number(current.amount),
-            type: 'credit',
-            category: 'topup',
-            description: `Official QR Top-up Approved (UTR: ${current.utr_number || 'Verified'})`,
-            created_at: now,
-          };
-          await supabase.from('wallet_transactions').insert([tx]);
-
-          // Insert confirmation chat message
-          await supabase.from('topup_chat').insert([{
-            request_id: id,
-            sender_id: 'admin',
-            sender_role: 'admin',
-            sender_name: 'Motoride Admin',
-            message: `✅ Payment verified! ₹${current.amount} has been credited to your wallet balance.`,
-            created_at: now,
+        // Upsert wallets table for all alias keys
+        for (const k of allKeysToUpdate) {
+          await supabase.from('wallets').upsert([{
+            user_id: k,
+            balance: newBal,
+            currency: '₹',
+            updated_at: now,
           }]);
         }
+
+        // Insert wallet credit transaction
+        const tx: WalletTransaction = {
+          id: `tx_dep_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          wallet_id: `w_${captId || captPhone}`,
+          user_id: captId || captPhone,
+          amount: amountToAdd,
+          type: 'credit',
+          category: 'topup',
+          description: `Official QR Top-up Approved (₹${amountToAdd}${currentRequest?.utr_number ? ` - UTR: ${currentRequest.utr_number}` : ''})`,
+          created_at: now,
+        };
+        await supabase.from('wallet_transactions').insert([tx]);
+
+        // Insert confirmation topup chat message
+        await supabase.from('topup_chat').insert([{
+          request_id: id,
+          sender_id: 'admin',
+          sender_role: 'admin',
+          sender_name: 'Motoride Admin',
+          message: `✅ Payment verified! ₹${amountToAdd} has been credited to your wallet balance immediately.`,
+          created_at: now,
+        }]);
       } catch (err) {
-        console.warn('Supabase approve direct update warning:', err);
+        console.warn('Supabase approve direct update error:', err);
       }
     }
 
-    const allCaptainKeys = Array.from(new Set([updatedRequest.captain_id, targetProfileId, targetPhone, updatedRequest.captain_phone].filter(Boolean)));
-    for (const k of allCaptainKeys) {
+    // Cache locally
+    for (const k of allKeysToUpdate) {
       try {
         safeStorage.setItem(`motoride_wallet_${k}`, JSON.stringify({ balance: newBal, currency: '₹' }));
       } catch {}
     }
     safeStorage.setItem('motoride_captain_wallet_balance', newBal.toString());
 
+    // Update local cached requests list
+    try {
+      const cached = safeStorage.getItem('motoride_topup_requests_cache');
+      if (cached) {
+        const list: TopupDepositRequest[] = JSON.parse(cached);
+        const idx = list.findIndex((r) => r.id === id);
+        if (idx !== -1) {
+          list[idx] = updatedRequest;
+          safeStorage.setItem('motoride_topup_requests_cache', JSON.stringify(list));
+        }
+      }
+    } catch {}
+
+    // Broadcast across all channels and devices
     realtimeSync.broadcast('TOPUP_REQUEST_UPDATED', {
       request: updatedRequest,
       id,
       status: 'approved',
       wallet: { balance: newBal, currency: '₹' },
-      user_id: updatedRequest.captain_id,
-      captain_id: updatedRequest.captain_id,
-      profile_id: targetProfileId,
-      phone: targetPhone,
+      user_id: captId,
+      captain_id: captId,
+      phone: captPhone,
+      captain_phone: captPhone,
     });
 
     realtimeSync.broadcast('WALLET_UPDATED', {
-      user_id: updatedRequest.captain_id,
-      captain_id: updatedRequest.captain_id,
-      profile_id: targetProfileId,
-      phone: targetPhone,
+      user_id: captId,
+      captain_id: captId,
+      phone: captPhone,
+      captain_phone: captPhone,
       balance: newBal,
+      wallet: { balance: newBal, currency: '₹' },
+    });
+
+    realtimeSync.broadcast('PROFILES_UPDATED', {
+      id: captId,
+      phone: captPhone,
+      wallet_balance: newBal,
     });
 
     return { request: updatedRequest, wallet: { balance: newBal } };

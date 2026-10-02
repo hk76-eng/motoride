@@ -766,6 +766,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (qr) setQrSettings(qr);
     });
 
+    const isPhoneMatch = (p1?: string, p2?: string) => {
+      if (!p1 || !p2) return false;
+      if (p1 === p2) return true;
+      const d1 = p1.replace(/\D/g, '').slice(-10);
+      const d2 = p2.replace(/\D/g, '').slice(-10);
+      return Boolean(d1 && d2 && d1 === d2);
+    };
+
     const unsubTopupUpdated = realtimeSync.on('TOPUP_REQUEST_UPDATED', (payload: any) => {
       loadCaptainTopupRequests();
       loadCaptainData();
@@ -774,8 +782,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const reqCaptId = payload?.request?.captain_id || payload?.user_id || payload?.captain_id || '';
       const reqCaptPhone = payload?.request?.captain_phone || payload?.phone || '';
       const isMyTopup = (
-        (reqCaptId && (reqCaptId === currentId || reqCaptId === currentPhone || reqCaptId === authUserRef.current?.id)) ||
-        (reqCaptPhone && (reqCaptPhone === currentPhone || reqCaptPhone === currentId)) ||
+        (reqCaptId && (reqCaptId === currentId || reqCaptId === currentPhone || reqCaptId === authUserRef.current?.id || isPhoneMatch(reqCaptId, currentPhone))) ||
+        (reqCaptPhone && (reqCaptPhone === currentPhone || reqCaptPhone === currentId || isPhoneMatch(reqCaptPhone, currentPhone) || isPhoneMatch(reqCaptPhone, currentId))) ||
         (payload?.profile_id && (payload.profile_id === currentId || payload.profile_id === authUserRef.current?.id))
       );
 
@@ -796,8 +804,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const targetId = payload?.user_id || payload?.captain_id || '';
       const targetPhone = payload?.phone || '';
       const isMyWallet = (
-        (targetId && (targetId === currentId || targetId === currentPhone || targetId === authUserRef.current?.id)) ||
-        (targetPhone && (targetPhone === currentPhone || targetPhone === currentId)) ||
+        (targetId && (targetId === currentId || targetId === currentPhone || targetId === authUserRef.current?.id || isPhoneMatch(targetId, currentPhone))) ||
+        (targetPhone && (targetPhone === currentPhone || targetPhone === currentId || isPhoneMatch(targetPhone, currentPhone) || isPhoneMatch(targetPhone, currentId))) ||
         (payload?.profile_id && (payload.profile_id === currentId || payload.profile_id === authUserRef.current?.id))
       );
 
@@ -812,7 +820,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     const unsubProfilesUpdated = realtimeSync.on('PROFILES_UPDATED', (prof: any) => {
       const currentId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id || '';
       const currentPhone = captainRef.current?.phone || authUserRef.current?.phone || '';
-      if (prof && (prof.id === currentId || prof.phone === currentPhone || prof.phone === currentId || prof.id === authUserRef.current?.id)) {
+      if (prof && (prof.id === currentId || prof.phone === currentPhone || prof.phone === currentId || prof.id === authUserRef.current?.id || isPhoneMatch(prof.phone, currentPhone))) {
         if (typeof prof.wallet_balance === 'number') {
           setWalletBalance(prof.wallet_balance);
         }
@@ -831,9 +839,18 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     }, 10000);
 
     // Continuous 2.5-second polling to ensure cross-browser/mobile sync even if SSE sleeps on mobile
+    let pollCount = 0;
     const pollInterval = setInterval(() => {
       loadAvailableRides();
       loadActiveRide();
+      pollCount++;
+      // Sync captain data and wallet balance every 2 ticks (~5s)
+      if (pollCount % 2 === 0) {
+        loadCaptainData();
+        if (activeTab === 'wallet') {
+          loadCaptainTopupRequests();
+        }
+      }
     }, 2500);
 
     // Immediate re-fetch when switching back to mobile browser tab or storage changes
