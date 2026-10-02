@@ -2800,48 +2800,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         <span className="w-3.5 h-0.5 bg-amber-400 rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
       </button>
 
-      {/* Captain Top Tab Switcher: Rides & Map | Wallet | Documents */}
-      <div className="fixed sm:absolute top-3 sm:top-4 left-16 sm:left-18 z-[1100] bg-black/85 border border-slate-700/60 shadow-2xl backdrop-blur-xl p-1 rounded-2xl flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab('requests')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-            activeTab === 'requests'
-              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-950/40'
-              : 'text-slate-300 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Bike className="w-3.5 h-3.5 stroke-[2.5]" />
-          <span className="hidden xs:inline">Map & Rides</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('wallet')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-            activeTab === 'wallet'
-              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-950/40'
-              : 'text-slate-300 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <Wallet className="w-3.5 h-3.5 stroke-[2.5]" />
-          <span>Wallet</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('documents')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer ${
-            activeTab === 'documents'
-              ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-950/40'
-              : 'text-slate-300 hover:text-white hover:bg-white/5'
-          }`}
-        >
-          <ShieldCheck className="w-3.5 h-3.5 stroke-[2.5]" />
-          <span>Documents</span>
-        </button>
-      </div>
-
       {/* Dedicated Captain Wallet View Tab Overlay */}
       {activeTab === 'wallet' && (
         <div className="fixed inset-0 z-[1150] pt-16 sm:pt-20 pb-10 px-3 sm:px-6 md:px-8 bg-slate-950/95 backdrop-blur-xl overflow-y-auto flex flex-col gap-6 animate-in fade-in duration-200 scrollbar-thin">
