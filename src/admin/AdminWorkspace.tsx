@@ -3627,6 +3627,85 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 </div>
               </div>
 
+              {/* Section 2.5: Uploaded KYC & Compliance Documents */}
+              <div className="flex flex-col gap-2.5">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Uploaded KYC & Compliance Documents</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold">
+                    {['driving_licence', 'vehicle_rc', 'pan_card', 'aadhaar_card'].filter(
+                      (k) => Boolean((selectedCaptain.documents as any)?.[k]?.front_image)
+                    ).length} of 4 Uploaded
+                  </span>
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {[
+                    { key: 'driving_licence', title: 'Driving Licence (DL)', defaultNum: 'DL Not Provided' },
+                    { key: 'vehicle_rc', title: 'Vehicle RC', defaultNum: selectedCaptain.plate_number || 'RC Not Provided' },
+                    { key: 'pan_card', title: 'PAN Card', defaultNum: 'PAN Not Provided' },
+                    { key: 'aadhaar_card', title: 'Aadhaar Card', defaultNum: 'Aadhaar Not Provided' },
+                  ].map((docItem) => {
+                    const docData = (selectedCaptain.documents as any)?.[docItem.key];
+                    const hasFront = Boolean(docData?.front_image);
+                    const hasBack = Boolean(docData?.back_image);
+                    const docNum = docData?.number || docItem.defaultNum;
+                    const docStatus = docData?.status || (hasFront ? 'pending' : 'not_uploaded');
+
+                    return (
+                      <div key={docItem.key} className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-white">{docItem.title}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                            docStatus === 'verified'
+                              ? 'bg-emerald-500/15 border border-emerald-500/40 text-emerald-400'
+                              : hasFront
+                              ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {docStatus === 'verified' ? 'Verified ✓' : hasFront ? 'Uploaded (Review)' : 'Not Uploaded'}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] font-mono font-semibold text-slate-300">
+                          {docNum}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1 border-t border-slate-900">
+                          {hasFront ? (
+                            <a
+                              href={docData.front_image}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Front Photo</span>
+                            </a>
+                          ) : (
+                            <span className="text-[10px] text-slate-500 italic">No front photo</span>
+                          )}
+
+                          {hasBack && (
+                            <a
+                              href={docData.back_image}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>Back Photo</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Section 3: Live Telemetry */}
               <div className="flex flex-col gap-2.5">
                 <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">

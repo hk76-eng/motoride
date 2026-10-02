@@ -116,7 +116,16 @@
           "color": "Black",
           "is_active": true
         },
-        "created_at": "2026-09-29T15:46:23.958Z"
+        "created_at": "2026-09-29T15:46:23.958Z",
+        "documents": {
+          "driving_licence": {
+            "number": "DL-0420110012345",
+            "front_image": "data:image/jpeg;base64,sample123",
+            "status": "pending",
+            "uploaded_at": "2026-10-02T14:56:10.384Z"
+          }
+        },
+        "updated_at": "2026-10-02T14:56:10.384Z"
       }
     ],
     [

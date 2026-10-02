@@ -49,6 +49,7 @@ interface CaptainProfileDrawerProps {
   todayIncome?: number;
   onUpdateCaptain?: (updated: Partial<Captain>) => void;
   onOpenWallet?: () => void;
+  onOpenDocuments?: () => void;
   onOpenRideHistory?: () => void;
   onSignOut?: () => void;
 }
@@ -60,6 +61,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   todayIncome = 0,
   onUpdateCaptain,
   onOpenWallet,
+  onOpenDocuments,
   onOpenRideHistory,
   onSignOut,
 }) => {
@@ -608,7 +610,7 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
             </div>
 
             {/* Dedicated Trip & Earnings History Quick Button */}
-            <div className="pt-2 border-t border-white/10">
+            <div className="pt-2 border-t border-white/10 flex flex-col gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -634,6 +636,32 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
                 </div>
                 <ChevronRight className="w-4 h-4 text-amber-400 group-hover:translate-x-0.5 transition-transform" />
               </button>
+
+              {onOpenDocuments && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenDocuments();
+                  }}
+                  className="w-full p-3 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 flex items-center justify-between text-left cursor-pointer transition-all active:scale-95 group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-sm">
+                      <ShieldCheck className="w-4 h-4 stroke-[2.5]" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-white group-hover:text-emerald-300 transition-colors">
+                        Captain Documents & KYC
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Upload Driving Licence, Vehicle RC, PAN Card & Aadhaar
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              )}
             </div>
 
           </div>
@@ -908,26 +936,54 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
           </div>
 
           {/* Verification & Compliance Status */}
-          <div className="p-4 rounded-3xl bg-white/5 border border-white/15 flex flex-col gap-2.5">
-            <span className="text-xs font-black tracking-wider text-slate-300 uppercase flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Documents & Compliance</span>
-            </span>
-            <div className="grid grid-cols-3 gap-2">
+          <div className="p-4 rounded-3xl bg-white/5 border border-white/15 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-black tracking-wider text-slate-300 uppercase flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Documents & Compliance</span>
+              </span>
+              {onOpenDocuments && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenDocuments();
+                  }}
+                  className="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-black transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Upload / Manage</span>
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="p-2.5 rounded-2xl bg-black/40 border border-emerald-500/30 flex flex-col items-center text-center">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
-                <span className="text-[10px] text-slate-300 font-bold">Driving License</span>
-                <span className="text-[9px] text-emerald-400 font-semibold">Active</span>
+                <span className="text-[10px] text-slate-300 font-bold truncate w-full">Driving License</span>
+                <span className={`text-[9px] font-semibold ${captain?.documents?.driving_licence?.front_image ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {captain?.documents?.driving_licence?.front_image ? 'Uploaded' : 'Action Needed'}
+                </span>
               </div>
               <div className="p-2.5 rounded-2xl bg-black/40 border border-emerald-500/30 flex flex-col items-center text-center">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
-                <span className="text-[10px] text-slate-300 font-bold">Vehicle RC</span>
-                <span className="text-[9px] text-emerald-400 font-semibold">Verified</span>
+                <span className="text-[10px] text-slate-300 font-bold truncate w-full">Vehicle RC</span>
+                <span className={`text-[9px] font-semibold ${captain?.documents?.vehicle_rc?.front_image ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {captain?.documents?.vehicle_rc?.front_image ? 'Uploaded' : 'Action Needed'}
+                </span>
               </div>
               <div className="p-2.5 rounded-2xl bg-black/40 border border-emerald-500/30 flex flex-col items-center text-center">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
-                <span className="text-[10px] text-slate-300 font-bold">Insurance</span>
-                <span className="text-[9px] text-emerald-400 font-semibold">Valid 2027</span>
+                <span className="text-[10px] text-slate-300 font-bold truncate w-full">PAN Card</span>
+                <span className={`text-[9px] font-semibold ${captain?.documents?.pan_card?.front_image ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {captain?.documents?.pan_card?.front_image ? 'Uploaded' : 'Action Needed'}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-2xl bg-black/40 border border-emerald-500/30 flex flex-col items-center text-center">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 mb-1" />
+                <span className="text-[10px] text-slate-300 font-bold truncate w-full">Aadhaar Card</span>
+                <span className={`text-[9px] font-semibold ${captain?.documents?.aadhaar_card?.front_image ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {captain?.documents?.aadhaar_card?.front_image ? 'Uploaded' : 'Action Needed'}
+                </span>
               </div>
             </div>
           </div>

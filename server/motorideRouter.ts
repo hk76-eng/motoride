@@ -1897,6 +1897,103 @@ motorideRouter.post('/captains/:id/profile', (req: Request, res: Response) => {
   return res.status(404).json({ error: 'Captain not found' });
 });
 
+// Captain Documents Upload & Management (Driving Licence, Vehicle RC, PAN Card, Aadhaar Card)
+motorideRouter.get('/captains/:id/documents', (req: Request, res: Response) => {
+  const cpt = captainsStore.get(req.params.id);
+  if (!cpt) {
+    return res.status(404).json({ error: 'Captain not found' });
+  }
+
+  return res.json({
+    success: true,
+    documents: cpt.documents || {
+      driving_licence: { status: 'not_uploaded' },
+      vehicle_rc: { status: 'not_uploaded' },
+      pan_card: { status: 'not_uploaded' },
+      aadhaar_card: { status: 'not_uploaded' },
+    },
+  });
+});
+
+motorideRouter.post('/captains/:id/documents', (req: Request, res: Response) => {
+  let cpt = captainsStore.get(req.params.id);
+  if (!cpt) {
+    for (const acc of accountsStore.values()) {
+      if (acc.id === req.params.id) {
+        cpt = {
+          id: acc.id,
+          profile_id: `prof_${acc.id}`,
+          full_name: acc.name,
+          email: acc.email,
+          phone: acc.phone || '',
+          is_online: true,
+          is_approved: true,
+          is_active: true,
+          current_lat: 30.7046,
+          current_lng: 76.7178,
+          rating: 4.95,
+          total_rides: 0,
+          vehicle: {
+            id: `veh_${acc.id}`,
+            captain_id: acc.id,
+            model: acc.vehicle_model || 'Honda Activa 6G',
+            plate_number: acc.plate_number || 'PB65XX1000',
+            vehicle_type: acc.vehicle_type || 'bike',
+            color: 'Black',
+            is_active: true,
+          },
+          created_at: acc.created_at || new Date().toISOString(),
+        };
+        captainsStore.set(cpt.id, cpt);
+        break;
+      }
+    }
+  }
+
+  if (!cpt) {
+    return res.status(404).json({ error: 'Captain not found' });
+  }
+
+  if (!cpt.documents) {
+    cpt.documents = {};
+  }
+
+  const { document_type, number, front_image, back_image, status, notes, documents } = req.body;
+
+  if (documents && typeof documents === 'object') {
+    cpt.documents = {
+      ...cpt.documents,
+      ...documents,
+    };
+  } else if (document_type) {
+    const validTypes = ['driving_licence', 'vehicle_rc', 'pan_card', 'aadhaar_card'];
+    if (!validTypes.includes(document_type)) {
+      return res.status(400).json({ error: `Invalid document_type. Must be one of ${validTypes.join(', ')}` });
+    }
+    const currentDoc = (cpt.documents as any)[document_type] || {};
+    (cpt.documents as any)[document_type] = {
+      ...currentDoc,
+      number: number !== undefined ? number : currentDoc.number,
+      front_image: front_image !== undefined ? front_image : currentDoc.front_image,
+      back_image: back_image !== undefined ? back_image : currentDoc.back_image,
+      status: status || (front_image ? 'pending' : currentDoc.status || 'not_uploaded'),
+      uploaded_at: front_image ? new Date().toISOString() : currentDoc.uploaded_at,
+      notes: notes !== undefined ? notes : currentDoc.notes,
+    };
+  }
+
+  cpt.updated_at = new Date().toISOString();
+  captainsStore.set(cpt.id, cpt);
+  persistDbToDisk();
+  broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
+
+  return res.json({
+    success: true,
+    documents: cpt.documents,
+    captain: cpt,
+  });
+});
+
 motorideRouter.post('/captains/:id/toggle-online', (req: Request, res: Response) => {
   const cpt = captainsStore.get(req.params.id);
   if (!cpt) {

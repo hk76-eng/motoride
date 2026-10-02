@@ -37,6 +37,23 @@ export interface Vehicle {
   is_active: boolean;
 }
 
+export interface CaptainDocumentItem {
+  number?: string;
+  front_image?: string;
+  back_image?: string;
+  status: 'not_uploaded' | 'pending' | 'verified' | 'rejected';
+  uploaded_at?: string;
+  verified_at?: string;
+  notes?: string;
+}
+
+export interface CaptainDocuments {
+  driving_licence?: CaptainDocumentItem;
+  vehicle_rc?: CaptainDocumentItem;
+  pan_card?: CaptainDocumentItem;
+  aadhaar_card?: CaptainDocumentItem;
+}
+
 export interface Captain {
   id: string;
   profile_id: string;
@@ -62,6 +79,7 @@ export interface Captain {
   plate_number?: string;
   vehicle_type?: RideTypeCode;
   vehicle?: Vehicle;
+  documents?: CaptainDocuments;
   created_at: string;
   updated_at?: string;
 }
