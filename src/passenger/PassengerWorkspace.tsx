@@ -729,18 +729,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     }
 
     if (closest) {
-      // If within 250m, return full landmark name
-      if (closest.dist <= 250) {
+      // If within 350m, return full landmark name
+      if (closest.dist <= 350) {
         return closest.name;
       }
-      // If within 2.5km, return the sector or area part
-      if (closest.dist <= 2500) {
-        const parts = closest.name.split(',');
-        if (parts.length >= 2) {
-          return `${parts[0].trim()}, ${parts[parts.length - 1].trim()}`;
-        }
-        return closest.name;
+      // If within 1200m, return landmark name with Near prefix
+      if (closest.dist <= 1200) {
+        return `Near ${closest.name}`;
       }
+      return closest.name;
     }
 
     return 'Chandigarh Tricity Area';
