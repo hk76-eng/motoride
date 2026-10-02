@@ -325,20 +325,22 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
         <div 
           className="absolute top-1/2 left-1/2 pointer-events-none z-[999] flex flex-col items-center justify-end"
           style={{
-            width: '120px',
-            height: '140px',
+            width: '320px',
+            height: '160px',
             left: '50%',
             top: '50%',
-            transform: `translate(-50%, ${isDragging ? '-112px' : '-98px'})`,
+            transform: `translate(-50%, ${isDragging ? '-116px' : '-102px'})`,
             transition: 'transform 0.18s cubic-bezier(0.25, 1, 0.5, 1.25)',
           }}
         >
           {targetType === 'pickup' ? (
-            <div className="flex flex-col items-center">
-              {/* Floating Confirmation Tag */}
-              <div className="bg-slate-950/95 text-emerald-400 border border-emerald-500/50 text-[10px] font-black px-3 py-1 rounded-full shadow-2xl mb-1.5 whitespace-nowrap tracking-wider uppercase flex items-center gap-1.5 backdrop-blur-xs scale-90 sm:scale-100 animate-pulse">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Align Pickup Here</span>
+            <div className="flex flex-col items-center max-w-[260px] sm:max-w-[320px]">
+              {/* Floating Place Name Tag */}
+              <div className="bg-slate-950/95 text-emerald-300 border border-emerald-500/60 text-[11px] font-bold px-3 py-1.5 rounded-full shadow-2xl mb-1.5 flex items-center gap-1.5 backdrop-blur-md max-w-full truncate animate-in fade-in duration-150">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${isResolvingName ? 'bg-cyan-400 animate-ping' : 'bg-emerald-400'}`} />
+                <span className="truncate max-w-[210px] sm:max-w-[270px]">
+                  {isResolvingName ? 'Locating...' : (customPlaceName || selectedLocation.name || 'Pickup Location')}
+                </span>
               </div>
               <img 
                 src="/marker_green.svg" 
@@ -347,11 +349,13 @@ export const LocationPickerMapModal: React.FC<LocationPickerMapModalProps> = ({
               />
             </div>
           ) : (
-            <div className="flex flex-col items-center">
-              {/* Floating Confirmation Tag */}
-              <div className="bg-slate-950/95 text-rose-400 border border-rose-500/50 text-[10px] font-black px-3 py-1 rounded-full shadow-2xl mb-1.5 whitespace-nowrap tracking-wider uppercase flex items-center gap-1.5 backdrop-blur-xs scale-90 sm:scale-100 animate-pulse">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
-                <span>Align Drop-off Here</span>
+            <div className="flex flex-col items-center max-w-[260px] sm:max-w-[320px]">
+              {/* Floating Place Name Tag */}
+              <div className="bg-slate-950/95 text-rose-300 border border-rose-500/60 text-[11px] font-bold px-3 py-1.5 rounded-full shadow-2xl mb-1.5 flex items-center gap-1.5 backdrop-blur-md max-w-full truncate animate-in fade-in duration-150">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${isResolvingName ? 'bg-cyan-400 animate-ping' : 'bg-rose-400'}`} />
+                <span className="truncate max-w-[210px] sm:max-w-[270px]">
+                  {isResolvingName ? 'Locating...' : (customPlaceName || selectedLocation.name || 'Drop-off Location')}
+                </span>
               </div>
               <img 
                 src="/marker_red.svg" 
