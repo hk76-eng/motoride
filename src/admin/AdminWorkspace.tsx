@@ -3061,17 +3061,48 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 <span>Google Search Result Snippet Preview</span>
               </span>
 
-              <div className="p-4 rounded-xl bg-white text-left font-sans text-black shadow-inner flex flex-col gap-1">
+              <div className="p-4 rounded-xl bg-white text-left font-sans text-black shadow-inner flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 text-xs text-slate-700">
                   <div className="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center font-bold text-[9px]">M</div>
-                  <span className="truncate">https://motoride-roan.vercel.app</span>
+                  <span className="truncate">https://motoride-roan.vercel.app/</span>
                 </div>
                 <h3 className="text-base font-medium text-[#1a0dab] hover:underline cursor-pointer leading-snug">
-                  Motoride-Ride &amp; Courier Management
+                  Motoride - Fare Bidding Ride &amp; Courier Booking App
                 </h3>
                 <p className="text-xs text-[#4d5156] leading-relaxed">
-                  Motoride webApp Dashboard for managing rides, passengers, captains, fare bidding, courier bookings and platform operations.
+                  Motoride is a fare-bidding ride and courier booking platform where passengers can offer their fare and captains can accept ride and delivery requests
                 </p>
+              </div>
+
+              {/* Target Search Keywords */}
+              <div className="flex flex-col gap-1.5 pt-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Target Search Keywords
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Motoride',
+                    'ride booking',
+                    'fare bidding',
+                    'bike taxi',
+                    'courier booking',
+                    'ride sharing',
+                    'captain',
+                    'passenger',
+                    'delivery booking in Zirakhpur',
+                    'Panchkula',
+                    'Chandigarh',
+                    'Kharar',
+                    'SAS Nagar Mohali'
+                  ].map((kw, i) => (
+                    <span
+                      key={i}
+                      className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[10px] font-mono text-indigo-300"
+                    >
+                      {kw}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -3098,9 +3129,9 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                 </div>
                 <div className="p-3.5 flex flex-col gap-1 text-left bg-slate-900">
                   <span className="text-[10px] text-slate-400 uppercase tracking-wider font-mono">MOTORIDE-ROAN.VERCEL.APP</span>
-                  <h4 className="text-xs font-bold text-white">Motoride-Ride &amp; Courier Management</h4>
+                  <h4 className="text-xs font-bold text-white">Motoride - Fare Bidding Ride &amp; Courier Booking App</h4>
                   <p className="text-[11px] text-slate-400 line-clamp-2">
-                    Motoride webApp Dashboard for managing rides, passengers, captains, fare bidding, courier bookings and platform operations.
+                    Motoride is a fare-bidding ride and courier booking platform where passengers can offer their fare and captains can accept ride and delivery requests
                   </p>
                 </div>
               </div>
