@@ -1860,7 +1860,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
     handleAutoPassOffer(targetId);
     try {
-      await motorideApi.declineCounterOffer(activeRide.id, targetId, targetOffer?.captain_id);
+      const updatedRide = await motorideApi.declineCounterOffer(activeRide.id, targetId, targetOffer?.captain_id);
+      if (updatedRide?.status?.includes('cancelled') || (updatedRide as any)?.is_auto_cancelled) {
+        setActiveRide(null);
+        safeStorage.removeItem('motoride_active_passenger_ride_id');
+        setPickupToastMessage('📍 Offer declined. No other captains available nearby. Request auto-cancelled so you can book again!');
+        setShowPickupToast(true);
+      }
     } catch (err) {
       console.warn('Decline offer notice:', err);
     }
@@ -2074,6 +2080,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       if (ride) handleRideUpdate(ride);
     });
     const unsubAccepted = realtimeSync.on('RIDE_ACCEPTED', handleRideUpdate);
+    const unsubCancelled = realtimeSync.on('RIDE_CANCELLED', (payload: any) => {
+      const ride = payload?.ride || payload;
+      if (ride && ride.passenger_id === currentPassengerId) {
+        setActiveRide(null);
+        safeStorage.removeItem('motoride_active_passenger_ride_id');
+        setPickupToastMessage(
+          `📍 ${ride.cancellation_reason || 'Request cancelled. You can book a new ride now.'}`
+        );
+        setShowPickupToast(true);
+      }
+    });
 
     const handleStorageChange = (e: StorageEvent) => {
       if (
@@ -2155,6 +2172,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       unsubUpdate();
       unsubStatusChanged();
       unsubAccepted();
+      unsubCancelled();
       unsubLocation();
       unsubOffer();
       clearInterval(pollTimer);

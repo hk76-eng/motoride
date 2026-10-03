@@ -136,6 +136,7 @@ export interface MotorideRide {
   comment?: string | null;
   notes?: string | null;
   cancellation_reason?: string | null;
+  declined_captain_ids?: string[];
   trip_started_at?: string | null;
   trip_completed_at?: string | null;
   completed_at?: string | null;

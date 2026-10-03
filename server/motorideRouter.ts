@@ -152,7 +152,12 @@ motorideRouter.get('/rides', (req: Request, res: Response) => {
 
   if (active_for_captain === 'true') {
     // Return rides available for captain feed: 'requested' or 'captain_offered'
-    list = list.filter((r) => r.status === 'requested' || r.status === 'captain_offered');
+    const forCaptainId = (req.query.captain_id || req.query.for_captain_id) as string | undefined;
+    list = list.filter((r) => {
+      if (r.status !== 'requested' && r.status !== 'captain_offered') return false;
+      if (forCaptainId && (r as any).declined_captain_ids?.includes(forCaptainId)) return false;
+      return true;
+    });
   } else {
     if (status && typeof status === 'string' && status !== 'all') {
       list = list.filter((r) => r.status === status);
@@ -587,30 +592,58 @@ motorideRouter.post('/rides/:id/decline-offer', (req: Request, res: Response) =>
 
   const { offer_id, captain_id } = req.body;
   const offer = (ride.offers || []).find((o) => o.id === offer_id || (captain_id && o.captain_id === captain_id));
+  const targetCaptainId = offer?.captain_id || captain_id;
 
   if (offer) {
     offer.status = 'rejected';
   }
 
-  // If all offers are rejected or none pending, keep status or set to 'requested'
-  const hasPendingOffers = (ride.offers || []).some((o) => o.status === 'pending');
-  if (!hasPendingOffers && ride.status === 'captain_offered') {
-    ride.status = 'requested';
+  // Record this captain as declined for this ride so it disappears from their dashboard
+  (ride as any).declined_captain_ids = (ride as any).declined_captain_ids || [];
+  if (targetCaptainId && !(ride as any).declined_captain_ids.includes(targetCaptainId)) {
+    (ride as any).declined_captain_ids.push(targetCaptainId);
   }
+
+  // Remove rejected offer from offers list
+  ride.offers = (ride.offers || []).filter((o) => o.status !== 'rejected' && o.id !== offer_id && o.captain_id !== targetCaptainId);
+
+  // Check if other active captains are available nearby
+  const activeCaptains = Array.from(captainsStore.values()).filter(
+    (c) => c && c.id && c.is_online && !(ride as any).declined_captain_ids?.includes(c.id) && c.id !== targetCaptainId
+  );
+
+  const hasOtherPendingOffers = (ride.offers || []).some(
+    (o) => o.status === 'pending' && !(ride as any).declined_captain_ids?.includes(o.captain_id)
+  );
+
+  let isAutoCancelled = false;
+
+  if (activeCaptains.length === 0 && !hasOtherPendingOffers) {
+    // No other captains available: Automatically cancel ride so passenger can re-book!
+    ride.status = 'cancelled_by_passenger';
+    ride.cancellation_reason = 'Offer declined & no other captains available nearby. Auto-cancelled for re-booking.';
+    isAutoCancelled = true;
+  } else {
+    // Pass to other active captains
+    const hasPendingOffers = (ride.offers || []).some((o) => o.status === 'pending');
+    if (!hasPendingOffers && ride.status === 'captain_offered') {
+      ride.status = 'requested';
+    }
+  }
+
   ride.updated_at = new Date().toISOString();
 
   enrichRideWithRegisteredCaptainData(ride);
   ridesStore.set(ride.id, ride);
   persistDbToDisk();
 
-  const targetCaptainId = offer?.captain_id || captain_id;
   if (targetCaptainId) {
     notificationsStore.unshift({
       id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       user_id: targetCaptainId,
       role_target: 'captain',
       title: 'Offer Declined',
-      message: `Passenger declined your offer price of ₹${offer?.counter_fare || 'custom fare'}. You can submit a new offer or choose another live request.`,
+      message: `Passenger declined your offer price of ₹${offer?.counter_fare || 'custom fare'}. Passed to other captains.`,
       type: 'warning',
       ride_id: ride.id,
       is_read: false,
@@ -624,11 +657,17 @@ motorideRouter.post('/rides/:id/decline-offer', (req: Request, res: Response) =>
     offer_id,
     captain_id: targetCaptainId,
     counter_fare: offer?.counter_fare,
-    message: `Passenger declined your offer price of ₹${offer?.counter_fare || 'custom fare'}`,
+    message: `Passenger declined your offer price of ₹${offer?.counter_fare || 'custom fare'}. Passed to other captains.`,
+    is_auto_cancelled: isAutoCancelled,
   });
+
+  if (isAutoCancelled) {
+    broadcastEvent('RIDE_CANCELLED', { ride, ride_id: ride.id, reason: ride.cancellation_reason });
+  }
+
   broadcastEvent('RIDE_UPDATED', ride);
 
-  res.json({ success: true, ride, declined_offer_id: offer_id });
+  res.json({ success: true, ride, declined_offer_id: offer_id, is_auto_cancelled: isAutoCancelled });
 });
 
 // Update Ride Status (captain_arrived, trip_started, trip_completed, cancelled)
