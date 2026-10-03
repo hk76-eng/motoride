@@ -36,6 +36,7 @@ import {
   Minimize2,
   ChevronUp,
   ChevronDown,
+  ChevronRight,
   User,
   Star,
   ShieldCheck,
@@ -205,6 +206,15 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [isProcessingPayout, setIsProcessingPayout] = useState<boolean>(false);
   const [walletMessage, setWalletMessage] = useState<string | null>(null);
   const [copiedUpiToast, setCopiedUpiToast] = useState<boolean>(false);
+
+  // 25-Second Acceptance Countdown Timer State
+  const TOTAL_ACCEPTANCE_SECONDS = 25;
+  const [acceptanceTimerRideId, setAcceptanceTimerRideId] = useState<string | null>(null);
+  const [acceptanceRemainingMs, setAcceptanceRemainingMs] = useState<number>(TOTAL_ACCEPTANCE_SECONDS * 1000);
+  const acceptanceStartTimestampRef = useRef<number>(Date.now());
+  const autoPassedRideIdsRef = useRef<Set<string>>(new Set());
+  const availableRidesRef = useRef<MotorideRide[]>(availableRides);
+  availableRidesRef.current = availableRides;
 
   // Top-Up QR Deposit Proof & Chat state
   const [utrInput, setUtrInput] = useState<string>('');
@@ -1160,6 +1170,32 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     }
   };
 
+  // Soft gentle sound when request auto-passes to next request or live requests list
+  const playPassChime = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const notes = [783.99, 523.25]; // G5, C5 soft descending whoosh
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+        gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.08);
+        gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + idx * 0.08 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + idx * 0.08);
+        osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
+      });
+    } catch {}
+  };
+
   // Play exciting sound alert when trip starts
   const playTripStartedTune = () => {
     try {
@@ -1324,9 +1360,110 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     if (hasNew) {
       playIncomingCallTune();
       setIs100Full(true);
+      // Reset auto-pass cache for new incoming requests
+      for (const id of currentIds) {
+        if (!prevRideIdsRef.current.has(id)) {
+          autoPassedRideIdsRef.current.delete(id);
+        }
+      }
     }
     prevRideIdsRef.current = currentIds;
   }, [availableRides, isOnline]);
+
+  // 25-Second Acceptance Countdown Timer & Auto-Pass Logic
+  const handleAutoPass = (expiredRideId: string | null) => {
+    if (expiredRideId) {
+      autoPassedRideIdsRef.current.add(expiredRideId);
+    }
+
+    const currentList = availableRidesRef.current || [];
+    if (currentList.length === 0) {
+      setInspectedRide(null);
+      setAcceptanceTimerRideId(null);
+      setIs100Full(true);
+      return;
+    }
+
+    const currentIndex = currentList.findIndex((r) => r.id === expiredRideId);
+    // Find next unpassed ride
+    const unpassedRides = currentList.filter((r) => !autoPassedRideIdsRef.current.has(r.id));
+
+    if (unpassedRides.length > 0) {
+      const nextRide = unpassedRides[0];
+      setInspectedRide(nextRide);
+      setAcceptanceTimerRideId(nextRide.id);
+      acceptanceStartTimestampRef.current = Date.now();
+      setAcceptanceRemainingMs(TOTAL_ACCEPTANCE_SECONDS * 1000);
+      playPassChime();
+    } else if (currentList.length > 1 && currentIndex !== -1) {
+      // Cycle to the next ride in the list
+      const nextIndex = (currentIndex + 1) % currentList.length;
+      const nextRide = currentList[nextIndex];
+      setInspectedRide(nextRide);
+      setAcceptanceTimerRideId(nextRide.id);
+      acceptanceStartTimestampRef.current = Date.now();
+      setAcceptanceRemainingMs(TOTAL_ACCEPTANCE_SECONDS * 1000);
+      playPassChime();
+    } else {
+      // Single ride or all passed: Show the Live Requests List!
+      setInspectedRide(null);
+      setAcceptanceTimerRideId(null);
+      setIs100Full(true);
+      playPassChime();
+    }
+  };
+
+  const handlePassCurrentRequest = () => {
+    handleAutoPass(inspectedRide?.id || acceptanceTimerRideId);
+  };
+
+  useEffect(() => {
+    // If not online, or currently on an active ride, or no available rides, stop timer
+    if (!isOnline || activeRide) {
+      setAcceptanceTimerRideId(null);
+      return;
+    }
+
+    const currentList = availableRides;
+    if (currentList.length === 0) {
+      setAcceptanceTimerRideId(null);
+      if (inspectedRide) setInspectedRide(null);
+      return;
+    }
+
+    // Determine target ride for countdown
+    let targetRide = inspectedRide;
+    if (!targetRide || !currentList.some((r) => r.id === targetRide?.id)) {
+      // If none specifically inspected, target the first unpassed or first available ride
+      const unpassed = currentList.find((r) => !autoPassedRideIdsRef.current.has(r.id));
+      targetRide = unpassed || currentList[0];
+    }
+
+    if (targetRide && targetRide.id !== acceptanceTimerRideId) {
+      setAcceptanceTimerRideId(targetRide.id);
+      acceptanceStartTimestampRef.current = Date.now();
+      setAcceptanceRemainingMs(TOTAL_ACCEPTANCE_SECONDS * 1000);
+    }
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - acceptanceStartTimestampRef.current;
+      const remaining = Math.max(0, TOTAL_ACCEPTANCE_SECONDS * 1000 - elapsed);
+      setAcceptanceRemainingMs(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        handleAutoPass(acceptanceTimerRideId || targetRide?.id || null);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [availableRides, inspectedRide?.id, activeRide?.id, isOnline, acceptanceTimerRideId]);
+
+  const countdownSeconds = Math.ceil(acceptanceRemainingMs / 1000);
+  const progressPercent = Math.min(
+    100,
+    Math.max(0, (acceptanceRemainingMs / (TOTAL_ACCEPTANCE_SECONDS * 1000)) * 100)
+  );
 
   const loadAvailableRides = async () => {
     try {
@@ -1612,6 +1749,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const handleInspectRide = (ride: MotorideRide) => {
     setInspectedRide(ride);
     setIs100Full(false);
+    setAcceptanceTimerRideId(ride.id);
+    acceptanceStartTimestampRef.current = Date.now();
+    setAcceptanceRemainingMs(TOTAL_ACCEPTANCE_SECONDS * 1000);
     if (!counterFareInput[ride.id]) {
       setCounterFareInput((prev) => ({
         ...prev,
@@ -2341,11 +2481,27 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       {/* Right Column: 2km Pickup Distance | Offered Fare ₹202 | A & B Locations | UPI & Motorbike Badges */}
                       <div className="flex-1 min-w-0 flex flex-col gap-2">
                         {/* Top Row: Pickup Distance (e.g. 2km) & Offered Fare (e.g. Offered Fare ₹202) */}
-                        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
-                          <span className="text-xs sm:text-sm font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shadow-2xs">
-                            <Navigation className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span>{pickupDistText}</span>
-                          </span>
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs sm:text-sm font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                              <Navigation className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <span>{pickupDistText}</span>
+                            </span>
+
+                            {/* 25-Second Acceptance Window Pill */}
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black border font-mono-num ${
+                              isSelected
+                                ? countdownSeconds <= 5
+                                  ? 'bg-rose-500 text-white border-rose-400 animate-pulse'
+                                  : countdownSeconds <= 12
+                                  ? 'bg-amber-500 text-slate-950 border-amber-400'
+                                  : 'bg-emerald-600 text-white border-emerald-500'
+                                : 'bg-slate-100 text-slate-700 border-slate-300'
+                            }`}>
+                              <Clock className="w-2.5 h-2.5" />
+                              <span>{isSelected ? `${countdownSeconds}s Auto-pass` : '25s Window'}</span>
+                            </span>
+                          </div>
 
                           <div className="text-right flex flex-col items-end">
                             <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider leading-none mb-1">
@@ -2420,7 +2576,75 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     const passengerAvatar = ride.passenger_avatar || defaultRituAvatar;
 
     return (
-      <div className="flex flex-col gap-3.5">
+      <div className="flex flex-col gap-3">
+        {/* 25-Second Acceptance Countdown Timer & Animated Progress Bar Header */}
+        <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-white shadow-xl flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                countdownSeconds <= 5
+                  ? 'bg-rose-500/25 border-rose-500/50 text-rose-400 animate-pulse'
+                  : countdownSeconds <= 12
+                  ? 'bg-amber-500/25 border-amber-500/50 text-amber-400'
+                  : 'bg-emerald-500/25 border-emerald-500/50 text-emerald-400'
+              }`}>
+                <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '4s' }} />
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black tracking-wide text-white">Acceptance Timer:</span>
+                  <span className={`px-2 py-0.5 rounded-md text-xs font-mono font-black border ${
+                    countdownSeconds <= 5
+                      ? 'bg-rose-500 text-white border-rose-400 animate-pulse'
+                      : countdownSeconds <= 12
+                      ? 'bg-amber-500 text-slate-950 border-amber-400'
+                      : 'bg-emerald-500 text-white border-emerald-400'
+                  }`}>
+                    {countdownSeconds}s
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  {availableRides.length > 1
+                    ? `Auto-passes to next request in ${countdownSeconds}s if unanswered`
+                    : `Auto-passes to live requests list in ${countdownSeconds}s if unanswered`}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 self-end sm:self-auto">
+              {availableRides.length > 1 && (
+                <span className="text-[10px] font-bold text-slate-400 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 hidden sm:inline">
+                  Request {availableRides.findIndex((r) => r.id === ride.id) + 1} of {availableRides.length}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handlePassCurrentRequest}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
+                title="Pass to next request"
+              >
+                <span>Pass</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Animated 25-Second Progress Bar */}
+          <div className="w-full h-2 rounded-full bg-slate-800/90 overflow-hidden relative border border-slate-700/50">
+            <div
+              className={`h-full rounded-full transition-all duration-100 ease-linear ${
+                countdownSeconds <= 5
+                  ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-md shadow-rose-500/50'
+                  : countdownSeconds <= 12
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-md shadow-amber-500/50'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-md shadow-emerald-500/50'
+              }`}
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+
         {/* Inspection Request Details Header Card - Matching Layout */}
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
           <div className="flex items-start gap-3 sm:gap-4">
@@ -2516,7 +2740,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         </div>
 
         {/* Action Buttons:
-            Accept for ₹100
+            Accept for ₹100 (with countdown timer)
             Offer your Fare ₹120
             Close
         */}
@@ -2528,10 +2752,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               handleAcceptRide(ride);
               setInspectedRide(null);
             }}
-            className="w-full sm:flex-1 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 cursor-pointer text-center flex items-center justify-center gap-2"
+            className={`w-full sm:flex-1 py-3 px-4 rounded-xl font-black text-xs sm:text-sm shadow-md transition-all active:scale-95 cursor-pointer text-center flex items-center justify-center gap-2 ${
+              countdownSeconds <= 5
+                ? 'bg-rose-600 hover:bg-rose-500 text-white animate-pulse'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+            }`}
           >
             <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-            <span>Accept for ₹{ride.offered_fare}</span>
+            <span>Accept for ₹{ride.offered_fare} ({countdownSeconds}s)</span>
           </button>
 
           {/* Offer your Fare ₹120 */}
@@ -2696,39 +2924,75 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
               {/* Header Bar */}
               {inspectedRide && !activeRide && !is100Full ? (
-                <div className="px-4 sm:px-5 py-2 sm:py-2.5 bg-white border-b border-slate-200 flex items-center justify-between select-none shadow-xs">
-                  {/* Left: Location A & B Route Indicator */}
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                    <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
-                      Ride Details & Route Map (A & B)
-                    </span>
-                    <span className="text-[11px] font-mono-num font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hidden xs:inline">
-                      {inspectedRide.ride_code}
-                    </span>
+                <div className="relative bg-white border-b border-slate-200 flex flex-col select-none shadow-xs">
+                  {/* Top-Edge 25-Second Animated Progress Bar */}
+                  <div className="w-full h-1.5 bg-slate-200 overflow-hidden relative">
+                    <div
+                      className={`h-full transition-all duration-100 ease-linear ${
+                        countdownSeconds <= 5
+                          ? 'bg-rose-500 shadow-sm'
+                          : countdownSeconds <= 12
+                          ? 'bg-amber-500 shadow-sm'
+                          : 'bg-emerald-500 shadow-sm'
+                      }`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
                   </div>
 
-                  {/* Right: Close & Maximize buttons */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setIs100Full(true)}
-                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300"
-                      title="View all requests list"
-                    >
-                      All Requests
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setInspectedRide(null);
-                        setIs100Full(true);
-                      }}
-                      className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-300"
-                      title="Close inspected ride"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                  <div className="px-4 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between">
+                    {/* Left: Location A & B Route Indicator */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                      <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                        Ride Details & Route Map (A & B)
+                      </span>
+                      <span className="text-[11px] font-mono-num font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hidden xs:inline">
+                        {inspectedRide.ride_code}
+                      </span>
+                    </div>
+
+                    {/* Right: Countdown Pill, Pass, All Requests & Close buttons */}
+                    <div className="flex items-center gap-1.5">
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-mono text-[11px] font-black border ${
+                        countdownSeconds <= 5
+                          ? 'bg-rose-500/15 border-rose-500/30 text-rose-700 animate-pulse'
+                          : countdownSeconds <= 12
+                          ? 'bg-amber-500/15 border-amber-500/30 text-amber-800'
+                          : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-800'
+                      }`}>
+                        <Clock className="w-3 h-3" />
+                        <span>{countdownSeconds}s</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handlePassCurrentRequest}
+                        className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300"
+                        title="Pass to next request"
+                      >
+                        Pass
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIs100Full(true)}
+                        className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300 hidden sm:inline"
+                        title="View all requests list"
+                      >
+                        All Requests
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setInspectedRide(null);
+                          setIs100Full(true);
+                        }}
+                        className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-300"
+                        title="Close inspected ride"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
