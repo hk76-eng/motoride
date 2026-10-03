@@ -2091,7 +2091,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       dropoffAddress={currentDropoffAddress}
       dropoffDistanceText={currentDropoffDistText}
       rideDistanceText={currentDropoffDistText}
-      bottomSheetPadding={currentRideOnMap && !activeRide ? 360 : 60}
+      bottomSheetPadding={inspectedRide && !activeRide ? 30 : currentRideOnMap && !activeRide ? 60 : 60}
       showLocationsABOnly={false}
       className={`w-full h-full ${isFullBackground ? 'rounded-none border-0' : 'shadow-2xl border border-slate-800'}`}
       showOverlayControls={true}
@@ -3027,6 +3027,98 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             </div>
           </div>
         </div>
+      ) : inspectedRide ? (
+        /* Inspected Ride Split View: Top Map Frame (40% height), Bottom "Ride Details & Route Map (A & B)" */
+        <div className="absolute inset-0 w-full h-full flex flex-col z-0">
+          {/* Top Map: Perfectly sized frame showing Location A & B markers fitted */}
+          <div className="w-full h-[40dvh] sm:h-[44%] relative z-0 shrink-0 border-b border-slate-200/90 shadow-xs">
+            {renderCaptainMap(true)}
+          </div>
+
+          {/* Bottom: "Ride Details & Route Map" Tab & Details */}
+          <div className="w-full flex-1 bg-white shadow-[0_-12px_45px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden relative z-10">
+            {/* Header Bar */}
+            <div className="relative bg-white border-b border-slate-200 flex flex-col select-none shadow-xs shrink-0">
+              {/* 25-Second Animated Progress Bar */}
+              <div className="w-full h-1.5 bg-slate-200 overflow-hidden relative">
+                <div
+                  className={`h-full transition-all duration-100 ease-linear ${
+                    countdownSeconds <= 5
+                      ? 'bg-rose-500 shadow-sm'
+                      : countdownSeconds <= 12
+                      ? 'bg-amber-500 shadow-sm'
+                      : 'bg-emerald-500 shadow-sm'
+                  }`}
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+
+              <div className="px-4 sm:px-5 py-2.5 flex items-center justify-between">
+                {/* Left: Location A & B Route Indicator */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
+                    Ride Details & Route Map (A & B)
+                  </span>
+                  <span className="text-[11px] font-mono-num font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hidden xs:inline">
+                    #{inspectedRide.ride_code}
+                  </span>
+                </div>
+
+                {/* Right: Countdown Pill, Pass, All Requests & Close buttons */}
+                <div className="flex items-center gap-1.5">
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-mono text-[11px] font-black border ${
+                    countdownSeconds <= 5
+                      ? 'bg-rose-500/15 border-rose-500/30 text-rose-700 animate-pulse'
+                      : countdownSeconds <= 12
+                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-800'
+                      : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-800'
+                  }`}>
+                    <Clock className="w-3 h-3" />
+                    <span>{countdownSeconds}s</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handlePassCurrentRequest}
+                    className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300"
+                    title="Pass to next request"
+                  >
+                    Pass
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInspectedRide(null);
+                      setIs100Full(true);
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300 hidden sm:inline"
+                    title="View all requests list"
+                  >
+                    All Requests
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInspectedRide(null);
+                      setIs100Full(true);
+                    }}
+                    className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-300"
+                    title="Close inspected ride"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Interior Content */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
+              {renderInspectedRideDetails(inspectedRide)}
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           {/* Background Street View Map filling 100% of the canvas */}
@@ -3034,168 +3126,77 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             {renderCaptainMap(true)}
           </div>
 
-          {/* Center Main Page: Captain Live Ride Requests Page (100% Full / Expanded Route Details / Minimized Bottom View) */}
+          {/* Center Main Page: Captain Live Ride Requests Page (100% Full / Minimized Bottom View) */}
           <div
             className={`fixed sm:absolute bottom-0 left-1/2 -translate-x-1/2 z-[1000] transition-all duration-300 ease-out flex flex-col ${
-              is100Full || (inspectedRide && !activeRide)
+              is100Full
                 ? 'inset-0 w-full h-full max-w-full'
                 : 'h-16 sm:h-[72px] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
             }`}
           >
             <div
               className={`w-full h-full bg-white border-t border-slate-200 shadow-[0_-12px_45px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden ring-1 ring-slate-200 ${
-                is100Full || (inspectedRide && !activeRide) ? 'rounded-none border-x-0' : 'rounded-t-3xl sm:border-x sm:border-slate-200'
+                is100Full ? 'rounded-none border-x-0' : 'rounded-t-3xl sm:border-x sm:border-slate-200'
               }`}
             >
-              {/* Top Map Display when Inspecting an Incoming Ride Request (shows Pickup A & Dropoff B Markers & Route Line clearly) */}
-              {inspectedRide && !activeRide && (
-                <div className="w-full h-[42dvh] sm:h-[46%] relative z-0 shrink-0 border-b border-slate-200/90 shadow-xs">
-                  {renderCaptainMap(true)}
-                </div>
-              )}
-
               {/* Top Center Pull Handle Bar */}
-              {!inspectedRide && (
-                <div
-                  onClick={() => setIs100Full((prev) => !prev)}
-                  className="w-full pt-2 pb-0.5 bg-white flex items-center justify-center cursor-pointer group select-none hover:bg-slate-50 transition-colors shrink-0"
-                  title={is100Full ? "Drop down to view map" : "Drop up full requests view"}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Toggle live requests screen height"
-                >
-                  <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-slate-600 transition-colors" />
-                </div>
-              )}
+              <div
+                onClick={() => setIs100Full((prev) => !prev)}
+                className="w-full pt-2 pb-0.5 bg-white flex items-center justify-center cursor-pointer group select-none hover:bg-slate-50 transition-colors shrink-0"
+                title={is100Full ? "Drop down to view map" : "Drop up full requests view"}
+                role="button"
+                tabIndex={0}
+                aria-label="Toggle live requests screen height"
+              >
+                <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-slate-600 transition-colors" />
+              </div>
 
               {/* Header Bar */}
-              {inspectedRide && !activeRide ? (
-                <div className="relative bg-white border-b border-slate-200 flex flex-col select-none shadow-xs">
-                  {/* Top-Edge 25-Second Animated Progress Bar */}
-                  <div className="w-full h-1.5 bg-slate-200 overflow-hidden relative">
-                    <div
-                      className={`h-full transition-all duration-100 ease-linear ${
-                        countdownSeconds <= 5
-                          ? 'bg-rose-500 shadow-sm'
-                          : countdownSeconds <= 12
-                          ? 'bg-amber-500 shadow-sm'
-                          : 'bg-emerald-500 shadow-sm'
-                      }`}
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-
-                  <div className="px-4 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between">
-                    {/* Left: Location A & B Route Indicator */}
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                      <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
-                        Ride Details & Route Map (A & B)
-                      </span>
-                      <span className="text-[11px] font-mono-num font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hidden xs:inline">
-                        {inspectedRide.ride_code}
-                      </span>
-                    </div>
-
-                    {/* Right: Countdown Pill, Pass, All Requests & Close buttons */}
-                    <div className="flex items-center gap-1.5">
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-mono text-[11px] font-black border ${
-                        countdownSeconds <= 5
-                          ? 'bg-rose-500/15 border-rose-500/30 text-rose-700 animate-pulse'
-                          : countdownSeconds <= 12
-                          ? 'bg-amber-500/15 border-amber-500/30 text-amber-800'
-                          : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-800'
-                      }`}>
-                        <Clock className="w-3 h-3" />
-                        <span>{countdownSeconds}s</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={handlePassCurrentRequest}
-                        className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300"
-                        title="Pass to next request"
-                      >
-                        Pass
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setInspectedRide(null);
-                          setIs100Full(true);
-                        }}
-                        className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300 hidden sm:inline"
-                        title="View all requests list"
-                      >
-                        All Requests
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setInspectedRide(null);
-                          setIs100Full(true);
-                        }}
-                        className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-300"
-                        title="Close inspected ride"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
+              <div
+                onClick={(e) => {
+                  if (!is100Full && (e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
+                    setIs100Full(true);
+                  }
+                }}
+                className={`px-3.5 sm:px-5 py-2 bg-white flex items-center justify-between relative select-none shadow-sm ${
+                  is100Full ? 'border-b border-slate-200' : 'cursor-pointer hover:bg-slate-50 transition-colors'
+                }`}
+              >
+                {/* Left: Live Requests Count */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono-num">
+                    <Bike className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>{availableRides.length} Live Requests</span>
                   </div>
                 </div>
-              ) : (
-                <div
-                  onClick={(e) => {
-                    // If minimized and user clicks on empty bar area, maximize to full
-                    if (!is100Full && (e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
-                      setIs100Full(true);
-                    }
-                  }}
-                  className={`px-3.5 sm:px-5 py-2 bg-white flex items-center justify-between relative select-none shadow-sm ${
-                    is100Full ? 'border-b border-slate-200' : 'cursor-pointer hover:bg-slate-50 transition-colors'
-                  }`}
-                >
-                  {/* Left: Live Requests Count */}
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold font-mono-num">
-                      <Bike className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span>{availableRides.length} Live Requests</span>
-                    </div>
-                  </div>
 
-                  {/* Center/Right: Toggle - Type Drop Up Full and Down Button (Passenger Booking Form Style) */}
-                  <div className="flex items-center justify-end min-w-0">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIs100Full((prev) => !prev);
-                      }}
-                      className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-black text-xs font-black transition-all active:scale-95 cursor-pointer group shadow-xs flex items-center gap-1.5"
-                      title={is100Full ? "Drop down to view full map" : "Drop up full requests view"}
-                      aria-label={is100Full ? "Drop down" : "Drop up full"}
-                    >
-                      {is100Full ? (
-                        <ChevronDown className="w-4 h-4 text-black group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
-                      ) : (
-                        <ChevronUp className="w-4 h-4 text-black group-hover:-translate-y-0.5 transition-transform stroke-[2.5]" />
-                      )}
-                    </button>
-                  </div>
+                {/* Right: Toggle Button */}
+                <div className="flex items-center justify-end min-w-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIs100Full((prev) => !prev);
+                    }}
+                    className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-black text-xs font-black transition-all active:scale-95 cursor-pointer group shadow-xs flex items-center gap-1.5"
+                    title={is100Full ? "Drop down to view full map" : "Drop up full requests view"}
+                    aria-label={is100Full ? "Drop down" : "Drop up full"}
+                  >
+                    {is100Full ? (
+                      <ChevronDown className="w-4 h-4 text-black group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4 text-black group-hover:-translate-y-0.5 transition-transform stroke-[2.5]" />
+                    )}
+                  </button>
                 </div>
-              )}
+              </div>
 
               {/* Main Interior Content */}
-              {inspectedRide && !activeRide ? (
-                <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
-                  {renderInspectedRideDetails(inspectedRide)}
-                </div>
-              ) : is100Full ? (
+              {is100Full && (
                 <div className="flex-1 overflow-y-auto px-3.5 sm:px-6 py-4 scrollbar-thin bg-white">
                   {renderCaptainControls()}
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
         </>

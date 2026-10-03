@@ -301,27 +301,6 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       formattedDist = `${formattedDist} km`;
     }
 
-    if (isCaptainMode) {
-      const displayDist = formattedDist || '0m';
-      return L.divIcon({
-        className: 'custom-pin-icon marker-pin-a',
-        html: `
-          <div style="position: relative; width: 32px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
-            <div style="position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); padding: 3px 8px; border-radius: 9999px; background: #020617; color: #ffffff; font-weight: 900; font-size: 11px; border: 1.5px solid #10b981; box-shadow: 0 4px 16px rgba(0,0,0,0.75); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
-              <span style="background: #10b981; color: #020617; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900;">A</span>
-              <span style="color: #ffffff; font-weight: 900;">${displayDist}</span>
-            </div>
-            <div style="width: 28px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45)); pointer-events: none;">
-              <img src="/marker_green.svg" alt="Pickup A" style="width: 28px; height: 70px; object-fit: contain; pointer-events: none; display: block;" />
-            </div>
-          </div>
-        `,
-        iconSize: [32, 72],
-        iconAnchor: [16, 70],
-        popupAnchor: [0, -70],
-      });
-    }
-
     const rawName = pickupLocationName && pickupLocationName.trim() ? pickupLocationName.trim().replace(/^near\s+/i, '') : '';
     const isGenericPickup =
       !rawName ||
@@ -333,17 +312,17 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
 
     const shouldShowLabel = !hideLabel || Boolean(distanceText);
     const shortName = isGenericPickup ? '' : extractCleanPlaceLabel(rawName);
-    const displayName = shortName.length > 24 ? `${shortName.slice(0, 22)}…` : shortName;
+    const displayName = shortName ? (shortName.length > 22 ? `${shortName.slice(0, 20)}…` : shortName) : 'Pickup (A)';
 
     return L.divIcon({
       className: 'custom-pin-icon marker-pin-a',
       html: `
         <div style="position: relative; width: 32px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
           ${shouldShowLabel ? `
-            <div style="position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 9999px; background: #020617; color: #34d399; font-weight: 900; font-size: 11px; border: 1.5px solid #10b981; box-shadow: 0 4px 16px rgba(0,0,0,0.75); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
+            <div style="position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 9999px; background: #020617; color: #34d399; font-weight: 900; font-size: 11px; border: 1.5px solid #10b981; box-shadow: 0 4px 16px rgba(0,0,0,0.85); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
               <span style="display: flex; align-items: center; gap: 4px;">
                 <span style="background: #10b981; color: #020617; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900;">A</span>
-                ${displayName ? `<span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>` : ''}
+                <span style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>
               </span>
               ${formattedDist ? `<span style="background: #10b981; color: #020617; padding: 1px 6px; border-radius: 9999px; font-size: 10px; font-weight: 900; letter-spacing: 0.3px; box-shadow: 0 1px 4px rgba(16,185,129,0.4);">${formattedDist}</span>` : ''}
             </div>
@@ -365,39 +344,18 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       formattedDist = `${formattedDist} km`;
     }
 
-    if (isCaptainMode) {
-      const displayDist = formattedDist || '23.4 km';
-      return L.divIcon({
-        className: 'custom-pin-icon marker-pin-b',
-        html: `
-          <div style="position: relative; width: 32px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
-            <div style="position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); padding: 3px 8px; border-radius: 9999px; background: #020617; color: #ffffff; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 16px rgba(0,0,0,0.75); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
-              <span style="background: #f43f5e; color: #ffffff; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900;">B</span>
-              <span style="color: #ffffff; font-weight: 900;">${displayDist}</span>
-            </div>
-            <div style="width: 28px; height: 70px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45)); pointer-events: none;">
-              <img src="/marker_red.svg" alt="Destination B" style="width: 28px; height: 70px; object-fit: contain; pointer-events: none; display: block;" />
-            </div>
-          </div>
-        `,
-        iconSize: [32, 72],
-        iconAnchor: [16, 70],
-        popupAnchor: [0, -70],
-      });
-    }
-
-    const rawName = destinationName && destinationName.trim() ? destinationName.trim().replace(/^near\s+/i, '') : 'Drop-off (B)';
+    const rawName = destinationName && destinationName.trim() ? destinationName.trim().replace(/^near\s+/i, '') : '';
     const shortName = extractCleanPlaceLabel(rawName);
-    const displayName = shortName.length > 24 ? `${shortName.slice(0, 22)}…` : shortName;
+    const displayName = shortName ? (shortName.length > 22 ? `${shortName.slice(0, 20)}…` : shortName) : 'Drop-off (B)';
 
     return L.divIcon({
       className: 'custom-pin-icon marker-pin-b',
       html: `
         <div style="position: relative; width: 32px; height: 72px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; cursor: pointer; user-select: none; pointer-events: auto;">
-          <div style="position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 9999px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 16px rgba(0,0,0,0.75); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
+          <div style="position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); padding: 3px 9px; border-radius: 9999px; background: #020617; color: #fb7185; font-weight: 900; font-size: 11px; border: 1.5px solid #f43f5e; box-shadow: 0 4px 16px rgba(0,0,0,0.85); white-space: nowrap; letter-spacing: 0.3px; font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; gap: 5px; z-index: 50; pointer-events: none;">
             <span style="display: flex; align-items: center; gap: 4px;">
               <span style="background: #f43f5e; color: #ffffff; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900;">B</span>
-              <span style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>
+              <span style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #ffffff;">${displayName}</span>
             </span>
             ${formattedDist ? `<span style="background: #f43f5e; color: #ffffff; padding: 1px 6px; border-radius: 9999px; font-size: 10px; font-weight: 900; letter-spacing: 0.3px; box-shadow: 0 1px 4px rgba(244,63,94,0.4);">${formattedDist}</span>` : ''}
           </div>
@@ -1307,18 +1265,22 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       } else {
         // Active ride or inspecting route in captain mode: fit route bounds to show Location A and B clearly
         if (hasPickup && hasDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
-          const routeBounds = L.latLngBounds([
-            [pickupLat, pickupLng],
-            [dropoffLat, dropoffLng],
-          ]);
-          map.invalidateSize();
-          const bottomPad = bottomSheetPadding || 380;
-          map.fitBounds(routeBounds, {
-            paddingTopLeft: [80, 50],
-            paddingBottomRight: [50, bottomPad],
-            maxZoom: 16,
-            animate: true,
-          });
+          const currentRouteKey = `captain_route_${pickupLat.toFixed(4)}_${pickupLng.toFixed(4)}_${dropoffLat.toFixed(4)}_${dropoffLng.toFixed(4)}_${bottomSheetPadding}`;
+          if (lastFittedRouteKeyRef.current !== currentRouteKey) {
+            lastFittedRouteKeyRef.current = currentRouteKey;
+            const routeBounds = L.latLngBounds([
+              [pickupLat, pickupLng],
+              [dropoffLat, dropoffLng],
+            ]);
+            map.invalidateSize();
+            const bottomPad = bottomSheetPadding !== undefined ? bottomSheetPadding : 40;
+            map.fitBounds(routeBounds, {
+              paddingTopLeft: [50, 65],
+              paddingBottomRight: [50, Math.max(35, bottomPad)],
+              maxZoom: 16,
+              animate: false,
+            });
+          }
         } else if (bounds.length > 1) {
           map.invalidateSize();
           const bottomPad = bottomSheetPadding || 60;
