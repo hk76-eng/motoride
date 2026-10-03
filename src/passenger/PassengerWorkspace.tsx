@@ -3020,19 +3020,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
                         <div className="flex items-center gap-1.5 self-end sm:self-auto">
                           {visibleOffers.length > 1 && (
-                            <span className="text-[10px] font-bold text-slate-400 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 hidden sm:inline">
+                            <span className="text-[10px] font-bold text-slate-300 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">
                               Offer {visibleOffers.findIndex((o) => o.id === currentFocused.id) + 1} of {visibleOffers.length}
                             </span>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => handleDeclineOffer(currentFocused.id)}
-                            className="px-3 py-1.5 rounded-xl bg-rose-950/80 hover:bg-rose-900/90 text-rose-200 hover:text-white border border-rose-600/60 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0 shadow-sm"
-                            title="Decline this captain's offer"
-                          >
-                            <X className="w-3.5 h-3.5 text-rose-400" />
-                            <span>Decline</span>
-                          </button>
                         </div>
                       </div>
 
