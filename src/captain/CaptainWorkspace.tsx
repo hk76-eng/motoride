@@ -719,7 +719,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       }
 
       setAvailableRides((prev) => {
+        const myCapId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id;
         if (updatedRide.status !== 'requested' && updatedRide.status !== 'captain_offered') {
+          return prev.filter((r) => r.id !== updatedRide.id);
+        }
+        if (myCapId && updatedRide.declined_captain_ids?.includes(myCapId)) {
           return prev.filter((r) => r.id !== updatedRide.id);
         }
         const exists = prev.some((r) => r.id === updatedRide.id);
@@ -763,12 +767,21 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     // Real-time listener: Passenger declined this captain's offer
     const unsubOfferDeclined = realtimeSync.on('RIDE_OFFER_DECLINED', (payload: any) => {
       const myCapId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id;
-      if (!payload?.captain_id || payload.captain_id === myCapId) {
+      const targetCapId = payload?.captain_id;
+      const declinedRideId = payload?.ride_id || payload?.ride?.id;
+
+      if (!targetCapId || targetCapId === myCapId) {
+        if (declinedRideId) {
+          setAvailableRides((prev) => prev.filter((r) => r.id !== declinedRideId));
+          setInspectedRide((prev) => (prev?.id === declinedRideId ? null : prev));
+          setAcceptanceTimerRideId((prev) => (prev === declinedRideId ? null : prev));
+          setIs100Full(true);
+        }
         const fareText = payload?.counter_fare ? ` of ₹${payload.counter_fare}` : '';
         setDeclinedOfferAlert({
-          message: payload?.message || `Passenger declined your offer price${fareText}`,
+          message: payload?.message || `Passenger declined your offer price${fareText}. Passed to other captains.`,
           fare: payload?.counter_fare,
-          rideId: payload?.ride_id || payload?.ride?.id,
+          rideId: declinedRideId,
         });
         playDeclineAlertChime();
       }
@@ -1528,45 +1541,59 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const loadAvailableRides = async () => {
     try {
+      const myCapId = captainId || captain?.id || authUser?.id;
       if (fareSettings?.require_admin_approval_for_rides && captain && !captain.is_approved) {
         setAvailableRides([]);
         return;
       }
-      const list = await motorideApi.getRides({ active_for_captain: true });
+      const list = await motorideApi.getRides({ active_for_captain: true, captain_id: myCapId });
       if (Array.isArray(list)) {
         const realRides = list.filter(
-          (r) => r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100'
+          (r) =>
+            r &&
+            r.id &&
+            !r.id.includes('demo') &&
+            r.passenger_id !== 'usr_demo_100' &&
+            (!myCapId || !r.declined_captain_ids?.includes(myCapId)) &&
+            !r.status?.includes('cancelled')
         );
 
         setAvailableRides((prev) => {
           const map = new Map<string, MotorideRide>();
 
-          // 1. Retain existing live rides in state so they never flash or vanish during polling
+          // 1. Retain existing live rides EXCEPT those declined by this captain or cancelled
           prev.forEach((r) => {
-            if (r && (r.status === 'requested' || r.status === 'captain_offered')) {
+            if (
+              r &&
+              (r.status === 'requested' || r.status === 'captain_offered') &&
+              (!myCapId || !r.declined_captain_ids?.includes(myCapId))
+            ) {
               map.set(r.id, r);
             }
           });
 
           // 2. Incorporate latest rides from server
           realRides.forEach((r) => {
-            if (r && (r.status === 'requested' || r.status === 'captain_offered')) {
+            if (
+              r &&
+              (r.status === 'requested' || r.status === 'captain_offered') &&
+              (!myCapId || !r.declined_captain_ids?.includes(myCapId))
+            ) {
               map.set(r.id, { ...(map.get(r.id) || {}), ...r });
             } else if (r) {
               map.delete(r.id);
             }
           });
 
-          // 3. Remove rides that server omitted ONLY if older than 45 seconds
-          // (prevents race conditions where a freshly created ride hasn't propagated to query yet)
-          const now = Date.now();
-          for (const [id, r] of map.entries()) {
+          // 3. Immediately delete rides that server omitted or that are declined / cancelled
+          for (const [id, r] of Array.from(map.entries())) {
             const isFromServer = realRides.some((sr) => sr.id === id);
-            if (!isFromServer) {
-              const createdAt = new Date(r.created_at).getTime();
-              if (now - createdAt > 45000) {
-                map.delete(id);
-              }
+            if (
+              !isFromServer ||
+              (myCapId && r.declined_captain_ids?.includes(myCapId)) ||
+              r.status?.includes('cancelled')
+            ) {
+              map.delete(id);
             }
           }
 
@@ -1577,7 +1604,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       }
     } catch (err) {
       console.warn('Captain loadAvailableRides notice:', err);
-      // DO NOT clear availableRides on temporary network hiccup or query timeout!
     }
   };
 

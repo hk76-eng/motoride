@@ -782,47 +782,72 @@ export const motorideApi = {
 
   async declineCounterOffer(rideId: string, offerId: string, captainId?: string): Promise<MotorideRide> {
     const existing = localRidesStore.get(rideId) || ({ id: rideId } as MotorideRide);
-    const updatedOffers = (existing.offers || []).map((o) =>
-      o.id === offerId || (captainId && o.captain_id === captainId)
-        ? { ...o, status: 'rejected' as const }
-        : o
-    );
-    const hasPendingOffers = updatedOffers.some((o) => o.status === 'pending');
+    const targetOffer = (existing.offers || []).find((o) => o.id === offerId || (captainId && o.captain_id === captainId));
+    const targetCapId = targetOffer?.captain_id || captainId;
+
+    const declinedSet = new Set(existing.declined_captain_ids || []);
+    if (targetCapId) declinedSet.add(targetCapId);
+
+    const updatedOffers = (existing.offers || []).filter((o) => o.id !== offerId && o.captain_id !== targetCapId);
 
     const updatedRide: MotorideRide = {
       ...existing,
       offers: updatedOffers,
-      status: hasPendingOffers ? 'captain_offered' : 'requested',
+      declined_captain_ids: Array.from(declinedSet),
+      status: updatedOffers.length > 0 ? 'captain_offered' : 'requested',
       updated_at: new Date().toISOString(),
     };
 
     localRidesStore.set(rideId, updatedRide);
     saveLocalRides();
 
-    const targetOffer = (existing.offers || []).find((o) => o.id === offerId || (captainId && o.captain_id === captainId));
-    const targetCapId = targetOffer?.captain_id || captainId;
+    let serverRide: MotorideRide | null = null;
+    let isAutoCancelled = false;
+
+    try {
+      const serverRes = await safeFetchJson<{ ride: MotorideRide; is_auto_cancelled?: boolean }>(
+        `${API_BASE}/rides/${rideId}/decline-offer`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ offer_id: offerId, captain_id: targetCapId }),
+        },
+        { ride: updatedRide, is_auto_cancelled: false }
+      );
+      if (serverRes?.ride) {
+        serverRide = serverRes.ride;
+        isAutoCancelled = Boolean(serverRes.is_auto_cancelled || serverRes.ride.status?.includes('cancelled'));
+        localRidesStore.set(rideId, serverRes.ride);
+        saveLocalRides();
+      }
+    } catch {}
+
+    const finalRide = serverRide || updatedRide;
+    if (isAutoCancelled) {
+      (finalRide as any).is_auto_cancelled = true;
+    }
 
     realtimeSync.broadcast('RIDE_OFFER_DECLINED', {
       ride_id: rideId,
-      ride: updatedRide,
+      ride: finalRide,
       offer_id: offerId,
       captain_id: targetCapId,
       counter_fare: targetOffer?.counter_fare,
-      message: `Passenger declined your offer price of ₹${targetOffer?.counter_fare || 'custom fare'}`,
+      is_auto_cancelled: isAutoCancelled,
+      message: `Passenger declined your offer price of ₹${targetOffer?.counter_fare || 'custom fare'}. Passed to other captains.`,
     });
-    realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
 
-    safeFetchJson<{ ride: MotorideRide }>(
-      `${API_BASE}/rides/${rideId}/decline-offer`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offer_id: offerId, captain_id: targetCapId }),
-      },
-      { ride: updatedRide }
-    ).catch(() => {});
+    if (isAutoCancelled) {
+      realtimeSync.broadcast('RIDE_CANCELLED', {
+        ride_id: rideId,
+        ride: finalRide,
+        reason: finalRide.cancellation_reason || 'Offer declined & no other captains available nearby.',
+      });
+    }
 
-    return updatedRide;
+    realtimeSync.broadcast('RIDE_UPDATED', finalRide);
+
+    return finalRide;
   },
 
   async updateRideStatus(
