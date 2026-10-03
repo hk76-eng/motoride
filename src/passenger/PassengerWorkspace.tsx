@@ -1852,8 +1852,22 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     }
   };
 
+  const handleDeclineOffer = async (offerId?: string) => {
+    const targetId = offerId || focusedOfferId;
+    if (!targetId || !activeRide) return;
+    const allOffers = activeRide.offers || [];
+    const targetOffer = allOffers.find((o) => o.id === targetId);
+
+    handleAutoPassOffer(targetId);
+    try {
+      await motorideApi.declineCounterOffer(activeRide.id, targetId, targetOffer?.captain_id);
+    } catch (err) {
+      console.warn('Decline offer notice:', err);
+    }
+  };
+
   const handlePassCurrentOffer = (offerId?: string) => {
-    handleAutoPassOffer(offerId || focusedOfferId);
+    handleDeclineOffer(offerId || focusedOfferId || undefined);
   };
 
   useEffect(() => {
@@ -2994,12 +3008,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                           )}
                           <button
                             type="button"
-                            onClick={() => handlePassCurrentOffer(currentFocused.id)}
-                            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
-                            title="Pass to next offer"
+                            onClick={() => handleDeclineOffer(currentFocused.id)}
+                            className="px-3 py-1.5 rounded-xl bg-rose-950/80 hover:bg-rose-900/90 text-rose-200 hover:text-white border border-rose-600/60 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shrink-0 shadow-sm"
+                            title="Decline this captain's offer"
                           >
-                            <span>Pass</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
+                            <X className="w-3.5 h-3.5 text-rose-400" />
+                            <span>Decline</span>
                           </button>
                         </div>
                       </div>
@@ -3106,12 +3120,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handlePassCurrentOffer(offer.id);
+                                    handleDeclineOffer(offer.id);
                                   }}
-                                  className="px-2 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition-all active:scale-95 cursor-pointer"
-                                  title="Pass this offer"
+                                  className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                                  title="Decline this offer"
                                 >
-                                  Pass
+                                  <X className="w-3 h-3 text-rose-600" />
+                                  <span>Decline</span>
                                 </button>
                                 <button
                                   type="button"

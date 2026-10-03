@@ -216,6 +216,20 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const availableRidesRef = useRef<MotorideRide[]>(availableRides);
   availableRidesRef.current = availableRides;
 
+  // Real-time Notification when Passenger Declines Captain's Offer
+  const [declinedOfferAlert, setDeclinedOfferAlert] = useState<{
+    message: string;
+    fare?: number;
+    rideId?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (declinedOfferAlert) {
+      const timer = setTimeout(() => setDeclinedOfferAlert(null), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [declinedOfferAlert]);
+
   // Top-Up QR Deposit Proof & Chat state
   const [utrInput, setUtrInput] = useState<string>('');
   const [paymentSlipInput, setPaymentSlipInput] = useState<string | null>(null);
@@ -746,6 +760,23 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       }
     });
 
+    // Real-time listener: Passenger declined this captain's offer
+    const unsubOfferDeclined = realtimeSync.on('RIDE_OFFER_DECLINED', (payload: any) => {
+      const myCapId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id;
+      if (!payload?.captain_id || payload.captain_id === myCapId) {
+        const fareText = payload?.counter_fare ? ` of ₹${payload.counter_fare}` : '';
+        setDeclinedOfferAlert({
+          message: payload?.message || `Passenger declined your offer price${fareText}`,
+          fare: payload?.counter_fare,
+          rideId: payload?.ride_id || payload?.ride?.id,
+        });
+        playDeclineAlertChime();
+      }
+      if (payload?.ride) {
+        handleCaptainRideUpdate(payload.ride);
+      }
+    });
+
     const unsubActiveSync = realtimeSync.on('ACTIVE_RIDES_SYNC_RECEIVED', (rides: MotorideRide[]) => {
       if (Array.isArray(rides) && rides.length > 0) {
         const valid = rides.filter(
@@ -896,6 +927,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       unsubRideAccepted();
       unsubRideOffer();
       unsubRideDeleted();
+      unsubOfferDeclined();
       unsubActiveSync();
       unsubEarningsUpdated();
       unsubFareUpdated();
@@ -1193,6 +1225,35 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         osc.start(ctx.currentTime + idx * 0.08);
         osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
       });
+    } catch {}
+  };
+
+  // Sound alert when passenger declines captain's offer price
+  const playDeclineAlertChime = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const notes = [659.25, 523.25, 440.0]; // E5, C5, A4 descending alert
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.1);
+        gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.1);
+        gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + idx * 0.1 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.1 + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + idx * 0.1);
+        osc.stop(ctx.currentTime + idx * 0.1 + 0.4);
+      });
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([150, 100, 150]);
+      }
     } catch {}
   };
 
@@ -2577,6 +2638,30 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     return (
       <div className="flex flex-col gap-3">
+        {/* If passenger declined this captain's previous offer */}
+        {(() => {
+          const myCapId = captainId || captain?.id || authUser?.id;
+          const myOffer = (ride.offers || []).find((o) => o.captain_id === myCapId);
+          if (myOffer && myOffer.status === 'rejected') {
+            return (
+              <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950 flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-rose-500/20 border border-rose-400 text-rose-700 flex items-center justify-center shrink-0">
+                    <XCircle className="w-4 h-4 text-rose-600" />
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-black text-rose-900">Offer Declined by Passenger</h5>
+                    <p className="text-[11px] text-rose-700 font-medium">
+                      Your offer of ₹{myOffer.counter_fare} was declined. You can send a revised offer or accept for ₹{ride.offered_fare}.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* 25-Second Acceptance Countdown Timer & Animated Progress Bar Header */}
         <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-white shadow-xl flex flex-col gap-2.5">
           <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -2828,6 +2913,34 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   return (
     <div className="relative w-full h-[calc(100dvh-64px)] sm:h-[calc(100vh-68px)] overflow-hidden bg-slate-950">
+      {/* Real-time Toast: Offer Declined by Passenger */}
+      {declinedOfferAlert && (
+        <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[1400] w-[92%] sm:w-auto min-w-[320px] max-w-lg p-3.5 sm:p-4 rounded-2xl bg-rose-950/95 border-2 border-rose-500/80 text-white shadow-2xl backdrop-blur-xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center shrink-0">
+              <XCircle className="w-5 h-5 text-rose-400 stroke-[2.5]" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
+                <span>Offer Declined</span>
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+              </h4>
+              <p className="text-[11px] sm:text-xs text-rose-200 font-medium mt-0.5">
+                {declinedOfferAlert.message}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeclinedOfferAlert(null)}
+            className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white cursor-pointer active:scale-95 transition-all shrink-0"
+            title="Dismiss notification"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {activeRide ? (
         /* Active Ride Split View: Top Map (30%), Bottom Ride Details (70%) with 70% / 100% Toggle Switch */
         <div className="absolute inset-0 w-full h-full flex flex-col z-0">

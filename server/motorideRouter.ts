@@ -578,6 +578,59 @@ motorideRouter.post('/rides/:id/accept-offer', (req: Request, res: Response) => 
   res.json({ success: true, ride });
 });
 
+// Passenger declines a specific captain counter-offer
+motorideRouter.post('/rides/:id/decline-offer', (req: Request, res: Response) => {
+  const ride = ridesStore.get(req.params.id);
+  if (!ride) {
+    return res.status(404).json({ error: 'Ride not found' });
+  }
+
+  const { offer_id, captain_id } = req.body;
+  const offer = (ride.offers || []).find((o) => o.id === offer_id || (captain_id && o.captain_id === captain_id));
+
+  if (offer) {
+    offer.status = 'rejected';
+  }
+
+  // If all offers are rejected or none pending, keep status or set to 'requested'
+  const hasPendingOffers = (ride.offers || []).some((o) => o.status === 'pending');
+  if (!hasPendingOffers && ride.status === 'captain_offered') {
+    ride.status = 'requested';
+  }
+  ride.updated_at = new Date().toISOString();
+
+  enrichRideWithRegisteredCaptainData(ride);
+  ridesStore.set(ride.id, ride);
+  persistDbToDisk();
+
+  const targetCaptainId = offer?.captain_id || captain_id;
+  if (targetCaptainId) {
+    notificationsStore.unshift({
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      user_id: targetCaptainId,
+      role_target: 'captain',
+      title: 'Offer Declined',
+      message: `Passenger declined your offer price of ₹${offer?.counter_fare || 'custom fare'}. You can submit a new offer or choose another live request.`,
+      type: 'warning',
+      ride_id: ride.id,
+      is_read: false,
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  broadcastEvent('RIDE_OFFER_DECLINED', {
+    ride_id: ride.id,
+    ride,
+    offer_id,
+    captain_id: targetCaptainId,
+    counter_fare: offer?.counter_fare,
+    message: `Passenger declined your offer price of ₹${offer?.counter_fare || 'custom fare'}`,
+  });
+  broadcastEvent('RIDE_UPDATED', ride);
+
+  res.json({ success: true, ride, declined_offer_id: offer_id });
+});
+
 // Update Ride Status (captain_arrived, trip_started, trip_completed, cancelled)
 motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
   const { status, cancellation_reason, final_distance_km, final_fare, ride: clientRide } = req.body as {
