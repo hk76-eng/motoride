@@ -2690,74 +2690,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           return null;
         })()}
 
-        {/* 25-Second Acceptance Countdown Timer & Animated Progress Bar Header */}
-        <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-white shadow-xl flex flex-col gap-2.5">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                countdownSeconds <= 5
-                  ? 'bg-rose-500/25 border-rose-500/50 text-rose-400 animate-pulse'
-                  : countdownSeconds <= 12
-                  ? 'bg-amber-500/25 border-amber-500/50 text-amber-400'
-                  : 'bg-emerald-500/25 border-emerald-500/50 text-emerald-400'
-              }`}>
-                <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '4s' }} />
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black tracking-wide text-white">Acceptance Timer:</span>
-                  <span className={`px-2 py-0.5 rounded-md text-xs font-mono font-black border ${
-                    countdownSeconds <= 5
-                      ? 'bg-rose-500 text-white border-rose-400 animate-pulse'
-                      : countdownSeconds <= 12
-                      ? 'bg-amber-500 text-slate-950 border-amber-400'
-                      : 'bg-emerald-500 text-white border-emerald-400'
-                  }`}>
-                    {countdownSeconds}s
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400">
-                  {availableRides.length > 1
-                    ? `Auto-passes to next request in ${countdownSeconds}s if unanswered`
-                    : `Auto-passes to live requests list in ${countdownSeconds}s if unanswered`}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1.5 self-end sm:self-auto">
-              {availableRides.length > 1 && (
-                <span className="text-[10px] font-bold text-slate-400 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 hidden sm:inline">
-                  Request {availableRides.findIndex((r) => r.id === ride.id) + 1} of {availableRides.length}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={handlePassCurrentRequest}
-                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
-                title="Pass to next request"
-              >
-                <span>Pass</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Animated 25-Second Progress Bar */}
-          <div className="w-full h-2 rounded-full bg-slate-800/90 overflow-hidden relative border border-slate-700/50">
-            <div
-              className={`h-full rounded-full transition-all duration-100 ease-linear ${
-                countdownSeconds <= 5
-                  ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-md shadow-rose-500/50'
-                  : countdownSeconds <= 12
-                  ? 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-md shadow-amber-500/50'
-                  : 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-md shadow-emerald-500/50'
-              }`}
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-        </div>
-
         {/* Inspection Request Details Header Card - Matching Layout */}
         <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
           <div className="flex items-start gap-3 sm:gap-4">
@@ -3151,17 +3083,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 className={`relative z-0 transition-all duration-200 ${
                   inspectViewMode === 'map'
                     ? 'w-full h-full'
-                    : 'w-full md:w-1/2 h-[48dvh] md:h-full border-b md:border-b-0 md:border-r border-slate-800 shrink-0 md:shrink'
+                    : 'w-full md:w-1/2 h-[26dvh] sm:h-[28dvh] md:h-full border-b md:border-b-0 md:border-r border-slate-800 shrink-0 md:shrink'
                 }`}
               >
                 {renderCaptainMap(true)}
               </div>
             )}
 
-            {/* 2. Ride Details (Shown in 'both' or 'details' mode) */}
+            {/* 2. Ride Details (Shown in 'both' or 'details' mode) - Height extended upward up to recenter tab */}
             {(inspectViewMode === 'both' || inspectViewMode === 'details') && (
               <div
-                className={`bg-white overflow-y-auto p-4 sm:p-5 relative z-10 scrollbar-thin shadow-2xl flex flex-col justify-between ${
+                className={`bg-white overflow-y-auto p-3.5 sm:p-5 relative z-10 scrollbar-thin shadow-2xl flex flex-col justify-between ${
                   inspectViewMode === 'details'
                     ? 'w-full h-full'
                     : 'w-full md:w-1/2 flex-1 md:h-full'

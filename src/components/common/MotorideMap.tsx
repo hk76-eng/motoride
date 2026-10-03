@@ -1273,10 +1273,10 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
               [dropoffLat, dropoffLng],
             ]);
             map.invalidateSize();
-            const bottomPad = bottomSheetPadding !== undefined ? bottomSheetPadding : 40;
+            const bottomPad = bottomSheetPadding !== undefined ? bottomSheetPadding : 30;
             map.fitBounds(routeBounds, {
-              paddingTopLeft: [50, 65],
-              paddingBottomRight: [50, Math.max(35, bottomPad)],
+              paddingTopLeft: [28, 36],
+              paddingBottomRight: [52, Math.max(20, bottomPad)],
               maxZoom: 16,
               animate: false,
             });
@@ -1470,7 +1470,24 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     if (!mapInstanceRef.current) return;
     if (isCaptainMode) {
       setIsFollowingCaptain(true);
-      if (captainLat && captainLng) {
+      const hasValidPickup = typeof pickupLat === 'number' && typeof pickupLng === 'number' && !isNaN(pickupLat) && !isNaN(pickupLng);
+      const hasValidDropoff = typeof dropoffLat === 'number' && typeof dropoffLng === 'number' && !isNaN(dropoffLat) && !isNaN(dropoffLng);
+      if (hasValidPickup && hasValidDropoff && pickupLat && pickupLng && dropoffLat && dropoffLng) {
+        const routeBounds = L.latLngBounds([
+          [pickupLat, pickupLng],
+          [dropoffLat, dropoffLng],
+        ]);
+        if (captainLat && captainLng) {
+          routeBounds.extend([captainLat, captainLng]);
+        }
+        mapInstanceRef.current.fitBounds(routeBounds, {
+          paddingTopLeft: [28, 36],
+          paddingBottomRight: [52, 25],
+          maxZoom: 16,
+          animate: true,
+          duration: 0.8,
+        });
+      } else if (captainLat && captainLng) {
         mapInstanceRef.current.flyTo([captainLat, captainLng], 16, { animate: true, duration: 0.9 });
       }
     } else {
@@ -1553,16 +1570,16 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
       {showOverlayControls && (
         <>
           {/* Right Center: Floating Zoom Controls */}
-          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 z-[450] flex flex-col items-center gap-2 select-none pointer-events-auto">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 z-[450] flex flex-col items-center gap-1.5 select-none pointer-events-auto">
             <button
               type="button"
               onClick={handleZoomIn}
               title="Zoom In (+)"
               aria-label="Zoom In"
               style={{ touchAction: 'manipulation' }}
-              className="w-11 h-11 rounded-2xl bg-white/95 hover:bg-white text-slate-900 border border-slate-300 shadow-2xl backdrop-blur-md flex items-center justify-center active:scale-90 transition-all cursor-pointer font-black text-xl hover:shadow-cyan-500/20 active:bg-slate-100"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-white/95 hover:bg-white text-slate-900 border border-slate-300 shadow-xl backdrop-blur-md flex items-center justify-center active:scale-90 transition-all cursor-pointer font-black text-lg sm:text-xl hover:shadow-cyan-500/20 active:bg-slate-100"
             >
-              <Plus className="w-5 h-5 text-slate-900 stroke-[3]" />
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5 text-slate-900 stroke-[3]" />
             </button>
             <button
               type="button"
@@ -1570,19 +1587,19 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
               title="Zoom Out (-)"
               aria-label="Zoom Out"
               style={{ touchAction: 'manipulation' }}
-              className="w-11 h-11 rounded-2xl bg-white/95 hover:bg-white text-slate-900 border border-slate-300 shadow-2xl backdrop-blur-md flex items-center justify-center active:scale-90 transition-all cursor-pointer font-black text-xl hover:shadow-cyan-500/20 active:bg-slate-100"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-white/95 hover:bg-white text-slate-900 border border-slate-300 shadow-xl backdrop-blur-md flex items-center justify-center active:scale-90 transition-all cursor-pointer font-black text-lg sm:text-xl hover:shadow-cyan-500/20 active:bg-slate-100"
             >
-              <Minus className="w-5 h-5 text-slate-900 stroke-[3]" />
+              <Minus className="w-4 h-4 sm:w-5 sm:h-5 text-slate-900 stroke-[3]" />
             </button>
             <button
               type="button"
               onClick={handleLocateMe}
-              title="Center Map on Location"
-              aria-label="Center Map on Location"
+              title="Recenter Map on Location / Route"
+              aria-label="Recenter Map on Location / Route"
               style={{ touchAction: 'manipulation' }}
-              className="w-11 h-11 rounded-2xl bg-white/95 hover:bg-white text-slate-900 border border-slate-300 shadow-2xl backdrop-blur-md flex items-center justify-center active:scale-90 transition-all cursor-pointer group active:bg-slate-100"
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-2xl bg-white/95 hover:bg-white text-slate-900 border border-slate-300 shadow-xl backdrop-blur-md flex items-center justify-center active:scale-90 transition-all cursor-pointer group active:bg-slate-100"
             >
-              <LocateFixed className="w-5 h-5 text-emerald-600 stroke-[2.5] group-hover:rotate-12 transition-transform" />
+              <LocateFixed className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 stroke-[2.5] group-hover:rotate-12 transition-transform" />
             </button>
           </div>
         </>
