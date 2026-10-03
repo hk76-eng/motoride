@@ -3034,35 +3034,42 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             {renderCaptainMap(true)}
           </div>
 
-          {/* Center Main Page: Captain Live Ride Requests Page (100% Full / Minimized to Bottom View / Inspected Ride Route Details) */}
+          {/* Center Main Page: Captain Live Ride Requests Page (100% Full / Expanded Route Details / Minimized Bottom View) */}
           <div
             className={`fixed sm:absolute bottom-0 left-1/2 -translate-x-1/2 z-[1000] transition-all duration-300 ease-out flex flex-col ${
-              is100Full
+              is100Full || (inspectedRide && !activeRide)
                 ? 'inset-0 w-full h-full max-w-full'
-                : inspectedRide && !activeRide
-                ? 'h-auto max-h-[58dvh] sm:max-h-[52vh] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
                 : 'h-16 sm:h-[72px] w-full sm:w-[94%] md:w-[760px] lg:w-[840px] max-w-4xl'
             }`}
           >
             <div
               className={`w-full h-full bg-white border-t border-slate-200 shadow-[0_-12px_45px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden ring-1 ring-slate-200 ${
-                is100Full ? 'rounded-none border-x-0' : 'rounded-t-3xl sm:border-x sm:border-slate-200'
+                is100Full || (inspectedRide && !activeRide) ? 'rounded-none border-x-0' : 'rounded-t-3xl sm:border-x sm:border-slate-200'
               }`}
             >
+              {/* Top Map Display when Inspecting an Incoming Ride Request (shows Pickup A & Dropoff B Markers & Route Line clearly) */}
+              {inspectedRide && !activeRide && (
+                <div className="w-full h-[42dvh] sm:h-[46%] relative z-0 shrink-0 border-b border-slate-200/90 shadow-xs">
+                  {renderCaptainMap(true)}
+                </div>
+              )}
+
               {/* Top Center Pull Handle Bar */}
-              <div
-                onClick={() => setIs100Full((prev) => !prev)}
-                className="w-full pt-2 pb-0.5 bg-white flex items-center justify-center cursor-pointer group select-none hover:bg-slate-50 transition-colors shrink-0"
-                title={is100Full ? "Drop down to view map" : "Drop up full requests view"}
-                role="button"
-                tabIndex={0}
-                aria-label="Toggle live requests screen height"
-              >
-                <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-slate-600 transition-colors" />
-              </div>
+              {!inspectedRide && (
+                <div
+                  onClick={() => setIs100Full((prev) => !prev)}
+                  className="w-full pt-2 pb-0.5 bg-white flex items-center justify-center cursor-pointer group select-none hover:bg-slate-50 transition-colors shrink-0"
+                  title={is100Full ? "Drop down to view map" : "Drop up full requests view"}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Toggle live requests screen height"
+                >
+                  <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-slate-600 transition-colors" />
+                </div>
+              )}
 
               {/* Header Bar */}
-              {inspectedRide && !activeRide && !is100Full ? (
+              {inspectedRide && !activeRide ? (
                 <div className="relative bg-white border-b border-slate-200 flex flex-col select-none shadow-xs">
                   {/* Top-Edge 25-Second Animated Progress Bar */}
                   <div className="w-full h-1.5 bg-slate-200 overflow-hidden relative">
@@ -3114,7 +3121,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => setIs100Full(true)}
+                        onClick={() => {
+                          setInspectedRide(null);
+                          setIs100Full(true);
+                        }}
                         className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300 hidden sm:inline"
                         title="View all requests list"
                       >
@@ -3177,7 +3187,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               )}
 
               {/* Main Interior Content */}
-              {inspectedRide && !activeRide && !is100Full ? (
+              {inspectedRide && !activeRide ? (
                 <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
                   {renderInspectedRideDetails(inspectedRide)}
                 </div>
@@ -3192,16 +3202,18 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       )}
 
       {/* Captain Profile 2-Lines Button in Left Top Corner of Main Page */}
-      <button
-        type="button"
-        onClick={() => setIsProfileOpen(true)}
-        title="Open Captain Profile"
-        aria-label="Open Captain Profile"
-        className="fixed sm:absolute top-3 sm:top-4 left-3 sm:left-4 z-[1100] p-2.5 sm:p-3 rounded-2xl bg-black/85 hover:bg-black text-white border border-amber-500/40 shadow-2xl backdrop-blur-xl flex flex-col justify-center items-center gap-1.5 w-11 h-11 active:scale-95 transition-all cursor-pointer group ring-1 ring-amber-500/20"
-      >
-        <span className="w-5 h-0.5 bg-amber-400 rounded-full group-hover:w-5.5 transition-all" />
-        <span className="w-3.5 h-0.5 bg-amber-400 rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
-      </button>
+      {!inspectedRide && (
+        <button
+          type="button"
+          onClick={() => setIsProfileOpen(true)}
+          title="Open Captain Profile"
+          aria-label="Open Captain Profile"
+          className="fixed sm:absolute top-3 sm:top-4 left-3 sm:left-4 z-[1100] p-2.5 sm:p-3 rounded-2xl bg-black/85 hover:bg-black text-white border border-amber-500/40 shadow-2xl backdrop-blur-xl flex flex-col justify-center items-center gap-1.5 w-11 h-11 active:scale-95 transition-all cursor-pointer group ring-1 ring-amber-500/20"
+        >
+          <span className="w-5 h-0.5 bg-amber-400 rounded-full group-hover:w-5.5 transition-all" />
+          <span className="w-3.5 h-0.5 bg-amber-400 rounded-full self-start ml-0.5 group-hover:w-5 transition-all" />
+        </button>
+      )}
 
       {/* Dedicated Captain Wallet View Tab Overlay */}
       {activeTab === 'wallet' && (
