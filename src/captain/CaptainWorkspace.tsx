@@ -196,6 +196,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   // Default to false so the map and Captain live GPS position are immediately 100% visible
   const [is100Full, setIs100Full] = useState<boolean>(false);
+  const [inspectViewMode, setInspectViewMode] = useState<'both' | 'map' | 'details'>('both');
 
   // Dedicated Wallet Tab, Documents Tab & Payout state
   const [activeTab, setActiveTab] = useState<'requests' | 'wallet' | 'documents'>('requests');
@@ -1835,6 +1836,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   // Inspect incoming ride request on map (shows Location A & B markers and route)
   const handleInspectRide = (ride: MotorideRide) => {
     setInspectedRide(ride);
+    setInspectViewMode('both');
     setIs100Full(false);
     setAcceptanceTimerRideId(ride.id);
     acceptanceStartTimestampRef.current = Date.now();
@@ -3028,95 +3030,146 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           </div>
         </div>
       ) : inspectedRide ? (
-        /* Inspected Ride Split View: Top Map Frame (40% height), Bottom "Ride Details & Route Map (A & B)" */
-        <div className="absolute inset-0 w-full h-full flex flex-col z-0">
-          {/* Top Map: Perfectly sized frame showing Location A & B markers fitted */}
-          <div className="w-full h-[40dvh] sm:h-[44%] relative z-0 shrink-0 border-b border-slate-200/90 shadow-xs">
-            {renderCaptainMap(true)}
+        /* Dedicated 100% Full-Screen Display Page: "Ride Details & Route Map"
+           Shows ONLY this page and nothing else.
+           Both Route Map and Ride Details are clearly viewable without 44% restriction.
+        */
+        <div className="fixed inset-0 z-[1500] bg-slate-950 flex flex-col w-full h-full overflow-hidden animate-in fade-in duration-200">
+          {/* Top Header Bar */}
+          <div className="px-3.5 sm:px-5 py-2.5 bg-slate-950/95 border-b border-slate-800 text-white flex items-center justify-between z-20 shrink-0 shadow-lg backdrop-blur-md">
+            {/* Left: Close & Title */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setInspectedRide(null);
+                  setIs100Full(true);
+                }}
+                className="p-1.5 sm:p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 transition-all active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
+                title="Close and return to live requests list"
+              >
+                <X className="w-4 h-4" />
+                <span className="text-xs font-bold hidden xs:inline">Close</span>
+              </button>
+
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span className="text-xs sm:text-sm font-black text-white truncate">
+                  Ride Details & Route Map (A & B)
+                </span>
+                <span className="text-[11px] font-mono-num font-bold text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded-md border border-amber-500/40 hidden sm:inline">
+                  #{inspectedRide.ride_code}
+                </span>
+              </div>
+            </div>
+
+            {/* Center: View Switcher (Both | Map | Details) */}
+            <div className="flex items-center p-0.5 rounded-xl bg-slate-900 border border-slate-800 shrink-0">
+              <button
+                type="button"
+                onClick={() => setInspectViewMode('both')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  inspectViewMode === 'both'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Show both Route Map and Ride Details"
+              >
+                Both
+              </button>
+              <button
+                type="button"
+                onClick={() => setInspectViewMode('map')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  inspectViewMode === 'map'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Show 100% Full Route Map"
+              >
+                Map
+              </button>
+              <button
+                type="button"
+                onClick={() => setInspectViewMode('details')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  inspectViewMode === 'details'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                title="Show 100% Full Ride Details"
+              >
+                Details
+              </button>
+            </div>
+
+            {/* Right: Timer Pill & Pass Button */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-xl font-mono text-xs font-black border ${
+                  countdownSeconds <= 5
+                    ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse'
+                    : countdownSeconds <= 12
+                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                    : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>{countdownSeconds}s</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePassCurrentRequest}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all cursor-pointer shrink-0 active:scale-95"
+                title="Pass to next request"
+              >
+                Pass
+              </button>
+            </div>
           </div>
 
-          {/* Bottom: "Ride Details & Route Map" Tab & Details */}
-          <div className="w-full flex-1 bg-white shadow-[0_-12px_45px_rgba(0,0,0,0.18)] flex flex-col overflow-hidden relative z-10">
-            {/* Header Bar */}
-            <div className="relative bg-white border-b border-slate-200 flex flex-col select-none shadow-xs shrink-0">
-              {/* 25-Second Animated Progress Bar */}
-              <div className="w-full h-1.5 bg-slate-200 overflow-hidden relative">
-                <div
-                  className={`h-full transition-all duration-100 ease-linear ${
-                    countdownSeconds <= 5
-                      ? 'bg-rose-500 shadow-sm'
-                      : countdownSeconds <= 12
-                      ? 'bg-amber-500 shadow-sm'
-                      : 'bg-emerald-500 shadow-sm'
-                  }`}
-                  style={{ width: `${progressPercent}%` }}
-                />
+          {/* Top-Edge 25-Second Animated Progress Bar */}
+          <div className="w-full h-1.5 bg-slate-900 overflow-hidden relative shrink-0">
+            <div
+              className={`h-full transition-all duration-100 ease-linear ${
+                countdownSeconds <= 5
+                  ? 'bg-rose-500 shadow-sm'
+                  : countdownSeconds <= 12
+                  ? 'bg-amber-500 shadow-sm'
+                  : 'bg-emerald-500 shadow-sm'
+              }`}
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          {/* Main 100% Display Body - Showing Both Things Clearly */}
+          <div className="flex-1 w-full relative flex flex-col md:flex-row overflow-hidden">
+            {/* 1. Route Map (Shown in 'both' or 'map' mode) */}
+            {(inspectViewMode === 'both' || inspectViewMode === 'map') && (
+              <div
+                className={`relative z-0 transition-all duration-200 ${
+                  inspectViewMode === 'map'
+                    ? 'w-full h-full'
+                    : 'w-full md:w-1/2 h-[48dvh] md:h-full border-b md:border-b-0 md:border-r border-slate-800 shrink-0 md:shrink'
+                }`}
+              >
+                {renderCaptainMap(true)}
               </div>
+            )}
 
-              <div className="px-4 sm:px-5 py-2.5 flex items-center justify-between">
-                {/* Left: Location A & B Route Indicator */}
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                  <span className="text-xs sm:text-sm font-black text-slate-900 truncate">
-                    Ride Details & Route Map (A & B)
-                  </span>
-                  <span className="text-[11px] font-mono-num font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 hidden xs:inline">
-                    #{inspectedRide.ride_code}
-                  </span>
-                </div>
-
-                {/* Right: Countdown Pill, Pass, All Requests & Close buttons */}
-                <div className="flex items-center gap-1.5">
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-lg font-mono text-[11px] font-black border ${
-                    countdownSeconds <= 5
-                      ? 'bg-rose-500/15 border-rose-500/30 text-rose-700 animate-pulse'
-                      : countdownSeconds <= 12
-                      ? 'bg-amber-500/15 border-amber-500/30 text-amber-800'
-                      : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-800'
-                  }`}>
-                    <Clock className="w-3 h-3" />
-                    <span>{countdownSeconds}s</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handlePassCurrentRequest}
-                    className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300"
-                    title="Pass to next request"
-                  >
-                    Pass
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInspectedRide(null);
-                      setIs100Full(true);
-                    }}
-                    className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all cursor-pointer border border-slate-300 hidden sm:inline"
-                    title="View all requests list"
-                  >
-                    All Requests
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInspectedRide(null);
-                      setIs100Full(true);
-                    }}
-                    className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer border border-slate-300"
-                    title="Close inspected ride"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+            {/* 2. Ride Details (Shown in 'both' or 'details' mode) */}
+            {(inspectViewMode === 'both' || inspectViewMode === 'details') && (
+              <div
+                className={`bg-white overflow-y-auto p-4 sm:p-5 relative z-10 scrollbar-thin shadow-2xl flex flex-col justify-between ${
+                  inspectViewMode === 'details'
+                    ? 'w-full h-full'
+                    : 'w-full md:w-1/2 flex-1 md:h-full'
+                }`}
+              >
+                {renderInspectedRideDetails(inspectedRide)}
               </div>
-            </div>
-
-            {/* Main Interior Content */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 scrollbar-thin bg-white">
-              {renderInspectedRideDetails(inspectedRide)}
-            </div>
+            )}
           </div>
         </div>
       ) : (
