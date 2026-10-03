@@ -630,6 +630,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const showChatModalRef = useRef<boolean>(false);
   showChatModalRef.current = showChatModal;
 
+  // 25-Second Acceptance Countdown Timer State for Incoming Captain Offers
+  const TOTAL_OFFER_SECONDS = 25;
+  const [focusedOfferId, setFocusedOfferId] = useState<string | null>(null);
+  const [offerRemainingMs, setOfferRemainingMs] = useState<number>(TOTAL_OFFER_SECONDS * 1000);
+  const offerStartTimestampRef = useRef<number>(Date.now());
+  const passedOfferIdsRef = useRef<Set<string>>(new Set());
+
   // Booking Form State - Start empty so no markers show until passenger selects pickup & dropoff
   const [pickup, setPickup] = useState<{
     name: string;
@@ -1797,6 +1804,107 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const prevOffersCountRef = useRef<number>(0);
   const prevOffersRideIdRef = useRef<string | null>(null);
 
+  // Soft gentle tone when passenger passes or auto-passes an offer
+  const playPassOfferChime = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const notes = [783.99, 523.25]; // G5, C5 soft descending whoosh
+      notes.forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.08);
+        gain.gain.setValueAtTime(0, ctx.currentTime + idx * 0.08);
+        gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + idx * 0.08 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.08 + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + idx * 0.08);
+        osc.stop(ctx.currentTime + idx * 0.08 + 0.3);
+      });
+    } catch {}
+  };
+
+  // 25-Second Acceptance Countdown Timer & Auto-Pass Logic for Captain Offers
+  const handleAutoPassOffer = (expiredOfferId: string | null) => {
+    if (expiredOfferId) {
+      passedOfferIdsRef.current.add(expiredOfferId);
+    }
+
+    const allOffers = activeRideRef.current?.offers || [];
+    const unpassedOffers = allOffers.filter((o) => !passedOfferIdsRef.current.has(o.id));
+
+    if (unpassedOffers.length > 0) {
+      const nextOffer = unpassedOffers[0];
+      setFocusedOfferId(nextOffer.id);
+      offerStartTimestampRef.current = Date.now();
+      setOfferRemainingMs(TOTAL_OFFER_SECONDS * 1000);
+      playPassOfferChime();
+    } else {
+      // All offers passed/expired: Clear focused offer and return to Radar Scanner!
+      setFocusedOfferId(null);
+      playPassOfferChime();
+    }
+  };
+
+  const handlePassCurrentOffer = (offerId?: string) => {
+    handleAutoPassOffer(offerId || focusedOfferId);
+  };
+
+  useEffect(() => {
+    if (!activeRide || !['requested', 'captain_offered'].includes(activeRide.status)) {
+      setFocusedOfferId(null);
+      return;
+    }
+
+    const allOffers = activeRide.offers || [];
+    const currentOfferIds = new Set(allOffers.map((o) => o.id));
+    for (const id of Array.from(passedOfferIdsRef.current)) {
+      if (!currentOfferIds.has(id)) {
+        passedOfferIdsRef.current.delete(id);
+      }
+    }
+
+    const unpassedOffers = allOffers.filter((o) => !passedOfferIdsRef.current.has(o.id));
+    if (unpassedOffers.length === 0) {
+      setFocusedOfferId(null);
+      return;
+    }
+
+    // Determine target offer
+    let targetOffer = unpassedOffers.find((o) => o.id === focusedOfferId);
+    if (!targetOffer) {
+      targetOffer = unpassedOffers[0];
+      setFocusedOfferId(targetOffer.id);
+      offerStartTimestampRef.current = Date.now();
+      setOfferRemainingMs(TOTAL_OFFER_SECONDS * 1000);
+    }
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - offerStartTimestampRef.current;
+      const remaining = Math.max(0, TOTAL_OFFER_SECONDS * 1000 - elapsed);
+      setOfferRemainingMs(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(interval);
+        handleAutoPassOffer(targetOffer?.id || focusedOfferId);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [activeRide?.id, activeRide?.status, activeRide?.offers, focusedOfferId]);
+
+  const offerCountdownSeconds = Math.ceil(offerRemainingMs / 1000);
+  const offerProgressPercent = Math.min(
+    100,
+    Math.max(0, (offerRemainingMs / (TOTAL_OFFER_SECONDS * 1000)) * 100)
+  );
+
   useEffect(() => {
     if (!activeRide || !['requested', 'captain_offered'].includes(activeRide.status)) {
       prevOffersCountRef.current = 0;
@@ -2833,133 +2941,246 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             {/* Case 1: Searching Nearby Captains Radar / Incoming Captain Offers */}
             {(activeRide.status === 'requested' || activeRide.status === 'captain_offered') && (
               <div className="flex-1 flex flex-col justify-between text-black w-full h-full">
-                {activeRide.offers && activeRide.offers.length > 0 ? (
-                  /* When Offers Arrive: Immediately Hide Radar and Show ONLY Incoming Captain Offers */
+                {(() => {
+                  const allOffers = activeRide.offers || [];
+                  const visibleOffers = allOffers.filter((o) => !passedOfferIdsRef.current.has(o.id));
+
+                  if (visibleOffers.length > 0) {
+                    const currentFocused = visibleOffers.find((o) => o.id === focusedOfferId) || visibleOffers[0];
+
+                    return (
+                      /* When Offers Arrive: Immediately Hide Radar and Show ONLY Incoming Captain Offers with 25s Countdown */
                   <div className="w-full flex-1 flex flex-col gap-3 text-left animate-in fade-in zoom-in-95 duration-200 overflow-y-auto py-2">
+                    {/* 25-Second Acceptance Countdown Timer & Animated Progress Bar Card */}
+                    <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-white shadow-xl flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                            offerCountdownSeconds <= 5
+                              ? 'bg-rose-500/25 border-rose-500/50 text-rose-400 animate-pulse'
+                              : offerCountdownSeconds <= 12
+                              ? 'bg-amber-500/25 border-amber-500/50 text-amber-400'
+                              : 'bg-emerald-500/25 border-emerald-500/50 text-emerald-400'
+                          }`}>
+                            <Clock className="w-4 h-4 animate-spin" style={{ animationDuration: '4s' }} />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black tracking-wide text-white">Acceptance Timer:</span>
+                              <span className={`px-2 py-0.5 rounded-md text-xs font-mono font-black border ${
+                                offerCountdownSeconds <= 5
+                                  ? 'bg-rose-500 text-white border-rose-400 animate-pulse'
+                                  : offerCountdownSeconds <= 12
+                                  ? 'bg-amber-500 text-slate-950 border-amber-400'
+                                  : 'bg-emerald-500 text-white border-emerald-400'
+                              }`}>
+                                {offerCountdownSeconds}s
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400">
+                              {visibleOffers.length > 1
+                                ? `Auto-passes to next offer in ${offerCountdownSeconds}s if unanswered`
+                                : `Auto-passes to searching radar in ${offerCountdownSeconds}s if unanswered`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                          {visibleOffers.length > 1 && (
+                            <span className="text-[10px] font-bold text-slate-400 px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 hidden sm:inline">
+                              Offer {visibleOffers.findIndex((o) => o.id === currentFocused.id) + 1} of {visibleOffers.length}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handlePassCurrentOffer(currentFocused.id)}
+                            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold transition-all active:scale-95 cursor-pointer flex items-center gap-1 shrink-0"
+                            title="Pass to next offer"
+                          >
+                            <span>Pass</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Animated 25-Second Progress Bar */}
+                      <div className="w-full h-2 rounded-full bg-slate-800/90 overflow-hidden relative border border-slate-700/50">
+                        <div
+                          className={`h-full rounded-full transition-all duration-100 ease-linear ${
+                            offerCountdownSeconds <= 5
+                              ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-md shadow-rose-500/50'
+                              : offerCountdownSeconds <= 12
+                              ? 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-md shadow-amber-500/50'
+                              : 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-md shadow-emerald-500/50'
+                          }`}
+                          style={{ width: `${offerProgressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
                     <div className="flex items-center justify-between gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-950 shadow-xs">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="text-sm font-black tracking-wide">
-                          Incoming Captain Offers ({activeRide.offers.length})
+                          Incoming Captain Offers ({visibleOffers.length})
                         </span>
                       </div>
                       <span className="text-xs font-bold text-emerald-800 font-mono-num">
-                        Base: ₹{activeRide.offered_fare}
+                        Your Base Fare: ₹{activeRide.offered_fare}
                       </span>
                     </div>
 
                     <div className="flex flex-col gap-2.5">
-                      {activeRide.offers.map((offer) => (
-                        <div
-                          key={offer.id}
-                          className="p-3.5 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/15 border-2 border-emerald-500/40 ring-1 ring-emerald-500/20 flex items-center justify-between gap-3 shadow-sm text-black transition-all"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            {/* Captain Profile Pick */}
-                            <div className="relative shrink-0">
-                              <img
-                                src={getCaptainAvatarUrl(offer.captain_name, offer.captain_avatar || offer.avatar_url)}
-                                alt={offer.captain_name || 'Captain'}
-                                referrerPolicy="no-referrer"
-                                className="w-11 h-11 rounded-full object-cover border-2 border-emerald-600 bg-slate-200 shadow-xs"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src =
-                                    `https://ui-avatars.com/api/?name=${encodeURIComponent(offer.captain_name || 'Captain')}&background=059669&color=fff&bold=true`;
-                                }}
-                              />
-                              <span
-                                className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black border border-white"
-                                title="Verified Captain"
-                              >
-                                ✓
-                              </span>
-                            </div>
+                      {visibleOffers.map((offer) => {
+                        const isFocused = offer.id === currentFocused.id;
 
-                            {/* Captain Info */}
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-black text-sm text-black truncate">
-                                  {offer.captain_name}
+                        return (
+                          <div
+                            key={offer.id}
+                            onClick={() => {
+                              if (!isFocused) {
+                                setFocusedOfferId(offer.id);
+                                offerStartTimestampRef.current = Date.now();
+                                setOfferRemainingMs(TOTAL_OFFER_SECONDS * 1000);
+                              }
+                            }}
+                            className={`p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-sm text-black transition-all cursor-pointer ${
+                              isFocused
+                                ? 'bg-emerald-500/15 border-2 border-emerald-500 ring-2 ring-emerald-500/30'
+                                : 'bg-slate-50 hover:bg-emerald-50/50 border border-slate-200 hover:border-emerald-400'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              {/* Captain Profile Pick */}
+                              <div className="relative shrink-0">
+                                <img
+                                  src={getCaptainAvatarUrl(offer.captain_name, offer.captain_avatar || offer.avatar_url)}
+                                  alt={offer.captain_name || 'Captain'}
+                                  referrerPolicy="no-referrer"
+                                  className="w-11 h-11 rounded-full object-cover border-2 border-emerald-600 bg-slate-200 shadow-xs"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).src =
+                                      `https://ui-avatars.com/api/?name=${encodeURIComponent(offer.captain_name || 'Captain')}&background=059669&color=fff&bold=true`;
+                                  }}
+                                />
+                                <span
+                                  className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[9px] font-black border border-white"
+                                  title="Verified Captain"
+                                >
+                                  ✓
                                 </span>
-                                <div className="flex flex-col items-center leading-none shrink-0">
-                                  <span className="flex items-center text-[10px] text-emerald-950 bg-emerald-500/25 px-1.5 py-0.5 rounded-md border border-emerald-500/40 font-bold leading-none">
-                                    <Star className="w-3 h-3 fill-emerald-600 text-emerald-600 mr-0.5" />
-                                    {offer.rating}
-                                  </span>
-                                  {(offer.captain_total_rides !== undefined || offer.total_rides !== undefined) && (
-                                    <span className="text-[10px] text-emerald-900 font-bold font-mono-num leading-none mt-0.5">
-                                      ({offer.captain_total_rides ?? offer.total_rides ?? 0} rides)
-                                    </span>
-                                  )}
-                                </div>
                               </div>
-                              <p className="text-[11px] text-slate-700 mt-0.5 font-semibold truncate">
-                                {offer.vehicle_model} • {offer.plate_number}
-                              </p>
+
+                              {/* Captain Info */}
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-black text-sm text-black truncate">
+                                    {offer.captain_name}
+                                  </span>
+                                  <div className="flex flex-col items-center leading-none shrink-0">
+                                    <span className="flex items-center text-[10px] text-emerald-950 bg-emerald-500/25 px-1.5 py-0.5 rounded-md border border-emerald-500/40 font-bold leading-none">
+                                      <Star className="w-3 h-3 fill-emerald-600 text-emerald-600 mr-0.5" />
+                                      {offer.rating}
+                                    </span>
+                                    {(offer.captain_total_rides !== undefined || offer.total_rides !== undefined) && (
+                                      <span className="text-[10px] text-emerald-900 font-bold font-mono-num leading-none mt-0.5">
+                                        ({offer.captain_total_rides ?? offer.total_rides ?? 0} rides)
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="text-[11px] text-slate-700 mt-0.5 font-semibold truncate">
+                                  {offer.vehicle_model} • {offer.plate_number}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Counter Fare & Accept / Pass Buttons */}
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span className="text-base font-black text-emerald-950 font-mono-num">
+                                ₹{offer.counter_fare}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePassCurrentOffer(offer.id);
+                                  }}
+                                  className="px-2 py-1.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                                  title="Pass this offer"
+                                >
+                                  Pass
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAcceptOffer(offer.id);
+                                  }}
+                                  className={`px-3.5 py-1.5 rounded-xl font-black text-xs shadow-md border transition-all active:scale-95 cursor-pointer flex items-center gap-1 ${
+                                    isFocused && offerCountdownSeconds <= 5
+                                      ? 'bg-rose-600 hover:bg-rose-700 border-rose-700 text-white animate-pulse'
+                                      : 'bg-emerald-600 hover:bg-emerald-700 border-emerald-700 text-white'
+                                  }`}
+                                >
+                                  <span>Accept</span>
+                                  {isFocused && (
+                                    <span className="font-mono-num text-[11px]">({offerCountdownSeconds}s)</span>
+                                  )}
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                </button>
+                              </div>
                             </div>
                           </div>
-
-                          {/* Counter Fare & Accept Button */}
-                          <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span className="text-base font-black text-emerald-950 font-mono-num">
-                              ₹{offer.counter_fare}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleAcceptOffer(offer.id)}
-                              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs shadow-md border border-emerald-700 transition-all active:scale-95 cursor-pointer flex items-center gap-1"
-                            >
-                              <span>Accept</span>
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
-                ) : (
-                  /* When No Offers Yet: Show Radar Pulse and Contacting Captains Status */
-                  <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-8 text-center text-black my-auto">
-                    {/* Center Radar Scanner Icon with Multi-ring Pulsing Waves */}
-                    <div className="relative flex items-center justify-center w-36 h-36 sm:w-40 sm:h-40 my-3 select-none">
-                      {/* Outer Radar Waves with ping and pulse animations */}
-                      <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping border border-emerald-500/20" />
-                      <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-emerald-500/15 animate-pulse border border-emerald-500/30" />
-                      <div className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-emerald-500/40 animate-spin" style={{ animationDuration: '10s' }} />
+                );
+              }
 
-                      {/* Sweeping Radar Conic Gradient Beam */}
-                      <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden pointer-events-none opacity-60">
-                        <div
-                          className="w-full h-full origin-center animate-spin"
-                          style={{
-                            animationDuration: '3s',
-                            background: 'conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(16, 185, 129, 0.5) 360deg)'
-                          }}
-                        />
-                      </div>
+              // When No Offers or All Offers Passed: Show Radar Pulse and Contacting Captains Status
+              return (
+                <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-8 text-center text-black my-auto">
+                  {/* Center Radar Scanner Icon with Multi-ring Pulsing Waves */}
+                  <div className="relative flex items-center justify-center w-36 h-36 sm:w-40 sm:h-40 my-3 select-none">
+                    {/* Outer Radar Waves with ping and pulse animations */}
+                    <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping border border-emerald-500/20" />
+                    <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-emerald-500/15 animate-pulse border border-emerald-500/30" />
+                    <div className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-emerald-500/40 animate-spin" style={{ animationDuration: '10s' }} />
 
-                      {/* Central Radar Target Icon */}
-                      <div className="relative z-10 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-emerald-400 flex items-center justify-center shadow-xl border-2 border-emerald-400 ring-4 ring-emerald-500/20">
-                        <Radar className="w-8 h-8 sm:w-9 sm:h-9 text-emerald-400 animate-pulse stroke-[2.5]" />
-                      </div>
+                    {/* Sweeping Radar Conic Gradient Beam */}
+                    <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden pointer-events-none opacity-60">
+                      <div
+                        className="w-full h-full origin-center animate-spin"
+                        style={{
+                          animationDuration: '3s',
+                          background: 'conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(16, 185, 129, 0.5) 360deg)'
+                        }}
+                      />
                     </div>
 
-                    <h3 className="text-base sm:text-lg font-black text-black mt-2 flex items-center justify-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                      <span>Radar Active • Contacting Captains</span>
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-700 font-medium max-w-xs mt-1">
-                      Broadcasting your offer of{' '}
-                      <span className="text-black font-black font-mono-num text-sm sm:text-base">
-                        ₹{activeRide.offered_fare}
-                      </span>{' '}
-                      to all nearby active captains in real time.
-                    </p>
+                    {/* Central Radar Target Icon */}
+                    <div className="relative z-10 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-emerald-400 flex items-center justify-center shadow-xl border-2 border-emerald-400 ring-4 ring-emerald-500/20">
+                      <Radar className="w-8 h-8 sm:w-9 sm:h-9 text-emerald-400 animate-pulse stroke-[2.5]" />
+                    </div>
                   </div>
-                )}
 
-                {/* Cancel Button */}
-                <div className="w-full mt-4 pt-2 border-t border-slate-100">
+                  <h3 className="text-base sm:text-lg font-black text-black mt-2 flex items-center justify-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                    <span>Radar Active • Contacting Captains</span>
+                  </h3>
+                  <p className="text-xs text-slate-700 max-w-xs mt-1">
+                    Matching with verified nearby captains. When a captain sends an offer price, it will appear here instantly with a 25-second acceptance window.
+                  </p>
+                </div>
+              );
+            })()}
+
+            {/* Cancel Button */}
+            <div className="w-full mt-4 pt-2 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={handleCancelRide}
