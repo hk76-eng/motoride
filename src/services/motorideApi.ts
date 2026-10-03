@@ -408,12 +408,14 @@ export const motorideApi = {
 
     // Apply strict filtering to ensure precision
     if (params?.active_for_captain) {
+      const filterCapId = params.captain_id;
       result = result.filter(
         (r) =>
           r &&
           (r.status === 'requested' || r.status === 'captain_offered') &&
           !r.id?.includes('demo') &&
-          r.passenger_id !== 'usr_demo_100'
+          r.passenger_id !== 'usr_demo_100' &&
+          (!filterCapId || !r.declined_captain_ids?.includes(filterCapId))
       );
     } else {
       if (params?.status && params.status !== 'all') {
@@ -825,6 +827,36 @@ export const motorideApi = {
     const finalRide = serverRide || updatedRide;
     if (isAutoCancelled) {
       (finalRide as any).is_auto_cancelled = true;
+    }
+
+    // Update Supabase PostgreSQL database if connected (for Vercel & remote deployments)
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        if (offerId || targetCapId) {
+          await supabase
+            .from('ride_offers')
+            .update({ status: 'rejected' })
+            .or(`id.eq.${offerId},captain_id.eq.${targetCapId}`);
+        }
+
+        const supUpdatePayload: any = {
+          offers: finalRide.offers || updatedOffers,
+          declined_captain_ids: finalRide.declined_captain_ids || Array.from(declinedSet),
+          updated_at: new Date().toISOString(),
+        };
+
+        if (isAutoCancelled || finalRide.status?.includes('cancelled')) {
+          supUpdatePayload.status = 'cancelled_by_passenger';
+          supUpdatePayload.cancellation_reason = 'Offer declined & no other captains available nearby.';
+        } else {
+          supUpdatePayload.status = (finalRide.offers || []).length > 0 ? 'captain_offered' : 'requested';
+        }
+
+        await supabase.from('rides').update(supUpdatePayload).eq('id', rideId);
+      } catch (err) {
+        console.warn('Supabase decline offer notice:', err);
+      }
     }
 
     realtimeSync.broadcast('RIDE_OFFER_DECLINED', {
