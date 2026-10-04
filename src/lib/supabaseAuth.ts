@@ -153,6 +153,19 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
 
       if (!existingCpt) {
         const captainId = generateUUID();
+        let initialLat = 30.7046;
+        let initialLng = 76.7178;
+        try {
+          const lastGps = localStorage.getItem('motoride_last_captain_gps') || localStorage.getItem('motoride_last_passenger_gps');
+          if (lastGps) {
+            const parsed = JSON.parse(lastGps);
+            if (parsed.lat && parsed.lng) {
+              initialLat = parsed.lat;
+              initialLng = parsed.lng;
+            }
+          }
+        } catch {}
+
         const { data: newCpt, error: cptErr } = await supabase
           .from('captains')
           .insert([
@@ -163,8 +176,8 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
               is_online: true,
               is_approved: true,
               is_active: true,
-              current_lat: 30.7046,
-              current_lng: 76.7178,
+              current_lat: initialLat,
+              current_lng: initialLng,
               rating: 4.9,
               total_rides: 0,
               today_earnings: 0,
@@ -177,10 +190,17 @@ export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boo
           .maybeSingle();
 
         actualCaptainId = newCpt?.id || captainId;
+        try {
+          localStorage.setItem('motoride_captain_id', actualCaptainId);
+        } catch {}
         if (cptErr) {
           console.warn('Supabase captain insert warning:', cptErr.message);
         }
       } else {
+        actualCaptainId = existingCpt.id;
+        try {
+          localStorage.setItem('motoride_captain_id', actualCaptainId);
+        } catch {}
         if (avatarToSave) {
           await supabase.from('captains').update({ avatar_url: avatarToSave }).eq('id', existingCpt.id);
         }

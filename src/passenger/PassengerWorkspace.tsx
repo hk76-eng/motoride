@@ -2126,20 +2126,47 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         }));
       }
 
-      // Also update coordinates in nearby captains list
-      if (payload.captain_id && payload.lat && payload.lng) {
-        setNearbyCaptains((prev) =>
-          prev.map((c) =>
-            c.id === payload.captain_id
-              ? { ...c, lat: payload.lat, lng: payload.lng, heading: payload.heading ?? c.heading }
-              : c
-          )
-        );
-        setNearestCaptain((prev) => {
-          if (prev && prev.id === payload.captain_id) {
-            return { ...prev, lat: payload.lat, lng: payload.lng, heading: payload.heading ?? prev.heading };
+      // Also update coordinates in nearby captains list with flexible matching
+      if (payload.lat && payload.lng) {
+        setNearbyCaptains((prev) => {
+          let found = false;
+          const updated = prev.map((c) => {
+            const isMatch =
+              (payload.captain_id && (c.id === payload.captain_id || (c as any).profile_id === payload.captain_id)) ||
+              (payload.email && (c as any).email?.toLowerCase() === payload.email.toLowerCase()) ||
+              (payload.name && c.name?.toLowerCase() === payload.name.toLowerCase());
+            if (isMatch) {
+              found = true;
+              return { ...c, lat: payload.lat, lng: payload.lng, heading: payload.heading ?? c.heading };
+            }
+            return c;
+          });
+
+          if (!found && payload.captain_id) {
+            updated.push({
+              id: payload.captain_id,
+              name: payload.name || 'Captain',
+              lat: payload.lat,
+              lng: payload.lng,
+              heading: payload.heading ?? 45,
+              rating: 5.0,
+              vehicleModel: 'Motorcycle',
+              vehiclePlate: '',
+              vehicleType: 'bike',
+            });
           }
-          return prev;
+          return updated;
+        });
+
+        setNearestCaptain((prev) => {
+          if (!prev) return prev;
+          const isMatch =
+            (payload.captain_id && (prev.id === payload.captain_id || (prev as any).profile_id === payload.captain_id)) ||
+            (payload.email && (prev as any).email?.toLowerCase() === payload.email.toLowerCase()) ||
+            (payload.name && prev.name?.toLowerCase() === payload.name.toLowerCase());
+          return isMatch
+            ? { ...prev, lat: payload.lat, lng: payload.lng, heading: payload.heading ?? prev.heading }
+            : prev;
         });
       }
     });

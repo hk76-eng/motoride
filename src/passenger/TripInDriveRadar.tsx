@@ -104,10 +104,10 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
         const angleDeg = calculateBearing(pickupLat, pickupLng, cLat, cLng);
 
         // Exact mathematical radial mapping to match radar rings (200m, 500m, 1.0km, 1.5km)
-        // If distKm <= 1.5km: normalizedRatio = distKm / 1.5 (maps from 10% to 42% radius)
+        // If distKm <= 1.5km: normalizedRatio = distKm / 1.5 (maps from 7% to 42% radius)
         // If distKm > 1.5km: place solidly on outer boundary ring (42% radius) at their exact bearing
         const normalizedRatio = Math.min(1.0, distKm / MAX_RADAR_RANGE_KM);
-        const rPercent = Math.max(12, Math.min(MAX_RADIUS_PERCENT, normalizedRatio * MAX_RADIUS_PERCENT));
+        const rPercent = Math.max(7, Math.min(MAX_RADIUS_PERCENT, normalizedRatio * MAX_RADIUS_PERCENT));
 
         // Polar to cartesian projection (0° = North = Top, 90° = East = Right, 180° = South = Bottom, 270° = West = Left)
         const rad = ((angleDeg - 90) * Math.PI) / 180;

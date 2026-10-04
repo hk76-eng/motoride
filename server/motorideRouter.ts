@@ -1685,18 +1685,80 @@ motorideRouter.get('/captains/available', (req: Request, res: Response) => {
 
 // Update Captain Live GPS Coordinates (active ride or roaming)
 motorideRouter.post('/captain-location', (req: Request, res: Response) => {
-  const { captain_id, ride_id, latitude, longitude, heading, accuracy, speed } = req.body;
+  const { captain_id, ride_id, latitude, longitude, heading, accuracy, speed, email, phone, name } = req.body;
   if (!captain_id || typeof latitude !== 'number' || typeof longitude !== 'number') {
     return res.status(400).json({ error: 'captain_id, latitude, and longitude are required' });
   }
 
+  // Look up existing captain by captain_id, profile_id, email, phone, or name
+  let targetKey = captain_id;
   let cpt = captainsStore.get(captain_id);
+  if (!cpt) {
+    for (const [key, item] of captainsStore.entries()) {
+      if (
+        item.id === captain_id ||
+        item.profile_id === captain_id ||
+        (email && item.email?.toLowerCase() === email.toLowerCase()) ||
+        (phone && item.phone === phone) ||
+        (name && item.full_name?.toLowerCase() === name.toLowerCase())
+      ) {
+        cpt = item;
+        targetKey = key;
+        break;
+      }
+    }
+  }
+
+  if (!cpt) {
+    // Check accountsStore
+    for (const [key, acc] of accountsStore.entries()) {
+      if (
+        acc.id === captain_id ||
+        (email && acc.email?.toLowerCase() === email.toLowerCase()) ||
+        (phone && acc.phone === phone) ||
+        (name && acc.name?.toLowerCase() === name.toLowerCase())
+      ) {
+        cpt = {
+          id: acc.id,
+          profile_id: `prof_${acc.id}`,
+          full_name: acc.name,
+          email: acc.email,
+          phone: acc.phone || '+91 98765 00000',
+          is_online: true,
+          is_approved: true,
+          is_active: true,
+          current_lat: latitude,
+          current_lng: longitude,
+          current_heading: typeof heading === 'number' ? heading : 45,
+          rating: 4.95,
+          total_rides: 24,
+          today_earnings: 0,
+          total_earnings: 5200,
+          vehicle: {
+            id: `veh_${acc.id}`,
+            captain_id: acc.id,
+            model: acc.vehicle_model || 'Motorcycle',
+            plate_number: acc.plate_number || 'PB65XX1000',
+            vehicle_type: acc.vehicle_type || 'bike',
+            color: 'Black',
+            is_active: true,
+          },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        targetKey = acc.id;
+        break;
+      }
+    }
+  }
+
   if (!cpt) {
     cpt = {
       id: captain_id,
       profile_id: `prof_${captain_id}`,
-      full_name: 'Captain Online',
-      phone: '+91 98765 00000',
+      full_name: name || 'Captain Online',
+      phone: phone || '+91 98765 00000',
+      email: email || '',
       is_online: true,
       is_approved: true,
       is_active: true,
@@ -1719,15 +1781,17 @@ motorideRouter.post('/captain-location', (req: Request, res: Response) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    captainsStore.set(captain_id, cpt);
   } else {
     cpt.current_lat = latitude;
     cpt.current_lng = longitude;
     if (typeof heading === 'number') cpt.current_heading = heading;
     cpt.is_online = true;
     cpt.updated_at = new Date().toISOString();
-    captainsStore.set(captain_id, cpt);
   }
+
+  captainsStore.set(targetKey, cpt);
+  captainsStore.set(captain_id, cpt);
+  if (cpt.id && cpt.id !== captain_id) captainsStore.set(cpt.id, cpt);
 
   if (ride_id && ridesStore.has(ride_id)) {
     const ride = ridesStore.get(ride_id)!;
@@ -2074,19 +2138,75 @@ motorideRouter.post('/captains/:id/documents', (req: Request, res: Response) => 
 });
 
 motorideRouter.post('/captains/:id/toggle-online', (req: Request, res: Response) => {
-  const cpt = captainsStore.get(req.params.id);
+  const idOrKey = req.params.id;
+  let cpt = captainsStore.get(idOrKey);
+  if (!cpt) {
+    for (const [k, item] of captainsStore.entries()) {
+      if (
+        item.id === idOrKey ||
+        item.profile_id === idOrKey ||
+        (item.email && item.email.toLowerCase() === idOrKey.toLowerCase()) ||
+        item.phone === idOrKey
+      ) {
+        cpt = item;
+        break;
+      }
+    }
+  }
+
+  if (!cpt) {
+    const acc = accountsStore.get(idOrKey);
+    if (acc && acc.role === 'captain') {
+      cpt = {
+        id: acc.id,
+        profile_id: `prof_${acc.id}`,
+        full_name: acc.name,
+        email: acc.email,
+        phone: acc.phone || '+91 98765 00000',
+        is_online: req.body.is_online !== undefined ? Boolean(req.body.is_online) : true,
+        is_approved: true,
+        is_active: true,
+        current_lat: req.body.lat ?? req.body.latitude ?? 30.7046,
+        current_lng: req.body.lng ?? req.body.longitude ?? 76.7178,
+        rating: 5.0,
+        total_rides: 0,
+        today_earnings: 0,
+        total_earnings: 0,
+        vehicle: {
+          id: `veh_${acc.id}`,
+          captain_id: acc.id,
+          model: acc.vehicle_model || 'Motorcycle',
+          plate_number: acc.plate_number || 'PB65XX1000',
+          vehicle_type: acc.vehicle_type || 'bike',
+          color: 'Black',
+          is_active: true,
+        },
+        created_at: new Date().toISOString(),
+      };
+      captainsStore.set(acc.id, cpt);
+    }
+  }
+
   if (!cpt) {
     return res.status(404).json({ error: 'Captain not found' });
   }
 
   cpt.is_online = req.body.is_online !== undefined ? Boolean(req.body.is_online) : !cpt.is_online;
+  if (typeof req.body.lat === 'number' && typeof req.body.lng === 'number') {
+    cpt.current_lat = req.body.lat;
+    cpt.current_lng = req.body.lng;
+  }
   cpt.updated_at = new Date().toISOString();
   captainsStore.set(cpt.id, cpt);
+  persistDbToDisk();
 
   broadcastEvent('CAPTAIN_ONLINE_STATUS_CHANGED', {
     captain_id: cpt.id,
     is_online: cpt.is_online,
+    current_lat: cpt.current_lat,
+    current_lng: cpt.current_lng,
   });
+  broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
 
   res.json({ success: true, captain: cpt });
 });

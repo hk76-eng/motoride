@@ -539,27 +539,31 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       );
     } catch {}
 
-    // Throttle upload to Supabase & Backend:
-    // Update if moved >= 3m OR >= 3s elapsed since last sync
+    setCaptain((prev) => prev ? { ...prev, current_lat: latitude, current_lng: longitude } : prev);
+
+    // Sync to Supabase & Backend:
     const prev = lastUploadedGpsRef.current;
     const distM = calculateDistance(prev.lat, prev.lng, latitude, longitude) * 1000;
     const timeDelta = now - prev.time;
 
-    if (timeDelta >= 2000 && (distM >= 3 || timeDelta >= 3500 || prev.time === 0)) {
+    if (distM >= 2 || timeDelta >= 2000 || prev.time === 0) {
       lastUploadedGpsRef.current = { lat: latitude, lng: longitude, time: now };
       setLastUploadedAt(now);
 
-      motorideApi
-        .updateCaptainLiveLocation({
-          captain_id: captainId,
-          ride_id: activeRide?.id || null,
-          latitude,
-          longitude,
-          accuracy: accuracy ?? null,
-          heading: heading ?? null,
-          speed: speed ?? null,
-        })
-        .catch((err) => console.warn('Supabase captain live location sync notice:', err));
+      const targetCapId = captainId || captain?.id || authUser?.id || safeStorage.getItem('motoride_captain_id') || '';
+      if (targetCapId) {
+        motorideApi
+          .updateCaptainLiveLocation({
+            captain_id: targetCapId,
+            ride_id: activeRide?.id || null,
+            latitude,
+            longitude,
+            accuracy: accuracy ?? null,
+            heading: heading ?? null,
+            speed: speed ?? null,
+          })
+          .catch((err) => console.warn('Supabase captain live location sync notice:', err));
+      }
     }
   };
 
@@ -637,11 +641,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      startWatchingLocation();
-    }, 1200);
+    // Start watching location immediately without delay for instant GPS acquisition
+    startWatchingLocation();
     return () => {
-      clearTimeout(timer);
       if (watchIdRef.current !== null && 'geolocation' in navigator) {
         try {
           navigator.geolocation.clearWatch(watchIdRef.current);
@@ -1720,9 +1722,22 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     try {
       const nextState = !isOnline;
       setInternalOnline(nextState);
-      const updated = await motorideApi.toggleCaptainOnline(captainId, nextState);
+      const targetCapId = captainId || captain?.id || authUser?.id || safeStorage.getItem('motoride_captain_id') || '';
+      const lat = captainGps.lat > 0 ? captainGps.lat : undefined;
+      const lng = captainGps.lng > 0 ? captainGps.lng : undefined;
+
+      const updated = await motorideApi.toggleCaptainOnline(targetCapId, nextState, lat, lng);
       if (updated && typeof updated.is_online === 'boolean') {
         setInternalOnline(updated.is_online);
+      }
+
+      if (nextState && targetCapId && lat && lng) {
+        motorideApi.updateCaptainLiveLocation({
+          captain_id: targetCapId,
+          latitude: lat,
+          longitude: lng,
+          heading: captainGps.heading ?? null,
+        }).catch(() => {});
       }
     } catch (err: any) {
       console.warn('Failed to toggle status:', err);

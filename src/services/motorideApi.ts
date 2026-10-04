@@ -1463,6 +1463,14 @@ export const motorideApi = {
       speed: data.speed,
     });
 
+    // Save to local storage for instant multi-tab sync
+    try {
+      localStorage.setItem(
+        'motoride_last_captain_gps',
+        JSON.stringify({ lat: data.latitude, lng: data.longitude, accuracy: data.accuracy, heading: data.heading })
+      );
+    } catch {}
+
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -1470,6 +1478,12 @@ export const motorideApi = {
           current_lat: data.latitude,
           current_lng: data.longitude,
           current_heading: data.heading ?? 0,
+          updated_at: new Date().toISOString(),
+        }).or(`id.eq.${data.captain_id},profile_id.eq.${data.captain_id}`);
+
+        await supabase.from('profiles').update({
+          current_lat: data.latitude,
+          current_lng: data.longitude,
           updated_at: new Date().toISOString(),
         }).eq('id', data.captain_id);
 
@@ -2096,11 +2110,11 @@ export const motorideApi = {
     };
   },
 
-  async toggleCaptainOnline(id: string, is_online?: boolean): Promise<Captain> {
+  async toggleCaptainOnline(id: string, is_online?: boolean, lat?: number, lng?: number): Promise<Captain> {
     const json = await safeFetchJson<{ captain?: Captain }>(`${API_BASE}/captains/${id}/toggle-online`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_online }),
+      body: JSON.stringify({ is_online, lat, lng }),
     });
     return json?.captain || ({ id, is_online: Boolean(is_online) } as any);
   },
