@@ -193,41 +193,10 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
             500m
           </span>
 
-          {/* ================================================================================= */}
-          {/* SOFT LIGHT AMBER SEARCH FOCUS LIGHT BEAM                                          */}
-          {/* ================================================================================= */}
-          <div
-            className="absolute inset-0 rounded-full pointer-events-none origin-center"
-            style={{
-              animation: 'searchlight-sweep 3s linear infinite',
-            }}
-          >
-            {/* Soft Light Amber Focus Fan (~85° aperture) */}
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                background:
-                  'conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(251, 191, 36, 0.04) 275deg, rgba(251, 191, 36, 0.15) 310deg, rgba(251, 191, 36, 0.30) 345deg, rgba(245, 158, 11, 0.60) 360deg)',
-                filter: 'drop-shadow(0 0 12px rgba(251, 191, 36, 0.45))',
-              }}
-            />
-
-            {/* Leading Soft Golden Ray */}
-            <div
-              className="absolute top-0 left-1/2 w-[2px] h-1/2 -translate-x-1/2 origin-bottom bg-gradient-to-t from-amber-500/80 via-amber-300 to-amber-100"
-              style={{
-                boxShadow: '0 0 8px #fde047, 0 0 14px #f59e0b',
-              }}
-            />
-
-            {/* Outer Soft Light Lens Bead */}
-            <div
-              className="absolute top-0.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-amber-300 border-2 border-black"
-              style={{
-                boxShadow: '0 0 10px 2px #fde047',
-              }}
-            />
-          </div>
+          {/* Concentric Sonar Expanding Rings (No searchlight) */}
+          <div className="absolute w-16 h-16 rounded-full border-2 border-amber-500/40 animate-ping pointer-events-none" style={{ animationDuration: '2.2s' }} />
+          <div className="absolute w-32 h-32 rounded-full border-2 border-amber-500/30 animate-ping pointer-events-none" style={{ animationDuration: '3.2s', animationDelay: '0.8s' }} />
+          <div className="absolute w-48 h-48 rounded-full border border-amber-500/20 animate-ping pointer-events-none" style={{ animationDuration: '4.2s', animationDelay: '1.6s' }} />
 
           {/* ================================================================================= */}
           {/* CONSTANT & SOLID REAL-TIME CAPTAIN DISPLAY (PERMANENT, CRISP & NEVER HIDING)       */}

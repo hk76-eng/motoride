@@ -1792,6 +1792,7 @@ motorideRouter.post('/captain-location', (req: Request, res: Response) => {
   captainsStore.set(targetKey, cpt);
   captainsStore.set(captain_id, cpt);
   if (cpt.id && cpt.id !== captain_id) captainsStore.set(cpt.id, cpt);
+  if (cpt.email) captainsStore.set(cpt.email.toLowerCase(), cpt);
 
   if (ride_id && ridesStore.has(ride_id)) {
     const ride = ridesStore.get(ride_id)!;
@@ -1801,12 +1802,20 @@ motorideRouter.post('/captain-location', (req: Request, res: Response) => {
     ride.updated_at = new Date().toISOString();
   }
 
+  persistDbToDisk();
+
   const payload = {
     captain_id,
+    id: cpt.id || captain_id,
+    name: cpt.full_name || name || 'Captain',
+    email: cpt.email || email || '',
+    phone: cpt.phone || phone || '',
     ride_id: ride_id || null,
     latitude,
     longitude,
-    heading: typeof heading === 'number' ? heading : 0,
+    lat: latitude,
+    lng: longitude,
+    heading: typeof heading === 'number' ? heading : (cpt.current_heading || 0),
     accuracy: typeof accuracy === 'number' ? accuracy : 15,
     speed: typeof speed === 'number' ? speed : 0,
     timestamp: Date.now(),

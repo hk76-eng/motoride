@@ -569,10 +569,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       setLastUploadedAt(now);
 
       const targetCapId = captainId || captain?.id || authUser?.id || safeStorage.getItem('motoride_captain_id') || '';
+      const effName = captain?.full_name || captainName || authUser?.name || safeStorage.getItem('motoride_captain_name') || 'Captain';
+      const effEmail = captain?.email || authUser?.email || '';
+      const effPhone = captain?.phone || authUser?.phone || safeStorage.getItem('motoride_captain_phone') || '';
+
       if (targetCapId) {
         motorideApi
           .updateCaptainLiveLocation({
             captain_id: targetCapId,
+            name: effName,
+            email: effEmail,
+            phone: effPhone,
             ride_id: activeRide?.id || null,
             latitude,
             longitude,
@@ -1752,6 +1759,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (nextState && targetCapId && lat && lng) {
         motorideApi.updateCaptainLiveLocation({
           captain_id: targetCapId,
+          name: captain?.full_name || captainName || authUser?.name || 'Captain',
+          email: captain?.email || authUser?.email || '',
+          phone: captain?.phone || authUser?.phone || '',
           latitude: lat,
           longitude: lng,
           heading: captainGps.heading ?? null,
