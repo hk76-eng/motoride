@@ -77,11 +77,14 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
 
     const inRangeCaptains = nearbyCaptains
       .filter((cap) => {
-        if (!cap || typeof cap.lat !== 'number' || typeof cap.lng !== 'number') return false;
-        if (isNaN(cap.lat) || isNaN(cap.lng) || (cap.lat === 0 && cap.lng === 0)) return false;
+        if (!cap) return false;
+        const lat = cap.lat ?? (cap as any).current_lat;
+        const lng = cap.lng ?? (cap as any).current_lng;
+        if (typeof lat !== 'number' || typeof lng !== 'number') return false;
+        if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return false;
 
         const capId = cap.id || '';
-        const capName = (cap.name || '').trim().toLowerCase();
+        const capName = (cap.name || (cap as any).full_name || '').trim().toLowerCase();
 
         // Deduplicate duplicate entries
         if (capId && seenIds.has(capId)) return false;
@@ -90,20 +93,21 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
         if (capId) seenIds.add(capId);
         if (capName) seenNames.add(capName);
 
-        // Distance check: remove any captain far away (e.g. > 2.5km)
-        const distKm = calculateDistanceKm(pickupLat, pickupLng, cap.lat, cap.lng);
-        return distKm <= 2.5;
+        // Distance check: ensure captains in operational range (<= 20km) are displayed
+        const distKm = calculateDistanceKm(pickupLat, pickupLng, lat, lng);
+        return distKm <= 20;
       })
       .map((cap, idx) => {
-        const cLat = cap.lat;
-        const cLng = cap.lng;
+        const cLat = cap.lat ?? (cap as any).current_lat;
+        const cLng = cap.lng ?? (cap as any).current_lng;
         const distKm = calculateDistanceKm(pickupLat, pickupLng, cLat, cLng);
         const angleDeg = calculateBearing(pickupLat, pickupLng, cLat, cLng);
 
         // Exact mathematical radial mapping to match radar rings (200m, 500m, 1.0km, 1.5km)
-        const normalizedRatio = distKm / MAX_RADAR_RANGE_KM;
-        // Clamp cleanly so they are displayed accurately inside the radar frame
-        const rPercent = Math.max(10, Math.min(MAX_RADIUS_PERCENT, normalizedRatio * MAX_RADIUS_PERCENT));
+        // If distKm <= 1.5km: normalizedRatio = distKm / 1.5 (maps from 10% to 42% radius)
+        // If distKm > 1.5km: place solidly on outer boundary ring (42% radius) at their exact bearing
+        const normalizedRatio = Math.min(1.0, distKm / MAX_RADAR_RANGE_KM);
+        const rPercent = Math.max(12, Math.min(MAX_RADIUS_PERCENT, normalizedRatio * MAX_RADIUS_PERCENT));
 
         // Polar to cartesian projection (0° = North = Top, 90° = East = Right, 180° = South = Bottom, 270° = West = Left)
         const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -114,16 +118,16 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
 
         return {
           id: cap.id || `cap-${idx}`,
-          name: cap.name || 'Captain',
+          name: cap.name || (cap as any).full_name || 'Captain',
           distKm,
           distanceText,
-          rating: cap.rating ? cap.rating.toFixed(1) : '4.9',
+          rating: cap.rating ? Number(cap.rating).toFixed(1) : '4.9',
           angleDeg,
           rPercent,
           xPercent,
           yPercent,
           heading: cap.heading || angleDeg,
-          vehicle: cap.vehicleModel || 'Bike',
+          vehicle: cap.vehicleModel || (cap as any).vehicle?.model || 'Bike',
         };
       });
 

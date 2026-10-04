@@ -2424,17 +2424,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         if (!isMounted) return;
 
         const mapped: AvailableCaptainItem[] = (res.captains || [])
-          .filter((c) => c.current_lat != null && c.current_lng != null)
+          .filter((c) => (c.current_lat != null || (c as any).lat != null) && (c.current_lng != null || (c as any).lng != null))
           .map((c) => ({
             id: c.id,
-            name: c.name,
-            lat: c.current_lat!,
-            lng: c.current_lng!,
-            heading: c.current_heading || 45,
+            name: c.name || (c as any).full_name || 'Captain',
+            lat: (c.current_lat ?? (c as any).lat)!,
+            lng: (c.current_lng ?? (c as any).lng)!,
+            heading: c.current_heading || (c as any).heading || 45,
             rating: c.rating,
-            vehicleModel: c.vehicle_model,
-            vehiclePlate: c.plate_number,
-            vehicleType: c.vehicle_type,
+            vehicleModel: c.vehicle_model || (c as any).vehicle?.model,
+            vehiclePlate: c.plate_number || (c as any).vehicle?.plate_number,
+            vehicleType: c.vehicle_type || (c as any).vehicle?.vehicle_type,
             distanceKm: (c as any).distance_km,
             etaMinutes: (c as any).eta_minutes,
             isNearest: Boolean((c as any).is_nearest),
@@ -2442,23 +2442,22 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
         setNearbyCaptains(mapped);
 
-        if (res.nearestCaptain && res.nearestCaptain.current_lat != null && res.nearestCaptain.current_lng != null) {
+        const nearest = res.nearestCaptain || (mapped.length > 0 ? (mapped[0] as any) : null);
+        if (nearest && (nearest.current_lat != null || nearest.lat != null) && (nearest.current_lng != null || nearest.lng != null)) {
           setNearestCaptain({
-            id: res.nearestCaptain.id,
-            name: res.nearestCaptain.name,
-            lat: res.nearestCaptain.current_lat,
-            lng: res.nearestCaptain.current_lng,
-            heading: res.nearestCaptain.current_heading || 45,
-            rating: res.nearestCaptain.rating,
-            vehicleModel: res.nearestCaptain.vehicle_model,
-            vehiclePlate: res.nearestCaptain.plate_number,
-            vehicleType: res.nearestCaptain.vehicle_type,
-            distanceKm: (res.nearestCaptain as any).distance_km,
-            etaMinutes: (res.nearestCaptain as any).eta_minutes,
+            id: nearest.id,
+            name: nearest.name || nearest.full_name || 'Captain',
+            lat: nearest.current_lat ?? nearest.lat,
+            lng: nearest.current_lng ?? nearest.lng,
+            heading: nearest.current_heading || nearest.heading || 45,
+            rating: nearest.rating,
+            vehicleModel: nearest.vehicle_model || nearest.vehicle?.model,
+            vehiclePlate: nearest.plate_number || nearest.vehicle?.plate_number,
+            vehicleType: nearest.vehicle_type || nearest.vehicle?.vehicle_type,
+            distanceKm: (nearest as any).distance_km,
+            etaMinutes: (nearest as any).eta_minutes,
             isNearest: true,
           });
-        } else if (mapped.length > 0) {
-          setNearestCaptain(mapped[0]);
         } else {
           setNearestCaptain(null);
         }

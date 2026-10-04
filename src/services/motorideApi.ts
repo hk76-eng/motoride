@@ -1626,8 +1626,34 @@ export const motorideApi = {
     const online = Array.isArray(fallbackCaptains)
       ? fallbackCaptains.filter((c) => c && c.is_online !== false && c.is_approved !== false && c.is_active !== false)
       : [];
+
+    if (typeof userLat === 'number' && typeof userLng === 'number') {
+      const enriched = online.map((c) => {
+        const cLat = c.current_lat ?? (c as any).lat ?? userLat;
+        const cLng = c.current_lng ?? (c as any).lng ?? userLng;
+        const dLat = ((cLat - userLat) * Math.PI) / 180;
+        const dLon = ((cLng - userLng) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((userLat * Math.PI) / 180) * Math.cos((cLat * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const distKm = Number((6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(2));
+        const etaMinutes = Math.max(1, Math.round(distKm * 3.2));
+        return {
+          ...c,
+          name: c.full_name || (c as any).name || 'Captain',
+          distance_km: distKm,
+          eta_minutes: etaMinutes,
+        };
+      }).sort((a, b) => (a.distance_km ?? 0) - (b.distance_km ?? 0));
+
+      return {
+        captains: enriched,
+        nearestCaptain: enriched[0] || null,
+      };
+    }
+
     return {
-      captains: online,
+      captains: online.map(c => ({ ...c, name: c.full_name || (c as any).name || 'Captain' })),
       nearestCaptain: online[0] || null,
     };
   },
