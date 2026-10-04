@@ -2991,6 +2991,80 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             </div>
           </div>
 
+          {/* Acceptance Countdown Timer & Single Offer Queue Card with 25-Second Animated Progress Bar */}
+          <div className="px-3.5 sm:px-5 py-2 bg-slate-950 border-b border-slate-800/90 text-white flex flex-col gap-1.5 z-20 shrink-0 shadow-sm backdrop-blur-md">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              {/* Left: Acceptance Countdown Timer & Clock Icon */}
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                    countdownSeconds <= 5
+                      ? 'bg-rose-500/25 border-rose-500/50 text-rose-400 animate-pulse'
+                      : countdownSeconds <= 12
+                      ? 'bg-amber-500/25 border-amber-500/50 text-amber-400'
+                      : 'bg-emerald-500/25 border-emerald-500/50 text-emerald-400'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" style={{ animationDuration: '4s' }} />
+                </div>
+
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-xs font-black tracking-wide text-white hidden xs:inline">
+                    Acceptance Timer:
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-xs font-mono font-black border ${
+                      countdownSeconds <= 5
+                        ? 'bg-rose-500 text-white border-rose-400 animate-pulse'
+                        : countdownSeconds <= 12
+                        ? 'bg-amber-500 text-slate-950 border-amber-400'
+                        : 'bg-emerald-500 text-white border-emerald-400'
+                    }`}
+                  >
+                    {countdownSeconds}s
+                  </span>
+                  <span className="text-[10px] text-slate-400 truncate">
+                    {availableRides.length > 1
+                      ? `Auto-passes in ${countdownSeconds}s to next offer`
+                      : `Auto-passes in ${countdownSeconds}s`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Right: Single Offer Queue Indicator */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span>Single Offer Queue</span>
+                </span>
+                {(() => {
+                  const currentIdx = availableRides.findIndex((r) => r.id === inspectedRide.id);
+                  const displayIdx = currentIdx >= 0 ? currentIdx + 1 : 1;
+                  const total = Math.max(1, availableRides.length);
+                  return (
+                    <span className="text-[10px] font-mono font-bold text-slate-300 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800">
+                      Offer {displayIdx} of {total}
+                    </span>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* 25-Second Animated Progress Bar from 25s to 0s with color shifts (Emerald, Amber, Rose) */}
+            <div className="w-full h-2 rounded-full bg-slate-900 overflow-hidden relative border border-slate-800">
+              <div
+                className={`h-full rounded-full transition-all duration-100 ease-linear ${
+                  countdownSeconds <= 5
+                    ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-md shadow-rose-500/50'
+                    : countdownSeconds <= 12
+                    ? 'bg-gradient-to-r from-amber-500 to-yellow-400 shadow-md shadow-amber-500/50'
+                    : 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-md shadow-emerald-500/50'
+                }`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+          </div>
+
           {/* Main 100% Display Body - Showing Both Route Map and Ride Details Clearly */}
           <div className="flex-1 w-full relative flex flex-col md:flex-row overflow-hidden">
             {/* 1. Route Map - Increased height from center to top */}
