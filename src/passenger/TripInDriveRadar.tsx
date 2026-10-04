@@ -241,60 +241,49 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
           </div>
 
           {/* ================================================================================= */}
-          {/* EXACT REAL-TIME CAPTAIN POSITIONS ON THE RADAR RINGS                              */}
+          {/* EXACT REAL-TIME CAPTAIN POSITIONS ON THE RADAR RINGS (CONSTANT & STEADY)          */}
           {/* ================================================================================= */}
           {realTimeTargets.map((cap) => {
-            // Check if captain is inside the sweeping amber focus light beam cone (~85°)
+            // Soft amber highlight pulse when focus light sweeps across captain
             const diff = (currentAngle - cap.angleDeg + 360) % 360;
             const isLit = diff <= 85 || diff >= 355;
 
             return (
               <div
                 key={cap.id}
-                className="absolute z-20 flex flex-col items-center pointer-events-none transition-all duration-300"
+                className="absolute z-20 flex flex-col items-center pointer-events-none transition-all duration-200"
                 style={{
                   left: `${cap.xPercent}%`,
                   top: `${cap.yPercent}%`,
                   transform: 'translate(-50%, -50%)',
                 }}
               >
-                {/* Captain Vehicle Marker with Soft Amber Illumination */}
+                {/* Captain Vehicle Marker - Constant, solid, and always visible */}
                 <div className="relative flex items-center justify-center">
                   {isLit && (
                     <span
-                      className="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-amber-400 opacity-75"
-                      style={{ animationDuration: '1.5s' }}
+                      className="animate-ping absolute inline-flex h-9 w-9 rounded-full bg-amber-400/40 pointer-events-none"
+                      style={{ animationDuration: '1.4s' }}
                     />
                   )}
-                  <div
-                    className={`relative rounded-full transition-all duration-300 flex items-center justify-center ${
-                      isLit
-                        ? 'w-7 h-7 bg-amber-500 text-slate-950 shadow-[0_0_16px_#f59e0b] scale-110 ring-2 ring-black'
-                        : 'w-6 h-6 bg-slate-900 text-amber-400 shadow-md border-2 border-black scale-100 opacity-90'
-                    }`}
-                  >
-                    <Bike className={`stroke-[2.5] ${isLit ? 'w-4 h-4 text-slate-950' : 'w-3.5 h-3.5 text-amber-400'}`} />
+                  <div className="relative w-7 h-7 rounded-full bg-amber-500 text-slate-950 shadow-[0_2px_10px_rgba(0,0,0,0.25)] border-2 border-black flex items-center justify-center">
+                    <Bike className="w-4 h-4 text-slate-950 stroke-[2.5]" />
                   </div>
                 </div>
 
-                {/* Real-time Proximity & Position Badge */}
-                <div
-                  className={`mt-1 px-1.5 py-0.5 rounded-md text-[8px] font-mono font-black shadow-sm flex items-center gap-1 whitespace-nowrap transition-all duration-300 ${
-                    isLit
-                      ? 'bg-slate-950 text-amber-300 border border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.5)] scale-105'
-                      : 'bg-white/95 border border-black/70 text-slate-900 scale-95'
-                  }`}
-                >
-                  <span className="font-sans font-bold">{cap.name}</span>
-                  <span className={isLit ? 'text-amber-400' : 'text-slate-400'}>•</span>
-                  <span className={isLit ? 'text-amber-300 font-black' : 'text-black font-black'}>
-                    {cap.distanceText}
-                  </span>
+                {/* Real-time Proximity & Position Badge - Constant and always visible */}
+                <div className="mt-1 px-2 py-0.5 rounded-md text-[8px] font-mono font-black shadow-sm flex items-center gap-1 whitespace-nowrap bg-black text-amber-300 border border-amber-400/80">
+                  <span className="font-sans font-bold text-white">{cap.name}</span>
+                  <span className="text-amber-400">•</span>
+                  <span className="text-amber-300 font-black">{cap.distanceText}</span>
                   {cap.rating && (
-                    <span className="flex items-center text-amber-500">
-                      <Star className="w-2 h-2 fill-amber-400 inline" />
-                      {cap.rating}
-                    </span>
+                    <>
+                      <span className="text-amber-400">•</span>
+                      <span className="flex items-center text-amber-400">
+                        <Star className="w-2.5 h-2.5 fill-amber-400 inline mr-0.5" />
+                        {cap.rating}
+                      </span>
+                    </>
                   )}
                 </div>
               </div>
