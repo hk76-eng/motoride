@@ -268,22 +268,8 @@ export function isDemoAccount(acc: any): boolean {
   const id = String(acc.id || acc.profile_id || '').toLowerCase().trim();
   const email = String(acc.email || '').toLowerCase().trim();
   const name = String(acc.name || acc.full_name || '').toLowerCase().trim();
-  const role = String(acc.role || '').toLowerCase().trim();
 
-  // Exclude Admin profiles & requested duplicate profiles
-  if (
-    role === 'admin' ||
-    email === 'freelanceseoservices01@gmail.com' ||
-    id.includes('fb95d290-c925-4c93-ad9c-ebdc') ||
-    id.includes('348173af-50c5-4182-8621-c8212369cd81') ||
-    id.includes('01d08835-416d-4acb-ac49-a801c7906518') ||
-    id.includes('01d08835') ||
-    id === 'usr-admin-001'
-  ) {
-    return true;
-  }
-
-  // Explicit legacy demo IDs only
+  // Explicit legacy demo IDs only (never treat real accounts or admins as demo)
   if (
     id === 'cpt_1' ||
     id === 'psg_1' ||
@@ -300,7 +286,7 @@ export function isDemoAccount(acc: any): boolean {
     email === 'passenger@motoride.com' ||
     email === 'vikram.singh.captain@motoride.in' ||
     email === 'demo@motoride.com' ||
-    email.startsWith('demo@')
+    (email.startsWith('demo@') && !email.includes('admin'))
   ) {
     return true;
   }
@@ -533,11 +519,7 @@ export const supabaseAuth = {
       const raw = safeStorage.getItem(STORAGE_SESSION_KEY);
       if (raw) {
         const user = JSON.parse(raw);
-        if (user && isDemoAccount(user)) {
-          safeStorage.removeItem(STORAGE_SESSION_KEY);
-          return null;
-        }
-        if (user) {
+        if (user && user.id && user.email) {
           const storedAvatar = safeStorage.getItem(`motoride_${user.role}_avatar`);
           if (storedAvatar && !user.avatarUrl) {
             user.avatarUrl = storedAvatar;
@@ -548,8 +530,8 @@ export const supabaseAuth = {
               user.walletBalance = Number(storedBal);
             }
           }
+          return user;
         }
-        return user;
       }
     } catch (e) {
       console.warn('Failed to parse auth session:', e);

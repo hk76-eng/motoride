@@ -10,8 +10,14 @@ export function getApiUrl(path: string): string {
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
     
-    // If running inside local Android Assets (file://) or isolated Cordova/Capacitor environment
-    if (protocol === 'file:' || hostname === '' || !hostname) {
+    // If running on Vercel, external domains, local Android Assets (file://) or isolated Cordova/Capacitor environment
+    if (
+      protocol === 'file:' || 
+      hostname === '' || 
+      !hostname ||
+      hostname.includes('vercel.app') ||
+      hostname.includes('motoride-roan')
+    ) {
       const cleanPath = path.startsWith('/') ? path : `/${path}`;
       return `${LIVE_BACKEND_ORIGIN}${cleanPath}`;
     }

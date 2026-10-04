@@ -70,6 +70,7 @@ interface CaptainWorkspaceProps {
   onSignOut?: () => void;
   isOnline?: boolean;
   onToggleOnline?: () => void;
+  onActiveTripChange?: (isActive: boolean) => void;
 }
 
 // Realistic road distance calculator for urban travel proximity
@@ -126,6 +127,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   onSignOut,
   isOnline: propIsOnline,
   onToggleOnline: propToggleOnline,
+  onActiveTripChange,
 }) => {
   const authUser = currentUser || supabaseAuth.getCurrentUser();
   const resolvedInitialName = currentUser?.name || (captainName && captainName !== 'Captain' ? captainName : undefined) || authUser?.name || 'Captain';
@@ -197,6 +199,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   // Default to false so the map and Captain live GPS position are immediately 100% visible
   const [is100Full, setIs100Full] = useState<boolean>(false);
   const [inspectViewMode, setInspectViewMode] = useState<'both' | 'map' | 'details'>('both');
+
+  // Notify parent container when active ride status changes so top header can be hidden
+  useEffect(() => {
+    onActiveTripChange?.(Boolean(activeRide));
+  }, [activeRide, onActiveTripChange]);
 
   // Dedicated Wallet Tab, Documents Tab & Payout state
   const [activeTab, setActiveTab] = useState<'requests' | 'wallet' | 'documents'>('requests');
@@ -2900,8 +2907,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       )}
 
       {activeRide ? (
-        /* Active Ride Split View: Top Map (30%), Bottom Ride Details (70%) with 70% / 100% Toggle Switch */
-        <div className="absolute inset-0 w-full h-full flex flex-col z-0">
+        /* Active Ride Full-Screen Page: Showing ONLY map and active trip details (Top Header & navigation tabs hidden) */
+        <div className="fixed inset-0 z-[1500] bg-slate-950 flex flex-col w-full h-full overflow-hidden animate-in fade-in duration-200">
           {/* Top Map: 30% height in 70% mode, hidden/0% in 100% details mode */}
           <div
             className={`w-full transition-all duration-300 ease-in-out relative z-0 shrink-0 ${

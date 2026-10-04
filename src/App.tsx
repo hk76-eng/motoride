@@ -44,6 +44,7 @@ export default function App() {
   }, []);
 
   const [isCaptainOnline, setIsCaptainOnline] = useState<boolean>(true);
+  const [isCaptainOnActiveTrip, setIsCaptainOnActiveTrip] = useState<boolean>(false);
   const [isWalletOpen, setIsWalletOpen] = useState<boolean>(false);
   const [walletBalance, setWalletBalance] = useState<number>(() => {
     const savedUser = supabaseAuth.getCurrentUser();
@@ -70,13 +71,27 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     const verifySession = async () => {
-      const sessionUser = await supabaseAuth.getSessionUser();
-      if (isMounted) {
-        if (sessionUser) {
-          setCurrentUser(sessionUser);
-          setCurrentRole(sessionUser.role);
-        } else {
-          setCurrentUser(null);
+      try {
+        const sessionUser = await supabaseAuth.getSessionUser();
+        if (isMounted) {
+          if (sessionUser) {
+            setCurrentUser(sessionUser);
+            setCurrentRole(sessionUser.role);
+          } else {
+            // Keep user logged in from local storage cache; NEVER sign out on page refresh
+            const localUser = supabaseAuth.getCurrentUser();
+            if (localUser) {
+              setCurrentUser(localUser);
+              setCurrentRole(localUser.role);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Session verification fallback to stored user:', err);
+        const localUser = supabaseAuth.getCurrentUser();
+        if (localUser && isMounted) {
+          setCurrentUser(localUser);
+          setCurrentRole(localUser.role);
         }
       }
     };
@@ -168,17 +183,19 @@ export default function App() {
     <div className={`min-h-screen flex flex-col selection:bg-emerald-500 selection:text-slate-950 transition-colors duration-300 ${
       themeMode === 'light' ? 'bg-slate-50 text-slate-900 light' : 'bg-slate-950 text-slate-100 dark'
     }`}>
-      {/* Workspace Top Header & Navigation with User Profile & Sign Out */}
-      <WorkspaceHeader
-        currentRole={currentRole}
-        onRoleChange={handleRoleChange}
-        currentUser={currentUser}
-        onSignOut={handleSignOut}
-        isCaptainOnline={isCaptainOnline}
-        onToggleCaptainOnline={handleToggleCaptainOnline}
-        walletBalance={walletBalance}
-        onOpenWallet={() => setIsWalletOpen(true)}
-      />
+      {/* Workspace Top Header & Navigation with User Profile & Sign Out - Hidden during Captain Active Trip */}
+      {!(currentRole === 'captain' && isCaptainOnActiveTrip) && (
+        <WorkspaceHeader
+          currentRole={currentRole}
+          onRoleChange={handleRoleChange}
+          currentUser={currentUser}
+          onSignOut={handleSignOut}
+          isCaptainOnline={isCaptainOnline}
+          onToggleCaptainOnline={handleToggleCaptainOnline}
+          walletBalance={walletBalance}
+          onOpenWallet={() => setIsWalletOpen(true)}
+        />
+      )}
 
       {/* Main Workspace Render (Gated - Accessible only after authentication) */}
       <main className="flex-1 w-full relative">
@@ -210,6 +227,7 @@ export default function App() {
             onSignOut={handleSignOut}
             isOnline={isCaptainOnline}
             onToggleOnline={handleToggleCaptainOnline}
+            onActiveTripChange={setIsCaptainOnActiveTrip}
           />
         )}
 
