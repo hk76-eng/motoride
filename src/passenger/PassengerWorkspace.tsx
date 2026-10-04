@@ -2452,20 +2452,40 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
         const mapped: AvailableCaptainItem[] = (res.captains || [])
           .filter((c) => (c.current_lat != null || (c as any).lat != null) && (c.current_lng != null || (c as any).lng != null))
-          .map((c) => ({
-            id: c.id,
-            name: c.name || (c as any).full_name || 'Captain',
-            lat: (c.current_lat ?? (c as any).lat)!,
-            lng: (c.current_lng ?? (c as any).lng)!,
-            heading: c.current_heading || (c as any).heading || 45,
-            rating: c.rating,
-            vehicleModel: c.vehicle_model || (c as any).vehicle?.model,
-            vehiclePlate: c.plate_number || (c as any).vehicle?.plate_number,
-            vehicleType: c.vehicle_type || (c as any).vehicle?.vehicle_type,
-            distanceKm: (c as any).distance_km,
-            etaMinutes: (c as any).eta_minutes,
-            isNearest: Boolean((c as any).is_nearest),
-          }));
+          .map((c) => {
+            let capLat = (c.current_lat ?? (c as any).lat)!;
+            let capLng = (c.current_lng ?? (c as any).lng)!;
+
+            // If coordinates match the hardcoded Mohali placeholder (30.7046, 76.7178), resolve real device GPS
+            const isHardcodedMohali = Math.abs(capLat - 30.7046) < 0.005 && Math.abs(capLng - 76.7178) < 0.005;
+            if (isHardcodedMohali) {
+              const liveCpt = safeStorage.getItem('motoride_last_captain_gps');
+              if (liveCpt) {
+                try {
+                  const parsed = JSON.parse(liveCpt);
+                  if (parsed.lat && parsed.lng) {
+                    capLat = parsed.lat;
+                    capLng = parsed.lng;
+                  }
+                } catch {}
+              }
+            }
+
+            return {
+              id: c.id,
+              name: c.name || (c as any).full_name || 'Captain',
+              lat: capLat,
+              lng: capLng,
+              heading: c.current_heading || (c as any).heading || 45,
+              rating: c.rating,
+              vehicleModel: c.vehicle_model || (c as any).vehicle?.model,
+              vehiclePlate: c.plate_number || (c as any).vehicle?.plate_number,
+              vehicleType: c.vehicle_type || (c as any).vehicle?.vehicle_type,
+              distanceKm: (c as any).distance_km,
+              etaMinutes: (c as any).eta_minutes,
+              isNearest: Boolean((c as any).is_nearest),
+            };
+          });
 
         setNearbyCaptains(mapped);
 

@@ -457,6 +457,24 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         }
       }
     } catch {}
+    // Fallback: check if passenger GPS was cached on this device
+    try {
+      const passengerSaved = safeStorage.getItem('motoride_last_passenger_gps');
+      if (passengerSaved) {
+        const pParsed = JSON.parse(passengerSaved);
+        if (pParsed.lat && pParsed.lng) {
+          return {
+            lat: pParsed.lat,
+            lng: pParsed.lng,
+            accuracy: 15,
+            heading: 45,
+            speed: 0,
+            timestamp: Date.now(),
+          };
+        }
+      }
+    } catch {}
+
     return {
       lat: 30.704649,
       lng: 76.717873,
@@ -472,8 +490,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [lastUploadedAt, setLastUploadedAt] = useState<number>(0);
   const watchIdRef = useRef<number | null>(null);
   const lastUploadedGpsRef = useRef<{ lat: number; lng: number; time: number }>({
-    lat: 30.704649,
-    lng: 76.717873,
+    lat: 0,
+    lng: 0,
     time: 0,
   });
 

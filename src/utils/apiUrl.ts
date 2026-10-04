@@ -3,24 +3,14 @@
  * Avoids protocol errors and crashes when running under file:// or offline WebView packages.
  */
 
-const LIVE_BACKEND_ORIGIN = 'https://ais-pre-p6me7wihmytacswsibs427-228826721152.asia-southeast1.run.app';
-
 export function getApiUrl(path: string): string {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    
-    // If running on Vercel, external domains, local Android Assets (file://) or isolated Cordova/Capacitor environment
-    if (
-      protocol === 'file:' || 
-      hostname === '' || 
-      !hostname ||
-      hostname.includes('vercel.app') ||
-      hostname.includes('motoride-roan')
-    ) {
-      const cleanPath = path.startsWith('/') ? path : `/${path}`;
-      return `${LIVE_BACKEND_ORIGIN}${cleanPath}`;
+    // Only prepend host if running as native local APK / WebView under file:// protocol
+    if (protocol === 'file:') {
+      return `https://motoride-roan.vercel.app${cleanPath}`;
     }
   }
-  return path;
+  return cleanPath;
 }

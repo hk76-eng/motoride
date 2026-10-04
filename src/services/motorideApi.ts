@@ -1950,6 +1950,20 @@ export const motorideApi = {
               if (!isCap) return;
               const key = a.id || a.phone || a.email;
               if (key && !mergedMap.has(key)) {
+                let capLat = typeof a.current_lat === 'number' ? a.current_lat : 30.7046;
+                let capLng = typeof a.current_lng === 'number' ? a.current_lng : 76.7178;
+
+                try {
+                  const liveGps = safeStorage.getItem('motoride_last_captain_gps');
+                  if (liveGps) {
+                    const parsed = JSON.parse(liveGps);
+                    if (parsed.lat && parsed.lng) {
+                      capLat = parsed.lat;
+                      capLng = parsed.lng;
+                    }
+                  }
+                } catch {}
+
                 mergedMap.set(key, {
                   id: a.id || key,
                   profile_id: a.id || key,
@@ -1959,8 +1973,8 @@ export const motorideApi = {
                   is_online: Boolean(a.is_online ?? true),
                   is_approved: a.is_approved !== false,
                   is_active: true,
-                  current_lat: 30.7046,
-                  current_lng: 76.7178,
+                  current_lat: capLat,
+                  current_lng: capLng,
                   rating: 5.0,
                   total_rides: 0,
                   wallet_balance: a.wallet_balance ?? 500,
