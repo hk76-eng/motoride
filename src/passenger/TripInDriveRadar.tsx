@@ -72,49 +72,63 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
     const MAX_RADAR_RANGE_KM = 1.5;
     const MAX_RADIUS_PERCENT = 42; // percentage of container width/height from center (50%)
 
-    // Filter strictly for valid, genuine GPS coordinates
-    const validCaptains = nearbyCaptains.filter(
-      (cap) =>
-        cap &&
-        typeof cap.lat === 'number' &&
-        typeof cap.lng === 'number' &&
-        !isNaN(cap.lat) &&
-        !isNaN(cap.lng) &&
-        (cap.lat !== 0 || cap.lng !== 0)
-    );
+    // Deduplicate and filter strictly for valid, genuine GPS coordinates within 1.5km radar range
+    const seenIds = new Set<string>();
+    const seenNames = new Set<string>();
 
-    return validCaptains.map((cap, idx) => {
-      const cLat = cap.lat;
-      const cLng = cap.lng;
-      const distKm = calculateDistanceKm(pickupLat, pickupLng, cLat, cLng);
-      const angleDeg = calculateBearing(pickupLat, pickupLng, cLat, cLng);
+    const inRangeCaptains = nearbyCaptains
+      .filter((cap) => {
+        if (!cap || typeof cap.lat !== 'number' || typeof cap.lng !== 'number') return false;
+        if (isNaN(cap.lat) || isNaN(cap.lng) || (cap.lat === 0 && cap.lng === 0)) return false;
 
-      // Exact mathematical radial mapping to match radar rings (500m, 1.0km, 1.5km)
-      const normalizedRatio = distKm / MAX_RADAR_RANGE_KM;
-      // Clamp between 8% (outside center YOU point) and 42% (outer boundary)
-      const rPercent = Math.max(8, Math.min(MAX_RADIUS_PERCENT, normalizedRatio * MAX_RADIUS_PERCENT));
+        const capId = cap.id || '';
+        const capName = (cap.name || '').trim().toLowerCase();
 
-      // Polar to cartesian projection (0° = North = Top, 90° = East = Right, 180° = South = Bottom, 270° = West = Left)
-      const rad = ((angleDeg - 90) * Math.PI) / 180;
-      const xPercent = 50 + rPercent * Math.cos(rad);
-      const yPercent = 50 + rPercent * Math.sin(rad);
+        // Deduplicate duplicate entries
+        if (capId && seenIds.has(capId)) return false;
+        if (capName && capName !== 'captain' && seenNames.has(capName)) return false;
 
-      const distanceText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`;
+        if (capId) seenIds.add(capId);
+        if (capName) seenNames.add(capName);
 
-      return {
-        id: cap.id || `cap-${idx}`,
-        name: cap.name || 'Captain',
-        distKm,
-        distanceText,
-        rating: cap.rating ? cap.rating.toFixed(1) : '4.9',
-        angleDeg,
-        rPercent,
-        xPercent,
-        yPercent,
-        heading: cap.heading || angleDeg,
-        vehicle: cap.vehicleModel || 'Bike',
-      };
-    });
+        // Distance check: remove any captain far away (e.g. 15.5km) - only show captains in radar range (<= 1.5km)
+        const distKm = calculateDistanceKm(pickupLat, pickupLng, cap.lat, cap.lng);
+        return distKm <= MAX_RADAR_RANGE_KM;
+      })
+      .map((cap, idx) => {
+        const cLat = cap.lat;
+        const cLng = cap.lng;
+        const distKm = calculateDistanceKm(pickupLat, pickupLng, cLat, cLng);
+        const angleDeg = calculateBearing(pickupLat, pickupLng, cLat, cLng);
+
+        // Exact mathematical radial mapping to match radar rings (500m, 1.0km, 1.5km)
+        const normalizedRatio = distKm / MAX_RADAR_RANGE_KM;
+        // Clamp between 8% (outside center YOU point) and 42% (outer boundary 1.5km)
+        const rPercent = Math.max(8, Math.min(MAX_RADIUS_PERCENT, normalizedRatio * MAX_RADIUS_PERCENT));
+
+        // Polar to cartesian projection (0° = North = Top, 90° = East = Right, 180° = South = Bottom, 270° = West = Left)
+        const rad = ((angleDeg - 90) * Math.PI) / 180;
+        const xPercent = 50 + rPercent * Math.cos(rad);
+        const yPercent = 50 + rPercent * Math.sin(rad);
+
+        const distanceText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`;
+
+        return {
+          id: cap.id || `cap-${idx}`,
+          name: cap.name || 'Captain',
+          distKm,
+          distanceText,
+          rating: cap.rating ? cap.rating.toFixed(1) : '4.9',
+          angleDeg,
+          rPercent,
+          xPercent,
+          yPercent,
+          heading: cap.heading || angleDeg,
+          vehicle: cap.vehicleModel || 'Bike',
+        };
+      });
+
+    return inRangeCaptains;
   }, [nearbyCaptains, pickupLat, pickupLng]);
 
   return (
@@ -128,25 +142,8 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
           </span>
           <span className="text-[11px] font-black tracking-wider uppercase text-amber-950 font-mono-num flex items-center gap-1.5">
             <Target className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-            <span>REAL-TIME CAPTAINS RADAR</span>
+            <span>FINDING NEARBY CAPTAINS</span>
           </span>
-        </div>
-
-        <div className="flex items-center gap-2.5 text-[11px] text-slate-600 font-bold">
-          <span className="flex items-center gap-1 font-mono-num text-amber-600">
-            <Radio className="w-3 h-3 text-amber-500 animate-pulse" />
-            <span>CAPTAIN PARTNER FOCUS LIGHT</span>
-          </span>
-          <span className="text-slate-300">•</span>
-          <span className="text-slate-900 font-black">
-            {realTimeTargets.length} {realTimeTargets.length === 1 ? 'Live Captain' : 'Live Captains'} in Range
-          </span>
-          {rideCode && (
-            <>
-              <span className="text-slate-300">•</span>
-              <span className="font-mono text-slate-500 font-bold">#{rideCode}</span>
-            </>
-          )}
         </div>
       </div>
 

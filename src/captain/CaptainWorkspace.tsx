@@ -117,17 +117,17 @@ export function getServiceBadge(rideType?: string) {
   }
 }
 
-// Helper to format ride request elapsed time (e.g. 1mints, 2mints, 15mints)
+// Helper to format ride request elapsed time (e.g. 1 min, 2 min, 15 min)
 export function getRequestElapsedText(createdAt?: string | number | Date | null) {
-  if (!createdAt) return '1mints';
+  if (!createdAt) return '1 min';
   const createdMs = typeof createdAt === 'number' ? createdAt : new Date(createdAt).getTime();
-  if (isNaN(createdMs) || createdMs <= 0) return '1mints';
+  if (isNaN(createdMs) || createdMs <= 0) return '1 min';
   const diffMinutes = Math.max(1, Math.floor((Date.now() - createdMs) / 60000));
   if (diffMinutes >= 60) {
     const hours = Math.floor(diffMinutes / 60);
     return `${hours}h`;
   }
-  return `${diffMinutes}mints`;
+  return `${diffMinutes} min`;
 }
 
 export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
@@ -243,6 +243,15 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     fare?: number;
     rideId?: string;
   } | null>(null);
+
+  // Live Elapsed Timer Tick (updates "1 min", "2 min", etc. in real time)
+  const [, setLiveTimeTick] = useState<number>(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveTimeTick((prev) => prev + 1);
+    }, 10000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (declinedOfferAlert) {
