@@ -11,6 +11,7 @@ import { PassengerProfileDrawer } from './PassengerProfileDrawer';
 import { DigitalWatchETA } from './DigitalWatchETA';
 import { PassengerCaptainRatingModal } from './PassengerCaptainRatingModal';
 import { LocationPickerMapModal } from './LocationPickerMapModal';
+import { TripInDriveRadar } from './TripInDriveRadar';
 import { motorideApi, getRideAgreedFare, mergeRideSafely, STATUS_RANK } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
@@ -3165,41 +3166,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 );
               }
 
-              // When No Offers or All Offers Passed: Show Radar Pulse and Contacting Captains Status
+              // When No Offers or All Offers Passed: Show InDrive-Style Focus Light Radar Scanner
               return (
-                <div className="flex-1 flex flex-col items-center justify-center py-6 sm:py-8 text-center text-black my-auto">
-                  {/* Center Radar Scanner Icon with Multi-ring Pulsing Waves */}
-                  <div className="relative flex items-center justify-center w-36 h-36 sm:w-40 sm:h-40 my-3 select-none">
-                    {/* Outer Radar Waves with ping and pulse animations */}
-                    <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping border border-emerald-500/20" />
-                    <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-emerald-500/15 animate-pulse border border-emerald-500/30" />
-                    <div className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-dashed border-emerald-500/40 animate-spin" style={{ animationDuration: '10s' }} />
-
-                    {/* Sweeping Radar Conic Gradient Beam */}
-                    <div className="absolute w-28 h-28 sm:w-32 sm:h-32 rounded-full overflow-hidden pointer-events-none opacity-60">
-                      <div
-                        className="w-full h-full origin-center animate-spin"
-                        style={{
-                          animationDuration: '3s',
-                          background: 'conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(16, 185, 129, 0.5) 360deg)'
-                        }}
-                      />
-                    </div>
-
-                    {/* Central Radar Target Icon */}
-                    <div className="relative z-10 w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-black text-emerald-400 flex items-center justify-center shadow-xl border-2 border-emerald-400 ring-4 ring-emerald-500/20">
-                      <Radar className="w-8 h-8 sm:w-9 sm:h-9 text-emerald-400 animate-pulse stroke-[2.5]" />
-                    </div>
-                  </div>
-
-                  <h3 className="text-base sm:text-lg font-black text-black mt-2 flex items-center justify-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                    <span>Radar Active • Contacting Captains</span>
-                  </h3>
-                  <p className="text-xs text-slate-700 max-w-xs mt-1">
-                    Matching with verified nearby captains. When a captain sends an offer price, it will appear here instantly with a 25-second acceptance window.
-                  </p>
-                </div>
+                <TripInDriveRadar
+                  offeredFare={activeRide.offered_fare}
+                  rideCode={activeRide.ride_code}
+                  nearbyCaptainsCount={nearbyCaptains.length > 0 ? nearbyCaptains.length : 4}
+                />
               );
             })()}
 
