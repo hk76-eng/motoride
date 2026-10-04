@@ -37,12 +37,11 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
   onCancel,
   isCancelling = false,
-  rideCode = '',
   nearbyCaptains = [],
   pickupLat = 30.7333,
   pickupLng = 76.7794,
 }) => {
-  // Real-time sweeping angle state to trigger captain illumination
+  // Real-time sweeping angle state for soft amber focus beam
   const [currentAngle, setCurrentAngle] = useState(0);
 
   useEffect(() => {
@@ -68,11 +67,11 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
       return [];
     }
 
-    // Maximum calibrated radar range = 1.5 km (maps to 42% container radius)
+    // Maximum calibrated radar ring range = 1.5 km (maps to 42% container radius)
     const MAX_RADAR_RANGE_KM = 1.5;
     const MAX_RADIUS_PERCENT = 42; // percentage of container width/height from center (50%)
 
-    // Deduplicate and filter strictly for valid, genuine GPS coordinates within 1.5km radar range
+    // Deduplicate and filter strictly for valid, genuine GPS coordinates
     const seenIds = new Set<string>();
     const seenNames = new Set<string>();
 
@@ -91,9 +90,9 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
         if (capId) seenIds.add(capId);
         if (capName) seenNames.add(capName);
 
-        // Distance check: remove any captain far away (e.g. 15.5km) - only show captains in radar range (<= 1.5km)
+        // Distance check: remove any captain far away (e.g. > 2.5km)
         const distKm = calculateDistanceKm(pickupLat, pickupLng, cap.lat, cap.lng);
-        return distKm <= MAX_RADAR_RANGE_KM;
+        return distKm <= 2.5;
       })
       .map((cap, idx) => {
         const cLat = cap.lat;
@@ -101,10 +100,10 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
         const distKm = calculateDistanceKm(pickupLat, pickupLng, cLat, cLng);
         const angleDeg = calculateBearing(pickupLat, pickupLng, cLat, cLng);
 
-        // Exact mathematical radial mapping to match radar rings (500m, 1.0km, 1.5km)
+        // Exact mathematical radial mapping to match radar rings (200m, 500m, 1.0km, 1.5km)
         const normalizedRatio = distKm / MAX_RADAR_RANGE_KM;
-        // Clamp between 8% (outside center YOU point) and 42% (outer boundary 1.5km)
-        const rPercent = Math.max(8, Math.min(MAX_RADIUS_PERCENT, normalizedRatio * MAX_RADIUS_PERCENT));
+        // Clamp cleanly so they are displayed accurately inside the radar frame
+        const rPercent = Math.max(10, Math.min(MAX_RADIUS_PERCENT, normalizedRatio * MAX_RADIUS_PERCENT));
 
         // Polar to cartesian projection (0° = North = Top, 90° = East = Right, 180° = South = Bottom, 270° = West = Left)
         const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -132,23 +131,9 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
   }, [nearbyCaptains, pickupLat, pickupLng]);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-between py-2 sm:py-3 text-center text-slate-900 w-full h-full select-none bg-white">
-      {/* Clean Light-Theme Focus Radar Header */}
-      <div className="w-full flex flex-col items-center gap-1.5 px-2">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border-2 border-amber-500 shadow-xs">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500 shadow-[0_0_8px_#f59e0b]" />
-          </span>
-          <span className="text-[11px] font-black tracking-wider uppercase text-amber-950 font-mono-num flex items-center gap-1.5">
-            <Target className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-            <span>FINDING NEARBY CAPTAINS</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Main Radar Scope Container - Pure White Canvas with Small Black Rings & Exact Position Markers */}
-      <div className="my-auto py-2 flex flex-col items-center justify-center">
+    <div className="flex-1 flex flex-col items-center justify-between py-1 sm:py-2 text-center text-slate-900 w-full h-full select-none bg-white">
+      {/* Main Radar Scope Container - Pure White Canvas with Small Black Rings & Constant Solid Captain Markers */}
+      <div className="my-auto py-1 flex flex-col items-center justify-center w-full">
         {/* Radar Circular Housing - Solid Black Outer Border */}
         <div className="relative w-60 h-60 sm:w-72 sm:h-72 rounded-full bg-white border-2 border-black shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center overflow-hidden">
           {/* Subtle Ambient Radial Soft Amber Warmth */}
@@ -241,37 +226,37 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
           </div>
 
           {/* ================================================================================= */}
-          {/* EXACT REAL-TIME CAPTAIN POSITIONS ON THE RADAR RINGS (CONSTANT & STEADY)          */}
+          {/* CONSTANT & SOLID REAL-TIME CAPTAIN DISPLAY (PERMANENT, CRISP & NEVER HIDING)       */}
           {/* ================================================================================= */}
           {realTimeTargets.map((cap) => {
-            // Soft amber highlight pulse when focus light sweeps across captain
+            // Focus light proximity detection for subtle extra glow without ever hiding
             const diff = (currentAngle - cap.angleDeg + 360) % 360;
-            const isLit = diff <= 85 || diff >= 355;
+            const isSwept = diff <= 85 || diff >= 355;
 
             return (
               <div
                 key={cap.id}
-                className="absolute z-20 flex flex-col items-center pointer-events-none transition-all duration-200"
+                className="absolute z-20 flex flex-col items-center pointer-events-none"
                 style={{
                   left: `${cap.xPercent}%`,
                   top: `${cap.yPercent}%`,
                   transform: 'translate(-50%, -50%)',
                 }}
               >
-                {/* Captain Vehicle Marker - Constant, solid, and always visible */}
+                {/* Captain Vehicle Marker - CONSTANT & SOLID */}
                 <div className="relative flex items-center justify-center">
-                  {isLit && (
+                  {isSwept && (
                     <span
-                      className="animate-ping absolute inline-flex h-9 w-9 rounded-full bg-amber-400/40 pointer-events-none"
-                      style={{ animationDuration: '1.4s' }}
+                      className="animate-ping absolute inline-flex h-8 w-8 rounded-full bg-amber-400/40 pointer-events-none"
+                      style={{ animationDuration: '1.2s' }}
                     />
                   )}
-                  <div className="relative w-7 h-7 rounded-full bg-amber-500 text-slate-950 shadow-[0_2px_10px_rgba(0,0,0,0.25)] border-2 border-black flex items-center justify-center">
+                  <div className="relative w-7 h-7 rounded-full bg-amber-500 text-slate-950 shadow-[0_2px_10px_rgba(0,0,0,0.3)] border-2 border-black flex items-center justify-center">
                     <Bike className="w-4 h-4 text-slate-950 stroke-[2.5]" />
                   </div>
                 </div>
 
-                {/* Real-time Proximity & Position Badge - Constant and always visible */}
+                {/* Real-time Proximity & Position Badge - CONSTANT & SOLID */}
                 <div className="mt-1 px-2 py-0.5 rounded-md text-[8px] font-mono font-black shadow-sm flex items-center gap-1 whitespace-nowrap bg-black text-amber-300 border border-amber-400/80">
                   <span className="font-sans font-bold text-white">{cap.name}</span>
                   <span className="text-amber-400">•</span>

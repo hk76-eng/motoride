@@ -2418,8 +2418,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
     const fetchCaptains = async () => {
       try {
-        const refLat = pickup.name ? pickup.lat : passengerGps.lat;
-        const refLng = pickup.name ? pickup.lng : passengerGps.lng;
+        const refLat = activeRide?.pickup_lat || (pickup.name ? pickup.lat : passengerGps.lat);
+        const refLng = activeRide?.pickup_lng || (pickup.name ? pickup.lng : passengerGps.lng);
         const res = await motorideApi.getAvailableCaptains(refLat, refLng);
         if (!isMounted) return;
 
@@ -2468,12 +2468,22 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     };
 
     fetchCaptains();
-    const interval = setInterval(fetchCaptains, 4000);
+    const pollInterval = activeRide && (activeRide.status === 'requested' || activeRide.status === 'captain_offered') ? 2000 : 3500;
+    const interval = setInterval(fetchCaptains, pollInterval);
+
+    // Instant real-time triggers on captain updates
+    const unsubCaptains = realtimeSync.on('CAPTAINS_UPDATED', fetchCaptains);
+    const unsubProfiles = realtimeSync.on('PROFILES_UPDATED', fetchCaptains);
+    const unsubCapLoc = realtimeSync.on('CAPTAIN_LOCATION_UPDATED', fetchCaptains);
+
     return () => {
       isMounted = false;
       clearInterval(interval);
+      unsubCaptains();
+      unsubProfiles();
+      unsubCapLoc();
     };
-  }, [passengerGps.lat, passengerGps.lng, pickup.lat, pickup.lng, pickup.name]);
+  }, [passengerGps.lat, passengerGps.lng, pickup.lat, pickup.lng, pickup.name, activeRide?.id, activeRide?.status, activeRide?.pickup_lat, activeRide?.pickup_lng]);
 
   const loadFareSettings = async () => {
     try {
@@ -2915,44 +2925,44 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               <div className="w-12 h-1.5 rounded-full bg-slate-300 group-hover:bg-black transition-colors" />
             </div>
 
-            {/* Status Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-black/20">
-              <div>
-                <span className="text-[11px] font-mono-num font-black text-black block">
-                  {activeRide.ride_code}
-                </span>
-                <h2 className="text-base font-black text-black">
-                  {activeRide.status === 'captain_arrived'
-                    ? '🚕 Captain Arrived'
-                    : activeRide.status === 'trip_started'
-                    ? '🚕 Trip is in progress'
-                    : activeRide.status === 'trip_completed' || activeRide.status === 'completed'
-                    ? '✓ Trip completed'
-                    : activeRide.status === 'captain_accepted'
-                    ? 'Captain is on the way'
-                    : activeRide.status === 'captain_offered' || activeRide.status === 'requested'
-                    ? 'Finding Captain'
-                    : activeRide.status.replace(/_/g, ' ')}
-                </h2>
-              </div>
+            {/* Status Header - Hidden only during Finding Captain / Search state to streamline radar */}
+            {activeRide.status !== 'requested' && activeRide.status !== 'captain_offered' && (
+              <div className="flex items-center justify-between pb-3 border-b border-black/20">
+                <div>
+                  <span className="text-[11px] font-mono-num font-black text-black block">
+                    {activeRide.ride_code}
+                  </span>
+                  <h2 className="text-base font-black text-black">
+                    {activeRide.status === 'captain_arrived'
+                      ? '🚕 Captain Arrived'
+                      : activeRide.status === 'trip_started'
+                      ? '🚕 Trip is in progress'
+                      : activeRide.status === 'trip_completed' || activeRide.status === 'completed'
+                      ? '✓ Trip completed'
+                      : activeRide.status === 'captain_accepted'
+                      ? 'Captain is on the way'
+                      : activeRide.status.replace(/_/g, ' ')}
+                  </h2>
+                </div>
 
-              <div className="flex items-center gap-2">
-                {/* Minimize Button in Active Ride */}
-                <button
-                  type="button"
-                  onClick={() => setIsCardMinimized(true)}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-black text-xs font-black transition-all active:scale-95 cursor-pointer group shadow-xs flex items-center justify-center"
-                  title="Minimize ride details to view full map"
-                  aria-label="Minimize ride details"
-                >
-                  <ChevronDown className="w-4 h-4 text-black group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Minimize Button in Active Ride */}
+                  <button
+                    type="button"
+                    onClick={() => setIsCardMinimized(true)}
+                    className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-black text-xs font-black transition-all active:scale-95 cursor-pointer group shadow-xs flex items-center justify-center"
+                    title="Minimize ride details to view full map"
+                    aria-label="Minimize ride details"
+                  >
+                    <ChevronDown className="w-4 h-4 text-black group-hover:translate-y-0.5 transition-transform stroke-[2.5]" />
+                  </button>
 
-                <div className="w-9 h-9 rounded-2xl bg-slate-100 border border-black flex items-center justify-center shrink-0">
-                  <Bike className="w-5 h-5 text-black stroke-[2.5]" />
+                  <div className="w-9 h-9 rounded-2xl bg-slate-100 border border-black flex items-center justify-center shrink-0">
+                    <Bike className="w-5 h-5 text-black stroke-[2.5]" />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Location Permission Denied Error Banner (if any) */}
             {(activeRide.status === 'requested' || activeRide.status === 'captain_offered') && gpsErrorMessage && (
