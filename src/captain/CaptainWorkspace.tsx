@@ -3067,12 +3067,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
           {/* Main 100% Display Body - Showing Both Route Map and Ride Details Clearly */}
           <div className="flex-1 w-full relative flex flex-col md:flex-row overflow-hidden">
-            {/* 1. Route Map - Increased height from center to top */}
-            <div className="relative z-0 transition-all duration-200 w-full md:w-1/2 h-[50dvh] sm:h-1/2 md:h-full border-b md:border-b-0 md:border-r border-slate-800 shrink-0 md:shrink">
+            {/* 1. Route Map */}
+            <div className="relative z-0 transition-all duration-200 w-full md:w-1/2 h-[42dvh] sm:h-[44dvh] md:h-full border-b md:border-b-0 md:border-r border-slate-800 shrink-0 md:shrink">
               {renderCaptainMap(true)}
             </div>
 
-            {/* 2. Ride Details - Decreased height from bottom to center */}
+            {/* 2. Ride Details - Height increased upwards from bottom towards center */}
             <div className="bg-white overflow-y-auto p-3.5 sm:p-5 relative z-10 scrollbar-thin shadow-2xl flex flex-col justify-between w-full md:w-1/2 flex-1 md:h-full">
               {renderInspectedRideDetails(inspectedRide)}
             </div>
