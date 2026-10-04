@@ -2991,10 +2991,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             </div>
           </div>
 
-          {/* Acceptance Countdown Timer & Single Offer Queue Card with 25-Second Animated Progress Bar */}
+          {/* Acceptance Countdown Timer Card with 25-Second Animated Progress Bar */}
           <div className="px-3.5 sm:px-5 py-2 bg-slate-950 border-b border-slate-800/90 text-white flex flex-col gap-1.5 z-20 shrink-0 shadow-sm backdrop-blur-md">
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              {/* Left: Acceptance Countdown Timer & Clock Icon */}
+              {/* Acceptance Countdown Timer & Clock Icon */}
               <div className="flex items-center gap-2 min-w-0">
                 <div
                   className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 border ${
@@ -3029,24 +3029,6 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       : `Auto-passes in ${countdownSeconds}s`}
                   </span>
                 </div>
-              </div>
-
-              {/* Right: Single Offer Queue Indicator */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  <span>Single Offer Queue</span>
-                </span>
-                {(() => {
-                  const currentIdx = availableRides.findIndex((r) => r.id === inspectedRide.id);
-                  const displayIdx = currentIdx >= 0 ? currentIdx + 1 : 1;
-                  const total = Math.max(1, availableRides.length);
-                  return (
-                    <span className="text-[10px] font-mono font-bold text-slate-300 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800">
-                      Offer {displayIdx} of {total}
-                    </span>
-                  );
-                })()}
               </div>
             </div>
 
