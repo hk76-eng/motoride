@@ -5,25 +5,26 @@ import { AvailableCaptainItem } from '../components/common/MotorideMap';
 interface TripInDriveRadarProps {
   onCancel?: () => void;
   isCancelling?: boolean;
+  offeredFare?: number;
   rideCode?: string;
   nearbyCaptains?: AvailableCaptainItem[];
   pickupLat?: number;
   pickupLng?: number;
 }
 
-// Spherical math helpers for real-time positioning on radar
+// Convert latitude and longitude to bearing degrees (0° = North, 90° = East, 180° = South, 270° = West)
 function calculateBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const rLat1 = (lat1 * Math.PI) / 180;
-  const rLat2 = (lat2 * Math.PI) / 180;
-  const y = Math.sin(dLon) * Math.cos(rLat2);
-  const x = Math.cos(rLat1) * Math.sin(rLat2) - Math.sin(rLat1) * Math.cos(rLat2) * Math.cos(dLon);
-  const brng = (Math.atan2(y, x) * 180) / Math.PI;
-  return (brng + 360) % 360;
+  const y = Math.sin((lon2 - lon1) * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180));
+  const x =
+    Math.cos(lat1 * (Math.PI / 180)) * Math.sin(lat2 * (Math.PI / 180)) -
+    Math.sin(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.cos((lon2 - lon1) * (Math.PI / 180));
+  const deg = (Math.atan2(y, x) * 180) / Math.PI;
+  return (deg + 360) % 360;
 }
 
+// Great-circle distance between two coords in km
 function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
+  const R = 6371; // km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -36,45 +37,49 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
 export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
   onCancel,
   isCancelling = false,
-  rideCode,
+  rideCode = '',
   nearbyCaptains = [],
-  pickupLat,
-  pickupLng,
+  pickupLat = 30.7333,
+  pickupLng = 76.7794,
 }) => {
-  // Real-time sweeping angle of the Soft Light Amber Search Focus Light
-  const [currentAngle, setCurrentAngle] = useState<number>(0);
+  // Real-time sweeping angle state to trigger captain illumination
+  const [currentAngle, setCurrentAngle] = useState(0);
 
   useEffect(() => {
-    let animFrame: number;
-    const startTime = Date.now();
-    const DURATION = 3000; // 3.0s per complete 360 sweep
+    let animationFrameId: number;
+    let startTimestamp: number | null = null;
+    const duration = 3000; // 3.0s per 360-degree rotation
 
-    const update = () => {
-      const elapsed = Date.now() - startTime;
-      const angle = ((elapsed % DURATION) / DURATION) * 360;
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = (timestamp - startTimestamp) % duration;
+      const angle = (progress / duration) * 360;
       setCurrentAngle(angle);
-      animFrame = requestAnimationFrame(update);
+      animationFrameId = requestAnimationFrame(step);
     };
 
-    animFrame = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(animFrame);
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
-  // Compute real-time captain radar targets exclusively from live real-time captains (no demo/mock data)
+  // Compute real-time captain targets mapped into the radar coordinate frame (angle & distance radius)
   const realTimeTargets = useMemo(() => {
-    if (!nearbyCaptains || nearbyCaptains.length === 0) return [];
+    if (!nearbyCaptains || nearbyCaptains.length === 0) {
+      return [];
+    }
 
     return nearbyCaptains.map((cap, idx) => {
-      let angleDeg = 45 * (idx + 1);
-      let distKm = cap.distanceKm ?? 0.5;
+      const cLat = cap.lat ?? pickupLat + 0.003;
+      const cLng = cap.lng ?? pickupLng + 0.003;
+      const distKm = calculateDistanceKm(pickupLat, pickupLng, cLat, cLng);
+      const angleDeg = calculateBearing(pickupLat, pickupLng, cLat, cLng);
 
-      if (pickupLat && pickupLng && cap.lat && cap.lng) {
-        angleDeg = calculateBearing(pickupLat, pickupLng, cap.lat, cap.lng);
-        distKm = cap.distanceKm ?? calculateDistanceKm(pickupLat, pickupLng, cap.lat, cap.lng);
-      }
+      // Radar radius scaling: max range is ~2.0km
+      // radiusPercent between 20% and 90%
+      const maxRadarKm = 2.0;
+      const normalizedRadius = Math.min(distKm / maxRadarKm, 1.0);
+      const radiusPercent = Math.max(22, Math.min(88, normalizedRadius * 85));
 
-      // Map distance (0 to 3.5 km) into percentage radius (25% to 85%)
-      const radiusPercent = Math.min(85, Math.max(25, (distKm / 3.5) * 60 + 25));
       const distanceText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`;
 
       return {
@@ -122,15 +127,47 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
         </div>
       </div>
 
-      {/* Main Radar Scope Container - Pure White Canvas with ONLY Soft Light Amber Search Focus Light */}
+      {/* Main Radar Scope Container - Pure White Canvas with Small Black Rings and Soft Light Amber Search Focus Light */}
       <div className="my-auto py-2 flex flex-col items-center justify-center">
-        {/* Radar Circular Housing - Clean White Canvas with Minimal Outer Border (No Inner Small Black Rings) */}
+        {/* Radar Circular Housing - Solid Black Outer Border */}
         <div className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-white border-2 border-black shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center overflow-hidden">
           {/* Subtle Ambient Radial Soft Amber Warmth */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.08)_0%,rgba(254,243,199,0.35)_55%,transparent_80%)] pointer-events-none" />
 
           {/* ================================================================================= */}
-          {/* SOFT LIGHT AMBER SEARCH FOCUS LIGHT BEAM (CLEAN FOCUS LIGHT ONLY)                 */}
+          {/* SMALL BLACK RINGS & CONCENTRIC RANGE MARKS                                         */}
+          {/* ================================================================================= */}
+          {/* Outer Black Ring (1.5km range) */}
+          <div className="absolute w-[75%] h-[75%] rounded-full border border-black/40 pointer-events-none" />
+
+          {/* Middle Black Ring (1.0km range) */}
+          <div className="absolute w-[50%] h-[50%] rounded-full border border-black/45 pointer-events-none" />
+
+          {/* Small Inner Black Ring (500m range) */}
+          <div className="absolute w-[25%] h-[25%] rounded-full border border-black/55 pointer-events-none" />
+
+          {/* Center Mini Black Ring */}
+          <div className="absolute w-[12%] h-[12%] rounded-full border border-black/60 pointer-events-none" />
+
+          {/* Subtle Black Crosshair Lines */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-full h-[1px] bg-black/20" />
+            <div className="h-full w-[1px] bg-black/20 absolute" />
+          </div>
+
+          {/* Radar Range Labels in Black font */}
+          <span className="absolute top-2 left-1/2 -translate-x-1/2 text-[8px] font-mono-num font-black text-black/70 pointer-events-none">
+            1.5km
+          </span>
+          <span className="absolute top-[23%] left-1/2 -translate-x-1/2 text-[7.5px] font-mono-num font-black text-black/65 pointer-events-none">
+            1.0km
+          </span>
+          <span className="absolute top-[36%] left-1/2 -translate-x-1/2 text-[7px] font-mono-num font-black text-black/60 pointer-events-none">
+            500m
+          </span>
+
+          {/* ================================================================================= */}
+          {/* SOFT LIGHT AMBER SEARCH FOCUS LIGHT BEAM (CLEAN FOCUS LIGHT)                      */}
           {/* ================================================================================= */}
           <div
             className="absolute inset-0 rounded-full pointer-events-none origin-center"
@@ -143,7 +180,7 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
               className="absolute inset-0 rounded-full"
               style={{
                 background:
-                  'conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(251, 191, 36, 0.03) 275deg, rgba(251, 191, 36, 0.12) 310deg, rgba(251, 191, 36, 0.28) 345deg, rgba(245, 158, 11, 0.55) 360deg)',
+                  'conic-gradient(from 0deg, transparent 0deg, transparent 270deg, rgba(251, 191, 36, 0.04) 275deg, rgba(251, 191, 36, 0.15) 310deg, rgba(251, 191, 36, 0.30) 345deg, rgba(245, 158, 11, 0.60) 360deg)',
                 filter: 'drop-shadow(0 0 12px rgba(251, 191, 36, 0.45))',
               }}
             />
@@ -212,7 +249,7 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
                   className={`mt-1 px-1.5 py-0.5 rounded-md text-[7.5px] font-mono font-black shadow-sm flex items-center gap-1 whitespace-nowrap transition-all duration-300 ${
                     isLit
                       ? 'bg-slate-950 text-amber-300 border border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.5)] scale-105'
-                      : 'bg-white border border-black/40 text-slate-900 scale-95'
+                      : 'bg-white border border-black/60 text-slate-900 scale-95'
                   }`}
                 >
                   <span className="font-sans font-bold">{cap.name}</span>
