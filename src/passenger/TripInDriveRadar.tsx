@@ -1,38 +1,47 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Radio, XCircle, Bike, Sparkles, Star, Target } from 'lucide-react';
+import { AvailableCaptainItem } from '../components/common/MotorideMap';
 
 interface TripInDriveRadarProps {
   onCancel?: () => void;
   isCancelling?: boolean;
-  offeredFare?: number;
   rideCode?: string;
-  nearbyCaptainsCount?: number;
+  nearbyCaptains?: AvailableCaptainItem[];
+  pickupLat?: number;
+  pickupLng?: number;
 }
 
-interface NearbyCaptainTarget {
-  id: string;
-  name: string;
-  distance: string;
-  rating: string;
-  angleDeg: number;
-  radiusPercent: number; // 0 to 100%
-  vehicle: string;
+// Spherical math helpers for real-time positioning on radar
+function calculateBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const rLat1 = (lat1 * Math.PI) / 180;
+  const rLat2 = (lat2 * Math.PI) / 180;
+  const y = Math.sin(dLon) * Math.cos(rLat2);
+  const x = Math.cos(rLat1) * Math.sin(rLat2) - Math.sin(rLat1) * Math.cos(rLat2) * Math.cos(dLon);
+  const brng = (Math.atan2(y, x) * 180) / Math.PI;
+  return (brng + 360) % 360;
 }
 
-const SAMPLE_CAPTAINS: NearbyCaptainTarget[] = [
-  { id: '1', name: 'Vikram', distance: '320m', rating: '4.9', angleDeg: 38, radiusPercent: 54, vehicle: 'Honda Shine' },
-  { id: '2', name: 'Rahul', distance: '540m', rating: '4.8', angleDeg: 125, radiusPercent: 72, vehicle: 'Splendor Plus' },
-  { id: '3', name: 'Aman', distance: '780m', rating: '4.9', angleDeg: 215, radiusPercent: 84, vehicle: 'Bajaj Pulsar' },
-  { id: '4', name: 'Rohit', distance: '410m', rating: '4.7', angleDeg: 305, radiusPercent: 46, vehicle: 'TVS Raider' },
-];
+function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
   onCancel,
   isCancelling = false,
   rideCode,
-  nearbyCaptainsCount = 4,
+  nearbyCaptains = [],
+  pickupLat,
+  pickupLng,
 }) => {
-  // Real-time sweeping angle to illuminate captains inside the soft light amber focus light
+  // Real-time sweeping angle of the Soft Light Amber Search Focus Light
   const [currentAngle, setCurrentAngle] = useState<number>(0);
 
   useEffect(() => {
@@ -50,6 +59,35 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
     animFrame = requestAnimationFrame(update);
     return () => cancelAnimationFrame(animFrame);
   }, []);
+
+  // Compute real-time captain radar targets exclusively from live real-time captains (no demo/mock data)
+  const realTimeTargets = useMemo(() => {
+    if (!nearbyCaptains || nearbyCaptains.length === 0) return [];
+
+    return nearbyCaptains.map((cap, idx) => {
+      let angleDeg = 45 * (idx + 1);
+      let distKm = cap.distanceKm ?? 0.5;
+
+      if (pickupLat && pickupLng && cap.lat && cap.lng) {
+        angleDeg = calculateBearing(pickupLat, pickupLng, cap.lat, cap.lng);
+        distKm = cap.distanceKm ?? calculateDistanceKm(pickupLat, pickupLng, cap.lat, cap.lng);
+      }
+
+      // Map distance (0 to 3.5 km) into percentage radius (25% to 85%)
+      const radiusPercent = Math.min(85, Math.max(25, (distKm / 3.5) * 60 + 25));
+      const distanceText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`;
+
+      return {
+        id: cap.id || `cap-${idx}`,
+        name: cap.name || 'Captain',
+        distance: distanceText,
+        rating: cap.rating ? cap.rating.toFixed(1) : '4.9',
+        angleDeg,
+        radiusPercent,
+        vehicle: cap.vehicleModel || 'Bike',
+      };
+    });
+  }, [nearbyCaptains, pickupLat, pickupLng]);
 
   return (
     <div className="flex-1 flex flex-col items-center justify-between py-2 sm:py-3 text-center text-slate-900 w-full h-full select-none bg-white">
@@ -73,7 +111,7 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
           </span>
           <span className="text-slate-300">•</span>
           <span className="text-slate-900 font-black">
-            {nearbyCaptainsCount} Captains in Radar
+            {realTimeTargets.length} {realTimeTargets.length === 1 ? 'Captain' : 'Captains'} in Radar
           </span>
           {rideCode && (
             <>
@@ -84,69 +122,15 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
         </div>
       </div>
 
-      {/* Main Radar Scope Container - Pure White Canvas with Black Rings and Soft Light Amber Focus Beam */}
+      {/* Main Radar Scope Container - Pure White Canvas with ONLY Soft Light Amber Search Focus Light */}
       <div className="my-auto py-2 flex flex-col items-center justify-center">
-        {/* Radar Circular Housing - Pure White Canvas with Solid Black Outer Rim */}
-        <div className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-white border-2 border-black shadow-[0_8px_30px_rgba(0,0,0,0.14)] flex items-center justify-center overflow-hidden">
-          {/* Subtle Ambient Radial Soft Amber Glow */}
+        {/* Radar Circular Housing - Clean White Canvas with Minimal Outer Border (No Inner Small Black Rings) */}
+        <div className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-white border-2 border-black shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center overflow-hidden">
+          {/* Subtle Ambient Radial Soft Amber Warmth */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(251,191,36,0.08)_0%,rgba(254,243,199,0.35)_55%,transparent_80%)] pointer-events-none" />
 
-          {/* Compass Tick Indicators in Crisp Black */}
-          <span className="absolute top-1.5 left-1/2 -translate-x-1/2 text-[8px] font-black text-black font-mono tracking-widest z-10">
-            N
-          </span>
-          <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 text-[8px] font-black text-black font-mono tracking-widest z-10">
-            S
-          </span>
-          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-black text-black font-mono tracking-widest z-10">
-            E
-          </span>
-          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[8px] font-black text-black font-mono tracking-widest z-10">
-            W
-          </span>
-
-          {/* Azimuth Crosshairs in Black */}
-          <div className="absolute w-full h-[1px] bg-black/35 top-1/2 left-0 -translate-y-1/2 pointer-events-none" />
-          <div className="absolute h-full w-[1px] bg-black/35 left-1/2 top-0 -translate-x-1/2 pointer-events-none" />
-
-          {/* Diagonal Guideline Crosshairs in Black */}
-          <div className="absolute w-full h-[1px] bg-black/20 top-1/2 left-0 -translate-y-1/2 rotate-45 pointer-events-none" />
-          <div className="absolute w-full h-[1px] bg-black/20 top-1/2 left-0 -translate-y-1/2 -rotate-45 pointer-events-none" />
-
-          {/* Range Grid Concentric Circles (Radar Rings in Solid Black) */}
-          {/* Outer Boundary Ring: 1.5 km */}
-          <div className="absolute inset-2.5 rounded-full border border-black/40 pointer-events-none" />
-
-          {/* 1.0 km Ring in Black */}
-          <div className="absolute w-[76%] h-[76%] rounded-full border border-black/50 border-dashed pointer-events-none flex items-center justify-center">
-            <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[7px] font-mono font-black text-black bg-white px-1">
-              1.0 km
-            </span>
-          </div>
-
-          {/* 500m Ring in Black */}
-          <div className="absolute w-[48%] h-[48%] rounded-full border border-black/60 pointer-events-none flex items-center justify-center">
-            <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[7px] font-mono font-black text-black bg-white px-1">
-              500 m
-            </span>
-          </div>
-
-          {/* Concentric Pulse Waves Expanding from Center Round Small Point */}
-          <div
-            className="absolute w-12 h-12 rounded-full border border-black/35 animate-ping pointer-events-none"
-            style={{ animationDuration: '2s' }}
-          />
-          <div
-            className="absolute w-24 h-24 rounded-full border border-amber-400/35 animate-ping pointer-events-none"
-            style={{ animationDuration: '2.8s', animationDelay: '0.7s' }}
-          />
-          <div
-            className="absolute w-40 h-40 rounded-full border border-black/20 animate-ping pointer-events-none"
-            style={{ animationDuration: '3.6s', animationDelay: '1.4s' }}
-          />
-
           {/* ================================================================================= */}
-          {/* SOFT LIGHT AMBER SEARCH FOCUS LIGHT BEAM (SAME HUE, LIGHT RADIANT ILLUMINATION)   */}
+          {/* SOFT LIGHT AMBER SEARCH FOCUS LIGHT BEAM (CLEAN FOCUS LIGHT ONLY)                 */}
           {/* ================================================================================= */}
           <div
             className="absolute inset-0 rounded-full pointer-events-none origin-center"
@@ -182,9 +166,9 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
           </div>
 
           {/* ======================================================== */}
-          {/* CAPTAIN TARGETS ILLUMINATING IN LIGHT AMBER FOCUS LIGHT  */}
+          {/* REAL-TIME CAPTAIN TARGETS (SHOWN ONLY WHEN CAPTAINS LIVE)*/}
           {/* ======================================================== */}
-          {SAMPLE_CAPTAINS.map((cap) => {
+          {realTimeTargets.map((cap) => {
             const rad = ((cap.angleDeg - 90) * Math.PI) / 180;
             const rPercent = (cap.radiusPercent / 100) * 44;
             const xPercent = 50 + rPercent * Math.cos(rad);
@@ -236,10 +220,12 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
                   <span className={isLit ? 'text-amber-300 font-black' : 'text-black font-black'}>
                     {cap.distance}
                   </span>
-                  <span className="flex items-center text-amber-500">
-                    <Star className="w-2 h-2 fill-amber-400 inline" />
-                    {cap.rating}
-                  </span>
+                  {cap.rating && (
+                    <span className="flex items-center text-amber-500">
+                      <Star className="w-2 h-2 fill-amber-400 inline" />
+                      {cap.rating}
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -249,7 +235,7 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
           {/* CENTER ROUND SMALL POINT (PASSENGER LOCATION)            */}
           {/* ======================================================== */}
           <div className="relative z-30 flex items-center justify-center">
-            {/* Outer Small Pulse Aura */}
+            {/* Outer Soft Pulse Aura */}
             <div className="absolute w-7 h-7 rounded-full bg-amber-500/25 animate-ping pointer-events-none" />
 
             {/* Small Center Dot Bezel with Black Border */}
@@ -282,13 +268,13 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
             <span className="w-1 bg-amber-600 rounded-full animate-pulse" style={{ height: '70%', animationDuration: '0.5s' }} />
           </div>
           <span className="text-[10px] font-mono-num font-black text-amber-700">
-            {nearbyCaptainsCount} Captains In Range
+            {realTimeTargets.length} {realTimeTargets.length === 1 ? 'Captain' : 'Captains'} In Range
           </span>
         </div>
 
         {/* Informative Subtext */}
         <p className="text-xs text-slate-600 font-medium leading-relaxed max-w-xs">
-          Broadcasting pickup location to nearby captains. When a captain accepts or sends an offer, their details will display with a <span className="text-slate-950 font-black">25-second countdown timer</span>.
+          Broadcasting pickup location to nearby verified captains. When a captain accepts or sends an offer, their details will display with a <span className="text-slate-950 font-black">25-second countdown timer</span>.
         </p>
 
         {/* Cancel Button */}

@@ -117,6 +117,19 @@ export function getServiceBadge(rideType?: string) {
   }
 }
 
+// Helper to format ride request elapsed time (e.g. 1mints, 2mints, 15mints)
+export function getRequestElapsedText(createdAt?: string | number | Date | null) {
+  if (!createdAt) return '1mints';
+  const createdMs = typeof createdAt === 'number' ? createdAt : new Date(createdAt).getTime();
+  if (isNaN(createdMs) || createdMs <= 0) return '1mints';
+  const diffMinutes = Math.max(1, Math.floor((Date.now() - createdMs) / 60000));
+  if (diffMinutes >= 60) {
+    const hours = Math.floor(diffMinutes / 60);
+    return `${hours}h`;
+  }
+  return `${diffMinutes}mints`;
+}
+
 export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   captainId = '',
   captainName = 'Captain',
@@ -2280,7 +2293,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                       {passengerRating.toFixed(1)}
                     </span>
                     <span className="text-[11px] text-slate-700 font-bold font-mono-num leading-none mt-1">
-                      ({passengerTotalRides})
+                      ({passengerTotalRides || 15})
+                    </span>
+                    <span className="text-[10.5px] text-slate-500 font-bold font-mono-num leading-none mt-1">
+                      {getRequestElapsedText(activeRide.created_at || (activeRide as any).requested_at)}
                     </span>
                   </div>
 
@@ -2570,7 +2586,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                           {(ride.passenger_rating || 4.9).toFixed(1)}
                         </span>
                         <span className="text-[11px] text-slate-700 font-bold font-mono-num leading-none mt-1">
-                          ({ride.passenger_total_rides ?? 5})
+                          ({ride.passenger_total_rides ?? 15})
+                        </span>
+                        <span className="text-[10px] sm:text-[10.5px] text-slate-500 font-bold font-mono-num leading-none mt-1">
+                          {getRequestElapsedText(ride.created_at || (ride as any).requested_at)}
                         </span>
                       </div>
 
@@ -2723,7 +2742,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 {(ride.passenger_rating || 4.9).toFixed(1)}
               </span>
               <span className="text-[11px] text-slate-700 font-bold font-mono-num leading-none mt-1">
-                ({ride.passenger_total_rides ?? 5})
+                ({ride.passenger_total_rides ?? 15})
+              </span>
+              <span className="text-[10px] sm:text-[10.5px] text-slate-500 font-bold font-mono-num leading-none mt-1">
+                {getRequestElapsedText(ride.created_at || (ride as any).requested_at)}
               </span>
             </div>
 

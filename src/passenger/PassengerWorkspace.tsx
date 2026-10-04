@@ -3169,9 +3169,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               // When No Offers or All Offers Passed: Show InDrive-Style Focus Light Radar Scanner
               return (
                 <TripInDriveRadar
-                  offeredFare={activeRide.offered_fare}
                   rideCode={activeRide.ride_code}
-                  nearbyCaptainsCount={nearbyCaptains.length > 0 ? nearbyCaptains.length : 4}
+                  nearbyCaptains={nearbyCaptains}
+                  pickupLat={activeRide.pickup_lat || pickup.lat || passengerGps.lat}
+                  pickupLng={activeRide.pickup_lng || pickup.lng || passengerGps.lng}
                 />
               );
             })()}
