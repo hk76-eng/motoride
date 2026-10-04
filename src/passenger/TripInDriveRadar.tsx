@@ -64,7 +64,7 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
 
   // Compute exact real-time captain targets mapped into the calibrated radar coordinate frame
   const realTimeTargets = useMemo(() => {
-    if (!nearbyCaptains || nearbyCaptains.length === 0) {
+    if (!nearbyCaptains || !Array.isArray(nearbyCaptains) || nearbyCaptains.length === 0) {
       return [];
     }
 
@@ -72,9 +72,20 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
     const MAX_RADAR_RANGE_KM = 1.5;
     const MAX_RADIUS_PERCENT = 42; // percentage of container width/height from center (50%)
 
-    return nearbyCaptains.map((cap, idx) => {
-      const cLat = cap.lat ?? pickupLat;
-      const cLng = cap.lng ?? pickupLng;
+    // Filter strictly for valid, genuine GPS coordinates
+    const validCaptains = nearbyCaptains.filter(
+      (cap) =>
+        cap &&
+        typeof cap.lat === 'number' &&
+        typeof cap.lng === 'number' &&
+        !isNaN(cap.lat) &&
+        !isNaN(cap.lng) &&
+        (cap.lat !== 0 || cap.lng !== 0)
+    );
+
+    return validCaptains.map((cap, idx) => {
+      const cLat = cap.lat;
+      const cLng = cap.lng;
       const distKm = calculateDistanceKm(pickupLat, pickupLng, cLat, cLng);
       const angleDeg = calculateBearing(pickupLat, pickupLng, cLat, cLng);
 

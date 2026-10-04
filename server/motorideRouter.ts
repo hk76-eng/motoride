@@ -1633,41 +1633,28 @@ motorideRouter.get('/captains/available', (req: Request, res: Response) => {
   const userLat = typeof lat === 'string' ? parseFloat(lat) : null;
   const userLng = typeof lng === 'string' ? parseFloat(lng) : null;
 
-  let availableList = Array.from(captainsStore.values()).filter(
-    (c) => c.is_online !== false && c.is_approved !== false && c.is_active !== false
-  );
+  // Deduplicate and filter strictly for real online captains with valid GPS coordinates
+  const seenIds = new Set<string>();
+  const availableList = Array.from(captainsStore.values()).filter((c) => {
+    if (!c || !c.id || seenIds.has(c.id)) return false;
+    seenIds.add(c.id);
+    return (
+      c.is_online === true &&
+      c.is_approved !== false &&
+      c.is_active !== false &&
+      typeof c.current_lat === 'number' &&
+      typeof c.current_lng === 'number' &&
+      !isNaN(c.current_lat) &&
+      !isNaN(c.current_lng) &&
+      (c.current_lat !== 0 || c.current_lng !== 0)
+    );
+  });
 
-  // If user coordinates provided, check if captains are within reasonable distance.
-  // If captains are seeded in another city/demo coordinate (> 25km away), dynamically cluster
-  // available captains in the user's neighborhood so the nearest captain always shows!
   if (userLat !== null && userLng !== null && !isNaN(userLat) && !isNaN(userLng)) {
-    const anyClose = availableList.some((c) => {
-      if (c.current_lat == null || c.current_lng == null) return false;
-      const d = backendHaversineDistanceKm(userLat, userLng, c.current_lat, c.current_lng);
-      return d <= 25;
-    });
-
-    if (!anyClose) {
-      const offsets = [
-        { dLat: 0.0031, dLng: 0.0028, heading: 45 },   // ~400m NE (Nearest Captain)
-        { dLat: -0.0045, dLng: 0.0055, heading: 120 }, // ~800m SE
-        { dLat: 0.0062, dLng: -0.0042, heading: 290 }, // ~1.1km NW
-      ];
-
-      availableList.forEach((cpt, idx) => {
-        const off = offsets[idx % offsets.length];
-        cpt.current_lat = Number((userLat + off.dLat).toFixed(6));
-        cpt.current_lng = Number((userLng + off.dLng).toFixed(6));
-        cpt.current_heading = off.heading;
-        cpt.updated_at = new Date().toISOString();
-        captainsStore.set(cpt.id, cpt);
-      });
-    }
-
     const enriched = availableList
       .map((cpt) => {
-        const cLat = cpt.current_lat ?? userLat;
-        const cLng = cpt.current_lng ?? userLng;
+        const cLat = cpt.current_lat!;
+        const cLng = cpt.current_lng!;
         const distKm = Number(backendHaversineDistanceKm(userLat, userLng, cLat, cLng).toFixed(2));
         const etaMinutes = Math.max(1, Math.round(distKm * 3.2));
         return {
