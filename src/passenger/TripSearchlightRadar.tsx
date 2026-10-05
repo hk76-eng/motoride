@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Radar, Radio, XCircle, Bike, Zap } from 'lucide-react';
 
 interface TripSearchlightRadarProps {
@@ -10,11 +10,15 @@ interface TripSearchlightRadarProps {
   nearbyCaptains?: Array<{
     id: string;
     name: string;
+    email?: string;
+    phone?: string;
     distanceText?: string;
     distKm?: number;
     rPercent?: number;
     xPercent?: number;
     yPercent?: number;
+    isNearest?: boolean;
+    is_online?: boolean;
   }>;
 }
 
@@ -23,7 +27,7 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
   isCancelling = false,
   offeredFare,
   rideCode,
-  nearbyCaptainsCount = 3,
+  nearbyCaptainsCount,
   nearbyCaptains = [],
 }) => {
   // Live dynamic azimuth bearing angle for real-time telemetry HUD
@@ -36,20 +40,51 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Strict deduplication: Only show real registered captains who are actively ONLINE (1 account per email ID)
+  const uniqueNearbyCaptains = useMemo(() => {
+    const seenEmails = new Set<string>();
+    const seenPhones = new Set<string>();
+    const seenIds = new Set<string>();
+    const result: typeof nearbyCaptains = [];
+
+    // Sort by distance so nearest captain is prioritized
+    const sorted = [...nearbyCaptains].sort((a, b) => (a.distKm ?? 999) - (b.distKm ?? 999));
+
+    for (const cap of sorted) {
+      if (!cap) continue;
+      // Do NOT show captain if offline
+      if (cap.is_online === false || (cap as any).isOnline === false || (cap as any).status === 'offline') {
+        continue;
+      }
+
+      const email = (cap.email || (cap as any).email || '').trim().toLowerCase();
+      const phone = (cap.phone || (cap as any).phone || '').replace(/\D/g, '');
+      const id = (cap.id || '').trim();
+
+      if (email && seenEmails.has(email)) continue;
+      if (phone && phone.length >= 7 && seenPhones.has(phone)) continue;
+      if (id && seenIds.has(id)) continue;
+
+      if (email) seenEmails.add(email);
+      if (phone && phone.length >= 7) seenPhones.add(phone);
+      if (id) seenIds.add(id);
+
+      result.push(cap);
+    }
+
+    if (result.length > 0) {
+      result[0].isNearest = true;
+    }
+
+    return result;
+  }, [nearbyCaptains]);
+
+  const displayCaptainsCount = nearbyCaptainsCount !== undefined ? nearbyCaptainsCount : uniqueNearbyCaptains.length;
+
   return (
     <div className="flex-1 flex flex-col items-center justify-between py-2 sm:py-3 text-center text-slate-900 w-full h-full select-none bg-white">
       {/* Top Telemetry & Status HUD Header */}
       <div className="w-full flex flex-col items-center gap-1.5 px-2">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-black/20 shadow-xs">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 shadow-[0_0_8px_#10b981]" />
-          </span>
-          <span className="text-[11px] font-black tracking-wider uppercase text-black font-mono-num">
-            BIKE RADAR PULSE ACTIVE
-          </span>
-        </div>
-
         <div className="flex items-center gap-3 text-[11px] text-slate-600 font-bold">
           <span className="flex items-center gap-1 font-mono-num text-black">
             <Radio className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
@@ -109,9 +144,9 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
           <div className="absolute w-44 h-44 rounded-full border-2 border-black/25 animate-ping pointer-events-none" style={{ animationDuration: '3.6s', animationDelay: '1.4s' }} />
           <div className="absolute w-60 h-60 rounded-full border border-black/15 animate-ping pointer-events-none" style={{ animationDuration: '4.4s', animationDelay: '2.1s' }} />
 
-          {/* Detected Captain Target Blips */}
-          {nearbyCaptains && nearbyCaptains.length > 0 ? (
-            nearbyCaptains.map((cap, idx) => {
+          {/* Detected Real Registered ONLINE Captain Target Blips ONLY (Never show if offline) */}
+          {uniqueNearbyCaptains && uniqueNearbyCaptains.length > 0 && (
+            uniqueNearbyCaptains.map((cap, idx) => {
               const angle = (idx * 137.5) % 360;
               const rad = (angle * Math.PI) / 180;
               const radiusPct = Math.min(38, Math.max(12, (cap.distKm || 0.5) * 28));
@@ -125,45 +160,19 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
                   style={{ left: `${leftPos}%`, top: `${topPos}%` }}
                 >
                   <div className="relative flex items-center justify-center">
-                    <span className="animate-ping absolute inline-flex h-5 w-5 rounded-full bg-emerald-500 opacity-60" style={{ animationDuration: '1.8s' }} />
-                    <span className="relative w-4 h-4 rounded-full bg-emerald-600 shadow-[0_0_10px_#10b981] border-2 border-black flex items-center justify-center">
-                      <Bike className="w-2.5 h-2.5 text-white stroke-[2.5]" />
+                    <span className="animate-ping absolute inline-flex h-6 w-6 rounded-full bg-black/40 opacity-70" style={{ animationDuration: '1.8s' }} />
+                    {/* Online Captain Icon: White Bike on Solid Black Background */}
+                    <span className="relative w-5 h-5 rounded-full bg-black shadow-[0_2px_10px_rgba(0,0,0,0.5)] border-2 border-white flex items-center justify-center ring-2 ring-black">
+                      <Bike className="w-3 h-3 text-white stroke-[2.5]" />
                     </span>
                   </div>
-                  <div className="mt-0.5 px-1.5 py-0.5 rounded-md bg-white border border-black text-[8px] font-mono font-black text-black shadow-md flex items-center gap-1 whitespace-nowrap">
-                    <Bike className="w-2.5 h-2.5 text-emerald-600 stroke-[2.5]" />
+                  <div className="mt-1 px-1.5 py-0.5 rounded-md bg-black border border-black text-[8px] font-mono font-black text-white shadow-md flex items-center gap-1 whitespace-nowrap">
+                    <Bike className="w-2.5 h-2.5 text-white stroke-[2.5]" />
                     <span>{cap.distanceText || (cap.distKm ? `${cap.distKm.toFixed(1)}km` : '20m')}</span>
                   </div>
                 </div>
               );
             })
-          ) : (
-            <>
-              <div className="absolute top-[28%] right-[28%] z-20 flex flex-col items-center">
-                <div className="relative flex items-center justify-center">
-                  <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-emerald-500 opacity-60" />
-                  <span className="relative w-3.5 h-3.5 rounded-full bg-emerald-600 shadow-[0_0_8px_#10b981] border-2 border-black flex items-center justify-center">
-                    <Bike className="w-2 h-2 text-white stroke-[2.5]" />
-                  </span>
-                </div>
-                <div className="mt-0.5 px-1.5 py-0.5 rounded bg-white border border-black text-[8px] font-mono font-black text-black shadow-sm flex items-center gap-0.5">
-                  <Bike className="w-2 h-2 text-emerald-600" />
-                  <span>20m</span>
-                </div>
-              </div>
-              <div className="absolute bottom-[32%] left-[30%] z-20 flex flex-col items-center">
-                <div className="relative flex items-center justify-center">
-                  <span className="animate-ping absolute inline-flex h-4 w-4 rounded-full bg-emerald-500 opacity-60" style={{ animationDelay: '0.8s' }} />
-                  <span className="relative w-3.5 h-3.5 rounded-full bg-emerald-600 shadow-[0_0_8px_#10b981] border-2 border-black flex items-center justify-center">
-                    <Bike className="w-2 h-2 text-white stroke-[2.5]" />
-                  </span>
-                </div>
-                <div className="mt-0.5 px-1.5 py-0.5 rounded bg-white border border-black text-[8px] font-mono font-black text-black shadow-sm flex items-center gap-0.5">
-                  <Bike className="w-2 h-2 text-emerald-600" />
-                  <span>450m</span>
-                </div>
-              </div>
-            </>
           )}
 
           {/* ======================================================== */}
@@ -190,7 +199,7 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
             <span className="w-1 bg-emerald-500 rounded-full animate-pulse" style={{ height: '90%', animationDuration: '0.5s' }} />
           </div>
           <span className="text-[10px] font-mono-num font-black text-black">
-            {nearbyCaptainsCount} Captains In Range
+            {displayCaptainsCount} {displayCaptainsCount === 1 ? 'Captain' : 'Captains'} In Range
           </span>
         </div>
 

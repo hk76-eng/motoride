@@ -2187,14 +2187,32 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               distanceKm: distKm,
               etaMinutes: etaMinutes,
               isNearest: true,
-            });
+              email: payload.email,
+              phone: payload.phone,
+            } as any);
           }
 
+          // Strict deduplication by email and ID (1 captain per email ID)
+          const deduped: typeof updated = [];
+          const seenEmails = new Set<string>();
+          const seenIds = new Set<string>();
+
           updated.sort((a, b) => ((a as any).distanceKm ?? 999) - ((b as any).distanceKm ?? 999));
-          if (updated.length > 0) {
-            (updated[0] as any).isNearest = true;
+
+          for (const item of updated) {
+            const emailKey = ((item as any).email || '').trim().toLowerCase();
+            const idKey = item.id || '';
+            if (emailKey && seenEmails.has(emailKey)) continue;
+            if (idKey && seenIds.has(idKey)) continue;
+            if (emailKey) seenEmails.add(emailKey);
+            if (idKey) seenIds.add(idKey);
+            deduped.push(item);
           }
-          return updated;
+
+          if (deduped.length > 0) {
+            (deduped[0] as any).isNearest = true;
+          }
+          return deduped;
         });
 
         setNearestCaptain((prev) => {
@@ -2514,7 +2532,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         } catch {}
 
         const mapped: AvailableCaptainItem[] = (res.captains || [])
-          .filter((c) => (c.current_lat != null || (c as any).lat != null) && (c.current_lng != null || (c as any).lng != null))
+          .filter((c) => c.is_online !== false && (c as any).isOnline !== false && (c.current_lat != null || (c as any).lat != null) && (c.current_lng != null || (c as any).lng != null))
           .map((c) => {
             let capLat = (c.current_lat ?? (c as any).lat)!;
             let capLng = (c.current_lng ?? (c as any).lng)!;
@@ -2563,17 +2581,42 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               distanceKm: distKm,
               etaMinutes: etaMinutes,
               isNearest: false,
-            };
+              email: c.email || (c as any).email || '',
+              phone: c.phone || (c as any).phone || '',
+            } as any;
           });
 
+        // Strict deduplication by email, phone, and ID (1 real captain per email ID)
+        const dedupedMapped: AvailableCaptainItem[] = [];
+        const seenEmails = new Set<string>();
+        const seenPhones = new Set<string>();
+        const seenIds = new Set<string>();
+
         mapped.sort((a, b) => ((a as any).distanceKm ?? 999) - ((b as any).distanceKm ?? 999));
-        if (mapped.length > 0) {
-          (mapped[0] as any).isNearest = true;
+
+        for (const c of mapped) {
+          const emailKey = ((c as any).email || '').trim().toLowerCase();
+          const phoneKey = ((c as any).phone || '').replace(/\D/g, '');
+          const idKey = c.id || '';
+
+          if (emailKey && seenEmails.has(emailKey)) continue;
+          if (phoneKey && phoneKey.length >= 7 && seenPhones.has(phoneKey)) continue;
+          if (idKey && seenIds.has(idKey)) continue;
+
+          if (emailKey) seenEmails.add(emailKey);
+          if (phoneKey && phoneKey.length >= 7) seenPhones.add(phoneKey);
+          if (idKey) seenIds.add(idKey);
+
+          dedupedMapped.push(c);
         }
 
-        setNearbyCaptains(mapped);
+        if (dedupedMapped.length > 0) {
+          (dedupedMapped[0] as any).isNearest = true;
+        }
 
-        const nearest = mapped[0] || (res.nearestCaptain as any) || null;
+        setNearbyCaptains(dedupedMapped);
+
+        const nearest = dedupedMapped[0] || (res.nearestCaptain as any) || null;
         if (nearest && (nearest.current_lat != null || nearest.lat != null) && (nearest.current_lng != null || nearest.lng != null)) {
           setNearestCaptain({
             id: nearest.id,
@@ -2605,6 +2648,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const unsubCaptains = realtimeSync.on('CAPTAINS_UPDATED', fetchCaptains);
     const unsubProfiles = realtimeSync.on('PROFILES_UPDATED', fetchCaptains);
     const unsubCapLoc = realtimeSync.on('CAPTAIN_LOCATION_UPDATED', fetchCaptains);
+    const unsubOnline = realtimeSync.on('CAPTAIN_ONLINE_STATUS_CHANGED', fetchCaptains);
+    const unsubStatus = realtimeSync.on('CAPTAIN_STATUS_UPDATED', fetchCaptains);
 
     return () => {
       isMounted = false;
@@ -2612,6 +2657,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       unsubCaptains();
       unsubProfiles();
       unsubCapLoc();
+      unsubOnline();
+      unsubStatus();
     };
   }, [passengerGps.lat, passengerGps.lng, pickup.lat, pickup.lng, pickup.name, activeRide?.id, activeRide?.status, activeRide?.pickup_lat, activeRide?.pickup_lng]);
 
@@ -3318,7 +3365,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               return (
                 <TripSearchlightRadar
                   rideCode={activeRide.ride_code}
-                  nearbyCaptainsCount={nearbyCaptains.length > 0 ? nearbyCaptains.length : 3}
+                  nearbyCaptainsCount={nearbyCaptains.length}
                   nearbyCaptains={nearbyCaptains}
                   offeredFare={activeRide.offered_fare || offeredFare}
                   onCancel={handleCancelRide}

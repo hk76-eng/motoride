@@ -1736,17 +1736,39 @@ export const motorideApi = {
       };
     });
 
-    if (typeof userLat === 'number' && typeof userLng === 'number') {
-      enriched.sort((a, b) => (a.distance_km ?? 999) - (b.distance_km ?? 999));
+    // Strict deduplication by email, phone, and ID (1 real captain per email address)
+    const seenEmails = new Set<string>();
+    const seenPhones = new Set<string>();
+    const seenIds = new Set<string>();
+    const deduplicatedCaptains: typeof enriched = [];
+
+    // Sort by distance first so nearest captain takes precedence if there were duplicate records
+    enriched.sort((a, b) => (a.distance_km ?? 999) - (b.distance_km ?? 999));
+
+    for (const cpt of enriched) {
+      if (!cpt || isDemoAccount(cpt)) continue;
+      const cleanEmail = cpt.email?.toLowerCase().trim();
+      const cleanPhone = cpt.phone?.replace(/\D/g, '');
+      const cleanId = cpt.id || '';
+
+      if (cleanEmail && seenEmails.has(cleanEmail)) continue;
+      if (cleanPhone && cleanPhone.length >= 7 && seenPhones.has(cleanPhone)) continue;
+      if (cleanId && seenIds.has(cleanId)) continue;
+
+      if (cleanEmail) seenEmails.add(cleanEmail);
+      if (cleanPhone && cleanPhone.length >= 7) seenPhones.add(cleanPhone);
+      if (cleanId) seenIds.add(cleanId);
+
+      deduplicatedCaptains.push(cpt);
     }
 
-    if (enriched.length > 0) {
-      (enriched[0] as any).is_nearest = true;
+    if (deduplicatedCaptains.length > 0) {
+      (deduplicatedCaptains[0] as any).is_nearest = true;
     }
 
     return {
-      captains: enriched,
-      nearestCaptain: enriched[0] || null,
+      captains: deduplicatedCaptains,
+      nearestCaptain: deduplicatedCaptains[0] || null,
     };
   },
 

@@ -1633,11 +1633,24 @@ motorideRouter.get('/captains/available', (req: Request, res: Response) => {
   const userLat = typeof lat === 'string' ? parseFloat(lat) : null;
   const userLng = typeof lng === 'string' ? parseFloat(lng) : null;
 
-  // Deduplicate and filter strictly for real online captains with valid GPS coordinates
+  // Deduplicate strictly by email, phone, and ID (1 real captain per email ID)
   const seenIds = new Set<string>();
+  const seenEmails = new Set<string>();
+  const seenPhones = new Set<string>();
+
   const availableList = Array.from(captainsStore.values()).filter((c) => {
     if (!c || !c.id || seenIds.has(c.id)) return false;
+
+    const emailKey = c.email?.trim().toLowerCase();
+    if (emailKey && seenEmails.has(emailKey)) return false;
+
+    const phoneKey = c.phone?.replace(/\D/g, '');
+    if (phoneKey && phoneKey.length >= 7 && seenPhones.has(phoneKey)) return false;
+
     seenIds.add(c.id);
+    if (emailKey) seenEmails.add(emailKey);
+    if (phoneKey && phoneKey.length >= 7) seenPhones.add(phoneKey);
+
     return (
       c.is_online === true &&
       c.is_approved !== false &&
