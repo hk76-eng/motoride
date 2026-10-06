@@ -143,7 +143,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   onActiveTripChange,
 }) => {
   const authUser = currentUser || supabaseAuth.getCurrentUser();
-  const resolvedInitialName = currentUser?.name || (captainName && captainName !== 'Captain' ? captainName : undefined) || authUser?.name || 'Captain';
+  const isMojobiketaxi =
+    (authUser?.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') ||
+    (currentUser?.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com');
+  const resolvedInitialName = isMojobiketaxi
+    ? 'Hemant kashyap'
+    : (currentUser?.name || (captainName && captainName !== 'Captain' ? captainName : undefined) || authUser?.name || 'Captain');
 
   const [captain, setCaptain] = useState<Captain | null>(() => {
     if (authUser) {
@@ -1119,10 +1124,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     try {
       const cpt = await motorideApi.getCaptainById(captainId);
       if (cpt) {
+        const isMojo = (cpt.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') || isMojobiketaxi;
+        const resolvedName = isMojo ? 'Hemant kashyap' : (cpt.full_name || safeStorage.getItem('motoride_captain_name') || currentUser?.name || resolvedInitialName || 'Captain');
         setCaptain((prev) => ({
           ...(prev || ({} as Captain)),
           ...cpt,
-          full_name: cpt.full_name || safeStorage.getItem('motoride_captain_name') || currentUser?.name || resolvedInitialName || 'Captain',
+          full_name: resolvedName,
           phone: cpt.phone || safeStorage.getItem('motoride_captain_phone') || '',
           vehicle: {
             id: cpt.vehicle?.id || (prev?.vehicle?.id ?? 'veh_1'),
@@ -1781,11 +1788,13 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const savedPlate = safeStorage.getItem('motoride_captain_plate');
       const savedAvatar = safeStorage.getItem('motoride_captain_avatar');
 
-      const resolvedName = (savedName && savedName.trim() && savedName !== 'Captain')
+      const resolvedName = isMojobiketaxi
+        ? 'Hemant kashyap'
+        : ((savedName && savedName.trim() && savedName !== 'Captain' && !savedName.toLowerCase().includes('mojobiketaxi'))
         ? savedName
-        : (captain?.full_name && captain.full_name !== 'Captain')
+        : (captain?.full_name && captain.full_name !== 'Captain' && !captain.full_name.toLowerCase().includes('mojobiketaxi'))
         ? captain.full_name
-        : (authUser?.name && authUser.name !== 'Captain' ? authUser.name : (resolvedInitialName !== 'Captain' ? resolvedInitialName : 'Captain'));
+        : (authUser?.name && authUser.name !== 'Captain' && !authUser.name.toLowerCase().includes('mojobiketaxi') ? authUser.name : (resolvedInitialName !== 'Captain' ? resolvedInitialName : 'Captain')));
 
       const resolvedPhone = savedPhone || captain?.phone || authUser?.phone || '';
       const resolvedModel = savedModel || captain?.vehicle?.model || authUser?.vehicleModel || 'Motorcycle';
@@ -1829,11 +1838,13 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const savedPlate = safeStorage.getItem('motoride_captain_plate');
       const savedAvatar = safeStorage.getItem('motoride_captain_avatar');
 
-      const resolvedName = (savedName && savedName.trim() && savedName !== 'Captain')
+      const resolvedName = isMojobiketaxi
+        ? 'Hemant kashyap'
+        : ((savedName && savedName.trim() && savedName !== 'Captain' && !savedName.toLowerCase().includes('mojobiketaxi'))
         ? savedName
-        : (captain?.full_name && captain.full_name !== 'Captain')
+        : (captain?.full_name && captain.full_name !== 'Captain' && !captain.full_name.toLowerCase().includes('mojobiketaxi'))
         ? captain.full_name
-        : (authUser?.name && authUser.name !== 'Captain' ? authUser.name : (resolvedInitialName !== 'Captain' ? resolvedInitialName : 'Captain'));
+        : (authUser?.name && authUser.name !== 'Captain' && !authUser.name.toLowerCase().includes('mojobiketaxi') ? authUser.name : (resolvedInitialName !== 'Captain' ? resolvedInitialName : 'Captain')));
 
       const resolvedPhone = savedPhone || captain?.phone || authUser?.phone || '';
       const resolvedModel = savedModel || captain?.vehicle?.model || authUser?.vehicleModel || 'Motorcycle';

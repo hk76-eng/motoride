@@ -1751,6 +1751,11 @@ export const motorideApi = {
       const cleanPhone = cpt.phone?.replace(/\D/g, '');
       const cleanId = cpt.id || '';
 
+      if (cleanEmail === 'mojobiketaxi@gmail.com') {
+        cpt.full_name = 'Hemant kashyap';
+        (cpt as any).name = 'Hemant kashyap';
+      }
+
       if (cleanEmail && seenEmails.has(cleanEmail)) continue;
       if (cleanPhone && cleanPhone.length >= 7 && seenPhones.has(cleanPhone)) continue;
       if (cleanId && seenIds.has(cleanId)) continue;
@@ -2102,6 +2107,9 @@ export const motorideApi = {
       if (!cpt || isDemoAccount(cpt)) continue;
       const cleanEmail = cpt.email?.toLowerCase().trim();
       const key = cleanEmail || cpt.id;
+      if (cleanEmail === 'mojobiketaxi@gmail.com') {
+        cpt.full_name = 'Hemant kashyap';
+      }
       if (!captainEmailMap.has(key)) {
         captainEmailMap.set(key, cpt);
       }

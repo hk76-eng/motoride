@@ -41,7 +41,7 @@ export function generateUUID(): string {
 export async function syncUserToSupabase(user: AuthUser): Promise<{ success: boolean; error?: string }> {
   const supabase = getSupabase();
   const cleanEmail = user.email.toLowerCase().trim();
-  const cleanName = (user.name || '').trim() || 'MotoRide User';
+  const cleanName = cleanEmail === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : ((user.name || '').trim() || 'MotoRide User');
   const validProfileId = user.id || generateUUID();
   const avatarToSave = user.avatarUrl || safeStorage.getItem(`motoride_${user.role}_avatar`) || null;
 
@@ -440,6 +440,11 @@ export const supabaseAuth = {
   saveAccount(account: StoredAccount) {
     try {
       const accounts = this.getRegisteredAccounts();
+      // Enforce official Captain Name for mojobiketaxi@gmail.com
+      if (account.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') {
+        account.name = 'Hemant kashyap';
+        account.role = 'captain';
+      }
       // Strict 1-account-per-email uniqueness: overwrite if same email exists
       const existingIdx = accounts.findIndex(
         (a) => a.email.toLowerCase().trim() === account.email.toLowerCase().trim() || (account.id && a.id === account.id)
@@ -575,6 +580,10 @@ export const supabaseAuth = {
       if (raw) {
         const user = JSON.parse(raw);
         if (user && user.id && user.email) {
+          if (user.email.toLowerCase().trim() === 'mojobiketaxi@gmail.com') {
+            user.name = 'Hemant kashyap';
+            user.role = 'captain';
+          }
           const storedAvatar = safeStorage.getItem(`motoride_${user.role}_avatar`);
           if (storedAvatar && !user.avatarUrl) {
             user.avatarUrl = storedAvatar;
@@ -843,7 +852,7 @@ export const supabaseAuth = {
     const authUser: AuthUser = {
       id: authUserId,
       email: profile.email || cleanEmail,
-      name: profile.full_name || 'MotoRide User',
+      name: cleanEmail === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : (profile.full_name || 'MotoRide User'),
       role: actualRole,
       phone: profile.phone || '',
       avatarUrl: profile.avatar_url || null,
@@ -1007,10 +1016,11 @@ export const supabaseAuth = {
             ? (storedCaptainBal && !isNaN(Number(storedCaptainBal)) ? Number(storedCaptainBal) : 500)
             : 200;
 
+          const userEmail = (profile.email || session.user.email || '').toLowerCase().trim();
           const authUser: AuthUser = {
             id: authUserId,
             email: profile.email || session.user.email || '',
-            name: profile.full_name || session.user.user_metadata?.name || 'MotoRide User',
+            name: userEmail === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : (profile.full_name || session.user.user_metadata?.name || 'MotoRide User'),
             role: profile.role,
             phone: profile.phone || '',
             avatarUrl: profile.avatar_url || cachedUser?.avatarUrl || null,

@@ -66,7 +66,9 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   onSignOut,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState(() => safeStorage.getItem('motoride_captain_name') || captain?.full_name || 'Captain');
+  const isMojo = captain?.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' || safeStorage.getItem('motoride_captain_email')?.toLowerCase().trim() === 'mojobiketaxi@gmail.com';
+  const initialName = isMojo ? 'Hemant kashyap' : (safeStorage.getItem('motoride_captain_name') || captain?.full_name || 'Captain');
+  const [name, setName] = useState(() => initialName.toLowerCase().includes('mojobiketaxi') ? 'Hemant kashyap' : initialName);
   const [phone, setPhone] = useState(() => safeStorage.getItem('motoride_captain_phone') || captain?.phone || '');
   const [email, setEmail] = useState(() => safeStorage.getItem('motoride_captain_email') || captain?.email || '');
   const [vehicleModel, setVehicleModel] = useState(() => safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || 'Motorcycle');
@@ -195,7 +197,10 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   // Sync prop changes without overwriting local storage edits
   useEffect(() => {
     if (captain) {
-      if (captain.full_name && captain.full_name !== 'Captain' && !safeStorage.getItem('motoride_captain_name')) {
+      if (captain.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') {
+        setName('Hemant kashyap');
+        safeStorage.setItem('motoride_captain_name', 'Hemant kashyap');
+      } else if (captain.full_name && captain.full_name !== 'Captain' && !safeStorage.getItem('motoride_captain_name')) {
         setName(captain.full_name);
       }
       if (captain.phone && !safeStorage.getItem('motoride_captain_phone')) {

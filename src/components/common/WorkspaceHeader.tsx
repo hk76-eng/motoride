@@ -195,7 +195,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
             <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
               <div className="hidden lg:flex flex-col text-right">
                 <span className="text-xs font-bold text-white truncate max-w-[120px]">
-                  {currentUser.name}
+                  {currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : currentUser.name}
                 </span>
                 <span className="text-[10px] text-slate-400 truncate max-w-[120px]">
                   {currentUser.email}
