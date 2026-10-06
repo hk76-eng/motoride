@@ -2591,13 +2591,24 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         const seenEmails = new Set<string>();
         const seenPhones = new Set<string>();
         const seenIds = new Set<string>();
+        let seenMojoCaptain = false;
 
         mapped.sort((a, b) => ((a as any).distanceKm ?? 999) - ((b as any).distanceKm ?? 999));
 
         for (const c of mapped) {
           const emailKey = ((c as any).email || '').trim().toLowerCase();
-          const phoneKey = ((c as any).phone || '').replace(/\D/g, '');
+          const nameKey = (c.name || '').trim().toLowerCase();
           const idKey = c.id || '';
+          const phoneKey = ((c as any).phone || '').replace(/\D/g, '');
+
+          const isMojoCap = emailKey === 'mojobiketaxi@gmail.com' || nameKey.includes('mojobiketaxi') || idKey === 'cpt_mojobiketaxi';
+          if (isMojoCap) {
+            if (seenMojoCaptain) continue;
+            seenMojoCaptain = true;
+            c.name = 'Hemant kashyap';
+            (c as any).email = 'mojobiketaxi@gmail.com';
+            c.id = 'cpt_mojobiketaxi';
+          }
 
           if (emailKey && seenEmails.has(emailKey)) continue;
           if (phoneKey && phoneKey.length >= 7 && seenPhones.has(phoneKey)) continue;
@@ -3034,9 +3045,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         passengerAccuracy={passengerGps.accuracy}
         passengerHeading={passengerGps.heading}
         passengerName={currentGpsLocationName || 'Standing Here'}
-        showPassengerOnly={false}
-        nearbyCaptains={activeRide ? [] : nearbyCaptains}
-        nearestCaptain={activeRide ? null : nearestCaptain}
+        showPassengerOnly={!activeRide}
+        nearbyCaptains={[]}
+        nearestCaptain={null}
         showLocationsABOnly={Boolean(activeRide)}
         isLiveGpsActive={gpsStatus === 'live'}
         onLocateMe={requestLiveLocation}

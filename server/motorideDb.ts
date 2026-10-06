@@ -630,11 +630,10 @@ export function ensureOfficialAccounts() {
   };
 
   captainsStore.set(captainId, cptRecord);
-  captainsStore.set(captainEmail, cptRecord);
 
   // Clean duplicate captain objects
   for (const [k, c] of Array.from(captainsStore.entries())) {
-    if (c.email?.toLowerCase() === captainEmail && k !== captainId && k !== captainEmail) {
+    if (k !== captainId && (c.id === captainId || (c.email && c.email.toLowerCase() === captainEmail) || k === captainEmail)) {
       captainsStore.delete(k);
     }
   }
@@ -1262,7 +1261,6 @@ export function completeRideAndDeductCommissionServer(
     cpt.total_earnings = Number(((cpt.total_earnings || 0) + captainEarning).toFixed(2));
     cpt.today_earnings = Number(((cpt.today_earnings || 0) + captainEarning).toFixed(2));
     captainsStore.set(cpt.id, cpt);
-    if (cpt.phone) captainsStore.set(cpt.phone, cpt);
   }
 
   // Synchronize atomically with Supabase (profiles, wallets, wallet_transactions, rides, earnings, captains) in the background so that the 10% commission is permanently stored in Supabase

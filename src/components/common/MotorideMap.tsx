@@ -477,29 +477,23 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         </div>
       `;
     } else {
-      statusPillHtml = isCaptainMode ? '' : `
-        <div style="display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 9999px; background: #000000; border: 1.5px solid ${borderColor}; box-shadow: 0 8px 24px rgba(0,0,0,0.7); color: #ffffff; font-size: 11px; font-weight: 800; font-family: system-ui, -apple-system, sans-serif;">
-          <span style="display: flex; width: 6px; height: 6px; border-radius: 50%; background: ${isNearest ? '#10b981' : '#22c55e'}; box-shadow: 0 0 6px ${isNearest ? '#10b981' : '#22c55e'};"></span>
-          ${isNearest ? `<span style="color: #34d399; font-weight: 900; letter-spacing: 0.3px;">⭐ Nearest Captain</span>` : `<span style="color: #f1f5f9; font-weight: 800;">${name}</span>`}
-          ${distText ? `<span style="color: #ffffff; font-size: 10px; font-weight: 800; background: ${isNearest ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.18)'}; padding: 1px 5px; border-radius: 4px;">${distText}</span>` : ''}
-          ${accuracy ? `<span style="color: #94a3b8; font-size: 9px; font-family: monospace;">±${Math.round(accuracy)}m</span>` : ''}
-        </div>
-      `;
+      // Hide the text "nearest captain available" and captain available pill in passenger dashboard
+      statusPillHtml = '';
     }
 
-    const boxWidth = isArrivingPickup ? 200 : 150;
+    const boxWidth = isArrivingPickup ? 200 : 210;
 
     return L.divIcon({
       className: isNearest ? 'nearest-captain-icon' : 'captain-car-icon',
       html: `
-        <div style="position: relative; width: ${boxWidth}px; height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; user-select: none; pointer-events: auto; cursor: pointer;">
-          <!-- Top Floating Pill Label -->
-          <div style="position: absolute; top: 0px; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 20;">
+        <div style="position: relative; width: ${boxWidth}px; height: 106px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; user-select: none; pointer-events: auto; cursor: pointer;">
+          <!-- Top Floating Pill Label with Highest Z-Index -->
+          <div style="position: absolute; top: 0px; left: 50%; transform: translateX(-50%); white-space: nowrap; z-index: 50; pointer-events: auto;">
             ${statusPillHtml}
           </div>
 
           <!-- Rotating Navigation Arrowhead Marker (Uploaded Navigation Icon) -->
-          <div style="position: relative; width: 48px; height: 48px; margin-bottom: 6px; transform: rotate(${heading}deg); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; justify-content: center;">
+          <div style="position: relative; width: 48px; height: 48px; margin-bottom: 6px; transform: rotate(${heading}deg); transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; align-items: center; justify-content: center; z-index: 20;">
             <!-- Heading notch pointer -->
             <div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 10px solid ${borderColor}; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6)); z-index: 10;"></div>
             <!-- Circle core with Navigation Arrowhead -->
@@ -514,9 +508,9 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           </div>
         </div>
       `,
-      iconSize: [boxWidth, 100],
-      iconAnchor: [boxWidth / 2, 74],
-      popupAnchor: [0, -74],
+      iconSize: [boxWidth, 106],
+      iconAnchor: [boxWidth / 2, 80],
+      popupAnchor: [0, -80],
     });
   };
 
@@ -725,13 +719,14 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
         }
         passengerMarkerRef.current = L.marker([passengerLat, passengerLng], {
           icon: pIcon,
-          zIndexOffset: 3000,
+          zIndexOffset: 1500,
         })
           .addTo(map)
           .bindPopup(passengerPopupHtml);
       } else {
         passengerMarkerRef.current.setLatLng([passengerLat, passengerLng]);
         passengerMarkerRef.current.setIcon(pIcon);
+        passengerMarkerRef.current.setZIndexOffset(1500);
         passengerMarkerRef.current.setPopupContent(passengerPopupHtml);
       }
 
@@ -771,7 +766,10 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
     }
 
     // 2. Pickup Marker A (Rendered with the uploaded green pearl pushpin marker)
-    const shouldRenderPickupPin = Boolean(hasPickup && pickupLat && pickupLng);
+    const isPickupOverPassenger = Boolean(
+      shouldShowPassengerGps && (isPickupAtPassenger || (distToPickupMeters !== null && distToPickupMeters < 30))
+    );
+    const shouldRenderPickupPin = Boolean(hasPickup && pickupLat && pickupLng && !isPickupOverPassenger);
     if (shouldRenderPickupPin && pickupLat && pickupLng) {
       bounds.push([pickupLat, pickupLng]);
       // Hide text "Pickup A" showing near "Where To ?"
@@ -1110,13 +1108,14 @@ export const MotorideMap: React.FC<MotorideMapProps> = ({
           }
           marker = L.marker([cpt.lat, cpt.lng], {
             icon: cIcon,
-            zIndexOffset: isNearest ? 1480 : 1320,
+            zIndexOffset: isNearest ? 4200 : 3600,
           }).addTo(map);
 
           nearbyCaptainMarkersRef.current.set(cpt.id, marker);
         } else {
           marker.setLatLng([cpt.lat, cpt.lng]);
           marker.setIcon(cIcon);
+          marker.setZIndexOffset(isNearest ? 4200 : 3600);
         }
 
         const distLabel = cpt.distanceKm != null ? (cpt.distanceKm < 1 ? `${Math.round(cpt.distanceKm * 1000)}m` : `${cpt.distanceKm.toFixed(1)} km`) : 'Nearby';

@@ -74,6 +74,8 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
     // Deduplicate and filter strictly for valid, genuine GPS coordinates
     const seenIds = new Set<string>();
     const seenNames = new Set<string>();
+    const seenEmails = new Set<string>();
+    let seenMojoCaptain = false;
 
     const inRangeCaptains = nearbyCaptains
       .filter((cap) => {
@@ -85,12 +87,22 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
 
         const capId = cap.id || '';
         const capName = (cap.name || (cap as any).full_name || '').trim().toLowerCase();
+        const capEmail = ((cap as any).email || '').trim().toLowerCase();
+
+        const isMojo = capEmail === 'mojobiketaxi@gmail.com' || capName.includes('mojobiketaxi') || capId === 'cpt_mojobiketaxi';
+        if (isMojo) {
+          if (seenMojoCaptain) return false;
+          seenMojoCaptain = true;
+          cap.name = 'Hemant kashyap';
+        }
 
         // Deduplicate duplicate entries
         if (capId && seenIds.has(capId)) return false;
+        if (capEmail && seenEmails.has(capEmail)) return false;
         if (capName && capName !== 'captain' && seenNames.has(capName)) return false;
 
         if (capId) seenIds.add(capId);
+        if (capEmail) seenEmails.add(capEmail);
         if (capName) seenNames.add(capName);
 
         // Distance check: ensure captains in operational range (<= 20km) are displayed
@@ -116,9 +128,15 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
 
         const distanceText = distKm < 1 ? `${Math.round(distKm * 1000)}m` : `${distKm.toFixed(1)}km`;
 
+        const isMojo = ((cap as any).email || '').toLowerCase() === 'mojobiketaxi@gmail.com' ||
+          (cap.name || (cap as any).full_name || '').toLowerCase().includes('mojobiketaxi') ||
+          cap.id === 'cpt_mojobiketaxi';
+
+        const finalName = isMojo ? 'Hemant kashyap' : (cap.name || (cap as any).full_name || 'Captain');
+
         return {
           id: cap.id || `cap-${idx}`,
-          name: cap.name || (cap as any).full_name || 'Captain',
+          name: finalName,
           distKm,
           distanceText,
           rating: cap.rating ? Number(cap.rating).toFixed(1) : '4.9',

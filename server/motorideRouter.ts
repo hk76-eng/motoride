@@ -1638,11 +1638,23 @@ motorideRouter.get('/captains/available', (req: Request, res: Response) => {
   const seenIds = new Set<string>();
   const seenEmails = new Set<string>();
   const seenPhones = new Set<string>();
+  let seenMojoCaptain = false;
 
   const availableList = Array.from(captainsStore.values()).filter((c) => {
     if (!c || !c.id || seenIds.has(c.id)) return false;
 
-    const emailKey = c.email?.trim().toLowerCase();
+    const emailKey = c.email?.trim().toLowerCase() || '';
+    const nameKey = (c.full_name || '').trim().toLowerCase();
+    const isMojoCap = emailKey === 'mojobiketaxi@gmail.com' || nameKey.includes('mojobiketaxi') || c.id === 'cpt_mojobiketaxi';
+
+    if (isMojoCap) {
+      if (seenMojoCaptain) return false;
+      seenMojoCaptain = true;
+      c.full_name = 'Hemant kashyap';
+      c.email = 'mojobiketaxi@gmail.com';
+      c.id = 'cpt_mojobiketaxi';
+    }
+
     if (emailKey && seenEmails.has(emailKey)) return false;
 
     const phoneKey = c.phone?.replace(/\D/g, '');
@@ -1803,10 +1815,19 @@ motorideRouter.post('/captain-location', (req: Request, res: Response) => {
     cpt.updated_at = new Date().toISOString();
   }
 
-  captainsStore.set(targetKey, cpt);
-  captainsStore.set(captain_id, cpt);
-  if (cpt.id && cpt.id !== captain_id) captainsStore.set(cpt.id, cpt);
-  if (cpt.email) captainsStore.set(cpt.email.toLowerCase(), cpt);
+  const primaryId = cpt.id || captain_id || targetKey;
+  cpt.id = primaryId;
+  if (cpt.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') {
+    cpt.full_name = 'Hemant kashyap';
+  }
+
+  // Purge any duplicate keys in captainsStore for this captain
+  for (const [k, c] of Array.from(captainsStore.entries())) {
+    if (k !== primaryId && (c.id === primaryId || (c.email && cpt.email && c.email.toLowerCase() === cpt.email.toLowerCase()))) {
+      captainsStore.delete(k);
+    }
+  }
+  captainsStore.set(primaryId, cpt);
 
   if (ride_id && ridesStore.has(ride_id)) {
     const ride = ridesStore.get(ride_id)!;

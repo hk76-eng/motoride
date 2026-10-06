@@ -45,10 +45,11 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
     const seenEmails = new Set<string>();
     const seenPhones = new Set<string>();
     const seenIds = new Set<string>();
+    let seenMojoCaptain = false;
     const result: typeof nearbyCaptains = [];
 
     // Sort by distance so nearest captain is prioritized
-    const sorted = [...nearbyCaptains].sort((a, b) => (a.distKm ?? 999) - (b.distKm ?? 999));
+    const sorted = [...nearbyCaptains].sort((a, b) => ((a.distKm ?? (a as any).distanceKm) ?? 999) - ((b.distKm ?? (b as any).distanceKm) ?? 999));
 
     for (const cap of sorted) {
       if (!cap) continue;
@@ -58,8 +59,18 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
       }
 
       const email = (cap.email || (cap as any).email || '').trim().toLowerCase();
+      const name = ((cap as any).name || (cap as any).full_name || '').trim().toLowerCase();
       const phone = (cap.phone || (cap as any).phone || '').replace(/\D/g, '');
       const id = (cap.id || '').trim();
+
+      const isMojoCap = email === 'mojobiketaxi@gmail.com' || name.includes('mojobiketaxi') || id === 'cpt_mojobiketaxi';
+      if (isMojoCap) {
+        if (seenMojoCaptain) continue;
+        seenMojoCaptain = true;
+        (cap as any).name = 'Hemant kashyap';
+        (cap as any).email = 'mojobiketaxi@gmail.com';
+        cap.id = 'cpt_mojobiketaxi';
+      }
 
       if (email && seenEmails.has(email)) continue;
       if (phone && phone.length >= 7 && seenPhones.has(phone)) continue;
@@ -79,7 +90,7 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
     return result;
   }, [nearbyCaptains]);
 
-  const displayCaptainsCount = nearbyCaptainsCount !== undefined ? nearbyCaptainsCount : uniqueNearbyCaptains.length;
+  const displayCaptainsCount = uniqueNearbyCaptains.length;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-between py-2 sm:py-3 text-center text-slate-900 w-full h-full select-none bg-white">
@@ -149,7 +160,8 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
             uniqueNearbyCaptains.map((cap, idx) => {
               const angle = (idx * 137.5) % 360;
               const rad = (angle * Math.PI) / 180;
-              const radiusPct = Math.min(38, Math.max(12, (cap.distKm || 0.5) * 28));
+              const dist = cap.distKm ?? (cap as any).distanceKm ?? (cap as any).distance_km;
+              const radiusPct = Math.min(38, Math.max(12, (dist || 0.5) * 28));
               const leftPos = 50 + radiusPct * Math.cos(rad);
               const topPos = 50 + radiusPct * Math.sin(rad);
 
@@ -168,7 +180,7 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
                   </div>
                   <div className="mt-1 px-1.5 py-0.5 rounded-md bg-black border border-black text-[8px] font-mono font-black text-white shadow-md flex items-center gap-1 whitespace-nowrap">
                     <Bike className="w-2.5 h-2.5 text-white stroke-[2.5]" />
-                    <span>{cap.distanceText || (cap.distKm ? `${cap.distKm.toFixed(1)}km` : '20m')}</span>
+                    <span>{cap.distanceText || (dist != null ? `${Number(dist).toFixed(1)}km` : '20m')}</span>
                   </div>
                 </div>
               );
