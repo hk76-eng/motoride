@@ -40,6 +40,7 @@ import {
   isForbiddenAccount,
   completeRideAndDeductCommissionServer,
   getAdminCommissionsServer,
+  ensureOfficialAccounts,
 } from './motorideDb';
 import { MotorideRide, RideOffer, MotorideRideStatus, WalletTransaction, Captain, Passenger, TopupDepositRequest, TopupChatMessage } from '../src/types/motoride';
 import { backendHaversineDistanceKm } from './fareEngine';
@@ -3081,6 +3082,11 @@ motorideRouter.post('/auth/login', (req: Request, res: Response) => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanRole = (role === 'captain' || role === 'admin' ? role : 'passenger') as 'passenger' | 'captain' | 'admin';
     const exactKey = `${cleanEmail}_${cleanRole}`;
+
+    // Guarantee official accounts are ready
+    if (cleanEmail === 'mojobiketaxi@gmail.com' || cleanEmail === 'osmskart@gmail.com') {
+      ensureOfficialAccounts();
+    }
 
     // 1. Check if account exists for this email across any role
     let foundAccount: ServerRegisteredAccount | undefined;

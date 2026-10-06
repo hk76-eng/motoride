@@ -120,14 +120,10 @@ const DEFAULT_ADMIN_FARE_SETTINGS: FareSettings = {
 export function isTargetAccountToRemove(acc: any): boolean {
   if (!acc) return false;
   const id = String(acc.id || acc.profile_id || '').toLowerCase().trim();
-  const name = String(acc.name || acc.full_name || '').toLowerCase().trim();
-  const email = String(acc.email || '').toLowerCase().trim();
   return (
     id.includes('01d08835-416d-4acb-ac49-a801c7906518') ||
     id.includes('01d08835') ||
-    id.includes('348173af-50c5-4182-8621-c8212369cd81') ||
-    name.includes('mojobiketaxi') ||
-    email.includes('mojobiketaxi')
+    id.includes('348173af-50c5-4182-8621-c8212369cd81')
   );
 }
 
@@ -540,8 +536,6 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
     if (supa) {
       Promise.resolve(supa.from('captains').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518')).catch(() => {});
       Promise.resolve(supa.from('profiles').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518')).catch(() => {});
-      Promise.resolve(supa.from('captains').delete().ilike('full_name', '%mojobiketaxi%')).catch(() => {});
-      Promise.resolve(supa.from('profiles').delete().ilike('full_name', '%mojobiketaxi%')).catch(() => {});
     }
   }, []);
 

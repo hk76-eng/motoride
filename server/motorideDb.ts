@@ -403,14 +403,10 @@ export function clearAllRidesFromDb() {
 
 export function isForbiddenAccount(id?: string, name?: string, email?: string): boolean {
   const sId = String(id || '').toLowerCase().trim();
-  const sName = String(name || '').toLowerCase().trim();
-  const sEmail = String(email || '').toLowerCase().trim();
   return (
     sId.includes('01d08835-416d-4acb-ac49-a801c7906518') ||
     sId.includes('01d08835') ||
-    sId.includes('348173af-50c5-4182-8621-c8212369cd81') ||
-    sName.includes('mojobiketaxi') ||
-    sEmail.includes('mojobiketaxi')
+    sId.includes('348173af-50c5-4182-8621-c8212369cd81')
   );
 }
 
@@ -564,8 +560,110 @@ export function updateAccountPassword(email: string, newPasswordHash: string): b
   return updated;
 }
 
+export function ensureOfficialAccounts() {
+  const now = new Date().toISOString();
+
+  // 1. Single Official Registered Captain Account: mojobiketaxi@gmail.com -> Hemant kashyap
+  const captainEmail = 'mojobiketaxi@gmail.com';
+  const captainKey = `${captainEmail}_captain`;
+  let existingCaptainAcc = accountsStore.get(captainKey);
+  if (!existingCaptainAcc) {
+    for (const acc of accountsStore.values()) {
+      if (acc.email?.toLowerCase() === captainEmail) {
+        existingCaptainAcc = acc;
+        break;
+      }
+    }
+  }
+
+  const captainId = existingCaptainAcc?.id || 'cpt_mojobiketaxi';
+  const captainAccount: ServerRegisteredAccount = {
+    id: captainId,
+    email: captainEmail,
+    password_hash: existingCaptainAcc?.password_hash || '123456',
+    name: 'Hemant kashyap',
+    role: 'captain',
+    phone: existingCaptainAcc?.phone || '+91 9876543210',
+    vehicle_model: existingCaptainAcc?.vehicle_model || 'Honda Activa 6G',
+    plate_number: existingCaptainAcc?.plate_number || 'PB65AX9922',
+    vehicle_type: 'bike',
+    wallet_balance: existingCaptainAcc?.wallet_balance ?? 500,
+    member_since: existingCaptainAcc?.member_since || now,
+    created_at: existingCaptainAcc?.created_at || now,
+  };
+
+  accountsStore.set(captainKey, captainAccount);
+  accountsStore.set(captainId, captainAccount);
+
+  // Clean any duplicate or broken captain accounts with mojobiketaxi email
+  for (const [key, acc] of Array.from(accountsStore.entries())) {
+    if (acc.email?.toLowerCase() === captainEmail && key !== captainKey && key !== captainId) {
+      accountsStore.delete(key);
+    }
+  }
+
+  // Ensure Captain object in captainsStore
+  const existingCpt = captainsStore.get(captainId) || captainsStore.get(captainEmail);
+  const cptRecord: Captain = {
+    id: captainId,
+    profile_id: `prof_${captainId}`,
+    full_name: 'Hemant kashyap',
+    email: captainEmail,
+    phone: captainAccount.phone || '+91 9876543210',
+    is_online: existingCpt?.is_online ?? true,
+    is_approved: true,
+    is_active: true,
+    current_lat: existingCpt?.current_lat || 30.7046,
+    current_lng: existingCpt?.current_lng || 76.7178,
+    rating: existingCpt?.rating || 4.95,
+    total_rides: existingCpt?.total_rides || 142,
+    vehicle: {
+      id: `veh_${captainId}`,
+      captain_id: captainId,
+      model: captainAccount.vehicle_model || 'Honda Activa 6G',
+      plate_number: captainAccount.plate_number || 'PB65AX9922',
+      vehicle_type: 'bike',
+      color: 'Black',
+      is_active: true,
+    },
+    created_at: existingCpt?.created_at || now,
+  };
+
+  captainsStore.set(captainId, cptRecord);
+  captainsStore.set(captainEmail, cptRecord);
+
+  // Clean duplicate captain objects
+  for (const [k, c] of Array.from(captainsStore.entries())) {
+    if (c.email?.toLowerCase() === captainEmail && k !== captainId && k !== captainEmail) {
+      captainsStore.delete(k);
+    }
+  }
+
+  if (!walletsStore.has(captainId)) {
+    walletsStore.set(captainId, { balance: captainAccount.wallet_balance || 500, currency: '₹' });
+  }
+
+  // 2. Official Admin Account: osmskart@gmail.com
+  const adminEmail = 'osmskart@gmail.com';
+  const adminKey = `${adminEmail}_admin`;
+  if (!accountsStore.has(adminKey)) {
+    accountsStore.set(adminKey, {
+      id: 'adm_official_admin',
+      email: adminEmail,
+      password_hash: '123456',
+      name: 'Admin Hemant',
+      role: 'admin',
+      phone: '+91 9876543210',
+      wallet_balance: 0,
+      member_since: now,
+      created_at: now,
+    });
+  }
+}
+
 // Automatically load existing persisted records on module startup
 loadDbFromDisk();
+ensureOfficialAccounts();
 
 // Helper: Calculate Today's Income for a captain dynamically from completed rides
 // The user prompt mandates:

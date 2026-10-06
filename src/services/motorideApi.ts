@@ -3938,8 +3938,8 @@ export const motorideApi = {
         ]);
         if (id.includes('01d08835')) {
           await Promise.all([
-            supabase.from('captains').delete().ilike('full_name', '%mojobiketaxi%'),
-            supabase.from('profiles').delete().ilike('full_name', '%mojobiketaxi%'),
+            supabase.from('captains').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518'),
+            supabase.from('profiles').delete().eq('id', '01d08835-416d-4acb-ac49-a801c7906518'),
           ]);
         }
       } catch (err) {
@@ -3959,8 +3959,7 @@ export const motorideApi = {
                 (a: any) =>
                   a.id !== id &&
                   a.email !== id &&
-                  !String(a.id || '').includes('01d08835') &&
-                  !String(a.name || a.full_name || '').toLowerCase().includes('mojobiketaxi')
+                  !String(a.id || '').includes('01d08835')
               );
               safeStorage.setItem(key, JSON.stringify(cleaned));
             }

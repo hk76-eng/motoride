@@ -189,9 +189,6 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
       {/* Bottom Live Searching Transmission Feedback & Radio Bars */}
       <div className="w-full max-w-sm flex flex-col items-center gap-2 px-3 mt-1">
         <div className="flex items-center gap-1.5 py-1 px-3 rounded-full bg-slate-100 border border-slate-200 shadow-2xs">
-          <span className="text-[10px] font-black uppercase text-slate-700 tracking-wide">
-            Bike Radar Pulse:
-          </span>
           <div className="flex items-end gap-1 h-3 px-1">
             <span className="w-1 bg-emerald-500 rounded-full animate-pulse" style={{ height: '70%', animationDuration: '0.6s' }} />
             <span className="w-1 bg-emerald-500 rounded-full animate-pulse" style={{ height: '100%', animationDuration: '0.4s' }} />
@@ -204,7 +201,7 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
         </div>
 
         <p className="text-xs text-slate-600 font-medium leading-relaxed max-w-xs">
-          Searching for nearby captains with bike radar pulse. Captains can accept or send a counter-offer with a <span className="text-slate-950 font-black">25-second timer</span>.
+          Searching for nearby online captains. Captains can accept or send a counter-offer with a <span className="text-slate-950 font-black">25-second timer</span>.
         </p>
       </div>
     </div>

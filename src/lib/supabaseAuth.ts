@@ -396,6 +396,41 @@ export const supabaseAuth = {
       } catch {}
     }
 
+    // Guarantee registered captain Hemant kashyap (mojobiketaxi@gmail.com) is in accounts list
+    const hemantExists = accounts.some(
+      (a) => a.email?.toLowerCase() === 'mojobiketaxi@gmail.com'
+    );
+    if (!hemantExists) {
+      const hemantAccount: StoredAccount = {
+        id: 'cpt_mojobiketaxi',
+        email: 'mojobiketaxi@gmail.com',
+        name: 'Hemant kashyap',
+        role: 'captain',
+        phone: '+91 9876543210',
+        vehicleModel: 'Honda Activa 6G',
+        plateNumber: 'PB65AX9922',
+        vehicleType: 'bike',
+        walletBalance: 500,
+        passwordHash: '123456',
+        memberSince: new Date().toISOString(),
+      };
+      accounts.unshift(hemantAccount);
+      try {
+        safeStorage.setItem(STORAGE_ACCOUNTS_KEY, JSON.stringify(accounts));
+      } catch {}
+    } else {
+      // Ensure name is always 'Hemant kashyap' and role is 'captain'
+      accounts.forEach((a) => {
+        if (a.email?.toLowerCase() === 'mojobiketaxi@gmail.com') {
+          a.name = 'Hemant kashyap';
+          a.role = 'captain';
+          if (!a.vehicleModel) a.vehicleModel = 'Honda Activa 6G';
+          if (!a.plateNumber) a.plateNumber = 'PB65AX9922';
+          if (!a.vehicleType) a.vehicleType = 'bike';
+        }
+      });
+    }
+
     return accounts;
   },
 
