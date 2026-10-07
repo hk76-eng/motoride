@@ -151,5 +151,3 @@ export const MotorcycleSilhouetteIcon: React.FC<MotorcycleSilhouetteIconProps> =
     </svg>
   );
 };
-
-export default MotorcycleSilhouetteIcon;

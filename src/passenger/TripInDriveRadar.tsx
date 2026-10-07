@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Radio, XCircle, Sparkles, Star, Target, Compass } from 'lucide-react';
-import { MotorcycleSilhouetteIcon } from '../components/common/MotorcycleSilhouetteIcon';
+import { Radio, XCircle, Bike, Sparkles, Star, Target, Compass } from 'lucide-react';
 import { AvailableCaptainItem } from '../components/common/MotorideMap';
 
 interface TripInDriveRadarProps {
@@ -244,7 +243,7 @@ export const TripInDriveRadar: React.FC<TripInDriveRadarProps> = ({
                     />
                   )}
                   <div className="relative w-7 h-7 rounded-full bg-amber-500 text-slate-950 shadow-[0_2px_10px_rgba(0,0,0,0.3)] border-2 border-black flex items-center justify-center">
-                    <MotorcycleSilhouetteIcon className="w-4.5 h-3.5 text-slate-950" />
+                    <Bike className="w-4 h-4 text-slate-950 stroke-[2.5]" />
                   </div>
                 </div>
 

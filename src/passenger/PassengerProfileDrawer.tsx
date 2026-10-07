@@ -26,12 +26,12 @@ import {
   Camera,
   Upload,
   Trash2,
+  Bike,
   History,
   Download,
   Smartphone,
   Sun,
 } from 'lucide-react';
-import { MotorcycleSilhouetteIcon } from '../components/common/MotorcycleSilhouetteIcon';
 
 import { AuthUser, supabaseAuth, syncUserToSupabase } from '../lib/supabaseAuth';
 import { safeStorage } from '../lib/safeStorage';
@@ -552,7 +552,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
                 title="View Ride History"
               >
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-slate-950 flex items-center justify-center shrink-0 transition-colors">
-                  <MotorcycleSilhouetteIcon className="w-6 h-5" />
+                  <Bike className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-base font-black text-white font-mono-num">{ridesTaken}</span>
@@ -658,7 +658,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
                   <label className="text-[11px] font-bold text-slate-400">Total Rides Taken</label>
                   <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-black/40 border border-white/10 text-xs text-slate-300">
                     <div className="flex items-center gap-2">
-                      <MotorcycleSilhouetteIcon className="w-5 h-4 text-emerald-400" />
+                      <Bike className="w-4 h-4 text-emerald-400" />
                       <span className="font-bold text-white">{ridesTaken} Completed Rides</span>
                     </div>
                     <span className="text-[10px] text-slate-400 font-semibold">Lifetime</span>
@@ -757,7 +757,7 @@ export const PassengerProfileDrawer: React.FC<PassengerProfileDrawerProps> = ({
                   <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10 flex flex-col gap-0.5">
                     <span className="text-[10px] text-slate-400 font-semibold">Rides Taken</span>
                     <div className="flex items-center gap-1.5">
-                      <MotorcycleSilhouetteIcon className="w-4 h-3.5 text-emerald-400" />
+                      <Bike className="w-3.5 h-3.5 text-emerald-400" />
                       <span className="font-bold text-white text-xs">{ridesTaken} Rides</span>
                     </div>
                   </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, CheckCircle2, ThumbsUp, Sparkles, MapPin, IndianRupee, ShieldCheck, Heart, User, Car, Navigation, X } from 'lucide-react';
+import { Star, CheckCircle2, ThumbsUp, Sparkles, MapPin, IndianRupee, ShieldCheck, Heart, User, Bike, Car, Navigation, X } from 'lucide-react';
 import { MotorideRide } from '../types/motoride';
 
 interface PassengerCaptainRatingModalProps {

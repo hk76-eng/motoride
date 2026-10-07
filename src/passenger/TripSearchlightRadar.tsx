@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Radar, Radio, XCircle, Zap } from 'lucide-react';
-import { MotorcycleSilhouetteIcon } from '../components/common/MotorcycleSilhouetteIcon';
+import { Radar, Radio, XCircle, Bike, Zap } from 'lucide-react';
 
 interface TripSearchlightRadarProps {
   onCancel?: () => void;
@@ -176,11 +175,11 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
                     <span className="animate-ping absolute inline-flex h-6 w-6 rounded-full bg-black/40 opacity-70" style={{ animationDuration: '1.8s' }} />
                     {/* Online Captain Icon: White Bike on Solid Black Background */}
                     <span className="relative w-5 h-5 rounded-full bg-black shadow-[0_2px_10px_rgba(0,0,0,0.5)] border-2 border-white flex items-center justify-center ring-2 ring-black">
-                      <MotorcycleSilhouetteIcon className="w-3.5 h-2.5 text-white" />
+                      <Bike className="w-3 h-3 text-white stroke-[2.5]" />
                     </span>
                   </div>
                   <div className="mt-1 px-1.5 py-0.5 rounded-md bg-black border border-black text-[8px] font-mono font-black text-white shadow-md flex items-center gap-1 whitespace-nowrap">
-                    <MotorcycleSilhouetteIcon className="w-3 h-2 text-white" />
+                    <Bike className="w-2.5 h-2.5 text-white stroke-[2.5]" />
                     <span>{cap.distanceText || (dist != null ? `${Number(dist).toFixed(1)}km` : '20m')}</span>
                   </div>
                 </div>
@@ -193,7 +192,7 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
           {/* ======================================================== */}
           <div className="relative z-30 flex items-center justify-center">
             <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-black border-2 border-black shadow-[0_4px_16px_rgba(0,0,0,0.35)] flex items-center justify-center animate-pulse">
-              <MotorcycleSilhouetteIcon className="w-8 h-6 sm:w-9 sm:h-7 text-white" />
+              <Bike className="w-6 h-6 sm:w-7 sm:h-7 text-white stroke-[2.5]" />
             </div>
           </div>
         </div>
