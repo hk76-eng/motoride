@@ -581,8 +581,13 @@ export const supabaseAuth = {
         const user = JSON.parse(raw);
         if (user && user.id && user.email) {
           if (user.email.toLowerCase().trim() === 'mojobiketaxi@gmail.com') {
+            user.id = 'cpt_mojobiketaxi';
             user.name = 'Hemant kashyap';
             user.role = 'captain';
+            user.phone = '+91 9876543210';
+            user.vehicleModel = 'Honda Activa 6G';
+            user.plateNumber = 'PB65AX9922';
+            user.vehicleType = 'bike';
           }
           const storedAvatar = safeStorage.getItem(`motoride_${user.role}_avatar`);
           if (storedAvatar && !user.avatarUrl) {
@@ -849,18 +854,19 @@ export const supabaseAuth = {
       ? (storedCaptainBal && !isNaN(Number(storedCaptainBal)) ? Number(storedCaptainBal) : 500)
       : 200;
 
+    const isMojobiketaxiCaptain = cleanEmail === 'mojobiketaxi@gmail.com';
     const authUser: AuthUser = {
-      id: authUserId,
-      email: profile.email || cleanEmail,
-      name: cleanEmail === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : (profile.full_name || 'MotoRide User'),
-      role: actualRole,
-      phone: profile.phone || '',
+      id: isMojobiketaxiCaptain ? 'cpt_mojobiketaxi' : authUserId,
+      email: isMojobiketaxiCaptain ? 'mojobiketaxi@gmail.com' : (profile.email || cleanEmail),
+      name: isMojobiketaxiCaptain ? 'Hemant kashyap' : (profile.full_name || 'MotoRide User'),
+      role: isMojobiketaxiCaptain ? 'captain' : actualRole,
+      phone: isMojobiketaxiCaptain ? '+91 9876543210' : (profile.phone || ''),
       avatarUrl: profile.avatar_url || null,
-      vehicleModel: profile.vehicle_model || '',
-      plateNumber: profile.plate_number || '',
-      vehicleType: profile.vehicle_type || 'bike',
+      vehicleModel: isMojobiketaxiCaptain ? 'Honda Activa 6G' : (profile.vehicle_model || ''),
+      plateNumber: isMojobiketaxiCaptain ? 'PB65AX9922' : (profile.plate_number || ''),
+      vehicleType: isMojobiketaxiCaptain ? 'bike' : (profile.vehicle_type || 'bike'),
       walletBalance: profile.wallet_balance ?? fallbackBal,
-      memberSince: profile.created_at || new Date().toISOString(),
+      memberSince: isMojobiketaxiCaptain ? '2024-01-01T00:00:00.000Z' : (profile.created_at || new Date().toISOString()),
     };
 
     await syncUserToSupabase(authUser);
@@ -1017,18 +1023,19 @@ export const supabaseAuth = {
             : 200;
 
           const userEmail = (profile.email || session.user.email || '').toLowerCase().trim();
+          const isMojo = userEmail === 'mojobiketaxi@gmail.com';
           const authUser: AuthUser = {
-            id: authUserId,
-            email: profile.email || session.user.email || '',
-            name: userEmail === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : (profile.full_name || session.user.user_metadata?.name || 'MotoRide User'),
-            role: profile.role,
-            phone: profile.phone || '',
+            id: isMojo ? 'cpt_mojobiketaxi' : authUserId,
+            email: isMojo ? 'mojobiketaxi@gmail.com' : (profile.email || session.user.email || ''),
+            name: isMojo ? 'Hemant kashyap' : (profile.full_name || session.user.user_metadata?.name || 'MotoRide User'),
+            role: isMojo ? 'captain' : profile.role,
+            phone: isMojo ? '+91 9876543210' : (profile.phone || ''),
             avatarUrl: profile.avatar_url || cachedUser?.avatarUrl || null,
-            vehicleModel: profile.vehicle_model || '',
-            plateNumber: profile.plate_number || '',
-            vehicleType: profile.vehicle_type || 'bike',
+            vehicleModel: isMojo ? 'Honda Activa 6G' : (profile.vehicle_model || ''),
+            plateNumber: isMojo ? 'PB65AX9922' : (profile.plate_number || ''),
+            vehicleType: isMojo ? 'bike' : (profile.vehicle_type || 'bike'),
             walletBalance: profile.wallet_balance ?? fallbackBal,
-            memberSince: profile.created_at || new Date().toISOString(),
+            memberSince: isMojo ? '2024-01-01T00:00:00.000Z' : (profile.created_at || new Date().toISOString()),
           };
 
           this.setCurrentUser(authUser);

@@ -1957,10 +1957,19 @@ motorideRouter.post('/captains', (req: Request, res: Response) => {
 });
 
 motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
-  let cpt = captainsStore.get(req.params.id);
+  const reqId = req.params.id;
+  if (reqId === 'cpt_mojobiketaxi' || reqId.toLowerCase().includes('mojobiketaxi')) {
+    ensureOfficialAccounts();
+  }
+
+  let cpt = captainsStore.get(reqId);
+  if (!cpt && (reqId === 'cpt_mojobiketaxi' || reqId.toLowerCase().includes('mojobiketaxi'))) {
+    cpt = captainsStore.get('cpt_mojobiketaxi') || captainsStore.get('mojobiketaxi@gmail.com');
+  }
+
   if (!cpt) {
     for (const acc of accountsStore.values()) {
-      if (acc.id === req.params.id) {
+      if (acc.id === reqId || (reqId.toLowerCase().includes('mojobiketaxi') && acc.email.toLowerCase() === 'mojobiketaxi@gmail.com')) {
         cpt = {
           id: acc.id,
           profile_id: `prof_${acc.id}`,
@@ -1973,12 +1982,12 @@ motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
           current_lat: 30.7046,
           current_lng: 76.7178,
           rating: 4.95,
-          total_rides: 0,
+          total_rides: 142,
           vehicle: {
             id: `veh_${acc.id}`,
             captain_id: acc.id,
             model: acc.vehicle_model || 'Honda Activa 6G',
-            plate_number: acc.plate_number || 'PB65XX1000',
+            plate_number: acc.plate_number || 'PB65AX9922',
             vehicle_type: acc.vehicle_type || 'bike',
             color: 'Black',
             is_active: true,
@@ -1996,8 +2005,32 @@ motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Captain not found' });
   }
 
+  const isMojo = cpt.id === 'cpt_mojobiketaxi' || cpt.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com';
+  if (isMojo) {
+    cpt.full_name = 'Hemant kashyap';
+    cpt.phone = '+91 9876543210';
+    if (!cpt.vehicle) {
+      cpt.vehicle = {
+        id: 'veh_cpt_mojobiketaxi',
+        captain_id: 'cpt_mojobiketaxi',
+        model: 'Honda Activa 6G',
+        plate_number: 'PB65AX9922',
+        vehicle_type: 'bike',
+        color: 'Black',
+        is_active: true,
+      };
+    } else {
+      cpt.vehicle.model = 'Honda Activa 6G';
+      cpt.vehicle.plate_number = 'PB65AX9922';
+      cpt.vehicle.vehicle_type = 'bike';
+    }
+  }
+
   const tz = (req.query.tz as string) || 'Asia/Kolkata';
   const todayIncomeData = calculateCaptainTodayIncome(cpt.id, tz);
+  const resolvedWallet = isMojo
+    ? (walletsStore.get('cpt_mojobiketaxi') || walletsStore.get('mojobiketaxi@gmail.com') || { balance: 500 }).balance
+    : (walletsStore.get(cpt.id) || { balance: 0 }).balance;
 
   const enriched = {
     ...cpt,
@@ -2005,7 +2038,7 @@ motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
     completed_rides_today: todayIncomeData.completed_rides_today,
     today_earnings: calculateCaptainTodayEarnings(cpt.id, tz),
     total_earnings: calculateCaptainTotalEarnings(cpt.id),
-    wallet_balance: (walletsStore.get(cpt.id) || { balance: 0 }).balance,
+    wallet_balance: resolvedWallet,
   };
 
   res.json({ success: true, captain: enriched });
@@ -2450,6 +2483,29 @@ motorideRouter.get('/wallet/:userId', async (req: Request, res: Response) => {
   const { userId } = req.params;
   const userPhone = (req.query.phone as string) || '';
 
+  const isMojoCaptain =
+    userId === 'cpt_mojobiketaxi' ||
+    userId.toLowerCase().includes('mojobiketaxi') ||
+    userPhone === '+91 9876543210' ||
+    userPhone === '9876543210' ||
+    (captainsStore.get(userId)?.email?.toLowerCase() === 'mojobiketaxi@gmail.com');
+
+  if (isMojoCaptain) {
+    ensureOfficialAccounts();
+    const mojoWallet = walletsStore.get('cpt_mojobiketaxi') || { balance: 500.0, currency: '₹' };
+    walletsStore.set('cpt_mojobiketaxi', mojoWallet);
+    walletsStore.set('mojobiketaxi@gmail.com', mojoWallet);
+    walletsStore.set('+91 9876543210', mojoWallet);
+    walletsStore.set('9876543210', mojoWallet);
+    
+    const aliasIds = new Set(['cpt_mojobiketaxi', 'mojobiketaxi@gmail.com', '+91 9876543210', '9876543210', userId]);
+    const transactions = walletTransactionsStore
+      .filter((tx) => aliasIds.has(tx.user_id) || (tx.wallet_id && aliasIds.has(tx.wallet_id.replace(/^w_/, ''))))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return res.json({ success: true, wallet: mojoWallet, transactions });
+  }
+
   // 1. Resolve existing in-memory wallet first across all aliases
   let existingWallet = walletsStore.get(userId);
   if (!existingWallet && userPhone) {
@@ -2509,14 +2565,29 @@ motorideRouter.post('/wallet/:userId/topup', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Valid top-up amount required' });
   }
 
-  const wallet = walletsStore.get(req.params.userId) || { balance: 0, currency: '₹' };
+  const targetId = req.params.userId;
+  const isMojo = targetId === 'cpt_mojobiketaxi' || targetId.toLowerCase().includes('mojobiketaxi');
+  const lookupKey = isMojo ? 'cpt_mojobiketaxi' : targetId;
+
+  const wallet = walletsStore.get(lookupKey) || { balance: 0, currency: '₹' };
   wallet.balance = Number((wallet.balance + amount).toFixed(2));
-  walletsStore.set(req.params.userId, wallet);
+  walletsStore.set(lookupKey, wallet);
+
+  if (isMojo) {
+    walletsStore.set('mojobiketaxi@gmail.com', wallet);
+    walletsStore.set('+91 9876543210', wallet);
+    walletsStore.set('9876543210', wallet);
+    const acc = accountsStore.get('cpt_mojobiketaxi');
+    if (acc) acc.wallet_balance = wallet.balance;
+    persistDbToDisk();
+  } else {
+    walletsStore.set(targetId, wallet);
+  }
 
   const tx: WalletTransaction = {
     id: `tx_${Date.now()}`,
-    wallet_id: `w_${req.params.userId}`,
-    user_id: req.params.userId,
+    wallet_id: `w_${lookupKey}`,
+    user_id: lookupKey,
     amount,
     type: 'credit',
     category: 'topup',
@@ -2525,6 +2596,7 @@ motorideRouter.post('/wallet/:userId/topup', (req: Request, res: Response) => {
   };
 
   walletTransactionsStore.unshift(tx);
+  broadcastEvent('WALLET_UPDATED', { user_id: lookupKey, balance: wallet.balance });
   res.json({ success: true, wallet, transaction: tx });
 });
 
@@ -2535,18 +2607,33 @@ motorideRouter.post('/wallet/:userId/withdraw', (req: Request, res: Response) =>
     return res.status(400).json({ error: 'Valid withdrawal amount required' });
   }
 
-  const wallet = walletsStore.get(req.params.userId) || { balance: 0, currency: '₹' };
+  const targetId = req.params.userId;
+  const isMojo = targetId === 'cpt_mojobiketaxi' || targetId.toLowerCase().includes('mojobiketaxi');
+  const lookupKey = isMojo ? 'cpt_mojobiketaxi' : targetId;
+
+  const wallet = walletsStore.get(lookupKey) || { balance: 0, currency: '₹' };
   if (wallet.balance < amount) {
     return res.status(400).json({ error: 'Insufficient wallet balance for withdrawal' });
   }
 
   wallet.balance = Number((wallet.balance - amount).toFixed(2));
-  walletsStore.set(req.params.userId, wallet);
+  walletsStore.set(lookupKey, wallet);
+
+  if (isMojo) {
+    walletsStore.set('mojobiketaxi@gmail.com', wallet);
+    walletsStore.set('+91 9876543210', wallet);
+    walletsStore.set('9876543210', wallet);
+    const acc = accountsStore.get('cpt_mojobiketaxi');
+    if (acc) acc.wallet_balance = wallet.balance;
+    persistDbToDisk();
+  } else {
+    walletsStore.set(targetId, wallet);
+  }
 
   const tx: WalletTransaction = {
     id: `tx_wdr_${Date.now()}`,
-    wallet_id: `w_${req.params.userId}`,
-    user_id: req.params.userId,
+    wallet_id: `w_${lookupKey}`,
+    user_id: lookupKey,
     amount,
     type: 'debit',
     category: 'withdrawal',
@@ -2555,6 +2642,7 @@ motorideRouter.post('/wallet/:userId/withdraw', (req: Request, res: Response) =>
   };
 
   walletTransactionsStore.unshift(tx);
+  broadcastEvent('WALLET_UPDATED', { user_id: lookupKey, balance: wallet.balance });
   res.json({ success: true, wallet, transaction: tx });
 });
 

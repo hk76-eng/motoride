@@ -211,9 +211,17 @@ export default function App() {
 
         {currentRole === 'captain' && (
           <CaptainWorkspace
-            captainId={currentUser.id}
-            captainName={currentUser.name}
-            currentUser={currentUser}
+            captainId={currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? 'cpt_mojobiketaxi' : currentUser.id}
+            captainName={currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : currentUser.name}
+            currentUser={currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? {
+              ...currentUser,
+              id: 'cpt_mojobiketaxi',
+              name: 'Hemant kashyap',
+              phone: '+91 9876543210',
+              vehicleModel: 'Honda Activa 6G',
+              plateNumber: 'PB65AX9922',
+              vehicleType: 'bike',
+            } : currentUser}
             walletBalance={walletBalance}
             onWalletBalanceUpdated={(newBal) => {
               setWalletBalance(newBal);

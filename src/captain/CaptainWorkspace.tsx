@@ -152,29 +152,30 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const [captain, setCaptain] = useState<Captain | null>(() => {
     if (authUser) {
+      const effId = isMojobiketaxi ? 'cpt_mojobiketaxi' : (authUser.id || captainId);
       return {
-        id: authUser.id || captainId,
-        profile_id: `prof_${authUser.id || captainId}`,
-        full_name: resolvedInitialName,
-        email: authUser.email || '',
-        phone: authUser.phone || '',
+        id: effId,
+        profile_id: `prof_${effId}`,
+        full_name: isMojobiketaxi ? 'Hemant kashyap' : resolvedInitialName,
+        email: isMojobiketaxi ? 'mojobiketaxi@gmail.com' : (authUser.email || ''),
+        phone: isMojobiketaxi ? '+91 9876543210' : (authUser.phone || ''),
         is_online: true,
         is_approved: true,
         is_active: true,
         current_lat: 30.704649,
         current_lng: 76.717873,
-        rating: 5.0,
-        total_rides: 0,
+        rating: 4.95,
+        total_rides: 142,
         vehicle: {
-          id: `veh_${authUser.id || captainId}`,
-          captain_id: authUser.id || captainId,
-          model: authUser.vehicleModel || 'Motorcycle',
-          plate_number: authUser.plateNumber || '',
+          id: `veh_${effId}`,
+          captain_id: effId,
+          model: isMojobiketaxi ? 'Honda Activa 6G' : (authUser.vehicleModel || 'Motorcycle'),
+          plate_number: isMojobiketaxi ? 'PB65AX9922' : (authUser.plateNumber || ''),
           vehicle_type: (authUser.vehicleType as any) || 'bike',
           color: 'Black',
           is_active: true,
         },
-        created_at: authUser.memberSince || new Date().toISOString(),
+        created_at: authUser.memberSince || '2024-01-01T00:00:00.000Z',
       };
     }
     return null;
@@ -1122,7 +1123,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const loadCaptainData = async () => {
     try {
-      const cpt = await motorideApi.getCaptainById(captainId);
+      const effCapId = isMojobiketaxi ? 'cpt_mojobiketaxi' : captainId;
+      const cpt = await motorideApi.getCaptainById(effCapId);
       if (cpt) {
         const isMojo = (cpt.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') || isMojobiketaxi;
         const resolvedName = isMojo ? 'Hemant kashyap' : (cpt.full_name || safeStorage.getItem('motoride_captain_name') || currentUser?.name || resolvedInitialName || 'Captain');
@@ -1130,14 +1132,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           ...(prev || ({} as Captain)),
           ...cpt,
           full_name: resolvedName,
-          phone: cpt.phone || safeStorage.getItem('motoride_captain_phone') || '',
+          phone: isMojo ? '+91 9876543210' : (cpt.phone || safeStorage.getItem('motoride_captain_phone') || ''),
           vehicle: {
-            id: cpt.vehicle?.id || (prev?.vehicle?.id ?? 'veh_1'),
-            captain_id: captainId,
+            id: isMojo ? 'veh_cpt_mojobiketaxi' : (cpt.vehicle?.id || (prev?.vehicle?.id ?? 'veh_1')),
+            captain_id: isMojo ? 'cpt_mojobiketaxi' : effCapId,
             is_active: true,
-            model: cpt.vehicle?.model || safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle',
-            plate_number: cpt.vehicle?.plate_number || safeStorage.getItem('motoride_captain_plate') || '',
-            vehicle_type: cpt.vehicle?.vehicle_type || 'bike',
+            model: isMojo ? 'Honda Activa 6G' : (cpt.vehicle?.model || safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle'),
+            plate_number: isMojo ? 'PB65AX9922' : (cpt.vehicle?.plate_number || safeStorage.getItem('motoride_captain_plate') || ''),
+            vehicle_type: isMojo ? 'bike' : (cpt.vehicle?.vehicle_type || 'bike'),
             color: cpt.vehicle?.color || 'Black',
           },
           license_number: (cpt as any).license_number || safeStorage.getItem('motoride_captain_dl') || '',
@@ -1145,8 +1147,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         }));
         setInternalOnline(Boolean(cpt.is_online));
       }
-      const targetCaptainId = captainId || authUser?.id || captain?.id || safeStorage.getItem('motoride_captain_id') || '';
-      const targetCaptainPhone = captain?.phone || authUser?.phone || safeStorage.getItem('motoride_captain_phone') || '';
+      const targetCaptainId = isMojobiketaxi ? 'cpt_mojobiketaxi' : (captainId || authUser?.id || captain?.id || safeStorage.getItem('motoride_captain_id') || '');
+      const targetCaptainPhone = isMojobiketaxi ? '+91 9876543210' : (captain?.phone || authUser?.phone || safeStorage.getItem('motoride_captain_phone') || '');
       const w = await motorideApi.getWallet(targetCaptainId, targetCaptainPhone);
       if (w && w.wallet) {
         setWalletBalance(w.wallet.balance || 0);

@@ -69,10 +69,10 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
   const isMojo = captain?.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' || safeStorage.getItem('motoride_captain_email')?.toLowerCase().trim() === 'mojobiketaxi@gmail.com';
   const initialName = isMojo ? 'Hemant kashyap' : (safeStorage.getItem('motoride_captain_name') || captain?.full_name || 'Captain');
   const [name, setName] = useState(() => initialName.toLowerCase().includes('mojobiketaxi') ? 'Hemant kashyap' : initialName);
-  const [phone, setPhone] = useState(() => safeStorage.getItem('motoride_captain_phone') || captain?.phone || '');
-  const [email, setEmail] = useState(() => safeStorage.getItem('motoride_captain_email') || captain?.email || '');
-  const [vehicleModel, setVehicleModel] = useState(() => safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || 'Motorcycle');
-  const [plateNumber, setPlateNumber] = useState(() => safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || '');
+  const [phone, setPhone] = useState(() => isMojo ? '+91 9876543210' : (safeStorage.getItem('motoride_captain_phone') || captain?.phone || ''));
+  const [email, setEmail] = useState(() => isMojo ? 'mojobiketaxi@gmail.com' : (safeStorage.getItem('motoride_captain_email') || captain?.email || ''));
+  const [vehicleModel, setVehicleModel] = useState(() => isMojo ? 'Honda Activa 6G' : (safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || 'Motorcycle'));
+  const [plateNumber, setPlateNumber] = useState(() => isMojo ? 'PB65AX9922' : (safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || ''));
   const [drivingLicense, setDrivingLicense] = useState(() => safeStorage.getItem('motoride_captain_dl') || (captain as any)?.license_number || '');
   const [emergencyContact, setEmergencyContact] = useState(() => safeStorage.getItem('motoride_captain_sos') || (captain as any)?.emergency_contact || captain?.phone || '');
   const [isSavedToast, setIsSavedToast] = useState(false);
@@ -200,6 +200,14 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
       if (captain.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') {
         setName('Hemant kashyap');
         safeStorage.setItem('motoride_captain_name', 'Hemant kashyap');
+        setPhone('+91 9876543210');
+        safeStorage.setItem('motoride_captain_phone', '+91 9876543210');
+        setEmail('mojobiketaxi@gmail.com');
+        safeStorage.setItem('motoride_captain_email', 'mojobiketaxi@gmail.com');
+        setVehicleModel('Honda Activa 6G');
+        safeStorage.setItem('motoride_captain_vehicle_model', 'Honda Activa 6G');
+        setPlateNumber('PB65AX9922');
+        safeStorage.setItem('motoride_captain_plate', 'PB65AX9922');
       } else if (captain.full_name && captain.full_name !== 'Captain' && !safeStorage.getItem('motoride_captain_name')) {
         setName(captain.full_name);
       }

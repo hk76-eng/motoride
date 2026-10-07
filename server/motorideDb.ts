@@ -566,7 +566,9 @@ export function ensureOfficialAccounts() {
   // 1. Single Official Registered Captain Account: mojobiketaxi@gmail.com -> Hemant kashyap
   const captainEmail = 'mojobiketaxi@gmail.com';
   const captainKey = `${captainEmail}_captain`;
-  let existingCaptainAcc = accountsStore.get(captainKey);
+  const captainId = 'cpt_mojobiketaxi';
+  
+  let existingCaptainAcc = accountsStore.get(captainKey) || accountsStore.get(captainId);
   if (!existingCaptainAcc) {
     for (const acc of accountsStore.values()) {
       if (acc.email?.toLowerCase() === captainEmail) {
@@ -576,28 +578,34 @@ export function ensureOfficialAccounts() {
     }
   }
 
-  const captainId = existingCaptainAcc?.id || 'cpt_mojobiketaxi';
+  // Resolve official persisted wallet balance
+  const existingWallet = walletsStore.get(captainId) || walletsStore.get(captainEmail) || walletsStore.get('+91 9876543210');
+  const officialWalletBalance = existingWallet && typeof existingWallet.balance === 'number'
+    ? existingWallet.balance
+    : (existingCaptainAcc?.wallet_balance ?? 500);
+
   const captainAccount: ServerRegisteredAccount = {
     id: captainId,
     email: captainEmail,
-    password_hash: existingCaptainAcc?.password_hash || '123456',
+    password_hash: '123456',
     name: 'Hemant kashyap',
     role: 'captain',
-    phone: existingCaptainAcc?.phone || '+91 9876543210',
-    vehicle_model: existingCaptainAcc?.vehicle_model || 'Honda Activa 6G',
-    plate_number: existingCaptainAcc?.plate_number || 'PB65AX9922',
+    phone: '+91 9876543210',
+    vehicle_model: 'Honda Activa 6G',
+    plate_number: 'PB65AX9922',
     vehicle_type: 'bike',
-    wallet_balance: existingCaptainAcc?.wallet_balance ?? 500,
-    member_since: existingCaptainAcc?.member_since || now,
-    created_at: existingCaptainAcc?.created_at || now,
+    wallet_balance: officialWalletBalance,
+    member_since: existingCaptainAcc?.member_since || '2024-01-01T00:00:00.000Z',
+    created_at: existingCaptainAcc?.created_at || '2024-01-01T00:00:00.000Z',
   };
 
   accountsStore.set(captainKey, captainAccount);
   accountsStore.set(captainId, captainAccount);
+  accountsStore.set(captainEmail, captainAccount);
 
   // Clean any duplicate or broken captain accounts with mojobiketaxi email
   for (const [key, acc] of Array.from(accountsStore.entries())) {
-    if (acc.email?.toLowerCase() === captainEmail && key !== captainKey && key !== captainId) {
+    if (acc.email?.toLowerCase() === captainEmail && key !== captainKey && key !== captainId && key !== captainEmail) {
       accountsStore.delete(key);
     }
   }
@@ -609,38 +617,42 @@ export function ensureOfficialAccounts() {
     profile_id: `prof_${captainId}`,
     full_name: 'Hemant kashyap',
     email: captainEmail,
-    phone: captainAccount.phone || '+91 9876543210',
+    phone: '+91 9876543210',
     is_online: existingCpt?.is_online ?? true,
     is_approved: true,
     is_active: true,
     current_lat: existingCpt?.current_lat || 30.7046,
     current_lng: existingCpt?.current_lng || 76.7178,
-    rating: existingCpt?.rating || 4.95,
-    total_rides: existingCpt?.total_rides || 142,
+    rating: 4.95,
+    total_rides: 142,
     vehicle: {
       id: `veh_${captainId}`,
       captain_id: captainId,
-      model: captainAccount.vehicle_model || 'Honda Activa 6G',
-      plate_number: captainAccount.plate_number || 'PB65AX9922',
+      model: 'Honda Activa 6G',
+      plate_number: 'PB65AX9922',
       vehicle_type: 'bike',
       color: 'Black',
       is_active: true,
     },
-    created_at: existingCpt?.created_at || now,
+    created_at: existingCpt?.created_at || '2024-01-01T00:00:00.000Z',
   };
 
   captainsStore.set(captainId, cptRecord);
+  captainsStore.set(captainEmail, cptRecord);
 
   // Clean duplicate captain objects
   for (const [k, c] of Array.from(captainsStore.entries())) {
-    if (k !== captainId && (c.id === captainId || (c.email && c.email.toLowerCase() === captainEmail) || k === captainEmail)) {
+    if (k !== captainId && k !== captainEmail && (c.id === captainId || (c.email && c.email.toLowerCase() === captainEmail))) {
       captainsStore.delete(k);
     }
   }
 
-  if (!walletsStore.has(captainId)) {
-    walletsStore.set(captainId, { balance: captainAccount.wallet_balance || 500, currency: '₹' });
-  }
+  // Sync wallet across all aliases
+  const mojoWallet = { balance: officialWalletBalance, currency: '₹' };
+  walletsStore.set(captainId, mojoWallet);
+  walletsStore.set(captainEmail, mojoWallet);
+  walletsStore.set('+91 9876543210', mojoWallet);
+  walletsStore.set('9876543210', mojoWallet);
 
   // 2. Official Admin Account: osmskart@gmail.com
   const adminEmail = 'osmskart@gmail.com';
