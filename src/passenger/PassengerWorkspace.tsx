@@ -3372,7 +3372,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 );
               }
 
-              // When No Offers or All Offers Passed: Show Classic Bike Icon with Radar Pulse Scanner
+              // When No Offers or All Offers Passed: Show Simple Clean Radar Pulse Scanner
               return (
                 <TripSearchlightRadar
                   rideCode={activeRide.ride_code}
