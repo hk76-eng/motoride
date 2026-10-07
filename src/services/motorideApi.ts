@@ -3943,19 +3943,19 @@ export const motorideApi = {
         .catch(() => {})
     );
 
-    // If local store already has messages, resolve immediately while network synchronizes in background
-    if (local.length > 0) {
-      Promise.all(promises).then(() => {
-        const merged = Array.from(map.values()).sort(
-          (a, b) => new Date(a.created_at || a.timestamp || 0).getTime() - new Date(b.created_at || b.timestamp || 0).getTime()
-        );
-        localMessagesStore.set(rideId, merged);
-        saveLocalMessages(rideId);
-      }).catch(() => {});
-    } else {
+    // Resolve network promises in background to prevent UI stalling
+    Promise.all(promises).then(() => {
+      const merged = Array.from(map.values()).sort(
+        (a, b) => new Date(a.created_at || a.timestamp || 0).getTime() - new Date(b.created_at || b.timestamp || 0).getTime()
+      );
+      localMessagesStore.set(rideId, merged);
+      saveLocalMessages(rideId);
+    }).catch(() => {});
+
+    if (local.length === 0) {
       await Promise.race([
         Promise.all(promises),
-        new Promise((resolve) => setTimeout(resolve, 800)),
+        new Promise((resolve) => setTimeout(resolve, 50)),
       ]);
     }
 
@@ -3989,6 +3989,7 @@ export const motorideApi = {
     // 3. Dispatch window custom event for same-frame UI update
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('motoride_chat_message', { detail: newMsg }));
+      window.dispatchEvent(new CustomEvent('motoride_chat_updated', { detail: { rideId, messages: list } }));
     }
 
     // 4. Insert into Supabase if configured (non-blocking)

@@ -1948,10 +1948,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     }
   }, [activeRide?.id, activeRide?.status, activeRide?.offers?.length]);
 
-  // Track unread captain chat messages after ride is accepted
+  // Track unread captain chat messages across all live ride statuses (including starting & active trip)
   useEffect(() => {
-    const isAcceptedRide = activeRide && ['captain_accepted', 'captain_arrived', 'trip_started'].includes(activeRide.status);
-    if (!isAcceptedRide || !activeRide.id) {
+    const isLiveRide = activeRide && activeRide.id && activeRide.status !== 'completed' && activeRide.status !== 'trip_completed' && !activeRide.status.includes('cancelled');
+    if (!isLiveRide || !activeRide.id) {
       setHasUnreadMessages(false);
       return;
     }
