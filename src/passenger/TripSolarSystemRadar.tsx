@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Sun, XCircle, Bike, ShieldCheck, Sparkles, Orbit, Radio } from 'lucide-react';
+import { Sun, XCircle, ShieldCheck, Sparkles, Orbit, Radio } from 'lucide-react';
+import { MotorcycleSilhouetteIcon } from '../components/common/MotorcycleSilhouetteIcon';
 
 interface TripSolarSystemRadarProps {
   onCancel?: () => void;
@@ -111,7 +112,7 @@ export const TripSolarSystemRadar: React.FC<TripSolarSystemRadarProps> = ({
               >
                 {/* Planet Body */}
                 <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-700 via-purple-500 to-pink-400 shadow-[0_0_12px_#c084fc] border border-purple-200 flex items-center justify-center">
-                  <Bike className="w-2.5 h-2.5 text-white stroke-[2.5]" />
+                  <MotorcycleSilhouetteIcon className="w-3 h-2 text-white" />
                 </div>
                 {/* Orbiting Moon */}
                 <div
@@ -156,7 +157,7 @@ export const TripSolarSystemRadar: React.FC<TripSolarSystemRadarProps> = ({
                 <div className="absolute w-8 h-3 rounded-full border-2 border-amber-300/80 -rotate-12 pointer-events-none shadow-[0_0_8px_#fde047]" />
                 {/* Planet Body */}
                 <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-amber-600 via-yellow-400 to-orange-500 shadow-[0_0_12px_#f59e0b] border border-amber-100 flex items-center justify-center z-10">
-                  <Bike className="w-2.5 h-2.5 text-slate-950 stroke-[2.5]" />
+                  <MotorcycleSilhouetteIcon className="w-3 h-2 text-slate-950" />
                 </div>
                 {/* Planet Proximity Badge */}
                 <div className="absolute -bottom-4 px-1 py-0.2 rounded bg-slate-950/95 border border-amber-400/60 text-[7px] font-mono font-black text-amber-200 shadow-md whitespace-nowrap z-20">
@@ -194,7 +195,7 @@ export const TripSolarSystemRadar: React.FC<TripSolarSystemRadarProps> = ({
                 <div className="absolute -left-2 w-1.5 h-1.5 rounded-full bg-emerald-400/60 animate-ping" />
                 {/* Planet Body */}
                 <div className="w-4.5 h-4.5 rounded-full bg-gradient-to-tr from-emerald-600 via-teal-400 to-cyan-300 shadow-[0_0_10px_#10b981] border border-white flex items-center justify-center z-10">
-                  <Bike className="w-2.5 h-2.5 text-slate-950 stroke-[2.5]" />
+                  <MotorcycleSilhouetteIcon className="w-3 h-2 text-slate-950" />
                 </div>
                 {/* Planet Proximity Badge */}
                 <div className="absolute -bottom-3.5 px-1 py-0.2 rounded bg-slate-950/95 border border-emerald-400/60 text-[7px] font-mono font-black text-emerald-300 shadow-md whitespace-nowrap z-20">

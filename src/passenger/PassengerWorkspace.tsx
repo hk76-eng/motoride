@@ -17,10 +17,10 @@ import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
 import { reverseGeocodeCoordinates, findInstantExactLocationName } from '../utils/reverseGeocoding';
 import { safeStorage } from '../lib/safeStorage';
+import { MotorcycleSilhouetteIcon } from '../components/common/MotorcycleSilhouetteIcon';
 import {
   MapPin,
   Navigation,
-  Bike,
   Car,
   Package,
   Clock,
@@ -3154,7 +3154,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </button>
 
                   <div className="w-9 h-9 rounded-2xl bg-slate-100 border border-black flex items-center justify-center shrink-0">
-                    <Bike className="w-5 h-5 text-black stroke-[2.5]" />
+                    <MotorcycleSilhouetteIcon className="w-5.5 h-4 text-black" />
                   </div>
                 </div>
               </div>
@@ -3666,7 +3666,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             {/* Service / Ride Type Selector - Show on Top of Booking Page */}
             <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
               {[
-                { type: 'bike' as RideTypeCode, label: 'Bike', icon: Bike },
+                { type: 'bike' as RideTypeCode, label: 'Bike', icon: MotorcycleSilhouetteIcon },
                 { type: 'courier' as RideTypeCode, label: 'Courier', icon: Package },
               ].map((s) => {
                 const Icon = s.icon;
@@ -3683,7 +3683,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     }`}
                     title={s.label}
                   >
-                    <Icon className="w-4 h-4 text-white stroke-[2.5]" />
+                    {s.type === 'bike' ? (
+                      <MotorcycleSilhouetteIcon className="w-5.5 h-4 text-white" />
+                    ) : (
+                      <Icon className="w-4 h-4 text-white stroke-[2.5]" />
+                    )}
                     <span className="text-[10px] font-bold text-white mt-0.5">{s.label}</span>
                   </button>
                 );
