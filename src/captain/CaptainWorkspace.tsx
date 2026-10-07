@@ -1438,7 +1438,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     };
     checkUnread();
 
-    // Periodic check interval (every 3s)
+    // Fast check interval (every 1.5s)
     const interval = setInterval(async () => {
       if (showChatModalRef.current) return;
       try {
@@ -1454,10 +1454,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           });
         }
       } catch {}
-    }, 3000);
+    }, 1500);
 
     // Instant real-time listener for passenger message
-    const unsub = realtimeSync.on('RIDE_MESSAGE_RECEIVED', (payload: any) => {
+    const handleIncoming = (payload: any) => {
       if (payload && payload.ride_id === rideId && payload.sender_role === 'passenger') {
         if (!showChatModalRef.current) {
           setHasUnreadMessages(true);
@@ -1466,11 +1466,34 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           safeStorage.setItem(`motoride_last_read_chat_${rideId}`, Date.now().toString());
         }
       }
-    });
+    };
+
+    const handleCustomMsg = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail;
+      if (detail) {
+        if (detail.rideId === rideId || detail.ride_id === rideId) {
+          checkUnread();
+        }
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === `motoride_chat_msgs_${rideId}`) {
+        checkUnread();
+      }
+    };
+
+    const unsub = realtimeSync.on('RIDE_MESSAGE_RECEIVED', handleIncoming);
+    window.addEventListener('motoride_chat_updated', handleCustomMsg);
+    window.addEventListener('motoride_chat_message', handleCustomMsg);
+    window.addEventListener('storage', handleStorage);
 
     return () => {
       clearInterval(interval);
       unsub();
+      window.removeEventListener('motoride_chat_updated', handleCustomMsg);
+      window.removeEventListener('motoride_chat_message', handleCustomMsg);
+      window.removeEventListener('storage', handleStorage);
     };
   }, [activeRide?.id, activeRide?.status]);
 

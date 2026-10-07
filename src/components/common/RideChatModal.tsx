@@ -63,7 +63,16 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
   const fetchMessages = async () => {
     try {
       const list = await motorideApi.getRideMessages(ride.id);
-      setMessages(list);
+      if (Array.isArray(list)) {
+        setMessages((prev) => {
+          const map = new Map<string, RideMessage>();
+          prev.forEach((m) => { if (m?.id) map.set(m.id, m); });
+          list.forEach((m) => { if (m?.id) map.set(m.id, m); });
+          return Array.from(map.values()).sort(
+            (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+          );
+        });
+      }
       safeStorage.setItem(`motoride_last_read_chat_${ride.id}`, Date.now().toString());
     } catch (err) {
       console.warn('Failed to load chat messages:', err);
@@ -73,21 +82,56 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
   useEffect(() => {
     fetchMessages();
     safeStorage.setItem(`motoride_last_read_chat_${ride.id}`, Date.now().toString());
-    const interval = setInterval(fetchMessages, 3000);
+    const interval = setInterval(fetchMessages, 1000);
 
-    const unsub = realtimeSync.on('RIDE_MESSAGE_RECEIVED', (payload: RideMessage) => {
+    const handleIncomingMessage = (payload: any) => {
       if (payload && payload.ride_id === ride.id) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === payload.id)) return prev;
-          return [...prev, payload];
+          return [...prev, payload].sort(
+            (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+          );
         });
         safeStorage.setItem(`motoride_last_read_chat_${ride.id}`, Date.now().toString());
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 30);
       }
-    });
+    };
+
+    const handleCustomEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent?.detail) {
+        if (customEvent.detail.rideId === ride.id && Array.isArray(customEvent.detail.messages)) {
+          setMessages(customEvent.detail.messages);
+        } else if (customEvent.detail.ride_id === ride.id) {
+          handleIncomingMessage(customEvent.detail);
+        }
+      }
+    };
+
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === `motoride_chat_msgs_${ride.id}` && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setMessages(parsed);
+          }
+        } catch {}
+      }
+    };
+
+    const unsub = realtimeSync.on('RIDE_MESSAGE_RECEIVED', handleIncomingMessage);
+    window.addEventListener('motoride_chat_updated', handleCustomEvent);
+    window.addEventListener('motoride_chat_message', handleCustomEvent);
+    window.addEventListener('storage', handleStorageEvent);
 
     return () => {
       clearInterval(interval);
       unsub();
+      window.removeEventListener('motoride_chat_updated', handleCustomEvent);
+      window.removeEventListener('motoride_chat_message', handleCustomEvent);
+      window.removeEventListener('storage', handleStorageEvent);
       safeStorage.setItem(`motoride_last_read_chat_${ride.id}`, Date.now().toString());
     };
   }, [ride.id]);
@@ -105,8 +149,24 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
     const text = textToSend.trim();
     if (!text || isSending) return;
 
+    // Optimistic temporary message to display in UI immediately in 0ms
+    const tempMsg: RideMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ride_id: ride.id,
+      sender_id: currentUserId,
+      sender_role: currentUserRole,
+      sender_name: currentUserName,
+      message: text,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, tempMsg]);
     setInputText('');
     setIsSending(true);
+
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 20);
 
     try {
       const sent = await motorideApi.sendRideMessage(ride.id, {
@@ -115,12 +175,18 @@ export const RideChatModal: React.FC<RideChatModalProps> = ({
         sender_name: currentUserName,
         message: text,
       });
-      if (sent && !messages.some((m) => m.id === sent.id)) {
-        setMessages((prev) => [...prev, sent]);
+      if (sent) {
+        setMessages((prev) => {
+          const filtered = prev.filter((m) => m.id !== tempMsg.id && m.id !== sent.id);
+          return [...filtered, sent].sort(
+            (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+          );
+        });
       }
     } catch (err) {
       console.warn('Failed to send message:', err);
       setInputText(text); // restore on failure
+      setMessages((prev) => prev.filter((m) => m.id !== tempMsg.id));
     } finally {
       setIsSending(false);
       setTimeout(() => {

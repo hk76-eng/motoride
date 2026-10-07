@@ -147,6 +147,35 @@ export function mergeRideSafely(local?: MotorideRide | null, remote?: MotorideRi
 const localRidesStore: Map<string, MotorideRide> = new Map();
 const localMessagesStore: Map<string, any[]> = new Map();
 
+// Helper to save messages to multi-layer storage and notify other tabs immediately
+const saveLocalMessages = (rideId: string) => {
+  try {
+    const list = localMessagesStore.get(rideId) || [];
+    const json = JSON.stringify(list);
+    safeStorage.setItem(`motoride_chat_msgs_${rideId}`, json);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('motoride_chat_updated', { detail: { rideId, messages: list } }));
+    }
+  } catch {}
+};
+
+// Helper to load messages from memory or safeStorage
+const loadLocalMessages = (rideId: string): any[] => {
+  const inMem = localMessagesStore.get(rideId);
+  if (inMem && inMem.length > 0) return inMem;
+  try {
+    const saved = safeStorage.getItem(`motoride_chat_msgs_${rideId}`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        localMessagesStore.set(rideId, parsed);
+        return parsed;
+      }
+    }
+  } catch {}
+  return inMem || [];
+};
+
 // Initialize from safeStorage if available
 try {
   const saved = safeStorage.getItem('motoride_active_rides_cache') || safeStorage.getItem('motoride_rides_store');
@@ -186,6 +215,24 @@ if (typeof window !== 'undefined') {
         }
       } catch {}
     }
+
+    if (e.key && e.key.startsWith('motoride_chat_msgs_') && e.newValue) {
+      try {
+        const rideId = e.key.replace('motoride_chat_msgs_', '');
+        const parsed = JSON.parse(e.newValue);
+        if (Array.isArray(parsed)) {
+          const current = localMessagesStore.get(rideId) || [];
+          const map = new Map<string, any>();
+          current.forEach((m) => { if (m?.id) map.set(m.id, m); });
+          parsed.forEach((m) => { if (m?.id) map.set(m.id, m); });
+          const merged = Array.from(map.values()).sort(
+            (a, b) => new Date(a.created_at || a.timestamp || 0).getTime() - new Date(b.created_at || b.timestamp || 0).getTime()
+          );
+          localMessagesStore.set(rideId, merged);
+          window.dispatchEvent(new CustomEvent('motoride_chat_updated', { detail: { rideId, messages: merged } }));
+        }
+      } catch {}
+    }
   });
 }
 
@@ -195,6 +242,7 @@ realtimeSync.on('RIDE_MESSAGE_RECEIVED', (msg: any) => {
     if (!list.some((m) => m.id === msg.id)) {
       list.push(msg);
       localMessagesStore.set(msg.ride_id, list);
+      saveLocalMessages(msg.ride_id);
     }
   }
 });
@@ -3856,37 +3904,66 @@ export const motorideApi = {
   async getRideMessages(rideId: string): Promise<any[]> {
     const map = new Map<string, any>();
 
-    // 1. Local memory store
-    const local = localMessagesStore.get(rideId) || [];
+    // 1. Local memory & storage store (Instant 0ms retrieval)
+    const local = loadLocalMessages(rideId);
     local.forEach((m) => { if (m && m.id) map.set(m.id, m); });
 
-    // 2. Fetch from Supabase if configured
+    // 2. Fetch from Supabase and Backend API in parallel
+    const promises: Promise<any>[] = [];
+
     const supabase = getSupabase();
     if (supabase) {
-      try {
-        const { data, error } = await supabase.from('ride_messages').select('*').eq('ride_id', rideId).order('created_at', { ascending: true });
-        if (!error && data && Array.isArray(data)) {
-          data.forEach((m: any) => {
-            if (m && m.id) map.set(m.id, m);
-          });
-        }
-      } catch (err) {
-        console.warn('Supabase getRideMessages notice:', err);
-      }
+      promises.push(
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('ride_messages')
+              .select('*')
+              .eq('ride_id', rideId)
+              .order('created_at', { ascending: true });
+            if (!error && data && Array.isArray(data)) {
+              data.forEach((m: any) => {
+                if (m && m.id) map.set(m.id, m);
+              });
+            }
+          } catch {}
+        })()
+      );
     }
 
-    // 3. Fetch from Backend API
-    const json = await safeFetchJson<{ messages?: any[] }>(`${API_BASE}/rides/${rideId}/messages`, undefined, { messages: [] });
-    if (json?.messages && Array.isArray(json.messages)) {
-      json.messages.forEach((m: any) => {
-        if (m && m.id) map.set(m.id, m);
-      });
+    promises.push(
+      safeFetchJson<{ messages?: any[] }>(`${API_BASE}/rides/${rideId}/messages`, undefined, { messages: [] })
+        .then((json) => {
+          if (json?.messages && Array.isArray(json.messages)) {
+            json.messages.forEach((m: any) => {
+              if (m && m.id) map.set(m.id, m);
+            });
+          }
+        })
+        .catch(() => {})
+    );
+
+    // If local store already has messages, resolve immediately while network synchronizes in background
+    if (local.length > 0) {
+      Promise.all(promises).then(() => {
+        const merged = Array.from(map.values()).sort(
+          (a, b) => new Date(a.created_at || a.timestamp || 0).getTime() - new Date(b.created_at || b.timestamp || 0).getTime()
+        );
+        localMessagesStore.set(rideId, merged);
+        saveLocalMessages(rideId);
+      }).catch(() => {});
+    } else {
+      await Promise.race([
+        Promise.all(promises),
+        new Promise((resolve) => setTimeout(resolve, 800)),
+      ]);
     }
 
     const result = Array.from(map.values()).sort(
       (a, b) => new Date(a.created_at || a.timestamp || 0).getTime() - new Date(b.created_at || b.timestamp || 0).getTime()
     );
     localMessagesStore.set(rideId, result);
+    saveLocalMessages(rideId);
     return result;
   },
 
@@ -3898,33 +3975,46 @@ export const motorideApi = {
       created_at: new Date().toISOString(),
     };
 
-    // 1. Store locally
-    const list = localMessagesStore.get(rideId) || [];
+    // 1. Store locally and persist to storage immediately (0ms instant delivery)
+    const list = loadLocalMessages(rideId);
     if (!list.some((m) => m.id === newMsg.id)) {
       list.push(newMsg);
       localMessagesStore.set(rideId, list);
+      saveLocalMessages(rideId);
     }
 
-    // 2. Broadcast instantly via Realtime
+    // 2. Broadcast instantly via Realtime (BroadcastChannel + LocalStorage + Supabase Channel)
     realtimeSync.broadcast('RIDE_MESSAGE_RECEIVED', newMsg);
 
-    // 3. Insert into Supabase if configured
-    const supabase = getSupabase();
-    if (supabase) {
-      try {
-        await supabase.from('ride_messages').insert([newMsg]);
-      } catch (err) {
-        console.warn('Supabase insert message notice:', err);
-      }
+    // 3. Dispatch window custom event for same-frame UI update
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('motoride_chat_message', { detail: newMsg }));
     }
 
-    // 4. Post to Backend API
+    // 4. Insert into Supabase if configured (non-blocking)
+    const supabase = getSupabase();
+    if (supabase) {
+      (async () => {
+        try {
+          await supabase.from('ride_messages').insert([newMsg]);
+        } catch (err) {
+          console.warn('Supabase insert message notice:', err);
+        }
+      })();
+    }
+
+    // 5. Post to Backend API (non-blocking)
     safeFetchJson<{ message?: any }>(
       `${API_BASE}/rides/${rideId}/messages`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          sender_id: data.sender_id,
+          sender_role: data.sender_role,
+          sender_name: data.sender_name,
+          message: data.message,
+        }),
       },
       { message: newMsg }
     ).catch(() => {});

@@ -184,12 +184,32 @@ motorideRouter.get('/rides/:id', (req: Request, res: Response) => {
 });
 
 // Ride Chat Messages Endpoints
-motorideRouter.get('/rides/:id/messages', (req: Request, res: Response) => {
-  const messages = getRideMessages(req.params.id);
-  res.json({ success: true, messages });
+motorideRouter.get('/rides/:id/messages', async (req: Request, res: Response) => {
+  const localMessages = getRideMessages(req.params.id);
+  
+  // Also query Supabase in parallel to merge any cross-device messages
+  try {
+    const { data: dbMessages, error } = await supabase
+      .from('ride_messages')
+      .select('*')
+      .eq('ride_id', req.params.id)
+      .order('created_at', { ascending: true });
+
+    if (!error && Array.isArray(dbMessages)) {
+      const map = new Map<string, any>();
+      localMessages.forEach((m) => { if (m?.id) map.set(m.id, m); });
+      dbMessages.forEach((m) => { if (m?.id) map.set(m.id, m); });
+      const merged = Array.from(map.values()).sort(
+        (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      );
+      return res.json({ success: true, messages: merged });
+    }
+  } catch {}
+
+  res.json({ success: true, messages: localMessages });
 });
 
-motorideRouter.post('/rides/:id/messages', (req: Request, res: Response) => {
+motorideRouter.post('/rides/:id/messages', async (req: Request, res: Response) => {
   const { sender_id, sender_role, sender_name, message } = req.body;
   if (!message || !sender_id || !sender_role) {
     return res.status(400).json({ error: 'Missing required message parameters' });
@@ -201,6 +221,16 @@ motorideRouter.post('/rides/:id/messages', (req: Request, res: Response) => {
     sender_name: sender_name || (sender_role === 'captain' ? 'Captain' : 'Passenger'),
     message,
   });
+
+  // Async insert into Supabase for global cross-device synchronization
+  (async () => {
+    try {
+      await supabase.from('ride_messages').insert([newMsg]);
+    } catch (err: any) {
+      console.warn('Server Supabase insert ride_message notice:', err?.message || err);
+    }
+  })();
+
   res.status(201).json({ success: true, message: newMsg });
 });
 

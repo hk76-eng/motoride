@@ -148,6 +148,15 @@ class RealtimeSyncManager {
                 }
               }
             )
+            .on(
+              'postgres_changes',
+              { event: 'INSERT', schema: 'public', table: 'ride_messages' },
+              (payload: any) => {
+                if (payload.new) {
+                  this.emit('RIDE_MESSAGE_RECEIVED', payload.new);
+                }
+              }
+            )
             .subscribe((status: string) => {
               if (status === 'SUBSCRIBED') {
                 this.isConnected = true;
