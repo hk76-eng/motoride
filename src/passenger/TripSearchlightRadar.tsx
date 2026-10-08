@@ -130,6 +130,21 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
         <p className="text-xs text-slate-600 font-medium leading-relaxed max-w-xs">
           Searching for nearby online captains. Captains can accept or send a counter-offer with a <span className="text-slate-950 font-black">25-second timer</span>.
         </p>
+
+        {onCancel && (
+          <div className="w-full max-w-xs pt-1.5">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isCancelling}
+              className="w-full py-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-rose-50 border-2 border-black text-black hover:text-rose-600 font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-sm disabled:opacity-50"
+              aria-label="Cancel Ride Request"
+            >
+              <XCircle className="w-4 h-4 text-black group-hover:text-rose-600 shrink-0 stroke-[2.5]" />
+              <span>{isCancelling ? 'Cancelling Request...' : 'Cancel Ride Request'}</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

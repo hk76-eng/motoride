@@ -1255,6 +1255,27 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     }
   };
 
+  const getCancelledRideIds = (): string[] => {
+    try {
+      const userSpecific = JSON.parse(localStorage.getItem(`motoride_cancelled_rides_${currentPassengerId}`) || '[]');
+      const globalCancelled = JSON.parse(localStorage.getItem('motoride_cancelled_rides') || '[]');
+      return Array.from(new Set([...userSpecific, ...globalCancelled]));
+    } catch {
+      return [];
+    }
+  };
+
+  const markRideAsCancelled = (rideId: string) => {
+    try {
+      const ids = getCancelledRideIds();
+      if (!ids.includes(rideId)) {
+        ids.push(rideId);
+        localStorage.setItem(`motoride_cancelled_rides_${currentPassengerId}`, JSON.stringify(ids));
+        localStorage.setItem('motoride_cancelled_rides', JSON.stringify(ids));
+      }
+    } catch {}
+  };
+
   const markRideAsRated = (rideId: string) => {
     try {
       const ids = getRatedRideIds();
@@ -2041,6 +2062,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     // Listen to real-time events
     const handleRideUpdate = (ride: MotorideRide) => {
       if (!ride || !ride.id) return;
+      const cancelledIds = getCancelledRideIds();
+      if (cancelledIds.includes(ride.id) || ride.status.includes('cancelled')) {
+        if (activeRideRef.current?.id === ride.id || safeStorage.getItem('motoride_active_passenger_ride_id') === ride.id) {
+          safeStorage.removeItem('motoride_active_passenger_ride_id');
+          setActiveRide(null);
+          setShowCaptainRatingModal(false);
+          setCompletedRideForRating(null);
+          loadRideHistory();
+        }
+        return;
+      }
+
       const currentActive = activeRideRef.current;
       const storedActiveId = safeStorage.getItem('motoride_active_passenger_ride_id');
 
@@ -2138,13 +2171,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const unsubAccepted = realtimeSync.on('RIDE_ACCEPTED', handleRideUpdate);
     const unsubCancelled = realtimeSync.on('RIDE_CANCELLED', (payload: any) => {
       const ride = payload?.ride || payload;
-      if (ride && ride.passenger_id === currentPassengerId) {
+      const rideId = payload?.ride_id || ride?.id;
+      if (rideId) markRideAsCancelled(rideId);
+      if (ride && (!ride.passenger_id || ride.passenger_id === currentPassengerId || (activeRideRef.current && activeRideRef.current.id === rideId))) {
         setActiveRide(null);
         safeStorage.removeItem('motoride_active_passenger_ride_id');
         setPickupToastMessage(
-          `📍 ${ride.cancellation_reason || 'Request cancelled. You can book a new ride now.'}`
+          `📍 ${ride.cancellation_reason || payload?.reason || 'Request cancelled. You can book a new ride now.'}`
         );
         setShowPickupToast(true);
+        loadRideHistory();
       }
     });
 
@@ -2291,6 +2327,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     });
 
     const unsubOffer = realtimeSync.on('RIDE_OFFER_RECEIVED', (payload: { ride: MotorideRide }) => {
+      if (payload.ride?.id && getCancelledRideIds().includes(payload.ride.id)) return;
       if (payload.ride.passenger_id === currentPassengerId) {
         if (payload.ride.status.includes('cancelled')) {
           setActiveRide(null);
@@ -2343,6 +2380,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     // 1. Direct Supabase & Realtime subscription for this specific ride
     const unsubRide = motorideApi.subscribeToRide(rideId, (latest) => {
       if (isCancelled || !latest) return;
+      if (getCancelledRideIds().includes(latest.id) || latest.status.includes('cancelled')) {
+        safeStorage.removeItem('motoride_active_passenger_ride_id');
+        setActiveRide(null);
+        setShowCaptainRatingModal(false);
+        setCompletedRideForRating(null);
+        loadRideHistory();
+        return;
+      }
       const currentRank = STATUS_RANK[activeRideRef.current?.status || ''] || 0;
       const latestRank = STATUS_RANK[latest.status] || 0;
       if (latestRank < currentRank && !latest.status.includes('cancelled')) {
@@ -2389,6 +2434,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       try {
         const latest = await motorideApi.getRideById(rideId);
         if (!isCancelled && latest) {
+          if (getCancelledRideIds().includes(latest.id) || latest.status.includes('cancelled')) {
+            safeStorage.removeItem('motoride_active_passenger_ride_id');
+            setActiveRide(null);
+            setShowCaptainRatingModal(false);
+            setCompletedRideForRating(null);
+            loadRideHistory();
+            return;
+          }
           const currentRank = STATUS_RANK[activeRideRef.current?.status || ''] || 0;
           const latestRank = STATUS_RANK[latest.status] || 0;
           if (latestRank < currentRank && !latest.status.includes('cancelled')) {
@@ -2790,12 +2843,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     try {
       const currentActiveId = activeRideRef.current?.id || safeStorage.getItem('motoride_active_passenger_ride_id');
       const ratedIds = getRatedRideIds();
+      const cancelledIds = getCancelledRideIds();
+
+      // If current active ID is already marked as cancelled, purge it immediately
+      if (currentActiveId && cancelledIds.includes(currentActiveId)) {
+        safeStorage.removeItem('motoride_active_passenger_ride_id');
+        setActiveRide(null);
+        setShowCaptainRatingModal(false);
+        setCompletedRideForRating(null);
+        loadRideHistory();
+        return;
+      }
 
       // 1. If passenger currently has a locked active ride, prioritize fetching and updating THAT specific ride!
       if (currentActiveId) {
         const specific = await motorideApi.getRideById(currentActiveId);
         if (specific) {
-          if (specific.status.includes('cancelled')) {
+          if (specific.status.includes('cancelled') || cancelledIds.includes(specific.id)) {
             safeStorage.removeItem('motoride_active_passenger_ride_id');
             setActiveRide(null);
             setShowCaptainRatingModal(false);
@@ -2840,7 +2904,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
       const active = rides.find(
         (r) =>
-          r && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100' && (
+          r &&
+          !r.id.includes('demo') &&
+          r.passenger_id !== 'usr_demo_100' &&
+          !cancelledIds.includes(r.id) &&
+          !r.status.includes('cancelled') && (
             r.status === 'requested' ||
             r.status === 'captain_offered' ||
             r.status === 'captain_accepted' ||
@@ -3078,16 +3146,19 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const isAlreadyCompleted = activeRide.status === 'trip_completed' || activeRide.status === 'completed';
     try {
       safeStorage.removeItem('motoride_active_passenger_ride_id');
+      markRideAsCancelled(rideIdToCancel);
       markRideAsRated(rideIdToCancel);
       setActiveRide(null);
       setCompletedRideForRating(null);
       setShowCaptainRatingModal(false);
       setDropoff({ name: '', lat: 0, lng: 0 });
       setDropoffInputText('');
+      setPickupToastMessage('📍 Ride request cancelled.');
+      setShowPickupToast(true);
 
       if (!isAlreadyCompleted) {
         await motorideApi.updateRideStatus(rideIdToCancel, 'cancelled_by_passenger', {
-          cancellation_reason: 'Passenger cancelled/closed the active ride',
+          cancellation_reason: 'Passenger cancelled the ride request',
         });
       }
       loadRideHistory();
@@ -3554,21 +3625,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               );
             })()}
 
-            {/* Cancel Button */}
-            <div className="w-full mt-4 pt-2 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={handleCancelRide}
-                    disabled={isCancelling}
-                    className="w-full py-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 border border-black text-black font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-xs disabled:opacity-50"
-                    aria-label="Cancel Ride Request"
-                  >
-                    <XCircle className="w-4 h-4 text-black shrink-0" />
-                    <span>{isCancelling ? 'Cancelling Request...' : 'Cancel Ride Request'}</span>
-                  </button>
-                </div>
+            {/* Cancel Button - Pinned and clear when incoming offers exist */}
+            {activeRide.offers && activeRide.offers.length > 0 && (
+              <div className="w-full mt-3 pt-2 border-t border-slate-200 sticky bottom-0 bg-white z-10 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCancelRide}
+                  disabled={isCancelling}
+                  className="w-full py-2.5 px-4 rounded-2xl bg-slate-100 hover:bg-rose-50 border-2 border-black text-black hover:text-rose-600 font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-sm disabled:opacity-50"
+                  aria-label="Cancel Ride Request"
+                >
+                  <XCircle className="w-4 h-4 text-black shrink-0 stroke-[2.5]" />
+                  <span>{isCancelling ? 'Cancelling Request...' : 'Cancel Ride Request'}</span>
+                </button>
               </div>
             )}
+          </div>
+        )}
 
             {/* Case 2: Captain Accepted / Arrived / Trip Started */}
             {(activeRide.status === 'captain_accepted' ||
@@ -4639,6 +4712,23 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                     <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-rose-600 border-2 border-white shadow-md"></span>
                   </span>
                 )}
+              </button>
+            )}
+
+            {/* Quick Cancel Ride Request in Minimized bar */}
+            {activeRide && (activeRide.status === 'requested' || activeRide.status === 'captain_offered') && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCancelRide();
+                }}
+                disabled={isCancelling}
+                className="px-2.5 py-1.5 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500 text-rose-300 hover:text-white font-bold text-xs flex items-center gap-1 active:scale-95 cursor-pointer transition-all shrink-0"
+                title="Cancel Ride Request"
+              >
+                <XCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <span>{isCancelling ? 'Cancelling...' : 'Cancel'}</span>
               </button>
             )}
 

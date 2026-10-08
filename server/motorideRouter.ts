@@ -727,6 +727,12 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
       };
       broadcastEvent('RIDE_STATUS_CHANGED', { ride: stubRide, status });
       broadcastEvent('RIDE_UPDATED', stubRide);
+      broadcastEvent('RIDE_CANCELLED', {
+        ride: stubRide,
+        ride_id: req.params.id,
+        status,
+        reason: stubRide.cancellation_reason,
+      });
       return res.json({ success: true, ride: stubRide });
     }
     // Graceful fallback: construct shell so active ride status transition never fails
@@ -796,9 +802,9 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
     });
   }
 
-  if (status && status.includes('cancelled') && currentRank >= 5) {
+  if (status && status.includes('cancelled') && currentRank >= 6) {
     return res.status(409).json({
-      error: 'Cannot cancel a ride that is already in progress or completed',
+      error: 'Cannot cancel a ride that is already completed',
       current_status: ride.status,
       ride,
     });
@@ -852,6 +858,14 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
 
   broadcastEvent('RIDE_STATUS_CHANGED', { ride, status });
   broadcastEvent('RIDE_UPDATED', ride);
+  if (status && status.includes('cancelled')) {
+    broadcastEvent('RIDE_CANCELLED', {
+      ride,
+      ride_id: ride.id,
+      status,
+      reason: ride.cancellation_reason,
+    });
+  }
   if (status === 'trip_completed' || status === 'completed') {
     broadcastEvent('EARNINGS_UPDATED', { captain_id: ride.captain_id, ride });
   }

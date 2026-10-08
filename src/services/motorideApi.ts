@@ -990,8 +990,8 @@ export const motorideApi = {
       );
       return existing;
     }
-    if (status.includes('cancelled') && existingRank >= 5) {
-      console.warn(`[Motoride State Machine] Cannot cancel ride ${rideId} that is already in progress or completed`);
+    if (status.includes('cancelled') && existingRank >= 6) {
+      console.warn(`[Motoride State Machine] Cannot cancel ride ${rideId} that is already completed`);
       return existing;
     }
 
@@ -1024,6 +1024,14 @@ export const motorideApi = {
     // 2. Broadcast immediately to all connected browsers & windows via BroadcastChannel + storage
     realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status });
     realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
+    if (status.includes('cancelled')) {
+      realtimeSync.broadcast('RIDE_CANCELLED', {
+        ride: updatedRide,
+        ride_id: rideId,
+        status,
+        cancellation_reason: extra?.cancellation_reason,
+      });
+    }
     if (status === 'trip_completed' || status === 'completed' || status.includes('cancelled')) {
       realtimeSync.broadcast('EARNINGS_UPDATED', { captain_id: updatedRide.captain_id, ride: updatedRide });
     }
