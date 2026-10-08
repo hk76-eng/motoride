@@ -12,7 +12,7 @@ import { DigitalWatchETA } from './DigitalWatchETA';
 import { PassengerCaptainRatingModal } from './PassengerCaptainRatingModal';
 import { LocationPickerMapModal } from './LocationPickerMapModal';
 import { TripSearchlightRadar } from './TripSearchlightRadar';
-import { motorideApi, getRideAgreedFare, mergeRideSafely, STATUS_RANK } from '../services/motorideApi';
+import { motorideApi, getRideAgreedFare, mergeRideSafely, STATUS_RANK, getStatusRank, canTransitionStatus, shouldApplyIncomingStatus, resolveAuthoritativeRide } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
 import { reverseGeocodeCoordinates, findInstantExactLocationName } from '../utils/reverseGeocoding';
@@ -619,6 +619,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [activeRide, setActiveRide] = useState<MotorideRide | null>(null);
   const activeRideRef = useRef<MotorideRide | null>(null);
   activeRideRef.current = activeRide;
+  const cancelledRideIdsRef = useRef<Set<string>>(new Set<string>());
 
   const [rideHistory, setRideHistory] = useState<MotorideRide[]>([]);
   const [activeTab, setActiveTab] = useState<'book' | 'history'>('book');
@@ -1259,21 +1260,25 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     try {
       const userSpecific = JSON.parse(localStorage.getItem(`motoride_cancelled_rides_${currentPassengerId}`) || '[]');
       const globalCancelled = JSON.parse(localStorage.getItem('motoride_cancelled_rides') || '[]');
-      return Array.from(new Set([...userSpecific, ...globalCancelled]));
+      const combined = Array.from(new Set([...userSpecific, ...globalCancelled, ...Array.from(cancelledRideIdsRef.current)]));
+      return combined;
     } catch {
-      return [];
+      return Array.from(cancelledRideIdsRef.current);
     }
   };
 
   const markRideAsCancelled = (rideId: string) => {
     try {
+      cancelledRideIdsRef.current.add(rideId);
       const ids = getCancelledRideIds();
       if (!ids.includes(rideId)) {
         ids.push(rideId);
         localStorage.setItem(`motoride_cancelled_rides_${currentPassengerId}`, JSON.stringify(ids));
         localStorage.setItem('motoride_cancelled_rides', JSON.stringify(ids));
       }
-    } catch {}
+    } catch {
+      cancelledRideIdsRef.current.add(rideId);
+    }
   };
 
   const markRideAsRated = (rideId: string) => {
@@ -2063,9 +2068,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const handleRideUpdate = (ride: MotorideRide) => {
       if (!ride || !ride.id) return;
       const cancelledIds = getCancelledRideIds();
-      if (cancelledIds.includes(ride.id) || ride.status.includes('cancelled')) {
+      if (cancelledRideIdsRef.current.has(ride.id) || cancelledIds.includes(ride.id) || ride.status.includes('cancelled')) {
         if (activeRideRef.current?.id === ride.id || safeStorage.getItem('motoride_active_passenger_ride_id') === ride.id) {
           safeStorage.removeItem('motoride_active_passenger_ride_id');
+          activeRideRef.current = null;
           setActiveRide(null);
           setShowCaptainRatingModal(false);
           setCompletedRideForRating(null);
@@ -2086,40 +2092,40 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         }
       }
 
-      const isPassengerMatch =
-        Boolean(!ride.passenger_id ||
-          ride.passenger_id === currentPassengerId ||
-          (currentUser?.id && ride.passenger_id === currentUser.id) ||
-          (authUser?.id && ride.passenger_id === authUser.id)
-        );
       const isRideMatch = Boolean(
         (currentActive && currentActive.id === ride.id) ||
         (storedActiveId && storedActiveId === ride.id)
       );
 
-      const isLiveFlowStatus = [
-        'requested',
-        'captain_offered',
+      const isPassengerMatch = Boolean(
+        ride.passenger_id === currentPassengerId ||
+        (currentUser?.id && ride.passenger_id === currentUser.id) ||
+        (authUser?.id && ride.passenger_id === authUser.id)
+      );
+
+      const isAssignedActiveRide = [
+        'accepted',
         'captain_accepted',
+        'captain_arriving',
         'captain_arrived',
         'trip_started',
+        'in_progress',
         'trip_completed',
         'completed',
       ].includes(ride.status);
 
-      if (isRideMatch || (isPassengerMatch && (currentActive || storedActiveId || isLiveFlowStatus))) {
-        // Guard against stale backwards status transition
-        if (currentActive && currentActive.id === ride.id) {
-          const currentRank = STATUS_RANK[currentActive.status] || 0;
-          const incomingRank = STATUS_RANK[ride.status] || 0;
-          if (incomingRank < currentRank && !ride.status.includes('cancelled')) {
-            console.warn(`[Passenger Realtime] Blocked backwards status transition from ${currentActive.status} to ${ride.status}`);
+      if (isRideMatch || (isPassengerMatch && (currentActive || storedActiveId || isAssignedActiveRide))) {
+        // Authoritative state machine guard: reject stale/out-of-order events
+        const currentLiveStatus = activeRideRef.current?.status;
+        if (activeRideRef.current && activeRideRef.current.id === ride.id) {
+          if (!shouldApplyIncomingStatus(currentLiveStatus, ride.status)) {
+            console.warn(`[Passenger Realtime] Dropped stale incoming event: "${ride.status}" (current is "${currentLiveStatus}")`);
             return;
           }
         }
 
-        if (ride.status === 'captain_accepted') {
-          if (!currentActive || currentActive.status !== 'captain_accepted') {
+        if (ride.status === 'captain_accepted' || ride.status === 'accepted') {
+          if (!currentActive || (currentActive.status !== 'captain_accepted' && currentActive.status !== 'accepted')) {
             playRideAcceptedTune();
           }
         }
@@ -2128,13 +2134,14 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             playCaptainArrivedTune();
           }
         }
-        if (ride.status === 'trip_started') {
-          if (!currentActive || currentActive.status !== 'trip_started') {
+        if (ride.status === 'trip_started' || ride.status === 'in_progress') {
+          if (!currentActive || (currentActive.status !== 'trip_started' && currentActive.status !== 'in_progress')) {
             playTripStartedTune();
           }
         }
         if (ride.status.includes('cancelled')) {
           safeStorage.removeItem('motoride_active_passenger_ride_id');
+          activeRideRef.current = null;
           setActiveRide(null);
           setShowCaptainRatingModal(false);
           setCompletedRideForRating(null);
@@ -2143,11 +2150,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           const ratedIds = getRatedRideIds();
           if (!ride.passenger_rated && !ratedIds.includes(ride.id)) {
             safeStorage.setItem('motoride_active_passenger_ride_id', ride.id);
-            setActiveRide(ride);
+            setActiveRide((prev) => resolveAuthoritativeRide(prev, ride));
             setCompletedRideForRating(ride);
             setShowCaptainRatingModal(true);
           } else {
             safeStorage.removeItem('motoride_active_passenger_ride_id');
+            activeRideRef.current = null;
             setActiveRide(null);
             setShowCaptainRatingModal(false);
             setCompletedRideForRating(null);
@@ -2156,8 +2164,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         } else {
           safeStorage.setItem('motoride_active_passenger_ride_id', ride.id);
           setActiveRide((prev) => {
-            if (!prev || prev.id !== ride.id) return ride;
-            return mergeRideSafely(prev, ride);
+            if (!prev) return ride;
+            if (prev.id !== ride.id) return prev;
+            if (!shouldApplyIncomingStatus(prev.status, ride.status)) {
+              return prev;
+            }
+            return resolveAuthoritativeRide(prev, ride);
           });
         }
       }
@@ -2380,43 +2392,44 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     // 1. Direct Supabase & Realtime subscription for this specific ride
     const unsubRide = motorideApi.subscribeToRide(rideId, (latest) => {
       if (isCancelled || !latest) return;
-      if (getCancelledRideIds().includes(latest.id) || latest.status.includes('cancelled')) {
+      if (cancelledRideIdsRef.current.has(latest.id) || getCancelledRideIds().includes(latest.id) || latest.status.includes('cancelled')) {
         safeStorage.removeItem('motoride_active_passenger_ride_id');
+        activeRideRef.current = null;
         setActiveRide(null);
         setShowCaptainRatingModal(false);
         setCompletedRideForRating(null);
         loadRideHistory();
         return;
       }
-      const currentRank = STATUS_RANK[activeRideRef.current?.status || ''] || 0;
-      const latestRank = STATUS_RANK[latest.status] || 0;
-      if (latestRank < currentRank && !latest.status.includes('cancelled')) {
+      if (!shouldApplyIncomingStatus(activeRideRef.current?.status, latest.status)) {
         return; // Reject stale backwards status
       }
       const ratedIds = getRatedRideIds();
 
       if (latest.status === 'captain_arrived' && prevActiveRideStatusRef.current !== 'captain_arrived') {
         playCaptainArrivedTune();
-      } else if (latest.status === 'captain_accepted' && prevActiveRideStatusRef.current !== 'captain_accepted') {
+      } else if ((latest.status === 'captain_accepted' || latest.status === 'accepted') && prevActiveRideStatusRef.current !== 'captain_accepted' && prevActiveRideStatusRef.current !== 'accepted') {
         playRideAcceptedTune();
-      } else if (latest.status === 'trip_started' && prevActiveRideStatusRef.current !== 'trip_started') {
+      } else if ((latest.status === 'trip_started' || latest.status === 'in_progress') && prevActiveRideStatusRef.current !== 'trip_started' && prevActiveRideStatusRef.current !== 'in_progress') {
         playTripStartedTune();
       }
       prevActiveRideStatusRef.current = latest.status;
 
       if (latest.status.includes('cancelled')) {
         safeStorage.removeItem('motoride_active_passenger_ride_id');
+        activeRideRef.current = null;
         setActiveRide(null);
         setShowCaptainRatingModal(false);
         setCompletedRideForRating(null);
       } else if (latest.status === 'trip_completed' || latest.status === 'completed') {
         if (!latest.passenger_rated && !ratedIds.includes(latest.id)) {
           safeStorage.setItem('motoride_active_passenger_ride_id', latest.id);
-          setActiveRide(latest);
+          setActiveRide((prev) => resolveAuthoritativeRide(prev, latest));
           setCompletedRideForRating(latest);
           setShowCaptainRatingModal(true);
         } else {
           safeStorage.removeItem('motoride_active_passenger_ride_id');
+          activeRideRef.current = null;
           setActiveRide(null);
           setShowCaptainRatingModal(false);
           setCompletedRideForRating(null);
@@ -2424,8 +2437,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       } else {
         safeStorage.setItem('motoride_active_passenger_ride_id', latest.id);
         setActiveRide((prev) => {
-          if (!prev || prev.id !== latest.id) return latest;
-          return mergeRideSafely(prev, latest);
+          if (!prev) return latest;
+          if (prev.id !== latest.id) return prev;
+          if (!shouldApplyIncomingStatus(prev.status, latest.status)) {
+            return prev;
+          }
+          return resolveAuthoritativeRide(prev, latest);
         });
       }
     });
@@ -2434,43 +2451,44 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       try {
         const latest = await motorideApi.getRideById(rideId);
         if (!isCancelled && latest) {
-          if (getCancelledRideIds().includes(latest.id) || latest.status.includes('cancelled')) {
+          if (cancelledRideIdsRef.current.has(latest.id) || getCancelledRideIds().includes(latest.id) || latest.status.includes('cancelled')) {
             safeStorage.removeItem('motoride_active_passenger_ride_id');
+            activeRideRef.current = null;
             setActiveRide(null);
             setShowCaptainRatingModal(false);
             setCompletedRideForRating(null);
             loadRideHistory();
             return;
           }
-          const currentRank = STATUS_RANK[activeRideRef.current?.status || ''] || 0;
-          const latestRank = STATUS_RANK[latest.status] || 0;
-          if (latestRank < currentRank && !latest.status.includes('cancelled')) {
+          if (!shouldApplyIncomingStatus(activeRideRef.current?.status, latest.status)) {
             return; // Reject stale backwards status
           }
           const ratedIds = getRatedRideIds();
 
           if (latest.status === 'captain_arrived' && prevActiveRideStatusRef.current !== 'captain_arrived') {
             playCaptainArrivedTune();
-          } else if (latest.status === 'captain_accepted' && prevActiveRideStatusRef.current !== 'captain_accepted') {
+          } else if ((latest.status === 'captain_accepted' || latest.status === 'accepted') && prevActiveRideStatusRef.current !== 'captain_accepted' && prevActiveRideStatusRef.current !== 'accepted') {
             playRideAcceptedTune();
-          } else if (latest.status === 'trip_started' && prevActiveRideStatusRef.current !== 'trip_started') {
+          } else if ((latest.status === 'trip_started' || latest.status === 'in_progress') && prevActiveRideStatusRef.current !== 'trip_started' && prevActiveRideStatusRef.current !== 'in_progress') {
             playTripStartedTune();
           }
           prevActiveRideStatusRef.current = latest.status;
 
           if (latest.status.includes('cancelled')) {
             safeStorage.removeItem('motoride_active_passenger_ride_id');
+            activeRideRef.current = null;
             setActiveRide(null);
             setShowCaptainRatingModal(false);
             setCompletedRideForRating(null);
           } else if (latest.status === 'trip_completed' || latest.status === 'completed') {
             if (!latest.passenger_rated && !ratedIds.includes(latest.id)) {
               safeStorage.setItem('motoride_active_passenger_ride_id', latest.id);
-              setActiveRide(latest);
+              setActiveRide((prev) => resolveAuthoritativeRide(prev, latest));
               setCompletedRideForRating(latest);
               setShowCaptainRatingModal(true);
             } else {
               safeStorage.removeItem('motoride_active_passenger_ride_id');
+              activeRideRef.current = null;
               setActiveRide(null);
               setShowCaptainRatingModal(false);
               setCompletedRideForRating(null);
@@ -2478,8 +2496,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           } else {
             safeStorage.setItem('motoride_active_passenger_ride_id', latest.id);
             setActiveRide((prev) => {
-              if (!prev || prev.id !== latest.id) return latest;
-              return mergeRideSafely(prev, latest);
+              if (!prev) return latest;
+              if (prev.id !== latest.id) return prev;
+              if (!shouldApplyIncomingStatus(prev.status, latest.status)) {
+                return prev;
+              }
+              return resolveAuthoritativeRide(prev, latest);
             });
           }
         }
@@ -2846,8 +2868,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       const cancelledIds = getCancelledRideIds();
 
       // If current active ID is already marked as cancelled, purge it immediately
-      if (currentActiveId && cancelledIds.includes(currentActiveId)) {
+      if (currentActiveId && (cancelledRideIdsRef.current.has(currentActiveId) || cancelledIds.includes(currentActiveId))) {
         safeStorage.removeItem('motoride_active_passenger_ride_id');
+        activeRideRef.current = null;
         setActiveRide(null);
         setShowCaptainRatingModal(false);
         setCompletedRideForRating(null);
@@ -2859,8 +2882,9 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       if (currentActiveId) {
         const specific = await motorideApi.getRideById(currentActiveId);
         if (specific) {
-          if (specific.status.includes('cancelled') || cancelledIds.includes(specific.id)) {
+          if (cancelledRideIdsRef.current.has(specific.id) || specific.status.includes('cancelled') || cancelledIds.includes(specific.id)) {
             safeStorage.removeItem('motoride_active_passenger_ride_id');
+            activeRideRef.current = null;
             setActiveRide(null);
             setShowCaptainRatingModal(false);
             setCompletedRideForRating(null);
@@ -2869,6 +2893,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           }
           if ((specific.status === 'trip_completed' || specific.status === 'completed') && (specific.passenger_rated || ratedIds.includes(specific.id))) {
             safeStorage.removeItem('motoride_active_passenger_ride_id');
+            activeRideRef.current = null;
             setActiveRide(null);
             setShowCaptainRatingModal(false);
             setCompletedRideForRating(null);
@@ -2879,7 +2904,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           safeStorage.setItem('motoride_active_passenger_ride_id', specific.id);
           setActiveRide((prev) => {
             if (!prev) return specific;
-            if (prev.id === specific.id) return mergeRideSafely(prev, specific);
+            if (prev.id === specific.id) {
+              if (!shouldApplyIncomingStatus(prev.status, specific.status)) {
+                return prev;
+              }
+              return resolveAuthoritativeRide(prev, specific);
+            }
             const prevRank = STATUS_RANK[prev.status] || 0;
             if (prevRank >= 1 && prevRank <= 6 && !prev.status.includes('cancelled')) {
               return prev; // Block hijacking
@@ -2907,13 +2937,15 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           r &&
           !r.id.includes('demo') &&
           r.passenger_id !== 'usr_demo_100' &&
+          !cancelledRideIdsRef.current.has(r.id) &&
           !cancelledIds.includes(r.id) &&
           !r.status.includes('cancelled') && (
-            r.status === 'requested' ||
-            r.status === 'captain_offered' ||
+            r.status === 'accepted' ||
             r.status === 'captain_accepted' ||
+            r.status === 'captain_arriving' ||
             r.status === 'captain_arrived' ||
             r.status === 'trip_started' ||
+            r.status === 'in_progress' ||
             ((r.status === 'trip_completed' || r.status === 'completed') && !r.passenger_rated && !ratedIds.includes(r.id))
           )
       );
@@ -2922,7 +2954,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         safeStorage.setItem('motoride_active_passenger_ride_id', active.id);
         setActiveRide((prev) => {
           if (!prev) return active;
-          if (prev.id === active.id) return mergeRideSafely(prev, active);
+          if (prev.id === active.id) {
+            if (!shouldApplyIncomingStatus(prev.status, active.status)) {
+              return prev;
+            }
+            return resolveAuthoritativeRide(prev, active);
+          }
           const prevRank = STATUS_RANK[prev.status] || 0;
           if (prevRank >= 1 && prevRank <= 6 && !prev.status.includes('cancelled')) {
             return prev;
@@ -2941,6 +2978,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         const currentLive = activeRideRef.current;
         const isLiveTrip = currentLive && !currentLive.status.includes('cancelled') && currentLive.status !== 'completed' && currentLive.status !== 'trip_completed';
         if (!isLiveTrip && !currentActiveId) {
+          activeRideRef.current = null;
           setActiveRide(null);
           setCompletedRideForRating(null);
           setShowCaptainRatingModal(false);
@@ -3145,9 +3183,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     const rideIdToCancel = activeRide.id;
     const isAlreadyCompleted = activeRide.status === 'trip_completed' || activeRide.status === 'completed';
     try {
-      safeStorage.removeItem('motoride_active_passenger_ride_id');
+      cancelledRideIdsRef.current.add(rideIdToCancel);
       markRideAsCancelled(rideIdToCancel);
       markRideAsRated(rideIdToCancel);
+      safeStorage.removeItem('motoride_active_passenger_ride_id');
+      activeRideRef.current = null;
       setActiveRide(null);
       setCompletedRideForRating(null);
       setShowCaptainRatingModal(false);
@@ -3370,12 +3410,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </span>
                   <h2 className="text-base font-black text-black">
                     {activeRide.status === 'captain_arrived'
-                      ? '🚕 Captain Arrived'
-                      : activeRide.status === 'trip_started'
-                      ? '🚕 Trip is in progress'
+                      ? '🚕 Captain Has Arrived'
+                      : activeRide.status === 'trip_started' || activeRide.status === 'in_progress'
+                      ? '🚕 Trip Started / In Progress'
                       : activeRide.status === 'trip_completed' || activeRide.status === 'completed'
                       ? '✓ Trip completed'
-                      : activeRide.status === 'captain_accepted'
+                      : activeRide.status === 'captain_accepted' || activeRide.status === 'accepted' || activeRide.status === 'captain_arriving'
                       ? 'Captain is on the way'
                       : activeRide.status.replace(/_/g, ' ')}
                   </h2>

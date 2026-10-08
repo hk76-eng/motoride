@@ -24,23 +24,67 @@ import { getApiUrl } from '../utils/apiUrl';
 
 const API_BASE = getApiUrl('/api/motoride');
 
-// Local and cross-browser memory store for resilient instant sync
-export const STATUS_RANK: Record<string, number> = {
-  requested: 1,
-  searching: 1,
-  captain_offered: 2,
-  captain_assigned: 3,
-  captain_accepted: 3,
-  captain_arriving: 3,
-  captain_arrived: 4,
-  trip_started: 5,
-  in_progress: 5,
-  trip_completed: 6,
-  completed: 6,
-  cancelled_by_passenger: 7,
-  cancelled_by_captain: 7,
-  cancelled: 7,
+import {
+  STATUS_RANK,
+  getStatusRank,
+  canTransitionStatus,
+  shouldApplyIncomingStatus,
+  resolveAuthoritativeRide,
+} from './rideStateMachine';
+
+export {
+  STATUS_RANK,
+  getStatusRank,
+  canTransitionStatus,
+  shouldApplyIncomingStatus,
+  resolveAuthoritativeRide,
 };
+
+export const SUPABASE_RIDES_COLUMNS = new Set([
+  'id',
+  'ride_code',
+  'passenger_id',
+  'passenger_name',
+  'passenger_phone',
+  'captain_id',
+  'captain_name',
+  'captain_phone',
+  'vehicle_model',
+  'plate_number',
+  'pickup_address',
+  'pickup_lat',
+  'pickup_lng',
+  'dropoff_address',
+  'dropoff_lat',
+  'dropoff_lng',
+  'distance_km',
+  'duration_minutes',
+  'estimated_fare',
+  'offered_fare',
+  'final_fare',
+  'ride_type',
+  'status',
+  'payment_method',
+  'payment_status',
+  'cancellation_reason',
+  'trip_started_at',
+  'trip_completed_at',
+  'captain_current_lat',
+  'captain_current_lng',
+  'created_at',
+  'updated_at',
+  'completed_at',
+]);
+
+export function sanitizeForSupabaseRides(data: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (SUPABASE_RIDES_COLUMNS.has(key) && value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
 
 export function getRideAgreedFare(ride: MotorideRide | null | undefined): number {
   if (!ride) return 0;
@@ -94,29 +138,14 @@ export function mergeRideSafely(local?: MotorideRide | null, remote?: MotorideRi
   if (!local) return remote || ({} as MotorideRide);
   if (!remote) return local;
 
-  const localRank = STATUS_RANK[local.status] || 0;
-  const remoteRank = STATUS_RANK[remote.status] || 0;
+  const authoritativeMerged = resolveAuthoritativeRide(local, remote);
+  const effectiveStatus = authoritativeMerged.status;
 
-  // Authoritative status resolution: Forward-only state machine.
-  // Higher rank always wins. If equal rank, remote is preferred only if its updated_at is newer or equal.
-  let effectiveStatus = local.status;
-  if (remoteRank > localRank) {
-    effectiveStatus = remote.status;
-  } else if (remoteRank === localRank) {
-    const localTime = new Date(local.updated_at || 0).getTime();
-    const remoteTime = new Date(remote.updated_at || 0).getTime();
-    effectiveStatus = remoteTime >= localTime ? remote.status : local.status;
-  } else {
-    // remoteRank < localRank: REJECT THE STALE REMOTE STATUS!
-    effectiveStatus = local.status;
-  }
-
-  // Terminal states cannot be reverted to non-terminal states
-  if (local.status === 'trip_completed' || local.status === 'completed' || local.status.includes('cancelled')) {
-    if (remote.status !== 'trip_completed' && remote.status !== 'completed' && !remote.status.includes('cancelled')) {
-      effectiveStatus = local.status;
-    }
-  }
+  const localRank = getStatusRank(local.status);
+  const remoteRank = getStatusRank(remote.status);
+  const isRemoteNewer = remoteRank > localRank || (remoteRank === localRank && new Date(remote.updated_at || 0).getTime() >= new Date(local.updated_at || 0).getTime());
+  const primary = isRemoteNewer ? remote : local;
+  const secondary = isRemoteNewer ? local : remote;
 
   const mergedOffersMap = new Map<string, RideOffer>();
   (local.offers || []).forEach((o) => { if (o && o.id) mergedOffersMap.set(o.id, o); });
@@ -125,45 +154,46 @@ export function mergeRideSafely(local?: MotorideRide | null, remote?: MotorideRi
 
   const localAgreedFare = getRideAgreedFare(local);
   const remoteAgreedFare = getRideAgreedFare(remote);
-  const bestFare = Math.max(localAgreedFare, remoteAgreedFare) || remote.final_fare || local.final_fare || remote.offered_fare || local.offered_fare || 0;
+  const bestFare = Math.max(localAgreedFare, remoteAgreedFare) || primary.final_fare || secondary.final_fare || primary.offered_fare || secondary.offered_fare || 0;
 
   return {
-    ...local,
-    ...remote,
+    ...secondary,
+    ...primary,
     id: local.id || remote.id,
-    ride_code: remote.ride_code || local.ride_code,
-    passenger_id: remote.passenger_id || local.passenger_id,
-    passenger_name: remote.passenger_name || local.passenger_name,
-    passenger_phone: remote.passenger_phone || local.passenger_phone,
-    pickup_address: remote.pickup_address || local.pickup_address,
-    pickup_lat: (remote.pickup_lat && !isNaN(Number(remote.pickup_lat)) && Number(remote.pickup_lat) !== 0) ? remote.pickup_lat : local.pickup_lat,
-    pickup_lng: (remote.pickup_lng && !isNaN(Number(remote.pickup_lng)) && Number(remote.pickup_lng) !== 0) ? remote.pickup_lng : local.pickup_lng,
-    dropoff_address: remote.dropoff_address || local.dropoff_address,
-    dropoff_lat: (remote.dropoff_lat && !isNaN(Number(remote.dropoff_lat)) && Number(remote.dropoff_lat) !== 0) ? remote.dropoff_lat : local.dropoff_lat,
-    dropoff_lng: (remote.dropoff_lng && !isNaN(Number(remote.dropoff_lng)) && Number(remote.dropoff_lng) !== 0) ? remote.dropoff_lng : local.dropoff_lng,
-    ride_type: remote.ride_type || local.ride_type,
+    ride_code: primary.ride_code || secondary.ride_code,
+    passenger_id: primary.passenger_id || secondary.passenger_id,
+    passenger_name: primary.passenger_name || secondary.passenger_name,
+    passenger_phone: primary.passenger_phone || secondary.passenger_phone,
+    pickup_address: primary.pickup_address || secondary.pickup_address,
+    pickup_lat: (primary.pickup_lat && !isNaN(Number(primary.pickup_lat)) && Number(primary.pickup_lat) !== 0) ? primary.pickup_lat : secondary.pickup_lat,
+    pickup_lng: (primary.pickup_lng && !isNaN(Number(primary.pickup_lng)) && Number(primary.pickup_lng) !== 0) ? primary.pickup_lng : secondary.pickup_lng,
+    dropoff_address: primary.dropoff_address || secondary.dropoff_address,
+    dropoff_lat: (primary.dropoff_lat && !isNaN(Number(primary.dropoff_lat)) && Number(primary.dropoff_lat) !== 0) ? primary.dropoff_lat : secondary.dropoff_lat,
+    dropoff_lng: (primary.dropoff_lng && !isNaN(Number(primary.dropoff_lng)) && Number(primary.dropoff_lng) !== 0) ? primary.dropoff_lng : secondary.dropoff_lng,
+    ride_type: primary.ride_type || secondary.ride_type,
     status: effectiveStatus,
     offers: mergedOffers,
-    captain_id: remote.captain_id || local.captain_id,
-    captain_name: remote.captain_name || local.captain_name,
-    captain_phone: remote.captain_phone || local.captain_phone,
-    vehicle_model: remote.vehicle_model || local.vehicle_model,
-    plate_number: remote.plate_number || local.plate_number,
-    captain_avatar: (remote as any).captain_avatar || (local as any).captain_avatar,
-    captain_current_lat: remote.captain_current_lat ?? local.captain_current_lat,
-    captain_current_lng: remote.captain_current_lng ?? local.captain_current_lng,
-    captain_heading: remote.captain_heading ?? local.captain_heading,
-    trip_started_at: remote.trip_started_at || local.trip_started_at,
-    trip_completed_at: remote.trip_completed_at || local.trip_completed_at,
-    completed_at: (remote as any).completed_at || (local as any).completed_at,
+    captain_id: primary.captain_id || secondary.captain_id,
+    captain_name: primary.captain_name || secondary.captain_name,
+    captain_phone: primary.captain_phone || secondary.captain_phone,
+    vehicle_model: primary.vehicle_model || secondary.vehicle_model,
+    plate_number: primary.plate_number || secondary.plate_number,
+    captain_avatar: (primary as any).captain_avatar || (secondary as any).captain_avatar,
+    captain_current_lat: primary.captain_current_lat ?? secondary.captain_current_lat,
+    captain_current_lng: primary.captain_current_lng ?? secondary.captain_current_lng,
+    captain_heading: primary.captain_heading ?? secondary.captain_heading,
+    trip_started_at: primary.trip_started_at || secondary.trip_started_at || authoritativeMerged.trip_started_at,
+    trip_completed_at: primary.trip_completed_at || secondary.trip_completed_at || authoritativeMerged.trip_completed_at,
+    completed_at: (primary as any).completed_at || (secondary as any).completed_at || (authoritativeMerged as any).completed_at,
     final_fare: bestFare,
     offered_fare: bestFare,
     agreed_fare: bestFare,
     accepted_fare: bestFare,
     fare_amount: bestFare,
-    passenger_rated: remote.passenger_rated ?? local.passenger_rated,
-    captain_rated: remote.captain_rated ?? local.captain_rated,
-    payment_status: (remote.status === 'trip_completed' || remote.status === 'completed' || local.status === 'trip_completed' || local.status === 'completed') ? 'paid' : (remote.payment_status || local.payment_status),
+    passenger_rated: primary.passenger_rated ?? secondary.passenger_rated,
+    captain_rated: primary.captain_rated ?? secondary.captain_rated,
+    cancellation_reason: primary.cancellation_reason || secondary.cancellation_reason,
+    payment_status: (effectiveStatus === 'trip_completed' || effectiveStatus === 'completed' || primary.status === 'trip_completed' || primary.status === 'completed') ? 'paid' : (primary.payment_status || secondary.payment_status),
     updated_at: new Date(
       Math.max(
         new Date(local.updated_at || 0).getTime(),
@@ -518,42 +548,16 @@ export const motorideApi = {
   },
 
   async getRideById(id: string): Promise<MotorideRide | null> {
-    // 0. Always sync with latest persistent localStorage store
-    try {
-      const saved = safeStorage.getItem('motoride_rides_store');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((r) => {
-            if (r && r.id) {
-              const prev = localRidesStore.get(r.id);
-              localRidesStore.set(r.id, mergeRideSafely(prev, r));
-            }
-          });
-        }
-      }
-    } catch {}
-
     const local = localRidesStore.get(id);
 
-    // 1. Fetch from local backend first (authoritative and ultra-fast with no cloud latency)
-    try {
-      const json = await safeFetchJson<{ ride?: MotorideRide }>(`${API_BASE}/rides/${id}`, undefined, {});
-      if (json?.ride) {
-        const merged = mergeRideSafely(local, json.ride);
-        localRidesStore.set(id, merged);
-        saveLocalRides();
-        return merged;
-      }
-    } catch {}
-
-    // 2. Fetch from Supabase fallback in parallel without regressing local state
+    // 1. Fetch from Supabase database as primary authoritative source of truth
     const supabase = getSupabase();
     if (supabase) {
       try {
         const { data, error } = await supabase.from('rides').select('*').eq('id', id).single();
         if (!error && data) {
-          const merged = mergeRideSafely(localRidesStore.get(id) || local, data as MotorideRide);
+          const dbRide = data as MotorideRide;
+          const merged = resolveAuthoritativeRide(local, dbRide);
           localRidesStore.set(id, merged);
           saveLocalRides();
           return merged;
@@ -562,6 +566,17 @@ export const motorideApi = {
         console.warn('Supabase getRideById notice:', err);
       }
     }
+
+    // 2. Fetch from backend API
+    try {
+      const json = await safeFetchJson<{ ride?: MotorideRide }>(`${API_BASE}/rides/${id}`, undefined, {});
+      if (json?.ride) {
+        const merged = resolveAuthoritativeRide(local, json.ride);
+        localRidesStore.set(id, merged);
+        saveLocalRides();
+        return merged;
+      }
+    } catch {}
 
     if (localRidesStore.has(id)) {
       return localRidesStore.get(id)!;
@@ -573,12 +588,27 @@ export const motorideApi = {
   async createRide(rideData: Partial<MotorideRide>): Promise<MotorideRide> {
     const rideCode = `RIDE-${Math.floor(1000 + Math.random() * 9000)}`;
     const rideId = `ride_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const fare = Number(rideData.offered_fare || rideData.estimated_fare || 75);
     const payload: MotorideRide = {
       ...rideData,
       id: rideId,
       ride_code: rideCode,
+      passenger_id: rideData.passenger_id || 'usr_anonymous',
+      passenger_name: rideData.passenger_name || 'Passenger',
+      pickup_address: rideData.pickup_address || '',
+      pickup_lat: Number(rideData.pickup_lat || 0),
+      pickup_lng: Number(rideData.pickup_lng || 0),
+      dropoff_address: rideData.dropoff_address || '',
+      dropoff_lat: Number(rideData.dropoff_lat || 0),
+      dropoff_lng: Number(rideData.dropoff_lng || 0),
+      distance_km: Number(rideData.distance_km || 1.0),
+      duration_minutes: Number(rideData.duration_minutes || 5),
+      estimated_fare: fare,
+      offered_fare: fare,
+      final_fare: fare,
+      ride_type: (rideData.ride_type || 'bike') as any,
       status: 'requested',
-      final_fare: rideData.offered_fare || rideData.estimated_fare || 75,
+      payment_method: (rideData.payment_method || 'cash') as any,
       payment_status: 'pending',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -606,11 +636,15 @@ export const motorideApi = {
       console.warn('Backend ride create warning:', err);
     }
 
-    // 4. Post to Supabase database if tables exist
+    // 4. Post to Supabase database (sanitized with all required NOT NULL columns)
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('rides').insert([payload]);
+        const sbPayload = sanitizeForSupabaseRides(payload);
+        const { error: insertErr } = await supabase.from('rides').insert([sbPayload]);
+        if (insertErr) {
+          console.warn('Supabase insert ride warning:', insertErr);
+        }
       } catch (err) {
         console.warn('Supabase insert ride notice:', err);
       }
@@ -684,7 +718,7 @@ export const motorideApi = {
           saveLocalRides();
           return mergedRide;
         } else {
-          await supabase.from('rides').update(updatedRide).eq('id', rideId);
+          await supabase.from('rides').update(sanitizeForSupabaseRides(updatedRide)).eq('id', rideId);
         }
       } catch (err) {
         console.warn('Supabase accept ride notice:', err);
@@ -968,6 +1002,15 @@ export const motorideApi = {
     return finalRide;
   },
 
+  async cancelRide(
+    rideId: string,
+    reason: string = 'Passenger cancelled the ride request'
+  ): Promise<MotorideRide> {
+    return this.updateRideStatus(rideId, 'cancelled_by_passenger', {
+      cancellation_reason: reason,
+    });
+  },
+
   async updateRideStatus(
     rideId: string,
     status: MotorideRideStatus,
@@ -980,18 +1023,12 @@ export const motorideApi = {
     }
   ): Promise<MotorideRide> {
     const existing = localRidesStore.get(rideId) || extra?.ride || ({ id: rideId } as MotorideRide);
-    const existingRank = STATUS_RANK[existing.status] || 0;
-    const newRank = STATUS_RANK[status] || 0;
 
     // Strict forward-only state machine: reject invalid backwards status transitions
-    if (newRank < existingRank && !status.includes('cancelled')) {
+    if (!canTransitionStatus(existing.status, status)) {
       console.warn(
-        `[Motoride State Machine] Rejected invalid backwards status transition for ride ${rideId} from ${existing.status} (rank ${existingRank}) to ${status} (rank ${newRank})`
+        `[Motoride State Machine] Rejected invalid backwards status transition for ride ${rideId} from "${existing.status}" to "${status}"`
       );
-      return existing;
-    }
-    if (status.includes('cancelled') && existingRank >= 6) {
-      console.warn(`[Motoride State Machine] Cannot cancel ride ${rideId} that is already completed`);
       return existing;
     }
 
@@ -1036,7 +1073,7 @@ export const motorideApi = {
       realtimeSync.broadcast('EARNINGS_UPDATED', { captain_id: updatedRide.captain_id, ride: updatedRide });
     }
 
-    // 3. Update Supabase first if configured
+    // 3. Atomically update Supabase database as authoritative record
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -1057,7 +1094,10 @@ export const motorideApi = {
             updatePayload.fare_amount = extra.final_fare;
           }
         }
-        await supabase.from('rides').update(updatePayload).eq('id', rideId);
+        const { error: sbErr } = await supabase.from('rides').update(sanitizeForSupabaseRides(updatePayload)).eq('id', rideId);
+        if (sbErr) {
+          console.warn('Supabase status update error:', sbErr);
+        }
       } catch (err) {
         console.warn('Supabase status sync notice:', err);
       }
@@ -1075,7 +1115,7 @@ export const motorideApi = {
         { ride: updatedRide }
       );
       if (serverRes?.ride) {
-        const merged = mergeRideSafely(updatedRide, serverRes.ride);
+        const merged = resolveAuthoritativeRide(updatedRide, serverRes.ride);
         localRidesStore.set(rideId, merged);
         saveLocalRides();
       }
@@ -1418,16 +1458,27 @@ export const motorideApi = {
   subscribeToRide(rideId: string, callback: (ride: MotorideRide) => void): () => void {
     if (!rideId) return () => {};
 
-    const unsubUpdate = realtimeSync.on('RIDE_UPDATED', (ride: MotorideRide) => {
-      if (ride && ride.id === rideId) {
-        callback(ride);
+    const handleAuthoritativeUpdate = (incoming: MotorideRide) => {
+      if (!incoming || incoming.id !== rideId) return;
+      const existing = localRidesStore.get(rideId);
+      if (existing) {
+        if (!shouldApplyIncomingStatus(existing.status, incoming.status)) {
+          console.warn(
+            `[Authoritative State Machine] Dropped stale incoming event: "${incoming.status}" (current is "${existing.status}")`
+          );
+          return;
+        }
       }
-    });
+      const merged = resolveAuthoritativeRide(existing, incoming);
+      localRidesStore.set(rideId, merged);
+      saveLocalRides();
+      callback(merged);
+    };
+
+    const unsubUpdate = realtimeSync.on('RIDE_UPDATED', handleAuthoritativeUpdate);
     const unsubStatus = realtimeSync.on('RIDE_STATUS_CHANGED', (payload: any) => {
       const ride = payload?.ride || payload;
-      if (ride && ride.id === rideId) {
-        callback(ride);
-      }
+      handleAuthoritativeUpdate(ride);
     });
 
     let supaChannel: any = null;
@@ -1435,7 +1486,7 @@ export const motorideApi = {
     if (supabase && isSupabaseConfigured()) {
       try {
         supaChannel = supabase
-          .channel(`ride_channel_${rideId}`)
+          .channel(`ride_authoritative_${rideId}`)
           .on(
             'postgres_changes',
             {
@@ -1446,11 +1497,7 @@ export const motorideApi = {
             },
             (payload: any) => {
               if (payload?.new) {
-                const existing = localRidesStore.get(rideId);
-                const merged = mergeRideSafely(existing, payload.new as MotorideRide);
-                localRidesStore.set(rideId, merged);
-                saveLocalRides();
-                callback(merged);
+                handleAuthoritativeUpdate(payload.new as MotorideRide);
               }
             }
           )

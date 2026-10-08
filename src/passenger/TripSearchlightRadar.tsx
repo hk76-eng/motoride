@@ -63,9 +63,9 @@ export const TripSearchlightRadar: React.FC<TripSearchlightRadarProps> = ({
       </div>
 
       {/* Main Radar Scope Body - Clean Simple Radar Pulse (No Captain Icons, No Solar Circles) */}
-      <div className="my-auto py-2 flex flex-col items-center justify-center">
+      <div className="my-auto py-1 sm:py-2 flex flex-col items-center justify-center shrink-0">
         {/* The Circular Radar Scope with Clean White Canvas & Solid Black Border */}
-        <div className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-white border-2 border-black shadow-[0_4px_30px_rgba(0,0,0,0.12)] flex items-center justify-center overflow-hidden">
+        <div className="relative w-44 h-44 sm:w-52 sm:h-52 rounded-full bg-white border-2 border-black shadow-[0_4px_30px_rgba(0,0,0,0.12)] flex items-center justify-center overflow-hidden">
           {/* Subtle Ambient Radial Soft Glow */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.08)_0%,rgba(0,0,0,0.02)_50%,transparent_80%)] pointer-events-none" />
 

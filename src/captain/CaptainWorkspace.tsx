@@ -11,7 +11,16 @@ import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
 import { TopupChatModal } from '../components/common/TopupChatModal';
 import { CaptainPassengerRatingModal } from './CaptainPassengerRatingModal';
-import { motorideApi, getRideAgreedFare, mergeRideSafely, STATUS_RANK } from '../services/motorideApi';
+import {
+  motorideApi,
+  getRideAgreedFare,
+  mergeRideSafely,
+  STATUS_RANK,
+  getStatusRank,
+  canTransitionStatus,
+  shouldApplyIncomingStatus,
+  resolveAuthoritativeRide,
+} from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm } from '../utils/distanceCalculator';
 import { supabaseAuth, AuthUser } from '../lib/supabaseAuth';
@@ -799,19 +808,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           }
           // Guard against stale backwards status transition
           if (activeRideRef.current && activeRideRef.current.id === updatedRide.id) {
-            const currentRank = STATUS_RANK[activeRideRef.current.status] || 0;
-            const incomingRank = STATUS_RANK[updatedRide.status] || 0;
-            if (incomingRank < currentRank && !updatedRide.status.includes('cancelled')) {
-              console.warn(`[Captain Realtime] Blocked backwards status transition from ${activeRideRef.current.status} to ${updatedRide.status}`);
+            if (!shouldApplyIncomingStatus(activeRideRef.current.status, updatedRide.status)) {
+              console.warn(
+                `[Captain Realtime] Blocked backwards status transition from ${activeRideRef.current.status} to ${updatedRide.status}`
+              );
               return;
             }
           }
 
           safeStorage.setItem('motoride_active_captain_ride_id', updatedRide.id);
-          setActiveRide((prev) => {
-            if (!prev || prev.id !== updatedRide.id) return updatedRide;
-            return mergeRideSafely(prev, updatedRide);
-          });
+          setActiveRide((prev) => resolveAuthoritativeRide(prev, updatedRide));
 
           if (updatedRide.status === 'captain_accepted') {
             setInspectedRide(null);
@@ -1081,9 +1087,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     const unsubSpecificRide = motorideApi.subscribeToRide(rideId, (latestRide) => {
       if (isCancelled || !latestRide) return;
-      const currentRank = STATUS_RANK[activeRideRef.current?.status || ''] || 0;
-      const latestRank = STATUS_RANK[latestRide.status] || 0;
-      if (latestRank < currentRank && !latestRide.status.includes('cancelled')) {
+      if (!shouldApplyIncomingStatus(activeRideRef.current?.status, latestRide.status)) {
         return; // Drop stale backwards status
       }
       const ratedIds = getCaptainRatedRideIds(captainIdRef.current || captainRef.current?.id || '');
@@ -1095,10 +1099,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         loadCaptainData();
       } else {
         safeStorage.setItem('motoride_active_captain_ride_id', latestRide.id);
-        setActiveRide((prev) => {
-          if (!prev || prev.id !== latestRide.id) return latestRide;
-          return mergeRideSafely(prev, latestRide);
-        });
+        setActiveRide((prev) => resolveAuthoritativeRide(prev, latestRide));
         if (
           (latestRide.status === 'trip_completed' || latestRide.status === 'completed') &&
           !latestRide.captain_rated &&
@@ -1775,15 +1776,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           }
 
           safeStorage.setItem('motoride_active_captain_ride_id', specific.id);
-          setActiveRide((prev) => {
-            if (!prev) return specific;
-            if (prev.id === specific.id) return mergeRideSafely(prev, specific);
-            const prevRank = STATUS_RANK[prev.status] || 0;
-            if (prevRank >= 3 && prevRank <= 6 && !prev.status.includes('cancelled')) {
-              return prev; // Block hijacking of current live trip
-            }
-            return specific;
-          });
+          setActiveRide((prev) => resolveAuthoritativeRide(prev, specific));
 
           if (
             (specific.status === 'trip_completed' || specific.status === 'completed') &&
@@ -1817,15 +1810,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
         if (current) {
           safeStorage.setItem('motoride_active_captain_ride_id', current.id);
-          setActiveRide((prev) => {
-            if (!prev) return current;
-            if (prev.id === current.id) return mergeRideSafely(prev, current);
-            const prevRank = STATUS_RANK[prev.status] || 0;
-            if (prevRank >= 3 && prevRank <= 6 && !prev.status.includes('cancelled')) {
-              return prev;
-            }
-            return current;
-          });
+          setActiveRide((prev) => resolveAuthoritativeRide(prev, current));
           if (
             (current.status === 'trip_completed' || current.status === 'completed') &&
             !current.captain_rated &&
@@ -2049,10 +2034,8 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const handleStatusChange = async (nextStatus: any) => {
     if (!activeRide) return;
 
-    const currentRank = STATUS_RANK[activeRide.status] || 0;
-    const nextRank = STATUS_RANK[nextStatus] || 0;
-    if (nextRank < currentRank) {
-      console.warn(`[Captain State Machine] Blocked backwards status transition from ${activeRide.status} to ${nextStatus}`);
+    if (!canTransitionStatus(activeRide.status, nextStatus)) {
+      console.warn(`[Captain State Machine] Blocked backwards status transition from "${activeRide.status}" to "${nextStatus}"`);
       return;
     }
 
@@ -2070,7 +2053,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       } : {}),
     };
 
-    setActiveRide(optimisticRide);
+    setActiveRide((prev) => resolveAuthoritativeRide(prev, optimisticRide));
     safeStorage.setItem('motoride_active_captain_ride_id', activeRide.id);
 
     if (nextStatus === 'captain_arrived') {
@@ -2124,7 +2107,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       });
 
       if (updated) {
-        setActiveRide(updated);
+        setActiveRide((prev) => resolveAuthoritativeRide(prev, updated));
         if (nextStatus === 'trip_completed') {
           setCompletedRideForRating(updated);
         }

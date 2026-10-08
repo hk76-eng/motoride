@@ -174,8 +174,17 @@ motorideRouter.get('/rides', (req: Request, res: Response) => {
   res.json({ success: true, rides: list });
 });
 
-motorideRouter.get('/rides/:id', (req: Request, res: Response) => {
+motorideRouter.get('/rides/:id', async (req: Request, res: Response) => {
   let ride = ridesStore.get(req.params.id);
+  if (!ride) {
+    try {
+      const { data, error } = await supabase.from('rides').select('*').eq('id', req.params.id).single();
+      if (!error && data) {
+        ride = data as MotorideRide;
+        ridesStore.set(ride.id, ride);
+      }
+    } catch {}
+  }
   if (!ride) {
     return res.status(404).json({ error: 'Ride not found' });
   }
@@ -702,7 +711,7 @@ motorideRouter.post('/rides/:id/decline-offer', (req: Request, res: Response) =>
 });
 
 // Update Ride Status (captain_arrived, trip_started, trip_completed, cancelled)
-motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
+motorideRouter.post('/rides/:id/status', async (req: Request, res: Response) => {
   const { status, cancellation_reason, final_distance_km, final_fare, ride: clientRide } = req.body as {
     status: MotorideRideStatus;
     cancellation_reason?: string;
@@ -759,12 +768,16 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
 
   const validStatuses: MotorideRideStatus[] = [
     'requested',
-    'captain_offered',
+    'accepted',
     'captain_accepted',
+    'captain_offered',
+    'captain_arriving',
     'captain_arrived',
     'trip_started',
+    'in_progress',
     'trip_completed',
     'completed',
+    'cancelled',
     'cancelled_by_passenger',
     'cancelled_by_captain',
   ];
@@ -776,18 +789,19 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
   const STATUS_RANK: Record<string, number> = {
     requested: 1,
     searching: 1,
+    accepted: 2,
+    captain_accepted: 2,
     captain_offered: 2,
-    captain_assigned: 3,
-    captain_accepted: 3,
     captain_arriving: 3,
+    captain_assigned: 3,
     captain_arrived: 4,
     trip_started: 5,
     in_progress: 5,
     trip_completed: 6,
     completed: 6,
-    cancelled_by_passenger: 7,
-    cancelled_by_captain: 7,
-    cancelled: 7,
+    cancelled: 99,
+    cancelled_by_passenger: 99,
+    cancelled_by_captain: 99,
   };
 
   const currentRank = STATUS_RANK[ride.status] || 0;
@@ -855,6 +869,26 @@ motorideRouter.post('/rides/:id/status', (req: Request, res: Response) => {
 
   ridesStore.set(ride.id, ride);
   persistDbToDisk();
+
+  // Atomically update Supabase rides table
+  try {
+    const sbPayload: any = {
+      status,
+      updated_at: now,
+    };
+    if (cancellation_reason) sbPayload.cancellation_reason = cancellation_reason;
+    if (final_distance_km) sbPayload.distance_km = final_distance_km;
+    if (final_fare) sbPayload.final_fare = final_fare;
+    if (status === 'trip_started') sbPayload.trip_started_at = now;
+    if (status === 'trip_completed' || status === 'completed') {
+      sbPayload.trip_completed_at = now;
+      sbPayload.completed_at = now;
+      sbPayload.payment_status = 'paid';
+    }
+    await supabase.from('rides').update(sbPayload).eq('id', ride.id);
+  } catch (sbErr) {
+    console.warn('Server Supabase ride status update notice:', sbErr);
+  }
 
   broadcastEvent('RIDE_STATUS_CHANGED', { ride, status });
   broadcastEvent('RIDE_UPDATED', ride);

@@ -2,12 +2,16 @@ export type UserRole = 'passenger' | 'captain' | 'admin';
 
 export type MotorideRideStatus =
   | 'requested'
-  | 'captain_offered'
+  | 'accepted'
   | 'captain_accepted'
+  | 'captain_offered'
+  | 'captain_arriving'
   | 'captain_arrived'
   | 'trip_started'
+  | 'in_progress'
   | 'trip_completed'
   | 'completed'
+  | 'cancelled'
   | 'cancelled_by_passenger'
   | 'cancelled_by_captain';
 
