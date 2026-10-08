@@ -98,8 +98,18 @@ export function mergeRideSafely(local?: MotorideRide | null, remote?: MotorideRi
   const remoteRank = STATUS_RANK[remote.status] || 0;
 
   // Authoritative status resolution: Forward-only state machine.
-  // Higher rank always wins. If equal rank, remote (Supabase/server) is preferred.
-  let effectiveStatus = remoteRank >= localRank ? remote.status : local.status;
+  // Higher rank always wins. If equal rank, remote is preferred only if its updated_at is newer or equal.
+  let effectiveStatus = local.status;
+  if (remoteRank > localRank) {
+    effectiveStatus = remote.status;
+  } else if (remoteRank === localRank) {
+    const localTime = new Date(local.updated_at || 0).getTime();
+    const remoteTime = new Date(remote.updated_at || 0).getTime();
+    effectiveStatus = remoteTime >= localTime ? remote.status : local.status;
+  } else {
+    // remoteRank < localRank: REJECT THE STALE REMOTE STATUS!
+    effectiveStatus = local.status;
+  }
 
   // Terminal states cannot be reverted to non-terminal states
   if (local.status === 'trip_completed' || local.status === 'completed' || local.status.includes('cancelled')) {
@@ -122,19 +132,20 @@ export function mergeRideSafely(local?: MotorideRide | null, remote?: MotorideRi
     ...remote,
     status: effectiveStatus,
     offers: mergedOffers,
+    captain_id: remote.captain_id || local.captain_id,
     captain_name: remote.captain_name || local.captain_name,
     captain_phone: remote.captain_phone || local.captain_phone,
     vehicle_model: remote.vehicle_model || local.vehicle_model,
     plate_number: remote.plate_number || local.plate_number,
     captain_avatar: (remote as any).captain_avatar || (local as any).captain_avatar,
+    trip_started_at: remote.trip_started_at || local.trip_started_at,
+    trip_completed_at: remote.trip_completed_at || local.trip_completed_at,
+    completed_at: (remote as any).completed_at || (local as any).completed_at,
     final_fare: bestFare,
     offered_fare: bestFare,
     agreed_fare: bestFare,
     accepted_fare: bestFare,
     fare_amount: bestFare,
-    trip_started_at: remote.trip_started_at || local.trip_started_at,
-    trip_completed_at: remote.trip_completed_at || local.trip_completed_at,
-    completed_at: (remote as any).completed_at || (local as any).completed_at,
     updated_at: new Date(
       Math.max(
         new Date(local.updated_at || 0).getTime(),
@@ -184,7 +195,8 @@ try {
     if (Array.isArray(parsed)) {
       parsed.forEach((r: MotorideRide) => {
         if (r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100') {
-          localRidesStore.set(r.id, r);
+          const existing = localRidesStore.get(r.id);
+          localRidesStore.set(r.id, mergeRideSafely(existing, r));
         }
       });
     }
@@ -209,7 +221,8 @@ if (typeof window !== 'undefined') {
         if (Array.isArray(parsed)) {
           parsed.forEach((r: MotorideRide) => {
             if (r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100') {
-              localRidesStore.set(r.id, r);
+              const existing = localRidesStore.get(r.id);
+              localRidesStore.set(r.id, mergeRideSafely(existing, r));
             }
           });
         }
@@ -394,8 +407,10 @@ export const motorideApi = {
         if (Array.isArray(parsed)) {
           parsed.forEach((r) => {
             if (r && r.id) {
-              map.set(r.id, r);
-              localRidesStore.set(r.id, r);
+              const existing = localRidesStore.get(r.id);
+              const merged = mergeRideSafely(existing, r);
+              map.set(r.id, merged);
+              localRidesStore.set(r.id, merged);
             }
           });
         }
@@ -416,8 +431,10 @@ export const motorideApi = {
     if (Array.isArray(json?.rides)) {
       json.rides.forEach((r) => {
         if (r && r.id) {
-          map.set(r.id, r);
-          localRidesStore.set(r.id, r);
+          const existing = localRidesStore.get(r.id) || map.get(r.id);
+          const merged = mergeRideSafely(existing, r);
+          map.set(r.id, merged);
+          localRidesStore.set(r.id, merged);
         }
       });
       saveLocalRides();
@@ -620,6 +637,7 @@ export const motorideApi = {
 
     // Broadcast instantly to all browsers and devices
     realtimeSync.broadcast('RIDE_ACCEPTED', updatedRide);
+    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status: 'captain_accepted' });
     realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
 
     const supabase = getSupabase();
@@ -777,6 +795,7 @@ export const motorideApi = {
     saveLocalRides();
 
     realtimeSync.broadcast('RIDE_ACCEPTED', updatedRide);
+    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status: 'captain_accepted' });
     realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
 
     const supabase = getSupabase();
@@ -826,6 +845,7 @@ export const motorideApi = {
     localRidesStore.set(rideId, finalRide);
     saveLocalRides();
     realtimeSync.broadcast('RIDE_ACCEPTED', finalRide);
+    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: finalRide, status: 'captain_accepted' });
     realtimeSync.broadcast('RIDE_UPDATED', finalRide);
     return finalRide;
   },

@@ -2054,7 +2054,17 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         (storedActiveId && storedActiveId === ride.id)
       );
 
-      if (isRideMatch || (isPassengerMatch && (currentActive || storedActiveId || ride.status === 'captain_accepted' || ride.status === 'captain_arrived' || ride.status === 'captain_offered' || ride.status === 'requested'))) {
+      const isLiveFlowStatus = [
+        'requested',
+        'captain_offered',
+        'captain_accepted',
+        'captain_arrived',
+        'trip_started',
+        'trip_completed',
+        'completed',
+      ].includes(ride.status);
+
+      if (isRideMatch || (isPassengerMatch && (currentActive || storedActiveId || isLiveFlowStatus))) {
         if (ride.status === 'captain_accepted') {
           if (!currentActive || currentActive.status !== 'captain_accepted') {
             playRideAcceptedTune();
@@ -2075,18 +2085,21 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           setActiveRide(null);
           setShowCaptainRatingModal(false);
           setCompletedRideForRating(null);
+          loadRideHistory();
         } else if (ride.status === 'trip_completed' || ride.status === 'completed') {
-          safeStorage.removeItem('motoride_active_passenger_ride_id');
           const ratedIds = getRatedRideIds();
           if (!ride.passenger_rated && !ratedIds.includes(ride.id)) {
+            safeStorage.setItem('motoride_active_passenger_ride_id', ride.id);
             setActiveRide(ride);
             setCompletedRideForRating(ride);
             setShowCaptainRatingModal(true);
           } else {
+            safeStorage.removeItem('motoride_active_passenger_ride_id');
             setActiveRide(null);
             setShowCaptainRatingModal(false);
             setCompletedRideForRating(null);
           }
+          loadRideHistory();
         } else {
           safeStorage.setItem('motoride_active_passenger_ride_id', ride.id);
           setActiveRide((prev) => {
@@ -2094,7 +2107,6 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             return mergeRideSafely(prev, ride);
           });
         }
-        loadRideHistory();
       }
     };
 
@@ -2328,12 +2340,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         setShowCaptainRatingModal(false);
         setCompletedRideForRating(null);
       } else if (latest.status === 'trip_completed' || latest.status === 'completed') {
-        safeStorage.removeItem('motoride_active_passenger_ride_id');
         if (!latest.passenger_rated && !ratedIds.includes(latest.id)) {
+          safeStorage.setItem('motoride_active_passenger_ride_id', latest.id);
           setActiveRide(latest);
           setCompletedRideForRating(latest);
           setShowCaptainRatingModal(true);
         } else {
+          safeStorage.removeItem('motoride_active_passenger_ride_id');
           setActiveRide(null);
           setShowCaptainRatingModal(false);
           setCompletedRideForRating(null);
@@ -2368,12 +2381,13 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             setShowCaptainRatingModal(false);
             setCompletedRideForRating(null);
           } else if (latest.status === 'trip_completed' || latest.status === 'completed') {
-            safeStorage.removeItem('motoride_active_passenger_ride_id');
             if (!latest.passenger_rated && !ratedIds.includes(latest.id)) {
+              safeStorage.setItem('motoride_active_passenger_ride_id', latest.id);
               setActiveRide(latest);
               setCompletedRideForRating(latest);
               setShowCaptainRatingModal(true);
             } else {
+              safeStorage.removeItem('motoride_active_passenger_ride_id');
               setActiveRide(null);
               setShowCaptainRatingModal(false);
               setCompletedRideForRating(null);
@@ -2782,7 +2796,10 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           setShowCaptainRatingModal(false);
         }
       } else {
-        if (activeRideRef.current) {
+        const currentLive = activeRideRef.current;
+        const storedActiveId = safeStorage.getItem('motoride_active_passenger_ride_id');
+        const isLiveTrip = currentLive && !currentLive.status.includes('cancelled') && currentLive.status !== 'completed' && currentLive.status !== 'trip_completed';
+        if (!isLiveTrip && !storedActiveId) {
           setActiveRide(null);
           setCompletedRideForRating(null);
           setShowCaptainRatingModal(false);
@@ -2883,6 +2900,27 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       const realModel = safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle';
       const realPlate = safeStorage.getItem('motoride_captain_plate') || '';
       const realAvatar = safeStorage.getItem('motoride_captain_avatar') || undefined;
+      const agreedFare = activeRide.offered_fare || 75;
+
+      const optimisticRide: MotorideRide = {
+        ...activeRide,
+        status: 'captain_accepted',
+        captain_id: 'cpt_instant_01',
+        captain_name: realName,
+        captain_phone: realPhone,
+        captain_avatar: realAvatar,
+        vehicle_model: realModel,
+        plate_number: realPlate,
+        final_fare: agreedFare,
+        offered_fare: agreedFare,
+        agreed_fare: agreedFare,
+        accepted_fare: agreedFare,
+        fare_amount: agreedFare,
+        updated_at: new Date().toISOString(),
+      };
+      safeStorage.setItem('motoride_active_passenger_ride_id', activeRide.id);
+      setActiveRide(optimisticRide);
+      playRideAcceptedTune();
 
       const updated = await motorideApi.acceptRide(activeRide.id, {
         captain_id: 'cpt_instant_01',
@@ -2891,9 +2929,11 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         captain_avatar: realAvatar,
         vehicle_model: realModel,
         plate_number: realPlate,
-        accepted_fare: activeRide.offered_fare || 75,
+        accepted_fare: agreedFare,
       });
-      setActiveRide(updated);
+      if (updated) {
+        setActiveRide(updated);
+      }
     } catch (err: any) {
       console.warn('Instant match notice:', err);
     }
@@ -2904,14 +2944,47 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     if (!activeRide) return;
     try {
       const targetOffer = activeRide.offers?.find((o) => o.id === offerId);
+      const agreedFare = Number(
+        targetOffer?.counter_fare ??
+        (targetOffer as any)?.fare ??
+        activeRide.final_fare ??
+        activeRide.offered_fare ??
+        75
+      );
+
+      // Instant 0ms optimistic local state update on Passenger dashboard
+      const nowIso = new Date().toISOString();
+      const optimisticRide: MotorideRide = {
+        ...activeRide,
+        status: 'captain_accepted',
+        captain_id: targetOffer?.captain_id || activeRide.captain_id,
+        captain_name: targetOffer?.captain_name || activeRide.captain_name,
+        captain_avatar: targetOffer?.captain_avatar || activeRide.captain_avatar,
+        captain_phone: targetOffer?.captain_phone || activeRide.captain_phone,
+        vehicle_model: targetOffer?.vehicle_model || activeRide.vehicle_model,
+        plate_number: targetOffer?.plate_number || activeRide.plate_number,
+        final_fare: agreedFare,
+        offered_fare: agreedFare,
+        agreed_fare: agreedFare,
+        accepted_fare: agreedFare,
+        fare_amount: agreedFare,
+        updated_at: nowIso,
+      };
+
+      safeStorage.setItem('motoride_active_passenger_ride_id', activeRide.id);
+      setActiveRide(optimisticRide);
+      playRideAcceptedTune();
+
       const updated = await motorideApi.acceptCounterOffer(activeRide.id, offerId, targetOffer);
-      setActiveRide(updated);
+      if (updated) {
+        setActiveRide(updated);
+      }
 
       // Re-affirm live location on counter-offer acceptance
       motorideApi
         .updatePassengerLiveLocation({
           passenger_id: currentPassengerId,
-          ride_id: updated.id,
+          ride_id: optimisticRide.id,
           latitude: passengerGps.lat,
           longitude: passengerGps.lng,
           accuracy: passengerGps.accuracy,

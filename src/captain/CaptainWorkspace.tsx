@@ -417,20 +417,32 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (
         targetCaptainId === currentCaptainId ||
         (currentCaptain && targetCaptainId === currentCaptain.id) ||
-        (currentAuth && targetCaptainId === currentAuth.id)
+        (currentAuth && targetCaptainId === currentAuth.id) ||
+        (isMojobiketaxi && (targetCaptainId === 'cpt_mojobiketaxi' || targetCaptainId === 'cpt_instant_01')) ||
+        (targetCaptainId === 'cpt_instant_01')
       ) {
         return true;
       }
     }
 
-    // 4. Matches if this captain created an offer in this ride
+    // 4. Matches captain phone or name
+    if (
+      ride.captain_phone &&
+      ((currentCaptain && ride.captain_phone === currentCaptain.phone) ||
+        (currentAuth && ride.captain_phone === currentAuth.phone))
+    ) {
+      return true;
+    }
+
+    // 5. Matches if this captain created an offer in this ride
     if (Array.isArray(ride.offers) && ride.offers.length > 0) {
       const hasMyOffer = ride.offers.some(
         (o) =>
           o.captain_id &&
           (o.captain_id === currentCaptainId ||
             (currentCaptain && o.captain_id === currentCaptain.id) ||
-            (currentAuth && o.captain_id === currentAuth.id))
+            (currentAuth && o.captain_id === currentAuth.id) ||
+            (isMojobiketaxi && (o.captain_id === 'cpt_mojobiketaxi' || o.captain_id === 'cpt_instant_01')))
       );
       if (hasMyOffer) return true;
     }
@@ -774,7 +786,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           if ((updatedRide.status === 'trip_completed' || updatedRide.status === 'completed') && !updatedRide.captain_rated && !ratedIds.includes(updatedRide.id)) {
             setCompletedRideForRating(updatedRide);
             setShowPassengerRatingModal(true);
-          } else {
+          } else if (updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
             setShowPassengerRatingModal(false);
             setCompletedRideForRating(null);
           }
@@ -1752,7 +1764,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             setShowPassengerRatingModal(false);
           }
         } else {
-          if (!storedActiveId) {
+          const currentLive = activeRideRef.current;
+          const isLiveTrip = currentLive && !currentLive.status.includes('cancelled') && currentLive.status !== 'completed' && currentLive.status !== 'trip_completed';
+          if (!isLiveTrip && !storedActiveId) {
             setActiveRide(null);
             setCompletedRideForRating(null);
             setShowPassengerRatingModal(false);
@@ -1983,6 +1997,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     };
 
     setActiveRide(optimisticRide);
+    safeStorage.setItem('motoride_active_captain_ride_id', activeRide.id);
 
     if (nextStatus === 'captain_arrived') {
       playCaptainArrivedTune();
