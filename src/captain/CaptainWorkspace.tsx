@@ -887,6 +887,23 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       }
     });
 
+    const unsubRideCancelled = realtimeSync.on('RIDE_CANCELLED', (payload: any) => {
+      const ride = payload?.ride || payload;
+      const rideId = payload?.ride_id || ride?.id;
+      if (rideId) {
+        setAvailableRides((prev) => prev.filter((r) => r.id !== rideId));
+        if (activeRideRef.current && activeRideRef.current.id === rideId) {
+          safeStorage.removeItem('motoride_active_captain_ride_id');
+          activeRideRef.current = null;
+          setActiveRide(null);
+          setShowPassengerRatingModal(false);
+          setCompletedRideForRating(null);
+          setInspectedRide(null);
+          loadCaptainData();
+        }
+      }
+    });
+
     // Real-time listener: Passenger declined this captain's offer
     const unsubOfferDeclined = realtimeSync.on('RIDE_OFFER_DECLINED', (payload: any) => {
       const myCapId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id;
@@ -1063,6 +1080,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       unsubRideAccepted();
       unsubRideOffer();
       unsubRideDeleted();
+      unsubRideCancelled();
       unsubOfferDeclined();
       unsubActiveSync();
       unsubEarningsUpdated();
