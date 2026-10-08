@@ -2587,7 +2587,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               </button>
             )}
 
-            {activeRide.status === 'trip_completed' && (
+            {['trip_completed', 'completed'].includes(activeRide.status) && (
               <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -2624,7 +2624,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
               </div>
             )}
 
-            {activeRide.status !== 'trip_completed' && (
+            {!['trip_completed', 'completed'].includes(activeRide.status) && (
               <button
                 type="button"
                 onClick={handleCancelTrip}

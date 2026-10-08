@@ -3685,8 +3685,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
             {/* Case 2: Captain Accepted / Arrived / Trip Started */}
             {(activeRide.status === 'captain_accepted' ||
+              activeRide.status === 'accepted' ||
+              activeRide.status === 'captain_arriving' ||
+              activeRide.status === 'captain_assigned' ||
               activeRide.status === 'captain_arrived' ||
-              activeRide.status === 'trip_started') && (
+              activeRide.status === 'trip_started' ||
+              activeRide.status === 'in_progress') && (
               <div className="flex flex-col gap-2.5 text-black">
                 {/* Digital Watch on Top of Ride Details (Shown ONLY when captain is on the way to pickup) */}
                 {activeRide.status === 'captain_accepted' && (
@@ -3714,7 +3718,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 )}
 
                 {/* When Trip has started, show on-trip banner */}
-                {activeRide.status === 'trip_started' && (
+                {['trip_started', 'in_progress'].includes(activeRide.status) && (
                   <div className="w-full rounded-2xl bg-slate-950 text-white px-3.5 py-2.5 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
@@ -3824,7 +3828,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </span>
                 </div>
 
-                {activeRide.status === 'trip_started' ? (
+                {['trip_started', 'in_progress'].includes(activeRide.status) ? (
                   <div className="flex flex-col gap-2 mt-1">
                     <button
                       type="button"
