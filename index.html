@@ -103,22 +103,6 @@
         top: -99999px !important;
       }
     </style>
-    <script>
-      (function() {
-        function removeVercelToolbar() {
-          var nodes = document.querySelectorAll('vercel-live-feedback, vercel-toolbar, [data-vercel-toolbar], #vercel-live-feedback-host, #__vercel_toolbar, iframe[src*="vercel.live"]');
-          nodes.forEach(function(node) {
-            try { node.remove(); } catch(e) {}
-          });
-        }
-        if (typeof window !== 'undefined') {
-          window.addEventListener('DOMContentLoaded', removeVercelToolbar);
-          window.addEventListener('load', removeVercelToolbar);
-          var observer = new MutationObserver(function() { removeVercelToolbar(); });
-          observer.observe(document.documentElement, { childList: true, subtree: true });
-        }
-      })();
-    </script>
   </head>
   <body class="bg-black text-white antialiased selection:bg-neutral-800 selection:text-white">
     <div id="root"></div>
