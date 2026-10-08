@@ -4,6 +4,7 @@ export type MotorideRideStatus =
   | 'requested'
   | 'accepted'
   | 'captain_accepted'
+  | 'captain_assigned'
   | 'captain_offered'
   | 'captain_arriving'
   | 'captain_arrived'

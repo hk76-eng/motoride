@@ -876,7 +876,16 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     const unsubRideOffer = realtimeSync.on('RIDE_OFFER_RECEIVED', (payload: any) => {
       const ride = payload?.ride;
       if (ride && ride.id) {
-        setAvailableRides((prev) => prev.map((r) => (r.id === ride.id ? { ...r, ...ride } : r)));
+        setAvailableRides((prev) => {
+          const exists = prev.some((r) => r.id === ride.id);
+          if (exists) {
+            return prev.map((r) => (r.id === ride.id ? mergeRideSafely(r, ride) : r));
+          }
+          if (ride.status === 'requested' || ride.status === 'captain_offered') {
+            return [ride, ...prev];
+          }
+          return prev;
+        });
       }
     });
 
@@ -1983,7 +1992,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         counter_fare: proposedFare,
       });
       setShowCounterModal(null);
-      alert(`Offer of ₹${proposedFare} submitted! The passenger will review it in real-time.`);
+      loadAvailableRides();
     } catch (err: any) {
       alert(err.message || 'Failed to submit offer');
     }
