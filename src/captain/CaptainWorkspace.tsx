@@ -1761,11 +1761,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             }
           });
 
-          // 3. Immediately delete rides that server omitted or that are declined / cancelled
+          // 3. Immediately delete rides that are declined or cancelled; retain valid rides present in local state
           for (const [id, r] of Array.from(map.entries())) {
-            const isFromServer = realRides.some((sr) => sr.id === id);
             if (
-              !isFromServer ||
               (myCapId && r.declined_captain_ids?.includes(myCapId)) ||
               r.status?.includes('cancelled')
             ) {
