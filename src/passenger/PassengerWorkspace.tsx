@@ -3828,40 +3828,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                   </span>
                 </div>
 
-                {['trip_started', 'in_progress'].includes(activeRide.status) ? (
-                  <div className="flex flex-col gap-2 mt-1">
-                    <button
-                      type="button"
-                      onClick={handleTriggerRatingFlow}
-                      className="w-full py-2.5 rounded-xl bg-black hover:bg-slate-900 text-white font-black text-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] shadow-md border border-black"
-                    >
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span>Arrived at Destination • Rate Captain</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleCancelRide}
-                      disabled={isCancelling}
-                      className="w-full py-2 rounded-xl border-2 border-black text-black bg-red-500 hover:bg-red-600 text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm"
-                      aria-label="Cancel Trip"
-                    >
-                      <XCircle className="w-4 h-4 shrink-0 text-black stroke-[2.5]" />
-                      <span>{isCancelling ? 'Cancelling...' : 'Cancel'}</span>
-                    </button>
-                  </div>
-                ) : (
                   <button
                     type="button"
                     onClick={handleCancelRide}
                     disabled={isCancelling}
-                    className="w-full py-2.5 rounded-xl border-2 border-black text-black bg-red-500 hover:bg-red-600 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm"
+                    className="w-full py-2.5 rounded-xl border-2 border-black text-black bg-red-500 hover:bg-red-600 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-colors active:scale-[0.98] disabled:opacity-50 shadow-sm mt-1"
                     aria-label="Cancel Ride"
                   >
                     <XCircle className="w-4 h-4 shrink-0 text-black stroke-[2.5]" />
                     <span>{isCancelling ? 'Cancelling...' : 'Cancel Ride'}</span>
                   </button>
-                )}
               </div>
             )}
 

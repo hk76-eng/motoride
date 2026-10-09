@@ -309,6 +309,15 @@ motorideRouter.post('/rides', (req: Request, res: Response) => {
     ridesStore.set(rideId, newRide);
     persistDbToDisk();
 
+    // Async upsert into Supabase for global cross-device synchronization
+    (async () => {
+      try {
+        await supabase.from('rides').upsert([newRide], { onConflict: 'id' });
+      } catch (err: any) {
+        console.warn('Server Supabase upsert ride notice:', err?.message || err);
+      }
+    })();
+
     // Broadcast in real time to all captains and listeners
     broadcastEvent('RIDE_CREATED', newRide);
 

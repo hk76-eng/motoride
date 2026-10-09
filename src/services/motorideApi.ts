@@ -641,12 +641,12 @@ export const motorideApi = {
     if (supabase) {
       try {
         const sbPayload = sanitizeForSupabaseRides(payload);
-        const { error: insertErr } = await supabase.from('rides').insert([sbPayload]);
+        const { error: insertErr } = await supabase.from('rides').upsert([sbPayload], { onConflict: 'id' });
         if (insertErr) {
-          console.warn('Supabase insert ride warning:', insertErr);
+          console.warn('Supabase upsert ride warning:', insertErr);
         }
       } catch (err) {
-        console.warn('Supabase insert ride notice:', err);
+        console.warn('Supabase upsert ride notice:', err);
       }
     }
 
