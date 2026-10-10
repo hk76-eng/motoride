@@ -158,5 +158,24 @@ export function resolveAuthoritativeRide(
     finalRide.trip_completed_at = current.trip_completed_at || incoming.trip_completed_at;
   }
 
+  // Ensure captain offers are merged and never lost when merging state
+  const mergedOffersMap = new Map<string, any>();
+  if (Array.isArray(current.offers)) {
+    current.offers.forEach((o) => {
+      if (o && (o.id || o.captain_id)) mergedOffersMap.set(o.id || o.captain_id, o);
+    });
+  }
+  if (Array.isArray(incoming.offers)) {
+    incoming.offers.forEach((o) => {
+      if (o && (o.id || o.captain_id)) {
+        const key = o.id || o.captain_id;
+        mergedOffersMap.set(key, { ...(mergedOffersMap.get(key) || {}), ...o });
+      }
+    });
+  }
+  if (mergedOffersMap.size > 0) {
+    finalRide.offers = Array.from(mergedOffersMap.values());
+  }
+
   return finalRide;
 }

@@ -882,8 +882,20 @@ export const motorideApi = {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('rides').update({ status: 'captain_offered' }).eq('id', rideId);
-        await supabase.from('ride_offers').insert([newOffer]);
+        const updatePayload = {
+          status: 'captain_offered',
+          offers: updatedRide.offers,
+          final_fare: Number(offerData.counter_fare),
+          offered_fare: updatedRide.offered_fare,
+          updated_at: updatedRide.updated_at,
+        };
+        const { error: sbErr } = await supabase
+          .from('rides')
+          .update(sanitizeForSupabaseRides(updatePayload))
+          .eq('id', rideId);
+        if (sbErr) {
+          console.warn('Supabase counter offer error:', sbErr);
+        }
       } catch (err) {
         console.warn('Supabase counter offer notice:', err);
       }
@@ -951,7 +963,7 @@ export const motorideApi = {
     const supabase = getSupabase();
     if (supabase) {
       try {
-        await supabase.from('rides').update({
+        const updatePayload = {
           status: 'captain_accepted',
           captain_id: updatedRide.captain_id,
           captain_name: updatedRide.captain_name,
@@ -961,10 +973,10 @@ export const motorideApi = {
           plate_number: updatedRide.plate_number,
           final_fare: agreedFare,
           offered_fare: agreedFare,
-          agreed_fare: agreedFare,
-          accepted_fare: agreedFare,
-        }).eq('id', rideId);
-        await supabase.from('ride_offers').update({ status: 'accepted' }).eq('id', offerId);
+          offers: updatedRide.offers,
+          updated_at: updatedRide.updated_at,
+        };
+        await supabase.from('rides').update(sanitizeForSupabaseRides(updatePayload)).eq('id', rideId);
       } catch (err) {
         console.warn('Supabase accept counter offer notice:', err);
       }

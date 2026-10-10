@@ -2338,13 +2338,44 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       }
     });
 
-    const unsubOffer = realtimeSync.on('RIDE_OFFER_RECEIVED', (payload: { ride: MotorideRide }) => {
-      if (payload.ride?.id && getCancelledRideIds().includes(payload.ride.id)) return;
-      if (payload.ride.passenger_id === currentPassengerId) {
-        if (payload.ride.status.includes('cancelled')) {
+    const unsubOffer = realtimeSync.on('RIDE_OFFER_RECEIVED', (payload: any) => {
+      const incomingRide = payload?.ride;
+      const incomingOffer = payload?.offer;
+      const targetRideId = incomingRide?.id || incomingOffer?.ride_id;
+      if (!targetRideId) return;
+      if (getCancelledRideIds().includes(targetRideId)) return;
+
+      const currentActive = activeRideRef.current;
+      const storedActiveId = safeStorage.getItem('motoride_active_passenger_ride_id');
+      const isMyRide = Boolean(
+        (currentActive && currentActive.id === targetRideId) ||
+        (storedActiveId && storedActiveId === targetRideId) ||
+        (incomingRide?.passenger_id && incomingRide.passenger_id === currentPassengerId) ||
+        (currentUser?.id && incomingRide?.passenger_id === currentUser.id) ||
+        (authUser?.id && incomingRide?.passenger_id === authUser.id)
+      );
+
+      if (isMyRide) {
+        if (incomingRide?.status?.includes('cancelled')) {
           setActiveRide(null);
         } else {
-          setActiveRide(payload.ride);
+          setActiveRide((prev) => {
+            const base = prev || incomingRide || ({ id: targetRideId, status: 'captain_offered' } as MotorideRide);
+            const resolved = resolveAuthoritativeRide(base, incomingRide);
+            if (incomingOffer) {
+              const prevOffers = resolved.offers || [];
+              const exists = prevOffers.some((o) => o.id === incomingOffer.id);
+              resolved.offers = exists
+                ? prevOffers.map((o) => (o.id === incomingOffer.id ? { ...o, ...incomingOffer } : o))
+                : [...prevOffers.filter((o) => o.captain_id !== incomingOffer.captain_id), incomingOffer];
+            }
+            if (incomingOffer?.id) {
+              setFocusedOfferId(incomingOffer.id);
+              offerStartTimestampRef.current = Date.now();
+              setOfferRemainingMs(TOTAL_OFFER_SECONDS * 1000);
+            }
+            return resolved;
+          });
           playCaptainOfferAlertChime();
         }
       }

@@ -50,6 +50,10 @@ class RealtimeSyncManager {
                   if (payload.new?.status === 'captain_accepted') {
                     this.emit('RIDE_ACCEPTED', payload.new);
                   }
+                  if (payload.new?.status === 'captain_offered' && Array.isArray(payload.new?.offers) && payload.new.offers.length > 0) {
+                    const latestOffer = payload.new.offers[payload.new.offers.length - 1];
+                    this.emit('RIDE_OFFER_RECEIVED', { ride: payload.new, offer: latestOffer });
+                  }
                   if (payload.new?.status && payload.new.status.includes('cancelled')) {
                     this.emit('RIDE_CANCELLED', {
                       ride: payload.new,
