@@ -324,6 +324,25 @@ realtimeSync.on('RIDE_DELETED', (data: any) => {
   }
 });
 
+realtimeSync.on('RIDE_CANCELLED', (payload: any) => {
+  const ride = payload?.ride || payload;
+  const rideId = payload?.ride_id || ride?.id;
+  if (rideId) {
+    const existing = localRidesStore.get(rideId);
+    const updatedStatus = payload?.status || ride?.status || 'cancelled_by_passenger';
+    const updated = {
+      ...(existing || {}),
+      ...(ride || {}),
+      id: rideId,
+      status: updatedStatus,
+      cancellation_reason: payload?.cancellation_reason || ride?.cancellation_reason || 'Passenger cancelled the ride request',
+      updated_at: new Date().toISOString(),
+    } as MotorideRide;
+    localRidesStore.set(rideId, updated);
+    saveLocalRides();
+  }
+});
+
 // Listen to incoming real-time broadcast and SSE events to keep local store in sync across all devices
 realtimeSync.on('RIDE_CREATED', (ride: MotorideRide) => {
   if (ride && ride.id) {
@@ -511,7 +530,8 @@ export const motorideApi = {
         }
         const { data, error } = await query;
         if (!error && data && Array.isArray(data)) {
-          (data as MotorideRide[]).forEach((r) => {
+          const supabaseRides = data as MotorideRide[];
+          supabaseRides.forEach((r) => {
             if (r && r.id) {
               const existing = localRidesStore.get(r.id) || map.get(r.id);
               const merged = mergeRideSafely(existing, r);
@@ -519,6 +539,32 @@ export const motorideApi = {
               localRidesStore.set(r.id, merged);
             }
           });
+
+          // Authoritative synchronization:
+          // If we queried for active_for_captain, any ride in map that is NOT returned in Supabase active list
+          // and was created more than 3.5 seconds ago has been cancelled or accepted by another captain.
+          if (params?.active_for_captain) {
+            const activeServerIds = new Set(supabaseRides.map((r) => r.id));
+            const now = Date.now();
+            map.forEach((r, id) => {
+              if (
+                (r.status === 'requested' || r.status === 'captain_offered') &&
+                !activeServerIds.has(id)
+              ) {
+                const age = now - new Date(r.created_at || 0).getTime();
+                if (age > 3500) {
+                  map.delete(id);
+                  if (localRidesStore.has(id)) {
+                    const local = localRidesStore.get(id)!;
+                    if (local.status === 'requested' || local.status === 'captain_offered') {
+                      localRidesStore.set(id, { ...local, status: 'cancelled_by_passenger' });
+                    }
+                  }
+                }
+              }
+            });
+          }
+
           saveLocalRides();
         }
       } catch (err) {

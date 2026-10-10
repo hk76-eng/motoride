@@ -47,10 +47,21 @@ class RealtimeSyncManager {
                   this.emit('RIDE_CREATED', payload.new);
                 } else if (payload.eventType === 'UPDATE') {
                   this.emit('RIDE_UPDATED', payload.new);
-                  if (payload.new.status === 'captain_accepted') {
+                  if (payload.new?.status === 'captain_accepted') {
                     this.emit('RIDE_ACCEPTED', payload.new);
                   }
+                  if (payload.new?.status && payload.new.status.includes('cancelled')) {
+                    this.emit('RIDE_CANCELLED', {
+                      ride: payload.new,
+                      ride_id: payload.new.id,
+                      status: payload.new.status,
+                      cancellation_reason: payload.new.cancellation_reason,
+                    });
+                  }
                   this.emit('RIDE_STATUS_CHANGED', { ride: payload.new, status: payload.new.status });
+                } else if (payload.eventType === 'DELETE') {
+                  this.emit('RIDE_DELETED', { id: payload.old?.id });
+                  this.emit('RIDE_CANCELLED', { ride_id: payload.old?.id });
                 }
               }
             )

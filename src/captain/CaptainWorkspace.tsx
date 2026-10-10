@@ -838,9 +838,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         }
       }
 
+      if (updatedRide.status?.includes('cancelled') || (updatedRide.status !== 'requested' && updatedRide.status !== 'captain_offered')) {
+        setInspectedRide((prev) => (prev?.id === updatedRide.id ? null : prev));
+        setAcceptanceTimerRideId((prev) => (prev === updatedRide.id ? null : prev));
+      }
+
       setAvailableRides((prev) => {
         const myCapId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id;
-        if (updatedRide.status !== 'requested' && updatedRide.status !== 'captain_offered') {
+        if (updatedRide.status?.includes('cancelled') || (updatedRide.status !== 'requested' && updatedRide.status !== 'captain_offered')) {
           return prev.filter((r) => r.id !== updatedRide.id);
         }
         if (myCapId && updatedRide.declined_captain_ids?.includes(myCapId)) {
@@ -901,6 +906,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       const rideId = payload?.ride_id || ride?.id;
       if (rideId) {
         setAvailableRides((prev) => prev.filter((r) => r.id !== rideId));
+        setInspectedRide((prev) => (prev?.id === rideId ? null : prev));
+        setAcceptanceTimerRideId((prev) => (prev === rideId ? null : prev));
+        setIs100Full(true);
         if (activeRideRef.current && activeRideRef.current.id === rideId) {
           safeStorage.removeItem('motoride_active_captain_ride_id');
           activeRideRef.current = null;
@@ -1734,42 +1742,45 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             !r.status?.includes('cancelled')
         );
 
+        // If currently inspected ride was cancelled or is no longer available, dismiss inspection
+        setInspectedRide((curr) => {
+          if (!curr) return null;
+          if (curr.status?.includes('cancelled')) return null;
+          const isStillValid = realRides.some((r) => r.id === curr.id);
+          return isStillValid ? curr : null;
+        });
+
         setAvailableRides((prev) => {
           const map = new Map<string, MotorideRide>();
 
-          // 1. Retain existing live rides EXCEPT those declined by this captain or cancelled
-          prev.forEach((r) => {
+          // 1. Authoritative active rides from server
+          realRides.forEach((r) => {
             if (
               r &&
               (r.status === 'requested' || r.status === 'captain_offered') &&
-              (!myCapId || !r.declined_captain_ids?.includes(myCapId))
+              (!myCapId || !r.declined_captain_ids?.includes(myCapId)) &&
+              !r.status?.includes('cancelled')
             ) {
               map.set(r.id, r);
             }
           });
 
-          // 2. Incorporate latest rides from server
-          realRides.forEach((r) => {
+          // 2. Only retain brand-new local rides from prev if created within last 3.5s AND not cancelled
+          const now = Date.now();
+          prev.forEach((r) => {
             if (
               r &&
               (r.status === 'requested' || r.status === 'captain_offered') &&
-              (!myCapId || !r.declined_captain_ids?.includes(myCapId))
+              (!myCapId || !r.declined_captain_ids?.includes(myCapId)) &&
+              !r.status?.includes('cancelled') &&
+              !map.has(r.id)
             ) {
-              map.set(r.id, { ...(map.get(r.id) || {}), ...r });
-            } else if (r) {
-              map.delete(r.id);
+              const age = now - new Date(r.created_at || 0).getTime();
+              if (age < 3500) {
+                map.set(r.id, r);
+              }
             }
           });
-
-          // 3. Immediately delete rides that are declined or cancelled; retain valid rides present in local state
-          for (const [id, r] of Array.from(map.entries())) {
-            if (
-              (myCapId && r.declined_captain_ids?.includes(myCapId)) ||
-              r.status?.includes('cancelled')
-            ) {
-              map.delete(id);
-            }
-          }
 
           return Array.from(map.values()).sort(
             (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
