@@ -246,12 +246,22 @@ const loadLocalMessages = (rideId: string): any[] => {
 
 // Initialize from safeStorage if available
 try {
-  const saved = safeStorage.getItem('motoride_active_rides_cache') || safeStorage.getItem('motoride_rides_store');
+  safeStorage.removeItem('motoride_active_rides_cache');
+  const saved = safeStorage.getItem('motoride_rides_store');
   if (saved) {
     const parsed = JSON.parse(saved);
     if (Array.isArray(parsed)) {
+      const now = Date.now();
       parsed.forEach((r: MotorideRide) => {
         if (r && r.id && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100') {
+          // If a requested ride is older than 2 minutes, it has expired and must not be treated as live
+          if (r.status === 'requested' || r.status === 'captain_offered') {
+            const ageMs = now - new Date(r.created_at || 0).getTime();
+            if (ageMs > 120000) {
+              r.status = 'cancelled_by_passenger';
+              r.cancellation_reason = 'Ride request expired';
+            }
+          }
           const existing = localRidesStore.get(r.id);
           localRidesStore.set(r.id, mergeRideSafely(existing, r));
         }
@@ -264,7 +274,6 @@ const saveLocalRides = () => {
   try {
     const arr = Array.from(localRidesStore.values()).slice(0, 50);
     const json = JSON.stringify(arr);
-    safeStorage.setItem('motoride_active_rides_cache', json);
     safeStorage.setItem('motoride_rides_store', json);
   } catch {}
 };
@@ -475,28 +484,48 @@ export const motorideApi = {
 
     const map = new Map<string, MotorideRide>();
 
-    // 0. Always sync with latest persistent localStorage store
-    try {
-      const saved = safeStorage.getItem('motoride_rides_store');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((r) => {
-            if (r && r.id) {
-              const existing = localRidesStore.get(r.id);
-              const merged = mergeRideSafely(existing, r);
-              map.set(r.id, merged);
-              localRidesStore.set(r.id, merged);
-            }
-          });
+    if (!params?.active_for_captain) {
+      // 0. For general ride history (passenger/admin), sync with persistent localStorage store
+      try {
+        const saved = safeStorage.getItem('motoride_rides_store');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((r) => {
+              if (r && r.id) {
+                const existing = localRidesStore.get(r.id);
+                const merged = mergeRideSafely(existing, r);
+                map.set(r.id, merged);
+                localRidesStore.set(r.id, merged);
+              }
+            });
+          }
         }
-      }
-    } catch {}
+      } catch {}
 
-    // 1. Include local & cross-tab synced in-memory rides
-    localRidesStore.forEach((r) => {
-      if (r && r.id) map.set(r.id, r);
-    });
+      // 1. Include local & cross-tab synced in-memory rides
+      localRidesStore.forEach((r) => {
+        if (r && r.id) map.set(r.id, r);
+      });
+    } else {
+      // For active_for_captain: NEVER preload old rides from persistent localStorage!
+      // Only include brand-new in-flight rides created in the last 4 seconds in this session.
+      const now = Date.now();
+      localRidesStore.forEach((r) => {
+        if (
+          r &&
+          r.id &&
+          (r.status === 'requested' || r.status === 'captain_offered') &&
+          !r.id.includes('demo') &&
+          r.passenger_id !== 'usr_demo_100'
+        ) {
+          const age = now - new Date(r.created_at || 0).getTime();
+          if (age < 4000) {
+            map.set(r.id, r);
+          }
+        }
+      });
+    }
 
     // 2. Fetch from backend API if available
     const json = await safeFetchJson<{ rides?: MotorideRide[] }>(
@@ -577,13 +606,17 @@ export const motorideApi = {
     // Apply strict filtering to ensure precision
     if (params?.active_for_captain) {
       const filterCapId = params.captain_id;
+      const now = Date.now();
       result = result.filter(
         (r) =>
           r &&
           (r.status === 'requested' || r.status === 'captain_offered') &&
+          !r.status?.includes('cancelled') &&
           !r.id?.includes('demo') &&
           r.passenger_id !== 'usr_demo_100' &&
-          (!filterCapId || !r.declined_captain_ids?.includes(filterCapId))
+          (!filterCapId || !r.declined_captain_ids?.includes(filterCapId)) &&
+          // A live ride request expires after 120 seconds (2 minutes). Stale past requests are never shown!
+          (now - new Date(r.created_at || 0).getTime() <= 120000)
       );
     } else {
       if (params?.status && params.status !== 'all') {
