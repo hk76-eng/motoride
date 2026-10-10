@@ -47,8 +47,8 @@ import { backendHaversineDistanceKm } from './fareEngine';
 
 // Initialize Supabase client
 const supabase = createClient(
-  'https://ucyvkdpkhtrlmvjtilso.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVjeXZrZHBraHRybG12anRpbHNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzMDU5MjcsImV4cCI6MjEwNDg4MTkyN30.oQwprT_mdnXphzQYBd0OLq_JCU2TJy3GWrNHPlk_Sco'
+  process.env.VITE_SUPABASE_URL || 'https://abxxldkhjoxgkcuwkrts.supabase.co',
+  process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFieHhsZGtoam94Z2tjdXdrcnRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE2MDAxMzQsImV4cCI6MjEwNzE3NjEzNH0.FUwdlaOsL6mCcgjqCBFIissgYjpTpF_rgs5BM3toY6Q'
 );
 
 export const motorideRouter = Router();
