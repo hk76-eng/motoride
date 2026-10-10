@@ -412,8 +412,18 @@ realtimeSync.on('ACTIVE_RIDES_SYNC_RECEIVED', (rides: MotorideRide[]) => {
 });
 
 realtimeSync.on('REQUEST_SYNC_RECEIVED', () => {
+  const now = Date.now();
   const activeRides = Array.from(localRidesStore.values()).filter(
-    (r) => r.status === 'requested' || r.status === 'captain_offered' || r.status === 'captain_accepted' || r.status === 'captain_arrived' || r.status === 'trip_started'
+    (r) =>
+      r &&
+      !r.id.includes('demo') &&
+      r.passenger_id !== 'usr_demo_100' &&
+      !r.status?.includes('cancelled') &&
+      (r.status === 'captain_accepted' ||
+       r.status === 'captain_arrived' ||
+       r.status === 'trip_started' ||
+       ((r.status === 'requested' || r.status === 'captain_offered') &&
+        now - new Date(r.created_at || 0).getTime() <= 120000))
   );
   if (activeRides.length > 0) {
     realtimeSync.sendActiveRidesSync(activeRides);

@@ -772,12 +772,19 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (newRide.status !== 'requested' && newRide.status !== 'captain_offered') {
         return;
       }
+      if (newRide.status?.includes('cancelled')) {
+        return;
+      }
+      // Never accept stale requests created more than 120 seconds ago
+      if (Date.now() - new Date(newRide.created_at || 0).getTime() > 120000) {
+        return;
+      }
       setAvailableRides((prev) => {
         const exists = prev.some((r) => r.id === newRide.id);
         if (exists) {
           return prev.map((r) => (r.id === newRide.id ? { ...r, ...newRide } : r));
         }
-        return [newRide, ...prev.filter((r) => !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100')];
+        return [newRide, ...prev.filter((r) => !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100' && !r.status?.includes('cancelled'))];
       });
       setIs100Full(true);
       // Vibrate mobile device when new ride arrives
@@ -949,13 +956,31 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
     const unsubActiveSync = realtimeSync.on('ACTIVE_RIDES_SYNC_RECEIVED', (rides: MotorideRide[]) => {
       if (Array.isArray(rides) && rides.length > 0) {
+        const now = Date.now();
+        const myCapId = captainIdRef.current || captainRef.current?.id || authUserRef.current?.id;
         const valid = rides.filter(
-          (r) => r && (r.status === 'requested' || r.status === 'captain_offered') && !r.id.includes('demo') && r.passenger_id !== 'usr_demo_100'
+          (r) =>
+            r &&
+            (r.status === 'requested' || r.status === 'captain_offered') &&
+            !r.status?.includes('cancelled') &&
+            !r.id.includes('demo') &&
+            r.passenger_id !== 'usr_demo_100' &&
+            (!myCapId || !r.declined_captain_ids?.includes(myCapId)) &&
+            // Ignore stale requests older than 120s
+            now - new Date(r.created_at || 0).getTime() <= 120000
         );
         if (valid.length > 0) {
           setAvailableRides((prev) => {
             const map = new Map<string, MotorideRide>();
-            prev.forEach((r) => map.set(r.id, r));
+            prev.forEach((r) => {
+              if (
+                r &&
+                !r.status?.includes('cancelled') &&
+                now - new Date(r.created_at || 0).getTime() <= 120000
+              ) {
+                map.set(r.id, r);
+              }
+            });
             valid.forEach((r) => map.set(r.id, { ...(map.get(r.id) || {}), ...r }));
             return Array.from(map.values()).sort(
               (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -1692,9 +1717,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     // Determine target ride for countdown
     let targetRide = inspectedRide;
     if (!targetRide || !currentList.some((r) => r.id === targetRide?.id)) {
-      // If none specifically inspected, target the first unpassed or first available ride
+      // If none specifically inspected, target the first unpassed ride
       const unpassed = currentList.find((r) => !autoPassedRideIdsRef.current.has(r.id));
-      targetRide = unpassed || currentList[0];
+      if (!unpassed) {
+        // All available rides have already been auto-passed; do not loop or re-target
+        setAcceptanceTimerRideId(null);
+        return;
+      }
+      targetRide = unpassed;
     }
 
     if (targetRide && targetRide.id !== acceptanceTimerRideId) {
@@ -1782,9 +1812,23 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             }
           });
 
-          return Array.from(map.values()).sort(
+          const nextList = Array.from(map.values()).sort(
             (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           );
+
+          if (
+            prev.length === nextList.length &&
+            prev.every(
+              (p, i) =>
+                p.id === nextList[i]?.id &&
+                p.status === nextList[i]?.status &&
+                p.offers?.length === nextList[i]?.offers?.length
+            )
+          ) {
+            return prev;
+          }
+
+          return nextList;
         });
       }
     } catch (err) {
