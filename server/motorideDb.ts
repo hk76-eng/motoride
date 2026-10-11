@@ -1259,6 +1259,7 @@ export function completeRideAndDeductCommissionServer(
   // C. Mark Ride completed & status = 'completed'
   const now = new Date().toISOString();
   ride.status = 'completed';
+  ride.captain_rated = true;
   ride.payment_status = 'paid';
   ride.completed_at = ride.completed_at || now;
   ride.trip_completed_at = ride.trip_completed_at || now;

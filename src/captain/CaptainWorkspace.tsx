@@ -406,6 +406,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const authUserRef = useRef<any>(authUser);
   authUserRef.current = authUser;
 
+  // In-memory set of rated / completed ride IDs to guarantee instant 0ms dismissal without race conditions
+  const ratedRideIdsRef = useRef<Set<string>>(new Set<string>());
+
   const isRideForThisCaptain = (ride: MotorideRide): boolean => {
     if (!ride || !ride.id) return false;
     const currentActive = activeRideRef.current;
@@ -553,22 +556,47 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const getCaptainRatedRideIds = (cid: string): string[] => {
     try {
-      const userSpecific = JSON.parse(safeStorage.getItem(`motoride_captain_rated_rides_${cid}`) || '[]');
-      const globalRated = JSON.parse(safeStorage.getItem('motoride_captain_rated_rides') || '[]');
-      return Array.from(new Set([...userSpecific, ...globalRated]));
+      const set = new Set<string>(ratedRideIdsRef.current);
+      const keys = [
+        'motoride_captain_rated_rides',
+        ...(cid ? [`motoride_captain_rated_rides_${cid}`] : []),
+        ...(captainId ? [`motoride_captain_rated_rides_${captainId}`] : []),
+        ...(captain?.id ? [`motoride_captain_rated_rides_${captain.id}`] : []),
+        ...(authUser?.id ? [`motoride_captain_rated_rides_${authUser.id}`] : []),
+      ];
+      keys.forEach((k) => {
+        try {
+          const arr = JSON.parse(safeStorage.getItem(k) || '[]');
+          if (Array.isArray(arr)) {
+            arr.forEach((id) => set.add(id));
+          }
+        } catch {}
+      });
+      return Array.from(set);
     } catch {
-      return [];
+      return Array.from(ratedRideIdsRef.current);
     }
   };
 
   const markCaptainRideAsRated = (cid: string, rideId: string) => {
     try {
-      const ids = getCaptainRatedRideIds(cid);
-      if (!ids.includes(rideId)) {
-        ids.push(rideId);
-        safeStorage.setItem(`motoride_captain_rated_rides_${cid}`, JSON.stringify(ids));
-        safeStorage.setItem('motoride_captain_rated_rides', JSON.stringify(ids));
-      }
+      ratedRideIdsRef.current.add(rideId);
+      const keysToSave = [
+        'motoride_captain_rated_rides',
+        ...(cid ? [`motoride_captain_rated_rides_${cid}`] : []),
+        ...(captainId ? [`motoride_captain_rated_rides_${captainId}`] : []),
+        ...(captain?.id ? [`motoride_captain_rated_rides_${captain.id}`] : []),
+        ...(authUser?.id ? [`motoride_captain_rated_rides_${authUser.id}`] : []),
+      ];
+      keysToSave.forEach((key) => {
+        try {
+          const list: string[] = JSON.parse(safeStorage.getItem(key) || '[]');
+          if (!list.includes(rideId)) {
+            list.push(rideId);
+            safeStorage.setItem(key, JSON.stringify(list));
+          }
+        } catch {}
+      });
     } catch {}
   };
 
@@ -799,9 +827,17 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (!updatedRide || !updatedRide.id) return;
       if (isRideForThisCaptain(updatedRide)) {
         const ratedIds = getCaptainRatedRideIds(captainIdRef.current || captainRef.current?.id || '');
-        if (updatedRide.status.includes('cancelled') || updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
+        if (
+          updatedRide.status?.includes('cancelled') ||
+          updatedRide.status === 'completed' ||
+          updatedRide.captain_rated ||
+          ratedIds.includes(updatedRide.id)
+        ) {
           safeStorage.removeItem('motoride_active_captain_ride_id');
-          setActiveRide(null);
+          if (activeRideRef.current?.id === updatedRide.id) {
+            activeRideRef.current = null;
+            setActiveRide(null);
+          }
           setShowPassengerRatingModal(false);
           setCompletedRideForRating(null);
           loadCaptainData();
@@ -835,10 +871,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             }
           }
 
-          if ((updatedRide.status === 'trip_completed' || updatedRide.status === 'completed') && !updatedRide.captain_rated && !ratedIds.includes(updatedRide.id)) {
+          if (updatedRide.status === 'trip_completed' && !updatedRide.captain_rated && !ratedIds.includes(updatedRide.id)) {
             setCompletedRideForRating(updatedRide);
             setShowPassengerRatingModal(true);
-          } else if (updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
+          } else if (updatedRide.status === 'completed' || updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
             setShowPassengerRatingModal(false);
             setCompletedRideForRating(null);
           }
@@ -1151,8 +1187,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         return; // Drop stale backwards status
       }
       const ratedIds = getCaptainRatedRideIds(captainIdRef.current || captainRef.current?.id || '');
-      if (latestRide.status.includes('cancelled') || latestRide.captain_rated || ratedIds.includes(latestRide.id)) {
+      if (
+        latestRide.status?.includes('cancelled') ||
+        latestRide.status === 'completed' ||
+        latestRide.captain_rated ||
+        ratedIds.includes(latestRide.id)
+      ) {
         safeStorage.removeItem('motoride_active_captain_ride_id');
+        activeRideRef.current = null;
         setActiveRide(null);
         setShowPassengerRatingModal(false);
         setCompletedRideForRating(null);
@@ -1161,7 +1203,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         safeStorage.setItem('motoride_active_captain_ride_id', latestRide.id);
         setActiveRide((prev) => resolveAuthoritativeRide(prev, latestRide));
         if (
-          (latestRide.status === 'trip_completed' || latestRide.status === 'completed') &&
+          latestRide.status === 'trip_completed' &&
           !latestRide.captain_rated &&
           !ratedIds.includes(latestRide.id)
         ) {
@@ -1846,8 +1888,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (targetActiveId) {
         const specific = await motorideApi.getRideById(targetActiveId);
         if (specific) {
-          if (specific.status.includes('cancelled') || specific.captain_rated || ratedIds.includes(specific.id)) {
+          if (
+            specific.status?.includes('cancelled') ||
+            specific.status === 'completed' ||
+            specific.captain_rated ||
+            ratedIds.includes(specific.id)
+          ) {
             safeStorage.removeItem('motoride_active_captain_ride_id');
+            activeRideRef.current = null;
             setActiveRide(null);
             setShowPassengerRatingModal(false);
             setCompletedRideForRating(null);
@@ -1859,7 +1907,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           setActiveRide((prev) => resolveAuthoritativeRide(prev, specific));
 
           if (
-            (specific.status === 'trip_completed' || specific.status === 'completed') &&
+            specific.status === 'trip_completed' &&
             !specific.captain_rated &&
             !ratedIds.includes(specific.id)
           ) {
@@ -1882,7 +1930,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
             r.status === 'captain_accepted' ||
             r.status === 'captain_arrived' ||
             r.status === 'trip_started' ||
-            ((r.status === 'trip_completed' || r.status === 'completed') && !r.captain_rated && !ratedIds.includes(r.id));
+            (r.status === 'trip_completed' && !r.captain_rated && !ratedIds.includes(r.id));
           if (!isActiveStatus) return false;
 
           return isRideForThisCaptain(r);
@@ -1892,7 +1940,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           safeStorage.setItem('motoride_active_captain_ride_id', current.id);
           setActiveRide((prev) => resolveAuthoritativeRide(prev, current));
           if (
-            (current.status === 'trip_completed' || current.status === 'completed') &&
+            current.status === 'trip_completed' &&
             !current.captain_rated &&
             !ratedIds.includes(current.id)
           ) {
@@ -1904,8 +1952,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           }
         } else {
           const currentLive = activeRideRef.current;
-          const isLiveTrip = currentLive && !currentLive.status.includes('cancelled') && currentLive.status !== 'completed' && currentLive.status !== 'trip_completed';
+          const isLiveTrip = currentLive && !currentLive.status?.includes('cancelled') && currentLive.status !== 'completed' && currentLive.status !== 'trip_completed';
           if (!isLiveTrip && !targetActiveId) {
+            activeRideRef.current = null;
             setActiveRide(null);
             setCompletedRideForRating(null);
             setShowPassengerRatingModal(false);
@@ -2210,74 +2259,89 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       return;
     }
 
-    setIsFinishingRide(true);
-    try {
-      markCaptainRideAsRated(captainId, rideToFinish.id);
-      const finalFare = getRideAgreedFare(rideToFinish);
+    const currentCapId = captainId || captain?.id || authUser?.id || '';
 
-      // 1. Call atomic completeRideWithCommission to execute 10% deduction and handle low-balance check
-      const compRes = await motorideApi.completeRideWithCommission(
-        rideToFinish.id,
-        captainId,
-        rideToFinish,
-        finalFare
-      );
-      if (!compRes.success && compRes.insufficient_balance) {
-        alert(`⚠️ Insufficient Wallet Balance!\n\nPlatform Commission (10%): ₹${compRes.commission_amount || (finalFare * 0.1).toFixed(2)}\nYour Current Balance: ₹${compRes.wallet_balance_before || walletBalance}\n\nPlease add money to your wallet to complete this ride.`);
-        setActiveTab('wallet');
-        setShowPassengerRatingModal(false);
-        setIsFinishingRide(false);
-        return;
-      }
+    // 0. INSTANT ZERO-LATENCY OPTIMISTIC CLOSE:
+    // Mark as rated immediately and clear active ride in 0ms so the modal closes instantly
+    // and returns the captain directly to the Live Requests radar screen!
+    markCaptainRideAsRated(currentCapId, rideToFinish.id);
+    safeStorage.removeItem('motoride_active_captain_ride_id');
+    activeRideRef.current = null;
+    setActiveRide(null);
+    setCompletedRideForRating(null);
+    setShowPassengerRatingModal(false);
+    setIsFinishingRide(false);
 
-      // Update wallet balance immediately in UI state and notify header/parent components
-      if (compRes.wallet_balance_after !== undefined) {
-        const newBal = compRes.wallet_balance_after;
-        setWalletBalance(newBal);
-        onWalletBalanceUpdated?.(newBal);
-        safeStorage.setItem('motoride_captain_wallet_balance', newBal.toString());
-        safeStorage.setItem(`motoride_wallet_${captainId}`, JSON.stringify({ balance: newBal, currency: '₹' }));
-        
-        // Synchronize with locally cached AuthUser and StoredAccount so the updated balance persists on page refresh!
-        const curr = supabaseAuth.getCurrentUser();
-        if (curr) {
-          curr.walletBalance = newBal;
-          supabaseAuth.setCurrentUser(curr);
-          supabaseAuth.saveAccount({ ...curr, passwordHash: '' });
+    // Save locally immediately as completed & rated so no background poll or event can resurrect it
+    const finishedRide: MotorideRide = {
+      ...rideToFinish,
+      status: 'completed',
+      captain_rated: true,
+      payment_status: 'paid',
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    motorideApi.saveRideLocallyDirect(finishedRide);
+    loadAvailableRides();
+
+    // 1. Asynchronous non-blocking background processing (commission deduction + rating persistence)
+    (async () => {
+      try {
+        const finalFare = getRideAgreedFare(rideToFinish);
+
+        // Atomic completeRideWithCommission for 10% deduction and low-balance check
+        const compRes = await motorideApi.completeRideWithCommission(
+          rideToFinish.id,
+          currentCapId,
+          finishedRide,
+          finalFare
+        );
+
+        if (!compRes.success && compRes.insufficient_balance) {
+          console.warn('Insufficient wallet balance for platform commission');
+          setActiveTab('wallet');
+          return;
         }
-      }
 
-      // 2. Submit Captain's rating for passenger
-      if (!skipRating && rideToFinish.passenger_id) {
-        try {
-          await motorideApi.submitRideRating({
-            ride_id: rideToFinish.id,
-            rater_role: 'captain',
-            captain_id: captainId,
-            passenger_id: rideToFinish.passenger_id,
-            score: score || 5,
-            review: review,
-            tags: tags,
-          });
-        } catch (ratingErr) {
-          console.warn('Rating save error ignored:', ratingErr);
+        // Update wallet balance in UI state if changed
+        if (compRes.wallet_balance_after !== undefined) {
+          const newBal = compRes.wallet_balance_after;
+          setWalletBalance(newBal);
+          onWalletBalanceUpdated?.(newBal);
+          safeStorage.setItem('motoride_captain_wallet_balance', newBal.toString());
+          if (currentCapId) {
+            safeStorage.setItem(`motoride_wallet_${currentCapId}`, JSON.stringify({ balance: newBal, currency: '₹' }));
+          }
+          const curr = supabaseAuth.getCurrentUser();
+          if (curr) {
+            curr.walletBalance = newBal;
+            supabaseAuth.setCurrentUser(curr);
+            supabaseAuth.saveAccount({ ...curr, passwordHash: '' });
+          }
         }
-      }
 
-      // 3. Instantly clear active ride and close rating modal
-      setActiveRide(null);
-      setCompletedRideForRating(null);
-      setShowPassengerRatingModal(false);
-      await loadCaptainData();
-    } catch (err: any) {
-      console.warn('Finish ride notice:', err);
-      setActiveRide(null);
-      setCompletedRideForRating(null);
-      setShowPassengerRatingModal(false);
-      loadCaptainData();
-    } finally {
-      setIsFinishingRide(false);
-    }
+        // Submit Captain's rating for passenger in background
+        if (!skipRating && rideToFinish.passenger_id) {
+          try {
+            await motorideApi.submitRideRating({
+              ride_id: rideToFinish.id,
+              rater_role: 'captain',
+              captain_id: currentCapId,
+              passenger_id: rideToFinish.passenger_id,
+              score: score || 5,
+              review: review,
+              tags: tags,
+            });
+          } catch (ratingErr) {
+            console.warn('Rating save error ignored:', ratingErr);
+          }
+        }
+
+        loadCaptainData();
+      } catch (err: any) {
+        console.warn('Background finish ride error:', err);
+      }
+    })();
   };
 
   const handleCancelTrip = async () => {
@@ -2689,18 +2753,28 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCompletedRideForRating(activeRide);
-                    setShowPassengerRatingModal(true);
-                  }}
-                  style={{ backgroundColor: '#ba1e23', borderColor: '#ba1e23' }}
-                  className="w-full py-3.5 rounded-2xl hover:opacity-90 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-rose-900/25"
-                >
-                  <Star className="w-4 h-4 fill-white text-white" />
-                  <span>Rate Passenger & Finish Ride</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCompletedRideForRating(activeRide);
+                      setShowPassengerRatingModal(true);
+                    }}
+                    style={{ backgroundColor: '#ba1e23', borderColor: '#ba1e23' }}
+                    className="flex-1 py-3.5 rounded-2xl hover:opacity-90 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-rose-900/25"
+                  >
+                    <Star className="w-4 h-4 fill-white text-white" />
+                    <span>Rate Passenger</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFinishRideWithRating(5, '', [], true)}
+                    className="py-3.5 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all active:scale-98 cursor-pointer"
+                    title="Skip Rating and return to live radar"
+                  >
+                    Skip & Close
+                  </button>
+                </div>
               </div>
             )}
 
@@ -4008,6 +4082,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           isSubmitting={isFinishingRide}
           onSubmit={(score, review, tags) => handleFinishRideWithRating(score, review, tags, false)}
           onSkip={() => handleFinishRideWithRating(5, '', [], true)}
+          onClose={() => handleFinishRideWithRating(5, '', [], true)}
         />
       )}
 

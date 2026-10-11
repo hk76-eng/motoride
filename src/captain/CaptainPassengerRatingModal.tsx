@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Star, CheckCircle2, ThumbsUp, Sparkles, MapPin, IndianRupee, ShieldCheck, Heart, User } from 'lucide-react';
+import { Star, CheckCircle2, ThumbsUp, Sparkles, MapPin, IndianRupee, ShieldCheck, Heart, User, X } from 'lucide-react';
 import { MotorideRide } from '../types/motoride';
 
 interface CaptainPassengerRatingModalProps {
@@ -8,6 +8,7 @@ interface CaptainPassengerRatingModalProps {
   isSubmitting?: boolean;
   onSubmit: (score: number, review: string, tags: string[]) => void;
   onSkip: () => void;
+  onClose?: () => void;
 }
 
 const PASSENGER_COMPLIMENT_TAGS = [
@@ -25,6 +26,7 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
   isSubmitting = false,
   onSubmit,
   onSkip,
+  onClose,
 }) => {
   const [score, setScore] = useState<number>(5);
   const [hoverScore, setHoverScore] = useState<number | null>(null);
@@ -60,8 +62,23 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
 
   const currentDisplayScore = hoverScore ?? score;
 
+  const handleDismiss = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      onSkip();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm select-none animate-in fade-in duration-200">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleDismiss();
+        }
+      }}
+      className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm select-none animate-in fade-in duration-200"
+    >
       <div className="w-full max-w-lg bg-white border border-slate-200 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 text-slate-900 shadow-2xl flex flex-col gap-4 max-h-[92vh] overflow-y-auto scrollbar-thin animate-in slide-in-from-bottom-4 duration-200">
         
         {/* Header Celebration Banner */}
@@ -80,9 +97,20 @@ export const CaptainPassengerRatingModal: React.FC<CaptainPassengerRatingModalPr
             </div>
           </div>
 
-          <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
-            #{ride.ride_code}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
+              #{ride.ride_code}
+            </span>
+            <button
+              type="button"
+              onClick={handleDismiss}
+              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer"
+              title="Close & Return to Live Requests"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4 stroke-[2.5]" />
+            </button>
+          </div>
         </div>
 
         {/* Trip Summary Card */}

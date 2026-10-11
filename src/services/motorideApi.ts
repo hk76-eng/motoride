@@ -431,8 +431,11 @@ realtimeSync.on('REQUEST_SYNC_RECEIVED', () => {
 });
 
 async function safeFetchJson<T = any>(url: string, options?: RequestInit, fallback: T = {} as T): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
   try {
-    const res = await fetch(url, options);
+    const res = await fetch(url, { ...options, signal: options?.signal || controller.signal });
+    clearTimeout(timeoutId);
     if (!res.ok) {
       const text = await res.text();
       if (text && !text.trim().startsWith('<') && !text.trim().startsWith('The page')) {
@@ -451,7 +454,8 @@ async function safeFetchJson<T = any>(url: string, options?: RequestInit, fallba
     }
     return JSON.parse(text) as T;
   } catch (err: any) {
-    if (err.message && !err.message.includes('Unexpected token') && !err.message.includes('valid JSON')) {
+    clearTimeout(timeoutId);
+    if (err.name !== 'AbortError' && err.message && !err.message.includes('Unexpected token') && !err.message.includes('valid JSON')) {
       console.warn(`API call warning for ${url}:`, err.message);
     }
     return fallback;
@@ -479,6 +483,12 @@ export interface ApkReleaseInfo {
 }
 
 export const motorideApi = {
+  saveRideLocallyDirect(ride: MotorideRide): void {
+    if (ride && ride.id) {
+      localRidesStore.set(ride.id, ride);
+      saveLocalRides();
+    }
+  },
   // 1. Rides
   async getRides(params?: {
     status?: string;
@@ -1286,6 +1296,8 @@ export const motorideApi = {
 
       if (serverRes && serverRes.success) {
         if (serverRes.ride) {
+          serverRes.ride.captain_rated = true;
+          serverRes.ride.status = 'completed';
           localRidesStore.set(rideId, serverRes.ride);
           saveLocalRides();
           realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: serverRes.ride, status: 'completed' });
@@ -1391,6 +1403,7 @@ export const motorideApi = {
       ...(currentLocalRide || {}),
       id: rideId,
       status: 'completed',
+      captain_rated: true,
       payment_status: 'paid',
       final_fare: agreedFare,
       fare_amount: agreedFare,
