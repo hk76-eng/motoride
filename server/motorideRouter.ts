@@ -2094,8 +2094,8 @@ motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
 
   const isMojo = cpt.id === 'cpt_mojobiketaxi' || cpt.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com';
   if (isMojo) {
-    cpt.full_name = 'Hemant kashyap';
-    cpt.phone = '+91 9876543210';
+    if (!cpt.full_name) cpt.full_name = 'Hemant kashyap';
+    if (!cpt.phone) cpt.phone = '+91 9876543210';
     if (!cpt.vehicle) {
       cpt.vehicle = {
         id: 'veh_cpt_mojobiketaxi',
@@ -2107,9 +2107,9 @@ motorideRouter.get('/captains/:id', (req: Request, res: Response) => {
         is_active: true,
       };
     } else {
-      cpt.vehicle.model = 'Honda Activa 6G';
-      cpt.vehicle.plate_number = 'PB65AX9922';
-      cpt.vehicle.vehicle_type = 'bike';
+      if (!cpt.vehicle.model) cpt.vehicle.model = 'Honda Activa 6G';
+      if (!cpt.vehicle.plate_number) cpt.vehicle.plate_number = 'PB65AX9922';
+      cpt.vehicle.vehicle_type = cpt.vehicle.vehicle_type || 'bike';
     }
   }
 
@@ -2148,16 +2148,33 @@ motorideRouter.get('/captains/:id/today-income', (req: Request, res: Response) =
 });
 
 motorideRouter.post('/captains/:id/profile', (req: Request, res: Response) => {
-  let cpt = captainsStore.get(req.params.id);
-  const { full_name, phone, avatar_url } = req.body;
+  const targetId = req.params.id;
+  let cpt = captainsStore.get(targetId);
+  if (!cpt) {
+    for (const [k, item] of captainsStore.entries()) {
+      if (
+        item.id === targetId ||
+        item.profile_id === targetId ||
+        (item.email && item.email.toLowerCase() === targetId.toLowerCase()) ||
+        item.phone === targetId
+      ) {
+        cpt = item;
+        break;
+      }
+    }
+  }
+
+  const { full_name, name, phone, avatar_url, email, vehicle, license_number, emergency_contact } = req.body;
+  const resolvedName = (full_name || name || '').trim();
+
   if (!cpt) {
     for (const acc of accountsStore.values()) {
-      if (acc.id === req.params.id) {
+      if (acc.id === targetId || (acc.email && acc.email.toLowerCase() === targetId.toLowerCase())) {
         cpt = {
           id: acc.id,
           profile_id: `prof_${acc.id}`,
-          full_name: full_name || acc.name,
-          email: acc.email,
+          full_name: resolvedName || acc.name,
+          email: email || acc.email,
           phone: phone || acc.phone || '',
           is_online: true,
           is_approved: true,
@@ -2169,10 +2186,10 @@ motorideRouter.post('/captains/:id/profile', (req: Request, res: Response) => {
           vehicle: {
             id: `veh_${acc.id}`,
             captain_id: acc.id,
-            model: acc.vehicle_model || 'Honda Activa 6G',
-            plate_number: acc.plate_number || 'PB65XX1000',
-            vehicle_type: acc.vehicle_type || 'bike',
-            color: 'Black',
+            model: vehicle?.model || acc.vehicle_model || 'Honda Activa 6G',
+            plate_number: vehicle?.plate_number || acc.plate_number || 'PB65XX1000',
+            vehicle_type: vehicle?.vehicle_type || acc.vehicle_type || 'bike',
+            color: vehicle?.color || 'Black',
             is_active: true,
           },
           created_at: acc.created_at || new Date().toISOString(),
@@ -2183,16 +2200,33 @@ motorideRouter.post('/captains/:id/profile', (req: Request, res: Response) => {
   }
 
   if (cpt) {
-    if (full_name) cpt.full_name = full_name;
+    if (resolvedName) cpt.full_name = resolvedName;
     if (phone !== undefined) cpt.phone = phone;
-    if (avatar_url) cpt.avatar_url = avatar_url;
+    if (email) cpt.email = email;
+    if (avatar_url !== undefined) cpt.avatar_url = avatar_url;
+    if (license_number !== undefined) (cpt as any).license_number = license_number;
+    if (emergency_contact !== undefined) (cpt as any).emergency_contact = emergency_contact;
+    if (vehicle) {
+      cpt.vehicle = {
+        ...(cpt.vehicle || { id: `veh_${cpt.id}`, captain_id: cpt.id, vehicle_type: 'bike', color: 'Black', is_active: true }),
+        ...vehicle,
+        model: vehicle.model || cpt.vehicle?.model || 'Motorcycle',
+        plate_number: vehicle.plate_number || cpt.vehicle?.plate_number || '',
+      };
+    }
     cpt.updated_at = new Date().toISOString();
     captainsStore.set(cpt.id, cpt);
+    if (cpt.profile_id) captainsStore.set(cpt.profile_id, cpt);
+    if (cpt.email) captainsStore.set(cpt.email.toLowerCase(), cpt);
+    if (cpt.phone) captainsStore.set(cpt.phone, cpt);
 
     for (const [k, acc] of accountsStore.entries()) {
-      if (acc.id === cpt.id) {
-        if (full_name) acc.name = full_name;
+      if (acc.id === cpt.id || (cpt.email && acc.email?.toLowerCase() === cpt.email.toLowerCase())) {
+        if (resolvedName) acc.name = resolvedName;
         if (phone !== undefined) acc.phone = phone;
+        if (email) acc.email = email;
+        if (vehicle?.model) acc.vehicle_model = vehicle.model;
+        if (vehicle?.plate_number) acc.plate_number = vehicle.plate_number;
         accountsStore.set(k, acc);
       }
     }
@@ -2376,9 +2410,20 @@ motorideRouter.post('/captains/:id/toggle-online', (req: Request, res: Response)
 });
 
 motorideRouter.post('/captains/:id/vehicle', (req: Request, res: Response) => {
-  const cpt = captainsStore.get(req.params.id);
+  const targetId = req.params.id;
+  let cpt = captainsStore.get(targetId);
   if (!cpt) {
-    return res.status(404).json({ error: 'Captain not found' });
+    for (const [k, item] of captainsStore.entries()) {
+      if (
+        item.id === targetId ||
+        item.profile_id === targetId ||
+        (item.email && item.email.toLowerCase() === targetId.toLowerCase()) ||
+        item.phone === targetId
+      ) {
+        cpt = item;
+        break;
+      }
+    }
   }
 
   const { model, plate_number, vehicle_type, color } = req.body;
@@ -2386,18 +2431,65 @@ motorideRouter.post('/captains/:id/vehicle', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Model and plate number are required' });
   }
 
+  if (!cpt) {
+    for (const acc of accountsStore.values()) {
+      if (acc.id === targetId || (acc.email && acc.email.toLowerCase() === targetId.toLowerCase())) {
+        cpt = {
+          id: acc.id,
+          profile_id: `prof_${acc.id}`,
+          full_name: acc.name,
+          email: acc.email,
+          phone: acc.phone || '',
+          is_online: true,
+          is_approved: true,
+          is_active: true,
+          current_lat: 30.7046,
+          current_lng: 76.7178,
+          rating: 4.95,
+          total_rides: 0,
+          vehicle: {
+            id: `veh_${acc.id}`,
+            captain_id: acc.id,
+            model,
+            plate_number,
+            vehicle_type: vehicle_type || 'bike',
+            color: color || 'Black',
+            is_active: true,
+          },
+          created_at: acc.created_at || new Date().toISOString(),
+        };
+        break;
+      }
+    }
+  }
+
+  if (!cpt) {
+    return res.status(404).json({ error: 'Captain not found' });
+  }
+
   cpt.vehicle = {
     id: cpt.vehicle?.id || `veh_${Date.now()}`,
     captain_id: cpt.id,
     model,
     plate_number,
-    vehicle_type: vehicle_type || 'bike',
-    color: color || 'Black',
+    vehicle_type: vehicle_type || cpt.vehicle?.vehicle_type || 'bike',
+    color: color || cpt.vehicle?.color || 'Black',
     is_active: true,
   };
   cpt.updated_at = new Date().toISOString();
   captainsStore.set(cpt.id, cpt);
+  if (cpt.profile_id) captainsStore.set(cpt.profile_id, cpt);
 
+  for (const [k, acc] of accountsStore.entries()) {
+    if (acc.id === cpt.id || (cpt.email && acc.email?.toLowerCase() === cpt.email.toLowerCase())) {
+      acc.vehicle_model = model;
+      acc.plate_number = plate_number;
+      accountsStore.set(k, acc);
+    }
+  }
+
+  persistDbToDisk();
+  broadcastEvent('CAPTAINS_UPDATED', Array.from(captainsStore.values()));
   res.json({ success: true, captain: cpt });
 });
 

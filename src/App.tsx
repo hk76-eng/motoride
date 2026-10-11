@@ -104,6 +104,18 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Sync profile changes immediately when captain edits their information
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      const updatedUser = supabaseAuth.getCurrentUser();
+      if (updatedUser) {
+        setCurrentUser(updatedUser);
+      }
+    };
+    window.addEventListener('motoride_captain_profile_updated', handleProfileUpdate);
+    return () => window.removeEventListener('motoride_captain_profile_updated', handleProfileUpdate);
+  }, []);
+
   // Synchronize the header's global walletBalance state in real-time when the captain's balance is updated on the server
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -212,16 +224,26 @@ export default function App() {
         {currentRole === 'captain' && (
           <CaptainWorkspace
             captainId={currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? 'cpt_mojobiketaxi' : currentUser.id}
-            captainName={currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : currentUser.name}
+            captainName={
+              safeStorage.getItem('motoride_captain_name') ||
+              currentUser.name ||
+              (currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : 'Captain')
+            }
             currentUser={currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? {
               ...currentUser,
               id: 'cpt_mojobiketaxi',
-              name: 'Hemant kashyap',
-              phone: '+91 9876543210',
-              vehicleModel: 'Honda Activa 6G',
-              plateNumber: 'PB65AX9922',
-              vehicleType: 'bike',
-            } : currentUser}
+              name: safeStorage.getItem('motoride_captain_name') || currentUser.name || 'Hemant kashyap',
+              phone: safeStorage.getItem('motoride_captain_phone') || currentUser.phone || '+91 9876543210',
+              vehicleModel: safeStorage.getItem('motoride_captain_vehicle_model') || currentUser.vehicleModel || 'Honda Activa 6G',
+              plateNumber: safeStorage.getItem('motoride_captain_plate') || currentUser.plateNumber || 'PB65AX9922',
+              vehicleType: currentUser.vehicleType || 'bike',
+            } : {
+              ...currentUser,
+              name: safeStorage.getItem('motoride_captain_name') || currentUser.name,
+              phone: safeStorage.getItem('motoride_captain_phone') || currentUser.phone,
+              vehicleModel: safeStorage.getItem('motoride_captain_vehicle_model') || currentUser.vehicleModel,
+              plateNumber: safeStorage.getItem('motoride_captain_plate') || currentUser.plateNumber,
+            }}
             walletBalance={walletBalance}
             onWalletBalanceUpdated={(newBal) => {
               setWalletBalance(newBal);

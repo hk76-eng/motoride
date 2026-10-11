@@ -67,12 +67,12 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const isMojo = captain?.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' || safeStorage.getItem('motoride_captain_email')?.toLowerCase().trim() === 'mojobiketaxi@gmail.com';
-  const initialName = isMojo ? 'Hemant kashyap' : (safeStorage.getItem('motoride_captain_name') || captain?.full_name || 'Captain');
-  const [name, setName] = useState(() => initialName.toLowerCase().includes('mojobiketaxi') ? 'Hemant kashyap' : initialName);
-  const [phone, setPhone] = useState(() => isMojo ? '+91 9876543210' : (safeStorage.getItem('motoride_captain_phone') || captain?.phone || ''));
-  const [email, setEmail] = useState(() => isMojo ? 'mojobiketaxi@gmail.com' : (safeStorage.getItem('motoride_captain_email') || captain?.email || ''));
-  const [vehicleModel, setVehicleModel] = useState(() => isMojo ? 'Honda Activa 6G' : (safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || 'Motorcycle'));
-  const [plateNumber, setPlateNumber] = useState(() => isMojo ? 'PB65AX9922' : (safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || ''));
+  
+  const [name, setName] = useState(() => safeStorage.getItem('motoride_captain_name') || captain?.full_name || (isMojo ? 'Hemant kashyap' : 'Captain'));
+  const [phone, setPhone] = useState(() => safeStorage.getItem('motoride_captain_phone') || captain?.phone || (isMojo ? '+91 9876543210' : ''));
+  const [email, setEmail] = useState(() => safeStorage.getItem('motoride_captain_email') || captain?.email || (isMojo ? 'mojobiketaxi@gmail.com' : ''));
+  const [vehicleModel, setVehicleModel] = useState(() => safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || (isMojo ? 'Honda Activa 6G' : 'Motorcycle'));
+  const [plateNumber, setPlateNumber] = useState(() => safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || (isMojo ? 'PB65AX9922' : ''));
   const [drivingLicense, setDrivingLicense] = useState(() => safeStorage.getItem('motoride_captain_dl') || (captain as any)?.license_number || '');
   const [emergencyContact, setEmergencyContact] = useState(() => safeStorage.getItem('motoride_captain_sos') || (captain as any)?.emergency_contact || captain?.phone || '');
   const [isSavedToast, setIsSavedToast] = useState(false);
@@ -194,41 +194,67 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync prop changes without overwriting local storage edits
+  // Sync prop changes without overwriting local storage edits or active editing state
   useEffect(() => {
-    if (captain) {
-      if (captain.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') {
-        setName('Hemant kashyap');
-        safeStorage.setItem('motoride_captain_name', 'Hemant kashyap');
-        setPhone('+91 9876543210');
-        safeStorage.setItem('motoride_captain_phone', '+91 9876543210');
-        setEmail('mojobiketaxi@gmail.com');
-        safeStorage.setItem('motoride_captain_email', 'mojobiketaxi@gmail.com');
-        setVehicleModel('Honda Activa 6G');
-        safeStorage.setItem('motoride_captain_vehicle_model', 'Honda Activa 6G');
-        setPlateNumber('PB65AX9922');
-        safeStorage.setItem('motoride_captain_plate', 'PB65AX9922');
-      } else if (captain.full_name && captain.full_name !== 'Captain' && !safeStorage.getItem('motoride_captain_name')) {
+    if (isOpen && !isEditing) {
+      const storedName = safeStorage.getItem('motoride_captain_name');
+      const storedPhone = safeStorage.getItem('motoride_captain_phone');
+      const storedEmail = safeStorage.getItem('motoride_captain_email');
+      const storedModel = safeStorage.getItem('motoride_captain_vehicle_model');
+      const storedPlate = safeStorage.getItem('motoride_captain_plate');
+      const storedDl = safeStorage.getItem('motoride_captain_dl');
+      const storedSos = safeStorage.getItem('motoride_captain_sos');
+      const storedAvatar = safeStorage.getItem('motoride_captain_avatar');
+
+      if (storedName) {
+        setName(storedName);
+      } else if (captain?.full_name && captain.full_name !== 'Captain') {
         setName(captain.full_name);
       }
-      if (captain.phone && !safeStorage.getItem('motoride_captain_phone')) {
+
+      if (storedPhone) {
+        setPhone(storedPhone);
+      } else if (captain?.phone) {
         setPhone(captain.phone);
       }
-      if (captain.email && !safeStorage.getItem('motoride_captain_email')) {
+
+      if (storedEmail) {
+        setEmail(storedEmail);
+      } else if (captain?.email) {
         setEmail(captain.email);
       }
-      if (captain.vehicle?.model && !safeStorage.getItem('motoride_captain_vehicle_model')) {
+
+      if (storedModel) {
+        setVehicleModel(storedModel);
+      } else if (captain?.vehicle?.model) {
         setVehicleModel(captain.vehicle.model);
       }
-      if (captain.vehicle?.plate_number && !safeStorage.getItem('motoride_captain_plate')) {
+
+      if (storedPlate) {
+        setPlateNumber(storedPlate);
+      } else if (captain?.vehicle?.plate_number) {
         setPlateNumber(captain.vehicle.plate_number);
       }
-      if (captain.avatar_url && !safeStorage.getItem('motoride_captain_avatar')) {
+
+      if (storedDl) {
+        setDrivingLicense(storedDl);
+      } else if ((captain as any)?.license_number) {
+        setDrivingLicense((captain as any).license_number);
+      }
+
+      if (storedSos) {
+        setEmergencyContact(storedSos);
+      } else if ((captain as any)?.emergency_contact) {
+        setEmergencyContact((captain as any).emergency_contact);
+      }
+
+      if (storedAvatar) {
+        setAvatarUrl(storedAvatar);
+      } else if (captain?.avatar_url) {
         setAvatarUrl(captain.avatar_url);
-        safeStorage.setItem('motoride_captain_avatar', captain.avatar_url);
       }
     }
-  }, [captain]);
+  }, [isOpen, captain, isEditing]);
 
   // Handle Photo Upload
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -319,19 +345,27 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      alert('Name cannot be empty.');
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      alert('Full name cannot be empty.');
       return;
     }
     const finalAvatar = avatarUrl || safeStorage.getItem('motoride_captain_avatar') || captain?.avatar_url || undefined;
+    const finalPhone = phone.trim();
+    const finalEmail = email.trim();
+    const finalModel = vehicleModel.trim() || 'Motorcycle';
+    const finalPlate = plateNumber.trim().toUpperCase();
+    const finalDl = drivingLicense.trim().toUpperCase();
+    const finalSos = emergencyContact.trim();
+
     try {
-      safeStorage.setItem('motoride_captain_name', name);
-      safeStorage.setItem('motoride_captain_phone', phone);
-      safeStorage.setItem('motoride_captain_email', email);
-      safeStorage.setItem('motoride_captain_vehicle_model', vehicleModel);
-      safeStorage.setItem('motoride_captain_plate', plateNumber);
-      safeStorage.setItem('motoride_captain_dl', drivingLicense);
-      safeStorage.setItem('motoride_captain_sos', emergencyContact);
+      safeStorage.setItem('motoride_captain_name', trimmedName);
+      safeStorage.setItem('motoride_captain_phone', finalPhone);
+      safeStorage.setItem('motoride_captain_email', finalEmail);
+      safeStorage.setItem('motoride_captain_vehicle_model', finalModel);
+      safeStorage.setItem('motoride_captain_plate', finalPlate);
+      safeStorage.setItem('motoride_captain_dl', finalDl);
+      safeStorage.setItem('motoride_captain_sos', finalSos);
       if (finalAvatar) {
         safeStorage.setItem('motoride_captain_avatar', finalAvatar);
       }
@@ -343,35 +377,47 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
     if (user) {
       const updatedUser = {
         ...user,
-        name,
-        email,
-        phone,
+        name: trimmedName,
+        email: finalEmail || user.email,
+        phone: finalPhone || user.phone,
+        vehicleModel: finalModel,
+        plateNumber: finalPlate,
         avatarUrl: finalAvatar,
       };
       supabaseAuth.setCurrentUser(updatedUser);
       supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
     }
 
+    setName(trimmedName);
+    setPhone(finalPhone);
+    setEmail(finalEmail);
+    setVehicleModel(finalModel);
+    setPlateNumber(finalPlate);
+    setDrivingLicense(finalDl);
+    setEmergencyContact(finalSos);
+
     if (onUpdateCaptain) {
       onUpdateCaptain({
-        full_name: name,
-        phone,
-        email,
+        full_name: trimmedName,
+        phone: finalPhone,
+        email: finalEmail,
         avatar_url: finalAvatar,
         vehicle: {
-          model: vehicleModel,
-          plate_number: plateNumber,
+          model: finalModel,
+          plate_number: finalPlate,
           vehicle_type: captain?.vehicle?.vehicle_type || 'bike',
           color: captain?.vehicle?.color || 'Black',
         },
-        license_number: drivingLicense,
-        emergency_contact: emergencyContact,
+        license_number: finalDl,
+        emergency_contact: finalSos,
       } as any);
     }
+
     setIsEditing(false);
-    setToastMessage('Captain details updated successfully!');
+    setToastMessage('Captain details updated & saved successfully!');
     setIsSavedToast(true);
     setTimeout(() => setIsSavedToast(false), 3000);
+    window.dispatchEvent(new Event('motoride_captain_profile_updated'));
   };
 
   // Generate Initials
@@ -688,7 +734,18 @@ export const CaptainProfileDrawer: React.FC<CaptainProfileDrawerProps> = ({
               </span>
               <button
                 type="button"
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => {
+                  if (isEditing) {
+                    setName(safeStorage.getItem('motoride_captain_name') || captain?.full_name || (isMojo ? 'Hemant kashyap' : 'Captain'));
+                    setPhone(safeStorage.getItem('motoride_captain_phone') || captain?.phone || (isMojo ? '+91 9876543210' : ''));
+                    setEmail(safeStorage.getItem('motoride_captain_email') || captain?.email || (isMojo ? 'mojobiketaxi@gmail.com' : ''));
+                    setVehicleModel(safeStorage.getItem('motoride_captain_vehicle_model') || captain?.vehicle?.model || (isMojo ? 'Honda Activa 6G' : 'Motorcycle'));
+                    setPlateNumber(safeStorage.getItem('motoride_captain_plate') || captain?.vehicle?.plate_number || (isMojo ? 'PB65AX9922' : ''));
+                    setDrivingLicense(safeStorage.getItem('motoride_captain_dl') || (captain as any)?.license_number || '');
+                    setEmergencyContact(safeStorage.getItem('motoride_captain_sos') || (captain as any)?.emergency_contact || captain?.phone || '');
+                  }
+                  setIsEditing(!isEditing);
+                }}
                 className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 cursor-pointer active:scale-95 transition-all"
               >
                 {isEditing ? (

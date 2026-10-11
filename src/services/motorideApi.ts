@@ -2507,7 +2507,16 @@ export const motorideApi = {
 
   async updateCaptainProfile(
     id: string,
-    profileData: { full_name?: string; name?: string; phone?: string; avatar_url?: string; email?: string }
+    profileData: {
+      full_name?: string;
+      name?: string;
+      phone?: string;
+      avatar_url?: string;
+      email?: string;
+      vehicle?: { model?: string; plate_number?: string; vehicle_type?: string; color?: string };
+      license_number?: string;
+      emergency_contact?: string;
+    }
   ): Promise<Captain> {
     const newName = (profileData.full_name || profileData.name || '').trim();
     const newPhone = (profileData.phone || '').trim();
@@ -2528,7 +2537,7 @@ export const motorideApi = {
     if (supabase) {
       try {
         const updatePayload: any = { updated_at: now };
-        if (newName) updatePayload.full_name = newName;
+        if (newName) updatePayload.name = newName;
         if (newPhone) updatePayload.phone = newPhone;
         if (newEmail) updatePayload.email = newEmail;
         if (profileData.avatar_url) updatePayload.avatar_url = profileData.avatar_url;
@@ -2541,12 +2550,18 @@ export const motorideApi = {
         }
 
         const cptPayload: any = { updated_at: now };
-        if (newName) cptPayload.full_name = newName;
+        if (newName) cptPayload.name = newName;
         if (newPhone) cptPayload.phone = newPhone;
+        if (newEmail) cptPayload.email = newEmail;
         if (profileData.avatar_url) cptPayload.avatar_url = profileData.avatar_url;
+        if (profileData.vehicle?.model) cptPayload.vehicle_model = profileData.vehicle.model;
+        if (profileData.vehicle?.plate_number) cptPayload.plate_number = profileData.vehicle.plate_number;
 
         if (id) {
           await supabase.from('captains').update(cptPayload).or(`id.eq.${id},profile_id.eq.${id}`);
+        }
+        if (newEmail) {
+          await supabase.from('captains').update(cptPayload).eq('email', newEmail);
         }
       } catch (err) {
         console.warn('Supabase updateCaptainProfile notice:', err);
@@ -2554,14 +2569,25 @@ export const motorideApi = {
     }
 
     try {
+      if (newName) safeStorage.setItem('motoride_captain_name', newName);
+      if (newPhone) safeStorage.setItem('motoride_captain_phone', newPhone);
+      if (newEmail) safeStorage.setItem('motoride_captain_email', newEmail);
+      if (profileData.avatar_url) safeStorage.setItem('motoride_captain_avatar', profileData.avatar_url);
+      if (profileData.vehicle?.model) safeStorage.setItem('motoride_captain_vehicle_model', profileData.vehicle.model);
+      if (profileData.vehicle?.plate_number) safeStorage.setItem('motoride_captain_plate', profileData.vehicle.plate_number);
+      if (profileData.license_number) safeStorage.setItem('motoride_captain_dl', profileData.license_number);
+      if (profileData.emergency_contact) safeStorage.setItem('motoride_captain_sos', profileData.emergency_contact);
+
       const curr = supabaseAuth.getCurrentUser();
-      if (curr && (curr.id === id || (newEmail && curr.email.toLowerCase() === newEmail))) {
+      if (curr && (curr.id === id || (newEmail && curr.email.toLowerCase() === newEmail) || curr.role === 'captain')) {
         const updatedUser = {
           ...curr,
           name: newName || curr.name,
           phone: newPhone || curr.phone,
           email: newEmail || curr.email,
           avatarUrl: profileData.avatar_url || curr.avatarUrl,
+          vehicleModel: profileData.vehicle?.model || curr.vehicleModel,
+          plateNumber: profileData.vehicle?.plate_number || curr.plateNumber,
         };
         supabaseAuth.setCurrentUser(updatedUser);
         supabaseAuth.saveAccount({ ...updatedUser, passwordHash: '' });
@@ -2579,6 +2605,8 @@ export const motorideApi = {
                 if (newPhone) acc.phone = newPhone;
                 if (newEmail) acc.email = newEmail;
                 if (profileData.avatar_url) acc.avatarUrl = profileData.avatar_url;
+                if (profileData.vehicle?.model) acc.vehicle_model = profileData.vehicle.model;
+                if (profileData.vehicle?.plate_number) acc.plate_number = profileData.vehicle.plate_number;
                 changed = true;
               }
             });
@@ -2597,12 +2625,44 @@ export const motorideApi = {
     id: string,
     vehicleData: { model: string; plate_number: string; vehicle_type?: string; color?: string }
   ): Promise<Captain> {
+    const supabase = getSupabase();
+    if (supabase) {
+      try {
+        await Promise.all([
+          supabase.from('captains').update({
+            vehicle_model: vehicleData.model,
+            plate_number: vehicleData.plate_number,
+            updated_at: new Date().toISOString(),
+          }).or(`id.eq.${id},profile_id.eq.${id}`),
+          supabase.from('profiles').update({
+            vehicle_model: vehicleData.model,
+            plate_number: vehicleData.plate_number,
+            updated_at: new Date().toISOString(),
+          }).eq('id', id),
+        ]);
+      } catch (err) {
+        console.warn('Supabase updateCaptainVehicle notice:', err);
+      }
+    }
+
+    try {
+      const user = supabaseAuth.getCurrentUser();
+      if (user && (user.id === id || user.role === 'captain')) {
+        user.vehicleModel = vehicleData.model;
+        user.plateNumber = vehicleData.plate_number;
+        supabaseAuth.setCurrentUser(user);
+        supabaseAuth.saveAccount({ ...user, passwordHash: '' });
+      }
+      safeStorage.setItem('motoride_captain_vehicle_model', vehicleData.model);
+      safeStorage.setItem('motoride_captain_plate', vehicleData.plate_number);
+    } catch {}
+
     const json = await safeFetchJson<{ captain: Captain }>(`${API_BASE}/captains/${id}/vehicle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(vehicleData),
-    });
-    return json.captain;
+    }, { captain: { id, vehicle: vehicleData } as any });
+    return json?.captain || ({ id, vehicle: vehicleData } as any);
   },
 
   async updateCaptainApproval(id: string, is_approved: boolean, is_active?: boolean): Promise<Captain> {

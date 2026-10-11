@@ -155,19 +155,33 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const isMojobiketaxi =
     (authUser?.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') ||
     (currentUser?.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com');
-  const resolvedInitialName = isMojobiketaxi
-    ? 'Hemant kashyap'
-    : (currentUser?.name || (captainName && captainName !== 'Captain' ? captainName : undefined) || authUser?.name || 'Captain');
+  const storedSavedName = safeStorage.getItem('motoride_captain_name');
+  const resolvedInitialName =
+    storedSavedName ||
+    currentUser?.name ||
+    authUser?.name ||
+    (captainName && captainName !== 'Captain' ? captainName : undefined) ||
+    (isMojobiketaxi ? 'Hemant kashyap' : 'Captain');
 
   const [captain, setCaptain] = useState<Captain | null>(() => {
     if (authUser) {
       const effId = isMojobiketaxi ? 'cpt_mojobiketaxi' : (authUser.id || captainId);
+      const storedName = safeStorage.getItem('motoride_captain_name');
+      const storedPhone = safeStorage.getItem('motoride_captain_phone');
+      const storedEmail = safeStorage.getItem('motoride_captain_email');
+      const storedModel = safeStorage.getItem('motoride_captain_vehicle_model');
+      const storedPlate = safeStorage.getItem('motoride_captain_plate');
+      const storedDl = safeStorage.getItem('motoride_captain_dl');
+      const storedSos = safeStorage.getItem('motoride_captain_sos');
+      const storedAvatar = safeStorage.getItem('motoride_captain_avatar');
+
       return {
         id: effId,
         profile_id: `prof_${effId}`,
-        full_name: isMojobiketaxi ? 'Hemant kashyap' : resolvedInitialName,
-        email: isMojobiketaxi ? 'mojobiketaxi@gmail.com' : (authUser.email || ''),
-        phone: isMojobiketaxi ? '+91 9876543210' : (authUser.phone || ''),
+        full_name: storedName || currentUser?.name || authUser?.name || resolvedInitialName,
+        email: storedEmail || currentUser?.email || authUser?.email || (isMojobiketaxi ? 'mojobiketaxi@gmail.com' : ''),
+        phone: storedPhone || currentUser?.phone || authUser?.phone || (isMojobiketaxi ? '+91 9876543210' : ''),
+        avatar_url: storedAvatar || authUser.avatarUrl,
         is_online: true,
         is_approved: true,
         is_active: true,
@@ -178,12 +192,14 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         vehicle: {
           id: `veh_${effId}`,
           captain_id: effId,
-          model: isMojobiketaxi ? 'Honda Activa 6G' : (authUser.vehicleModel || 'Motorcycle'),
-          plate_number: isMojobiketaxi ? 'PB65AX9922' : (authUser.plateNumber || ''),
+          model: storedModel || currentUser?.vehicleModel || authUser?.vehicleModel || (isMojobiketaxi ? 'Honda Activa 6G' : 'Motorcycle'),
+          plate_number: storedPlate || currentUser?.plateNumber || authUser?.plateNumber || (isMojobiketaxi ? 'PB65AX9922' : ''),
           vehicle_type: (authUser.vehicleType as any) || 'bike',
           color: 'Black',
           is_active: true,
         },
+        license_number: storedDl || '',
+        emergency_contact: storedSos || '',
         created_at: authUser.memberSince || '2024-01-01T00:00:00.000Z',
       };
     }
@@ -874,7 +890,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           if (updatedRide.status === 'trip_completed' && !updatedRide.captain_rated && !ratedIds.includes(updatedRide.id)) {
             setCompletedRideForRating(updatedRide);
             setShowPassengerRatingModal(true);
-          } else if (updatedRide.status === 'completed' || updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
+          } else if ((updatedRide.status as any) === 'completed' || updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
             setShowPassengerRatingModal(false);
             setCompletedRideForRating(null);
           }
@@ -1285,32 +1301,48 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
   const loadCaptainData = async () => {
     try {
-      const effCapId = isMojobiketaxi ? 'cpt_mojobiketaxi' : captainId;
+      const effCapId = isMojobiketaxi ? 'cpt_mojobiketaxi' : (captainId || authUser?.id || '');
       const cpt = await motorideApi.getCaptainById(effCapId);
       if (cpt) {
         const isMojo = (cpt.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com') || isMojobiketaxi;
-        const resolvedName = isMojo ? 'Hemant kashyap' : (cpt.full_name || safeStorage.getItem('motoride_captain_name') || currentUser?.name || resolvedInitialName || 'Captain');
+        const storedName = safeStorage.getItem('motoride_captain_name');
+        const storedPhone = safeStorage.getItem('motoride_captain_phone');
+        const storedEmail = safeStorage.getItem('motoride_captain_email');
+        const storedModel = safeStorage.getItem('motoride_captain_vehicle_model');
+        const storedPlate = safeStorage.getItem('motoride_captain_plate');
+        const storedDl = safeStorage.getItem('motoride_captain_dl');
+        const storedSos = safeStorage.getItem('motoride_captain_sos');
+        const storedAvatar = safeStorage.getItem('motoride_captain_avatar');
+
+        const resolvedName = storedName || cpt.full_name || currentUser?.name || authUser?.name || resolvedInitialName || (isMojo ? 'Hemant kashyap' : 'Captain');
+        const resolvedPhone = storedPhone || cpt.phone || currentUser?.phone || authUser?.phone || (isMojo ? '+91 9876543210' : '');
+        const resolvedEmail = storedEmail || cpt.email || currentUser?.email || authUser?.email || (isMojo ? 'mojobiketaxi@gmail.com' : '');
+        const resolvedModel = storedModel || cpt.vehicle?.model || (currentUser as any)?.vehicleModel || (authUser as any)?.vehicleModel || (isMojo ? 'Honda Activa 6G' : 'Motorcycle');
+        const resolvedPlate = storedPlate || cpt.vehicle?.plate_number || (currentUser as any)?.plateNumber || (authUser as any)?.plateNumber || (isMojo ? 'PB65AX9922' : '');
+
         setCaptain((prev) => ({
           ...(prev || ({} as Captain)),
           ...cpt,
           full_name: resolvedName,
-          phone: isMojo ? '+91 9876543210' : (cpt.phone || safeStorage.getItem('motoride_captain_phone') || ''),
+          email: resolvedEmail,
+          phone: resolvedPhone,
+          avatar_url: storedAvatar || cpt.avatar_url || prev?.avatar_url,
           vehicle: {
             id: isMojo ? 'veh_cpt_mojobiketaxi' : (cpt.vehicle?.id || (prev?.vehicle?.id ?? 'veh_1')),
             captain_id: isMojo ? 'cpt_mojobiketaxi' : effCapId,
             is_active: true,
-            model: isMojo ? 'Honda Activa 6G' : (cpt.vehicle?.model || safeStorage.getItem('motoride_captain_vehicle_model') || 'Motorcycle'),
-            plate_number: isMojo ? 'PB65AX9922' : (cpt.vehicle?.plate_number || safeStorage.getItem('motoride_captain_plate') || ''),
-            vehicle_type: isMojo ? 'bike' : (cpt.vehicle?.vehicle_type || 'bike'),
-            color: cpt.vehicle?.color || 'Black',
+            model: resolvedModel,
+            plate_number: resolvedPlate,
+            vehicle_type: cpt.vehicle?.vehicle_type || prev?.vehicle?.vehicle_type || 'bike',
+            color: cpt.vehicle?.color || prev?.vehicle?.color || 'Black',
           },
-          license_number: (cpt as any).license_number || safeStorage.getItem('motoride_captain_dl') || '',
-          emergency_contact: (cpt as any).emergency_contact || safeStorage.getItem('motoride_captain_sos') || '',
+          license_number: storedDl || (cpt as any).license_number || (prev as any)?.license_number || '',
+          emergency_contact: storedSos || (cpt as any).emergency_contact || (prev as any)?.emergency_contact || '',
         }));
         setInternalOnline(Boolean(cpt.is_online));
       }
       const targetCaptainId = isMojobiketaxi ? 'cpt_mojobiketaxi' : (captainId || authUser?.id || captain?.id || safeStorage.getItem('motoride_captain_id') || '');
-      const targetCaptainPhone = isMojobiketaxi ? '+91 9876543210' : (captain?.phone || authUser?.phone || safeStorage.getItem('motoride_captain_phone') || '');
+      const targetCaptainPhone = safeStorage.getItem('motoride_captain_phone') || captain?.phone || authUser?.phone || (isMojobiketaxi ? '+91 9876543210' : '');
       const w = await motorideApi.getWallet(targetCaptainId, targetCaptainPhone);
       if (w && w.wallet) {
         setWalletBalance(w.wallet.balance || 0);
@@ -2108,26 +2140,38 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (user) {
         if (updated.full_name) user.name = updated.full_name;
         if (updated.phone) user.phone = updated.phone;
+        if (updated.email) user.email = updated.email;
+        if (updated.avatar_url) user.avatarUrl = updated.avatar_url;
         if (updated.vehicle?.model) user.vehicleModel = updated.vehicle.model;
         if (updated.vehicle?.plate_number) user.plateNumber = updated.vehicle.plate_number;
         safeStorage.setItem('motoride_auth_user', JSON.stringify(user));
+        supabaseAuth.setCurrentUser(user);
+        supabaseAuth.saveAccount({ ...user, passwordHash: '' });
       }
       if (updated.full_name) safeStorage.setItem('motoride_captain_name', updated.full_name);
       if (updated.phone) safeStorage.setItem('motoride_captain_phone', updated.phone);
+      if (updated.email) safeStorage.setItem('motoride_captain_email', updated.email);
+      if (updated.avatar_url) safeStorage.setItem('motoride_captain_avatar', updated.avatar_url);
       if (updated.vehicle?.model) safeStorage.setItem('motoride_captain_vehicle_model', updated.vehicle.model);
       if (updated.vehicle?.plate_number) safeStorage.setItem('motoride_captain_plate', updated.vehicle.plate_number);
       if ((updated as any).license_number) safeStorage.setItem('motoride_captain_dl', (updated as any).license_number);
       if ((updated as any).emergency_contact) safeStorage.setItem('motoride_captain_sos', (updated as any).emergency_contact);
+
+      window.dispatchEvent(new Event('motoride_captain_profile_updated'));
     } catch {}
 
     try {
-      const idToUpdate = captain?.id || captainId;
+      const idToUpdate = isMojobiketaxi ? 'cpt_mojobiketaxi' : (captain?.id || captainId || authUser?.id || '');
       if (idToUpdate) {
         await motorideApi.updateCaptainProfile(idToUpdate, {
           full_name: updated.full_name,
+          name: updated.full_name,
           phone: updated.phone,
-          ...((updated as any).license_number ? { license_number: (updated as any).license_number } : {}),
-          ...((updated as any).emergency_contact ? { emergency_contact: (updated as any).emergency_contact } : {}),
+          email: updated.email || captain?.email || authUser?.email,
+          avatar_url: updated.avatar_url || captain?.avatar_url,
+          vehicle: updated.vehicle,
+          license_number: (updated as any).license_number,
+          emergency_contact: (updated as any).emergency_contact,
         } as any);
         if (updated.vehicle) {
           await motorideApi.updateCaptainVehicle(idToUpdate, {
