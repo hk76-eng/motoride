@@ -2542,7 +2542,8 @@ export const motorideApi = {
         if (newEmail) updatePayload.email = newEmail;
         if (profileData.avatar_url) updatePayload.avatar_url = profileData.avatar_url;
 
-        if (id) {
+        const isUuid = id && (id.length === 36 || id.includes('-'));
+        if (isUuid) {
           await supabase.from('profiles').update(updatePayload).eq('id', id);
         }
         if (newEmail) {
@@ -2557,7 +2558,7 @@ export const motorideApi = {
         if (profileData.vehicle?.model) cptPayload.vehicle_model = profileData.vehicle.model;
         if (profileData.vehicle?.plate_number) cptPayload.plate_number = profileData.vehicle.plate_number;
 
-        if (id) {
+        if (isUuid) {
           await supabase.from('captains').update(cptPayload).or(`id.eq.${id},profile_id.eq.${id}`);
         }
         if (newEmail) {
@@ -3687,9 +3688,10 @@ export const motorideApi = {
       }
     } catch {}
 
-    // Direct Supabase query (Crucial for Vercel SPA deployment where server API might not be co-hosted)
     const supabase = getSupabase();
     let supabaseList: TopupDepositRequest[] = [];
+    let profileStoreList: TopupDepositRequest[] = [];
+
     if (supabase) {
       try {
         let query = supabase.from('topup_requests').select('*');
@@ -3706,11 +3708,27 @@ export const motorideApi = {
       } catch (err) {
         console.warn('Supabase topup_requests fetch warning:', err);
       }
+
+      // Fallback/Shared profile store JSON backup fetch
+      try {
+        const { data: profData } = await supabase
+          .from('profiles')
+          .select('avatar_url, phone')
+          .eq('email', 'motoride_topup_store@motoride.com')
+          .maybeSingle();
+        if (profData?.avatar_url) {
+          const parsed = JSON.parse(profData.avatar_url);
+          if (Array.isArray(parsed)) {
+            profileStoreList = parsed;
+          }
+        }
+      } catch {}
     }
 
-    // Merge server, Supabase, and local cache
+    // Merge server, Supabase table, profile store JSON backup, and local cache
     const mergedMap = new Map<string, TopupDepositRequest>();
-    supabaseList.forEach((r) => { if (r?.id) mergedMap.set(r.id, r); });
+    profileStoreList.forEach((r) => { if (r?.id) mergedMap.set(r.id, r); });
+    supabaseList.forEach((r) => { if (r?.id) mergedMap.set(r.id, { ...(mergedMap.get(r.id) || {}), ...r }); });
     serverList.forEach((r) => { if (r?.id) mergedMap.set(r.id, { ...(mergedMap.get(r.id) || {}), ...r }); });
 
     const localCached = safeStorage.getItem('motoride_topup_requests_cache');
@@ -3740,6 +3758,16 @@ export const motorideApi = {
 
     try {
       safeStorage.setItem('motoride_topup_requests_cache', JSON.stringify(finalRequests));
+      // Also persist to Supabase profile store JSON backup in background
+      if (supabase) {
+        supabase.from('profiles').upsert([{
+          email: 'motoride_topup_store@motoride.com',
+          full_name: 'Motoride Topup Store',
+          role: 'admin',
+          avatar_url: JSON.stringify(finalRequests),
+          updated_at: new Date().toISOString(),
+        }], { onConflict: 'email' }).then(() => {});
+      }
     } catch {}
 
     return finalRequests;
@@ -3785,10 +3813,12 @@ export const motorideApi = {
     };
 
     // Save to local cached list immediately
+    let updatedList: TopupDepositRequest[] = [fallbackRequest];
     try {
       const currentCached = safeStorage.getItem('motoride_topup_requests_cache');
       const list: TopupDepositRequest[] = currentCached ? JSON.parse(currentCached) : [];
       list.unshift(fallbackRequest);
+      updatedList = list;
       safeStorage.setItem('motoride_topup_requests_cache', JSON.stringify(list));
     } catch {}
 
@@ -3807,7 +3837,7 @@ export const motorideApi = {
 
     const result = serverResult || fallbackRequest;
 
-    // 2. Persist directly to Supabase
+    // 2. Persist directly to Supabase (both table and profiles JSON backup store)
     const supabase = getSupabase();
     if (supabase) {
       try {
@@ -3819,6 +3849,16 @@ export const motorideApi = {
       } catch (err) {
         console.warn('Supabase topup_requests direct insert warning:', err);
       }
+
+      try {
+        await supabase.from('profiles').upsert([{
+          email: 'motoride_topup_store@motoride.com',
+          full_name: 'Motoride Topup Store',
+          role: 'admin',
+          avatar_url: JSON.stringify(updatedList),
+          updated_at: now,
+        }], { onConflict: 'email' });
+      } catch {}
     }
 
     realtimeSync.broadcast('TOPUP_REQUEST_CREATED', { request: result, message: initialMsg });
