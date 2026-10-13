@@ -6,6 +6,7 @@ import {
   FareSettings,
   WalletTransaction,
   TopupDepositRequest,
+  MotorideRideStatus,
 } from '../types/motoride';
 import { MotorideMap } from '../components/common/MotorideMap';
 import { RideChatModal } from '../components/common/RideChatModal';
@@ -20,6 +21,7 @@ import {
   canTransitionStatus,
   shouldApplyIncomingStatus,
   resolveAuthoritativeRide,
+  toCanonicalStatus,
 } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm } from '../utils/distanceCalculator';
@@ -43,6 +45,7 @@ import {
   MessageSquare,
   Maximize2,
   Minimize2,
+  Loader2,
   ChevronUp,
   ChevronDown,
   ChevronRight,
@@ -238,6 +241,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   const [showPassengerRatingModal, setShowPassengerRatingModal] = useState<boolean>(false);
   const [completedRideForRating, setCompletedRideForRating] = useState<MotorideRide | null>(null);
   const [isFinishingRide, setIsFinishingRide] = useState<boolean>(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
   const [mapFocusTarget, setMapFocusTarget] = useState<{ lat: number; lng: number; zoom?: number; timestamp: number } | null>(null);
 
   // Default to false so the map and Captain live GPS position are immediately 100% visible
@@ -843,11 +847,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (!updatedRide || !updatedRide.id) return;
       if (isRideForThisCaptain(updatedRide)) {
         const ratedIds = getCaptainRatedRideIds(captainIdRef.current || captainRef.current?.id || '');
+        const isRatedOrDone = updatedRide.captain_rated || ratedIds.includes(updatedRide.id);
+
         if (
           updatedRide.status?.includes('cancelled') ||
-          updatedRide.status === 'completed' ||
-          updatedRide.captain_rated ||
-          ratedIds.includes(updatedRide.id)
+          isRatedOrDone
         ) {
           safeStorage.removeItem('motoride_active_captain_ride_id');
           if (activeRideRef.current?.id === updatedRide.id) {
@@ -861,7 +865,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           // If captain currently has an active live ride, strictly block updates from any other ride ID
           if (activeRideRef.current && activeRideRef.current.id !== updatedRide.id) {
             const currentRank = STATUS_RANK[activeRideRef.current.status] || 0;
-            if (currentRank >= 3 && currentRank <= 6 && !activeRideRef.current.status.includes('cancelled')) {
+            if (currentRank >= 3 && currentRank <= 5 && !activeRideRef.current.status.includes('cancelled')) {
               return; // Ignore other rides
             }
           }
@@ -878,19 +882,19 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           safeStorage.setItem('motoride_active_captain_ride_id', updatedRide.id);
           setActiveRide((prev) => resolveAuthoritativeRide(prev, updatedRide));
 
-          if (updatedRide.status === 'captain_accepted') {
+          if (updatedRide.status === 'captain_accepted' || updatedRide.status === 'accepted') {
             setInspectedRide(null);
             setAcceptanceTimerRideId(null);
             setIs100Full(false);
-            if (!activeRideRef.current || activeRideRef.current.status !== 'captain_accepted') {
+            if (!activeRideRef.current || (activeRideRef.current.status !== 'captain_accepted' && activeRideRef.current.status !== 'accepted')) {
               playRideAcceptedTune();
             }
           }
 
-          if (updatedRide.status === 'trip_completed' && !updatedRide.captain_rated && !ratedIds.includes(updatedRide.id)) {
+          if ((updatedRide.status === 'completed' || updatedRide.status === 'trip_completed') && !updatedRide.captain_rated && !ratedIds.includes(updatedRide.id)) {
             setCompletedRideForRating(updatedRide);
             setShowPassengerRatingModal(true);
-          } else if ((updatedRide.status as any) === 'completed' || updatedRide.captain_rated || ratedIds.includes(updatedRide.id)) {
+          } else if (isRatedOrDone) {
             setShowPassengerRatingModal(false);
             setCompletedRideForRating(null);
           }
@@ -1203,11 +1207,10 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         return; // Drop stale backwards status
       }
       const ratedIds = getCaptainRatedRideIds(captainIdRef.current || captainRef.current?.id || '');
+      const isRatedOrDone = latestRide.captain_rated || ratedIds.includes(latestRide.id);
       if (
         latestRide.status?.includes('cancelled') ||
-        latestRide.status === 'completed' ||
-        latestRide.captain_rated ||
-        ratedIds.includes(latestRide.id)
+        isRatedOrDone
       ) {
         safeStorage.removeItem('motoride_active_captain_ride_id');
         activeRideRef.current = null;
@@ -1219,13 +1222,13 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
         safeStorage.setItem('motoride_active_captain_ride_id', latestRide.id);
         setActiveRide((prev) => resolveAuthoritativeRide(prev, latestRide));
         if (
-          latestRide.status === 'trip_completed' &&
+          (latestRide.status === 'completed' || latestRide.status === 'trip_completed') &&
           !latestRide.captain_rated &&
           !ratedIds.includes(latestRide.id)
         ) {
           setCompletedRideForRating(latestRide);
           setShowPassengerRatingModal(true);
-        } else {
+        } else if (isRatedOrDone) {
           setShowPassengerRatingModal(false);
           setCompletedRideForRating(null);
         }
@@ -1248,8 +1251,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   useEffect(() => {
     if (!activeRide) return;
 
-    const isAccepted = activeRide.status === 'captain_accepted';
-    const isTripStarted = activeRide.status === 'trip_started';
+    const canonicalStatus = toCanonicalStatus(activeRide.status);
+    const isAccepted = canonicalStatus === 'accepted';
+    const isTripStarted = canonicalStatus === 'in_progress';
 
     if (!isAccepted && !isTripStarted) return;
 
@@ -1958,11 +1962,12 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
       if (Array.isArray(list)) {
         const current = list.find((r) => {
           if (!r || r.id.includes('demo') || r.passenger_id === 'usr_demo_100') return false;
+          const canonical = toCanonicalStatus(r.status);
           const isActiveStatus =
-            r.status === 'captain_accepted' ||
-            r.status === 'captain_arrived' ||
-            r.status === 'trip_started' ||
-            (r.status === 'trip_completed' && !r.captain_rated && !ratedIds.includes(r.id));
+            canonical === 'accepted' ||
+            canonical === 'captain_arrived' ||
+            canonical === 'in_progress' ||
+            (canonical === 'completed' && !r.captain_rated && !ratedIds.includes(r.id));
           if (!isActiveStatus) return false;
 
           return isRideForThisCaptain(r);
@@ -1972,7 +1977,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           safeStorage.setItem('motoride_active_captain_ride_id', current.id);
           setActiveRide((prev) => resolveAuthoritativeRide(prev, current));
           if (
-            current.status === 'trip_completed' &&
+            toCanonicalStatus(current.status) === 'completed' &&
             !current.captain_rated &&
             !ratedIds.includes(current.id)
           ) {
@@ -1984,7 +1989,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
           }
         } else {
           const currentLive = activeRideRef.current;
-          const isLiveTrip = currentLive && !currentLive.status?.includes('cancelled') && currentLive.status !== 'completed' && currentLive.status !== 'trip_completed';
+          const isLiveTrip = currentLive && !currentLive.status?.includes('cancelled') && toCanonicalStatus(currentLive.status) !== 'completed';
           if (!isLiveTrip && !targetActiveId) {
             activeRideRef.current = null;
             setActiveRide(null);
@@ -2203,91 +2208,116 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
     }
   };
 
-  // Advance Trip Status with immediate optimistic local update & resilient sync
-  const handleStatusChange = async (nextStatus: any) => {
-    if (!activeRide) return;
+  // Advance Trip Status: Validates lifecycle, updates Supabase first, and updates UI on confirmed response
+  const handleStatusChange = async (nextStatus: MotorideRideStatus) => {
+    if (!activeRide || isUpdatingStatus) return;
 
-    if (!canTransitionStatus(activeRide.status, nextStatus)) {
-      console.warn(`[Captain State Machine] Blocked backwards status transition from "${activeRide.status}" to "${nextStatus}"`);
+    const canonicalCurrent = toCanonicalStatus(activeRide.status);
+    const canonicalNext = toCanonicalStatus(nextStatus);
+
+    // Validate lifecycle progression rules
+    if (canonicalNext === 'captain_arrived') {
+      if (canonicalCurrent !== 'accepted') {
+        console.warn(`[Captain State Machine] Cannot advance to captain_arrived from "${canonicalCurrent}"`);
+        return;
+      }
+    } else if (canonicalNext === 'in_progress') {
+      if (canonicalCurrent !== 'captain_arrived') {
+        console.warn(`[Captain State Machine] Cannot advance to in_progress from "${canonicalCurrent}"`);
+        return;
+      }
+    } else if (canonicalNext === 'completed') {
+      if (canonicalCurrent !== 'in_progress') {
+        console.warn(`[Captain State Machine] Cannot advance to completed from "${canonicalCurrent}"`);
+        return;
+      }
+    }
+
+    if (!canTransitionStatus(activeRide.status, canonicalNext)) {
+      console.warn(`[Captain State Machine] Blocked backwards status transition from "${activeRide.status}" to "${canonicalNext}"`);
       return;
     }
 
-    // 1. Instant optimistic state update - 0ms UI delay!
-    const nowIso = new Date().toISOString();
-    const optimisticRide: MotorideRide = {
-      ...activeRide,
-      status: nextStatus,
-      updated_at: nowIso,
-      ...(nextStatus === 'trip_started' ? { trip_started_at: nowIso } : {}),
-      ...(nextStatus === 'trip_completed' ? {
-        trip_completed_at: nowIso,
-        payment_status: 'paid',
-        final_fare: getRideAgreedFare(activeRide),
-      } : {}),
-    };
-
-    setActiveRide((prev) => resolveAuthoritativeRide(prev, optimisticRide));
-    safeStorage.setItem('motoride_active_captain_ride_id', activeRide.id);
-
-    if (nextStatus === 'captain_arrived') {
-      playCaptainArrivedTune();
-      setCaptainGps((prev) => ({
-        ...prev,
-        lat: activeRide.pickup_lat,
-        lng: activeRide.pickup_lng,
-        timestamp: Date.now(),
-      }));
-      motorideApi.updateCaptainLiveLocation({
-        captain_id: captainId,
-        ride_id: activeRide.id,
-        latitude: activeRide.pickup_lat,
-        longitude: activeRide.pickup_lng,
-        heading: calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng),
-        speed: 0,
-      }).catch(() => {});
-    } else if (nextStatus === 'trip_started') {
-      playTripStartedTune();
-      const bearing = calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng);
-      setCaptainGps((prev) => ({
-        ...prev,
-        lat: activeRide.pickup_lat,
-        lng: activeRide.pickup_lng,
-        heading: bearing,
-        speed: 28,
-        timestamp: Date.now(),
-      }));
-      motorideApi.updateCaptainLiveLocation({
-        captain_id: captainId,
-        ride_id: activeRide.id,
-        latitude: activeRide.pickup_lat,
-        longitude: activeRide.pickup_lng,
-        heading: bearing,
-        speed: 28,
-      }).catch(() => {});
-    }
-
-    if (nextStatus === 'trip_completed') {
-      setCompletedRideForRating(optimisticRide);
-      setShowPassengerRatingModal(true);
-    }
-
+    setIsUpdatingStatus(true);
     try {
-      const updated = await motorideApi.updateRideStatus(activeRide.id, nextStatus, {
-        final_distance_km: activeRide.distance_km,
-        final_fare: getRideAgreedFare(activeRide),
-        ride: optimisticRide,
-        captain_id: captainId,
-      });
+      if (canonicalNext === 'completed') {
+        const agreedFare = getRideAgreedFare(activeRide);
+        const compRes = await motorideApi.completeRideWithCommission(
+          activeRide.id,
+          captainId,
+          activeRide,
+          agreedFare
+        );
+        if (!compRes.success && compRes.insufficient_balance) {
+          alert('Insufficient wallet balance for 10% platform commission. Please recharge your wallet.');
+          setIsUpdatingStatus(false);
+          return;
+        }
 
-      if (updated) {
-        setActiveRide((prev) => resolveAuthoritativeRide(prev, updated));
-        if (nextStatus === 'trip_completed') {
-          setCompletedRideForRating(updated);
+        const confirmedRide = compRes.ride || {
+          ...activeRide,
+          status: 'completed',
+          captain_rated: false,
+          updated_at: new Date().toISOString(),
+        };
+
+        setActiveRide(confirmedRide);
+        setCompletedRideForRating(confirmedRide);
+        setShowPassengerRatingModal(true);
+      } else {
+        const confirmedRide = await motorideApi.updateRideStatus(activeRide.id, canonicalNext, {
+          final_distance_km: activeRide.distance_km,
+          final_fare: getRideAgreedFare(activeRide),
+          ride: activeRide,
+          captain_id: captainId,
+        });
+
+        // Supabase update confirmed! Update UI and trigger contextual GPS / sounds
+        setActiveRide(confirmedRide);
+        safeStorage.setItem('motoride_active_captain_ride_id', confirmedRide.id);
+
+        if (canonicalNext === 'captain_arrived') {
+          playCaptainArrivedTune();
+          setCaptainGps((prev) => ({
+            ...prev,
+            lat: activeRide.pickup_lat,
+            lng: activeRide.pickup_lng,
+            timestamp: Date.now(),
+          }));
+          motorideApi.updateCaptainLiveLocation({
+            captain_id: captainId,
+            ride_id: activeRide.id,
+            latitude: activeRide.pickup_lat,
+            longitude: activeRide.pickup_lng,
+            heading: calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng),
+            speed: 0,
+          }).catch(() => {});
+        } else if (canonicalNext === 'in_progress') {
+          playTripStartedTune();
+          const bearing = calculateBearingDegrees(activeRide.pickup_lat, activeRide.pickup_lng, activeRide.dropoff_lat, activeRide.dropoff_lng);
+          setCaptainGps((prev) => ({
+            ...prev,
+            lat: activeRide.pickup_lat,
+            lng: activeRide.pickup_lng,
+            heading: bearing,
+            speed: 28,
+            timestamp: Date.now(),
+          }));
+          motorideApi.updateCaptainLiveLocation({
+            captain_id: captainId,
+            ride_id: activeRide.id,
+            latitude: activeRide.pickup_lat,
+            longitude: activeRide.pickup_lng,
+            heading: bearing,
+            speed: 28,
+          }).catch(() => {});
         }
       }
     } catch (err: any) {
-      console.warn('Status update warning:', err);
-      // Retain optimistic status so user is not blocked by transient network hiccups
+      console.error(`[Captain Dashboard] Error advancing ride status to "${canonicalNext}":`, err);
+      alert(err.message || 'Failed to update status in Supabase. Please check connection and try again.');
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -2409,8 +2439,9 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
   // 1. Before ride request accept (inspecting / incoming ride request): show BOTH Marker A and Marker B details on map
   // 2. After captain accepts ride (captain_accepted): show pickup Marker A ONLY on map
   // 3. When captain arrives at pickup (captain_arrived) & starts trip (trip_started): immediately show drop location Marker B ONLY on map
-  const isAcceptedPhase = activeRide && activeRide.status === 'captain_accepted';
-  const isArrivedOrTripPhase = activeRide && (activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started');
+  const canonicalCurrent = activeRide ? toCanonicalStatus(activeRide.status) : null;
+  const isAcceptedPhase = canonicalCurrent === 'accepted';
+  const isArrivedOrTripPhase = canonicalCurrent === 'captain_arrived' || canonicalCurrent === 'in_progress';
 
   const showPickupOnMap = isAcceptedPhase || (!activeRide && Boolean(currentRideOnMap));
   const showDropoffOnMap = isArrivedOrTripPhase || (!activeRide && Boolean(currentRideOnMap));
@@ -2496,11 +2527,11 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
                 <h3 className="text-base font-black text-slate-950">
                   {activeRide.status === 'captain_arrived'
                     ? 'Arrived at Pickup location'
-                    : activeRide.status === 'trip_started'
+                    : activeRide.status === 'in_progress' || activeRide.status === 'trip_started'
                     ? 'Trip started'
-                    : activeRide.status === 'trip_completed' || activeRide.status === 'completed'
+                    : activeRide.status === 'completed' || activeRide.status === 'trip_completed'
                     ? 'Trip completed'
-                    : activeRide.status === 'captain_accepted'
+                    : activeRide.status === 'accepted' || activeRide.status === 'captain_accepted'
                     ? 'En Route to Pickup'
                     : activeRide.status.replace(/_/g, ' ')}
                 </h3>
@@ -2509,7 +2540,7 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
             {/* Smart Navigator Button */}
             {(() => {
-              const isArrivedOrLater = activeRide.status === 'captain_arrived' || activeRide.status === 'trip_started';
+              const isArrivedOrLater = activeRide.status === 'captain_arrived' || activeRide.status === 'in_progress' || activeRide.status === 'trip_started';
               const navLat = isArrivedOrLater ? activeRide.dropoff_lat : activeRide.pickup_lat;
               const navLng = isArrivedOrLater ? activeRide.dropoff_lng : activeRide.pickup_lng;
               const navAddress = isArrivedOrLater ? activeRide.dropoff_address : activeRide.pickup_address;
@@ -2740,42 +2771,45 @@ export const CaptainWorkspace: React.FC<CaptainWorkspaceProps> = ({
 
           {/* Workflow Step Action Buttons */}
           <div className="flex flex-col gap-2 pt-2">
-            {activeRide.status === 'captain_accepted' && (
+            {toCanonicalStatus(activeRide.status) === 'accepted' && (
               <button
                 type="button"
+                disabled={isUpdatingStatus}
                 onClick={() => handleStatusChange('captain_arrived')}
-                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs sm:text-sm shadow-xl shadow-emerald-600/25 transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border border-emerald-500"
+                className="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-black text-xs sm:text-sm shadow-xl shadow-emerald-600/25 transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border border-emerald-500"
               >
-                <MapPin className="w-4 h-4 stroke-[2.5] text-white" />
-                <span className="text-white">I Have Arrived at Pickup</span>
+                {isUpdatingStatus ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <MapPin className="w-4 h-4 stroke-[2.5] text-white" />}
+                <span className="text-white">{isUpdatingStatus ? 'Updating Status...' : 'I Have Arrived at Pickup'}</span>
               </button>
             )}
 
-            {activeRide.status === 'captain_arrived' && (
+            {toCanonicalStatus(activeRide.status) === 'captain_arrived' && (
               <button
                 type="button"
-                onClick={() => handleStatusChange('trip_started')}
+                disabled={isUpdatingStatus}
+                onClick={() => handleStatusChange('in_progress')}
                 style={{ backgroundColor: '#DAA520', borderColor: '#DAA520' }}
-                className="w-full py-3.5 rounded-2xl hover:opacity-90 text-slate-950 font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-amber-500/20"
+                className="w-full py-3.5 rounded-2xl hover:opacity-90 disabled:opacity-60 text-slate-950 font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-amber-500/20"
               >
-                <Navigation2 className="w-4 h-4 stroke-[2.5] text-slate-950 fill-slate-950" />
-                <span className="text-slate-950">Trip Started</span>
+                {isUpdatingStatus ? <Loader2 className="w-4 h-4 animate-spin text-slate-950" /> : <Navigation2 className="w-4 h-4 stroke-[2.5] text-slate-950 fill-slate-950" />}
+                <span className="text-slate-950">{isUpdatingStatus ? 'Starting Trip...' : 'Trip Started'}</span>
               </button>
             )}
 
-            {activeRide.status === 'trip_started' && (
+            {toCanonicalStatus(activeRide.status) === 'in_progress' && (
               <button
                 type="button"
-                onClick={() => handleStatusChange('trip_completed')}
+                disabled={isUpdatingStatus}
+                onClick={() => handleStatusChange('completed')}
                 style={{ backgroundColor: '#ba1e23', borderColor: '#ba1e23' }}
-                className="w-full py-3.5 rounded-2xl hover:opacity-90 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-rose-900/25"
+                className="w-full py-3.5 rounded-2xl hover:opacity-90 disabled:opacity-60 text-white font-black text-xs shadow-xl transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2 border shadow-rose-900/25"
               >
-                <CheckCircle2 className="w-4 h-4 stroke-[2.5] text-white" />
-                <span className="text-white">Trip Completed</span>
+                {isUpdatingStatus ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <CheckCircle2 className="w-4 h-4 stroke-[2.5] text-white" />}
+                <span className="text-white">{isUpdatingStatus ? 'Completing Trip...' : 'Trip Completed'}</span>
               </button>
             )}
 
-            {['trip_completed', 'completed'].includes(activeRide.status) && (
+            {toCanonicalStatus(activeRide.status) === 'completed' && (
               <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

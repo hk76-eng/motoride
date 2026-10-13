@@ -801,13 +801,14 @@ motorideRouter.post('/rides/:id/status', async (req: Request, res: Response) => 
     accepted: 2,
     captain_accepted: 2,
     captain_offered: 2,
-    captain_arriving: 3,
-    captain_assigned: 3,
-    captain_arrived: 4,
-    trip_started: 5,
-    in_progress: 5,
-    trip_completed: 6,
-    completed: 6,
+    captain_assigned: 2,
+    captain_arriving: 2,
+    captain_arrived: 3,
+    arrived: 3,
+    in_progress: 4,
+    trip_started: 4,
+    completed: 5,
+    trip_completed: 5,
     cancelled: 99,
     cancelled_by_passenger: 99,
     cancelled_by_captain: 99,
@@ -825,7 +826,7 @@ motorideRouter.post('/rides/:id/status', async (req: Request, res: Response) => 
     });
   }
 
-  if (status && status.includes('cancelled') && currentRank >= 6) {
+  if (status && status.includes('cancelled') && currentRank >= 5) {
     return res.status(409).json({
       error: 'Cannot cancel a ride that is already completed',
       current_status: ride.status,
@@ -848,7 +849,7 @@ motorideRouter.post('/rides/:id/status', async (req: Request, res: Response) => 
     ride.captain_current_lng = ride.pickup_lng;
   }
 
-  if (status === 'trip_started') {
+  if (status === 'trip_started' || status === 'in_progress') {
     ride.trip_started_at = now;
     // Trip started: captain starts at Location A heading towards Location B (Drop-off)
     ride.captain_current_lat = ride.pickup_lat;
@@ -888,7 +889,7 @@ motorideRouter.post('/rides/:id/status', async (req: Request, res: Response) => 
     if (cancellation_reason) sbPayload.cancellation_reason = cancellation_reason;
     if (final_distance_km) sbPayload.distance_km = final_distance_km;
     if (final_fare) sbPayload.final_fare = final_fare;
-    if (status === 'trip_started') sbPayload.trip_started_at = now;
+    if (status === 'trip_started' || status === 'in_progress') sbPayload.trip_started_at = now;
     if (status === 'trip_completed' || status === 'completed') {
       sbPayload.trip_completed_at = now;
       sbPayload.completed_at = now;
@@ -915,9 +916,10 @@ motorideRouter.post('/rides/:id/status', async (req: Request, res: Response) => 
 
   // Send contextual notification
   let notifMsg = `Ride status updated to ${status.replace('_', ' ')}`;
-  if (status === 'captain_arrived') notifMsg = 'Your captain has arrived at the pickup location!';
-  if (status === 'trip_started') notifMsg = 'Trip started. Have a safe journey!';
-  if (status === 'trip_completed') notifMsg = `Trip completed. Total Fare: ₹${ride.final_fare}. Thank you!`;
+  if (status === 'captain_arrived') notifMsg = 'Captain has arrived at your pickup location.';
+  if (status === 'trip_started' || status === 'in_progress') notifMsg = 'Your trip is in progress.';
+  if (status === 'trip_completed' || status === 'completed') notifMsg = `Trip completed. Total Fare: ₹${ride.final_fare}. Thank you!`;
+  if (status.includes('cancelled')) notifMsg = `Ride was cancelled: ${cancellation_reason || 'No reason provided'}`;
   if (status.includes('cancelled')) notifMsg = `Ride was cancelled: ${cancellation_reason || 'No reason provided'}`;
 
   notificationsStore.unshift({

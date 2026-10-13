@@ -12,7 +12,7 @@ import { DigitalWatchETA } from './DigitalWatchETA';
 import { PassengerCaptainRatingModal } from './PassengerCaptainRatingModal';
 import { LocationPickerMapModal } from './LocationPickerMapModal';
 import { TripSearchlightRadar } from './TripSearchlightRadar';
-import { motorideApi, getRideAgreedFare, mergeRideSafely, STATUS_RANK, getStatusRank, canTransitionStatus, shouldApplyIncomingStatus, resolveAuthoritativeRide } from '../services/motorideApi';
+import { motorideApi, getRideAgreedFare, mergeRideSafely, STATUS_RANK, getStatusRank, canTransitionStatus, shouldApplyIncomingStatus, resolveAuthoritativeRide, toCanonicalStatus } from '../services/motorideApi';
 import { realtimeSync } from '../services/realtimeSync';
 import { calculateBearingDegrees, calculateRoadDistanceKm, fetchRouteRoadDistance } from '../utils/distanceCalculator';
 import { reverseGeocodeCoordinates, findInstantExactLocationName } from '../utils/reverseGeocoding';
@@ -659,6 +659,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   const [isCancelling, setIsCancelling] = useState(false);
   const [showPickupToast, setShowPickupToast] = useState(false);
   const [pickupToastMessage, setPickupToastMessage] = useState('📍 Pickup location set to your position');
+  const [arrivedToastMessage, setArrivedToastMessage] = useState<string | null>(null);
 
   // Available Captains & Nearest Captain State for Passenger Map
   const [nearbyCaptains, setNearbyCaptains] = useState<AvailableCaptainItem[]>([]);
@@ -2548,25 +2549,34 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     };
   }, [activeRide?.id]);
 
-  // Guaranteed Sound Alert trigger on Captain Arrival
+  // Guaranteed Sound Alert & Notification trigger on Captain Arrival
   const lastPlayedArrivedRideIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (activeRide && activeRide.status === 'captain_arrived') {
+    const canonical = activeRide ? toCanonicalStatus(activeRide.status) : null;
+    if (activeRide && canonical === 'captain_arrived') {
       if (lastPlayedArrivedRideIdRef.current !== activeRide.id) {
         lastPlayedArrivedRideIdRef.current = activeRide.id;
         playCaptainArrivedTune();
+        setArrivedToastMessage('Captain has arrived at your pickup location.');
+        const timer = setTimeout(() => {
+          setArrivedToastMessage(null);
+        }, 8000);
+        return () => clearTimeout(timer);
       }
-    } else if (!activeRide || activeRide.status !== 'captain_arrived') {
+    } else if (!activeRide || canonical !== 'captain_arrived') {
       if (lastPlayedArrivedRideIdRef.current && activeRide?.id !== lastPlayedArrivedRideIdRef.current) {
         lastPlayedArrivedRideIdRef.current = null;
+      }
+      if (arrivedToastMessage) {
+        setArrivedToastMessage(null);
       }
     }
   }, [activeRide?.id, activeRide?.status]);
 
   // Animated Captain Progression for Active Ride on Passenger Map:
-  // When 'captain_accepted': smoothly animate captain arriving to Pickup Location A
+  // When 'accepted': smoothly animate captain arriving to Pickup Location A
   // When 'captain_arrived': captain arrives and stays at Pickup Location A
-  // When 'trip_started': smoothly animate captain traveling to Drop-off Location B
+  // When 'in_progress': smoothly animate captain traveling to Drop-off Location B
   useEffect(() => {
     if (!activeRide || !activeRide.captain_id) {
       setAnimatedCaptainPos(null);
@@ -2574,6 +2584,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     }
 
     const { status, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, captain_current_lat, captain_current_lng, captain_heading } = activeRide;
+    const canonical = toCanonicalStatus(status);
 
     // Initialize or re-anchor starting coordinates
     setAnimatedCaptainPos((prev) => {
@@ -2585,7 +2596,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           heading: captain_heading || 45,
         };
       }
-      if (status === 'captain_accepted') {
+      if (canonical === 'accepted') {
         const initLat = Number((pickup_lat - 0.0055).toFixed(6));
         const initLng = Number((pickup_lng - 0.0045).toFixed(6));
         return {
@@ -2594,7 +2605,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           heading: calculateBearingDegrees(initLat, initLng, pickup_lat, pickup_lng),
         };
       }
-      if (status === 'trip_started') {
+      if (canonical === 'in_progress') {
         return {
           lat: pickup_lat,
           lng: pickup_lng,
@@ -2608,7 +2619,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       };
     });
 
-    if (status === 'captain_arrived') {
+    if (canonical === 'captain_arrived') {
       setAnimatedCaptainPos({
         lat: pickup_lat,
         lng: pickup_lng,
@@ -2617,7 +2628,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       return;
     }
 
-    if (status === 'trip_completed') {
+    if (canonical === 'completed') {
       setAnimatedCaptainPos({
         lat: dropoff_lat,
         lng: dropoff_lng,
@@ -2626,8 +2637,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
       return;
     }
 
-    const isAccepted = status === 'captain_accepted';
-    const isTripStarted = status === 'trip_started';
+    const isAccepted = canonical === 'accepted';
+    const isTripStarted = canonical === 'in_progress';
 
     if (!isAccepted && !isTripStarted) return;
 
@@ -3724,7 +3735,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
               activeRide.status === 'in_progress') && (
               <div className="flex flex-col gap-2.5 text-black">
                 {/* Digital Watch on Top of Ride Details (Shown ONLY when captain is on the way to pickup) */}
-                {activeRide.status === 'captain_accepted' && (
+                {toCanonicalStatus(activeRide.status) === 'accepted' && (
                   <DigitalWatchETA
                     ride={activeRide}
                     captainLat={animatedCaptainPos?.lat ?? activeRide.captain_current_lat}
@@ -3734,13 +3745,18 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 )}
 
                 {/* When Captain has arrived (and trip NOT started), show arrival banner */}
-                {activeRide.status === 'captain_arrived' && (
-                  <div className="w-full rounded-2xl bg-emerald-500 text-slate-950 px-3.5 py-2.5 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
-                    <div className="flex items-center gap-2">
+                {toCanonicalStatus(activeRide.status) === 'captain_arrived' && (
+                  <div className="w-full rounded-2xl bg-emerald-500 text-slate-950 px-3.5 py-3 border-2 border-black font-black flex items-center justify-between shadow-lg select-none animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-slate-950 animate-ping shrink-0" />
-                      <span className="text-xs sm:text-sm font-black tracking-wide">
-                        🚕 Captain Arrived
-                      </span>
+                      <div>
+                        <span className="text-xs sm:text-sm font-black tracking-wide text-slate-950 block">
+                          Captain has arrived at your pickup location.
+                        </span>
+                        <span className="text-[10px] text-slate-800 font-bold block">
+                          Please meet your captain at the pickup spot
+                        </span>
+                      </div>
                     </div>
                     <span className="text-[10px] bg-slate-950 text-white px-2 py-0.5 rounded-lg font-bold shrink-0">
                       Waiting for you
@@ -3749,7 +3765,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
                 )}
 
                 {/* When Trip has started, show on-trip banner */}
-                {['trip_started', 'in_progress'].includes(activeRide.status) && (
+                {toCanonicalStatus(activeRide.status) === 'in_progress' && (
                   <div className="w-full rounded-2xl bg-slate-950 text-white px-3.5 py-2.5 border-2 border-black font-black flex items-center justify-between shadow-md select-none animate-in fade-in duration-200">
                     <div className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
@@ -4604,6 +4620,27 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         </div>
       )}
 
+      {/* Floating Instant Notification for Captain Arrived */}
+      {arrivedToastMessage && (
+        <div className="fixed sm:absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[1150] max-w-sm sm:max-w-md w-[92%] px-4 py-3 rounded-2xl bg-emerald-600 text-white shadow-2xl backdrop-blur-xl border-2 border-white/25 text-xs sm:text-sm font-black flex items-center gap-3 animate-in fade-in slide-in-from-top-3 duration-300">
+          <div className="w-7 h-7 rounded-full bg-white text-emerald-700 flex items-center justify-center font-black text-sm shrink-0 shadow-md">
+            ✓
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-white font-black block text-xs sm:text-sm tracking-tight">{arrivedToastMessage}</span>
+            <span className="text-emerald-100 text-[10px] sm:text-xs font-medium block">Please meet your captain at the pickup spot</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setArrivedToastMessage(null)}
+            className="text-white/80 hover:text-white p-1 text-xs cursor-pointer font-bold"
+            aria-label="Dismiss arrival notification"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Passenger Profile 2-Lines Button in Left Top Corner */}
       <button
         type="button"
@@ -4744,7 +4781,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             </div>
 
             {/* Quick Chat with Captain in Minimized bar */}
-            {activeRide && ['captain_accepted', 'captain_arrived', 'trip_started'].includes(activeRide.status) && (
+            {activeRide && ['accepted', 'captain_accepted', 'captain_arrived', 'in_progress', 'trip_started'].includes(activeRide.status) && (
               <button
                 type="button"
                 onClick={(e) => {

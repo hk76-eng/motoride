@@ -47,7 +47,7 @@ class RealtimeSyncManager {
                   this.emit('RIDE_CREATED', payload.new);
                 } else if (payload.eventType === 'UPDATE') {
                   this.emit('RIDE_UPDATED', payload.new);
-                  if (payload.new?.status === 'captain_accepted') {
+                  if (payload.new?.status === 'accepted' || payload.new?.status === 'captain_accepted') {
                     this.emit('RIDE_ACCEPTED', payload.new);
                   }
                   if (payload.new?.status === 'captain_offered' && Array.isArray(payload.new?.offers) && payload.new.offers.length > 0) {

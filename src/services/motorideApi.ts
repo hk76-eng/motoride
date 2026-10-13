@@ -30,7 +30,10 @@ import {
   canTransitionStatus,
   shouldApplyIncomingStatus,
   resolveAuthoritativeRide,
+  toCanonicalStatus,
+  CANONICAL_STATUSES,
 } from './rideStateMachine';
+export type { CanonicalRideStatus } from './rideStateMachine';
 
 export {
   STATUS_RANK,
@@ -38,6 +41,8 @@ export {
   canTransitionStatus,
   shouldApplyIncomingStatus,
   resolveAuthoritativeRide,
+  toCanonicalStatus,
+  CANONICAL_STATUSES,
 };
 
 export const SUPABASE_RIDES_COLUMNS = new Set([
@@ -776,10 +781,31 @@ export const motorideApi = {
     }
   ): Promise<MotorideRide> {
     const existing = localRidesStore.get(rideId) || ({ id: rideId } as MotorideRide);
+    const nowIso = new Date().toISOString();
+    const agreedFare = Number(captainData.accepted_fare || existing.final_fare || 75);
+
+    // 1. Verify in Supabase first: make sure ride is not already accepted by another captain
+    const supabase = getSupabase();
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { data: dbRide, error: fetchErr } = await supabase.from('rides').select('*').eq('id', rideId).single();
+        if (!fetchErr && dbRide) {
+          const canonicalDbStatus = toCanonicalStatus(dbRide.status);
+          if (canonicalDbStatus !== 'requested' && dbRide.captain_id && dbRide.captain_id !== captainData.captain_id) {
+            throw new Error('This ride was already accepted by another captain.');
+          }
+        }
+      } catch (checkErr: any) {
+        if (checkErr.message?.includes('already accepted')) {
+          throw checkErr;
+        }
+      }
+    }
+
     const updatedRide: MotorideRide = {
       ...existing,
       id: rideId,
-      status: 'captain_accepted',
+      status: 'accepted',
       captain_id: captainData.captain_id,
       captain_name: captainData.captain_name,
       captain_avatar: (captainData as any).captain_avatar || safeStorage.getItem('motoride_captain_avatar') || undefined,
@@ -788,50 +814,54 @@ export const motorideApi = {
       captain_total_rides: captainData.captain_total_rides !== undefined ? captainData.captain_total_rides : (existing.captain_total_rides ?? 0),
       vehicle_model: captainData.vehicle_model,
       plate_number: captainData.plate_number,
-      final_fare: captainData.accepted_fare || existing.final_fare || 75,
-      updated_at: new Date().toISOString(),
+      final_fare: agreedFare,
+      accepted_fare: agreedFare,
+      agreed_fare: agreedFare,
+      fare_amount: agreedFare,
+      updated_at: nowIso,
     };
 
+    // 2. Atomically save status change to Supabase database BEFORE confirming
+    if (supabase && isSupabaseConfigured()) {
+      const updatePayload = {
+        captain_id: captainData.captain_id,
+        captain_name: captainData.captain_name,
+        captain_avatar: updatedRide.captain_avatar,
+        captain_phone: captainData.captain_phone,
+        vehicle_model: captainData.vehicle_model,
+        plate_number: captainData.plate_number,
+        final_fare: agreedFare,
+        fare_amount: agreedFare,
+        status: 'accepted',
+        updated_at: nowIso,
+      };
+
+      const { data: confirmedDb, error: sbErr } = await supabase
+        .from('rides')
+        .update(sanitizeForSupabaseRides(updatePayload))
+        .eq('id', rideId)
+        .select()
+        .single();
+
+      if (sbErr) {
+        console.error(`[Motoride Database] Failed to accept ride ${rideId} in Supabase:`, sbErr);
+        throw new Error(`Failed to confirm ride acceptance in Supabase: ${sbErr.message}`);
+      }
+
+      if (confirmedDb) {
+        Object.assign(updatedRide, confirmedDb);
+        updatedRide.status = 'accepted';
+      }
+    }
+
+    // 3. Save confirmed ride to local memory & disk
     localRidesStore.set(rideId, updatedRide);
     saveLocalRides();
 
-    // Broadcast instantly to all browsers and devices
+    // 4. Publish confirmed status to all devices & browsers via Realtime
     realtimeSync.broadcast('RIDE_ACCEPTED', updatedRide);
-    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status: 'captain_accepted' });
+    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status: 'accepted' });
     realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
-
-    const supabase = getSupabase();
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.rpc('accept_ride_atomic', {
-          p_ride_id: rideId,
-          p_captain_id: captainData.captain_id,
-          p_captain_name: captainData.captain_name,
-          p_captain_phone: captainData.captain_phone || '',
-          p_vehicle_model: captainData.vehicle_model || '',
-          p_plate_number: captainData.plate_number || '',
-          p_accepted_fare: captainData.accepted_fare || 0,
-        });
-        if (!error && data?.success && data.ride) {
-          const mergedRide = {
-            ...updatedRide,
-            ...(data.ride as MotorideRide),
-            captain_name: data.ride.captain_name || updatedRide.captain_name,
-            captain_phone: data.ride.captain_phone || updatedRide.captain_phone,
-            vehicle_model: data.ride.vehicle_model || updatedRide.vehicle_model,
-            plate_number: data.ride.plate_number || updatedRide.plate_number,
-            captain_avatar: (data.ride as any).captain_avatar || (updatedRide as any).captain_avatar,
-          };
-          localRidesStore.set(rideId, mergedRide);
-          saveLocalRides();
-          return mergedRide;
-        } else {
-          await supabase.from('rides').update(sanitizeForSupabaseRides(updatedRide)).eq('id', rideId);
-        }
-      } catch (err) {
-        console.warn('Supabase accept ride notice:', err);
-      }
-    }
 
     safeFetchJson<{ ride: MotorideRide }>(
       `${API_BASE}/rides/${rideId}/accept`,
@@ -948,7 +978,7 @@ export const motorideApi = {
     const updatedRide: MotorideRide = {
       ...existing,
       id: rideId,
-      status: 'captain_accepted',
+      status: 'accepted',
       captain_id: acceptedOffer?.captain_id || existing.captain_id,
       captain_name: acceptedOffer?.captain_name || existing.captain_name,
       captain_avatar: acceptedOffer?.captain_avatar || (acceptedOffer as any)?.avatar_url || (existing as any)?.captain_avatar || (existing as any)?.avatar_url,
@@ -967,14 +997,14 @@ export const motorideApi = {
     saveLocalRides();
 
     realtimeSync.broadcast('RIDE_ACCEPTED', updatedRide);
-    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status: 'captain_accepted' });
+    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status: 'accepted' });
     realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
 
     const supabase = getSupabase();
     if (supabase) {
       try {
         const updatePayload = {
-          status: 'captain_accepted',
+          status: 'accepted',
           captain_id: updatedRide.captain_id,
           captain_name: updatedRide.captain_name,
           captain_avatar: (updatedRide as any).captain_avatar,
@@ -1008,6 +1038,7 @@ export const motorideApi = {
         if (o.id === offerId) o.status = 'accepted';
       });
     }
+    finalRide.status = 'accepted';
     finalRide.final_fare = agreedFare;
     finalRide.offered_fare = agreedFare;
     finalRide.agreed_fare = agreedFare;
@@ -1017,7 +1048,7 @@ export const motorideApi = {
     localRidesStore.set(rideId, finalRide);
     saveLocalRides();
     realtimeSync.broadcast('RIDE_ACCEPTED', finalRide);
-    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: finalRide, status: 'captain_accepted' });
+    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: finalRide, status: 'accepted' });
     realtimeSync.broadcast('RIDE_UPDATED', finalRide);
     return finalRide;
   },
@@ -1142,108 +1173,154 @@ export const motorideApi = {
       captain_id?: string;
     }
   ): Promise<MotorideRide> {
-    const existing = localRidesStore.get(rideId) || extra?.ride || ({ id: rideId } as MotorideRide);
+    const canonicalStatus = toCanonicalStatus(status);
+    const supabase = getSupabase();
 
-    // Strict forward-only state machine: reject invalid backwards status transitions
-    if (!canTransitionStatus(existing.status, status)) {
+    // 1. Fetch latest state from Supabase as single source of truth
+    let existing = localRidesStore.get(rideId) || extra?.ride;
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { data: dbRide, error: fetchErr } = await supabase
+          .from('rides')
+          .select('*')
+          .eq('id', rideId)
+          .single();
+        if (!fetchErr && dbRide) {
+          existing = resolveAuthoritativeRide(existing, dbRide as MotorideRide);
+        }
+      } catch (checkErr) {
+        console.warn(`[Motoride Database] Status pre-check notice for ride ${rideId}:`, checkErr);
+      }
+    }
+    if (!existing) {
+      existing = { id: rideId, status: 'requested' } as MotorideRide;
+    }
+
+    const currentCanonical = toCanonicalStatus(existing.status);
+    const currentRank = getStatusRank(existing.status);
+    const requestedRank = getStatusRank(canonicalStatus);
+
+    // 2. Enforce strict ride lifecycle: requested → accepted → captain_arrived → in_progress → completed
+    if (canonicalStatus === 'captain_arrived') {
+      if (currentCanonical !== 'accepted' && currentCanonical !== 'captain_arrived') {
+        if (currentRank > 3) {
+          console.warn(`[Motoride State Machine] Cannot move backwards to captain_arrived from "${currentCanonical}"`);
+          return existing;
+        }
+      }
+    } else if (canonicalStatus === 'in_progress') {
+      if (currentCanonical !== 'captain_arrived' && currentCanonical !== 'in_progress') {
+        if (currentRank > 4) {
+          console.warn(`[Motoride State Machine] Cannot move backwards to in_progress from "${currentCanonical}"`);
+          return existing;
+        }
+      }
+    } else if (canonicalStatus === 'completed') {
+      if (currentCanonical !== 'in_progress' && currentCanonical !== 'completed') {
+        if (currentCanonical.includes('cancelled')) {
+          console.warn(`[Motoride State Machine] Cannot complete cancelled ride ${rideId}`);
+          return existing;
+        }
+      }
+    }
+
+    // Strict forward-only state machine validation
+    if (!canTransitionStatus(existing.status, canonicalStatus)) {
       console.warn(
-        `[Motoride State Machine] Rejected invalid backwards status transition for ride ${rideId} from "${existing.status}" to "${status}"`
+        `[Motoride State Machine] Rejected invalid backwards status transition for ride ${rideId} from "${existing.status}" (rank ${currentRank}) to "${canonicalStatus}" (rank ${requestedRank})`
       );
       return existing;
     }
 
     const nowIso = new Date().toISOString();
-    const updatedRide: MotorideRide = {
+    const updatePayload: any = {
+      status: canonicalStatus,
+      updated_at: nowIso,
+    };
+    if (extra?.cancellation_reason) updatePayload.cancellation_reason = extra.cancellation_reason;
+    if (extra?.final_distance_km) updatePayload.distance_km = extra.final_distance_km;
+    if (extra?.final_fare !== undefined) {
+      updatePayload.final_fare = extra.final_fare;
+      updatePayload.fare_amount = extra.final_fare;
+    }
+    if (canonicalStatus === 'captain_arrived') {
+      if (existing?.pickup_lat) updatePayload.captain_current_lat = existing.pickup_lat;
+      if (existing?.pickup_lng) updatePayload.captain_current_lng = existing.pickup_lng;
+    }
+    if (canonicalStatus === 'in_progress') {
+      updatePayload.trip_started_at = existing?.trip_started_at || nowIso;
+      if (existing?.pickup_lat) updatePayload.captain_current_lat = existing.pickup_lat;
+      if (existing?.pickup_lng) updatePayload.captain_current_lng = existing.pickup_lng;
+    }
+    if (canonicalStatus === 'completed') {
+      updatePayload.trip_completed_at = existing?.trip_completed_at || nowIso;
+      updatePayload.completed_at = nowIso;
+      updatePayload.payment_status = 'paid';
+    }
+
+    let confirmedRide: MotorideRide = {
       ...existing,
       ...(extra?.ride || {}),
       id: rideId,
-      status,
-      ...extra,
+      status: canonicalStatus,
+      ...updatePayload,
       updated_at: nowIso,
     };
-    if (status === 'trip_started') updatedRide.trip_started_at = updatedRide.trip_started_at || nowIso;
-    if (status === 'trip_completed' || status === 'completed') {
-      updatedRide.trip_completed_at = updatedRide.trip_completed_at || nowIso;
-      (updatedRide as any).completed_at = nowIso;
-      updatedRide.payment_status = 'paid';
-      if (extra?.final_fare !== undefined) {
-        updatedRide.final_fare = extra.final_fare;
-        (updatedRide as any).fare_amount = extra.final_fare;
-      } else {
-        (updatedRide as any).fare_amount = updatedRide.final_fare || updatedRide.offered_fare || 0;
+
+    // 3. Atomically update Supabase database as authoritative record
+    if (supabase && isSupabaseConfigured()) {
+      const sanitized = sanitizeForSupabaseRides(updatePayload);
+      const { data: updatedDb, error: sbErr } = await supabase
+        .from('rides')
+        .update(sanitized)
+        .eq('id', rideId)
+        .select()
+        .single();
+
+      if (sbErr) {
+        console.error(`[Motoride Database] Error updating ride ${rideId} to "${canonicalStatus}":`, sbErr);
+        throw new Error(`Failed to update status in Supabase: ${sbErr.message}`);
+      }
+
+      if (updatedDb) {
+        confirmedRide = resolveAuthoritativeRide(confirmedRide, updatedDb as MotorideRide);
+        confirmedRide.status = canonicalStatus;
       }
     }
 
-    // 1. Immediately store in local memory & disk
-    localRidesStore.set(rideId, updatedRide);
+    // 4. Update local memory and persist to disk
+    localRidesStore.set(rideId, confirmedRide);
     saveLocalRides();
 
-    // 2. Broadcast immediately to all connected browsers & windows via BroadcastChannel + storage
-    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: updatedRide, status });
-    realtimeSync.broadcast('RIDE_UPDATED', updatedRide);
-    if (status.includes('cancelled')) {
+    // 5. Broadcast confirmed status via Supabase Realtime & local BroadcastChannel
+    realtimeSync.broadcast('RIDE_STATUS_CHANGED', { ride: confirmedRide, status: canonicalStatus });
+    realtimeSync.broadcast('RIDE_UPDATED', confirmedRide);
+    if (canonicalStatus.includes('cancelled')) {
       realtimeSync.broadcast('RIDE_CANCELLED', {
-        ride: updatedRide,
+        ride: confirmedRide,
         ride_id: rideId,
-        status,
+        status: canonicalStatus,
         cancellation_reason: extra?.cancellation_reason,
       });
     }
-    if (status === 'trip_completed' || status === 'completed' || status.includes('cancelled')) {
-      realtimeSync.broadcast('EARNINGS_UPDATED', { captain_id: updatedRide.captain_id, ride: updatedRide });
+    if (canonicalStatus === 'completed' || canonicalStatus.includes('cancelled')) {
+      realtimeSync.broadcast('EARNINGS_UPDATED', { captain_id: confirmedRide.captain_id, ride: confirmedRide });
     }
 
-    // 3. Atomically update Supabase database as authoritative record
-    const supabase = getSupabase();
-    if (supabase) {
-      try {
-        const updatePayload: any = {
-          status,
-          updated_at: nowIso,
-        };
-        if (extra?.cancellation_reason) updatePayload.cancellation_reason = extra.cancellation_reason;
-        if (extra?.final_distance_km) updatePayload.distance_km = extra.final_distance_km;
-        if (extra?.final_fare) updatePayload.final_fare = extra.final_fare;
-        if (status === 'trip_started') updatePayload.trip_started_at = nowIso;
-        if (status === 'trip_completed' || status === 'completed') {
-          updatePayload.trip_completed_at = nowIso;
-          updatePayload.completed_at = nowIso;
-          updatePayload.payment_status = 'paid';
-          if (extra?.final_fare !== undefined) {
-            updatePayload.final_fare = extra.final_fare;
-            updatePayload.fare_amount = extra.final_fare;
-          }
-        }
-        const { error: sbErr } = await supabase.from('rides').update(sanitizeForSupabaseRides(updatePayload)).eq('id', rideId);
-        if (sbErr) {
-          console.warn('Supabase status update error:', sbErr);
-        }
-      } catch (err) {
-        console.warn('Supabase status sync notice:', err);
-      }
-    }
-
-    // 4. Post to local server immediately with full ride payload so in-memory store and SSE stream fire without latency
+    // 6. Sync with server in background
     try {
-      const serverRes = await safeFetchJson<{ ride: MotorideRide }>(
+      safeFetchJson<{ ride: MotorideRide }>(
         `${API_BASE}/rides/${rideId}/status`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status, ride: updatedRide, ...extra }),
+          body: JSON.stringify({ status: canonicalStatus, ride: confirmedRide, ...extra }),
         },
-        { ride: updatedRide }
-      );
-      if (serverRes?.ride) {
-        const merged = resolveAuthoritativeRide(updatedRide, serverRes.ride);
-        localRidesStore.set(rideId, merged);
-        saveLocalRides();
-      }
-    } catch (serverErr) {
-      console.warn('Local server status sync notice:', serverErr);
-    }
+        { ride: confirmedRide }
+      ).catch(() => {});
+    } catch {}
 
-    return updatedRide;
+    return confirmedRide;
   },
 
   // Dedicated Atomic 10% Platform Commission Deduction & Ride Completion
@@ -1624,7 +1701,22 @@ export const motorideApi = {
               }
             }
           )
-          .subscribe();
+          .subscribe((status: string) => {
+            console.log(`[Supabase Realtime] Ride ${rideId} subscription status: ${status}`);
+            if (status === 'SUBSCRIBED') {
+              // Immediately refetch latest confirmed ride from Supabase to reconcile UI
+              supabase
+                .from('rides')
+                .select('*')
+                .eq('id', rideId)
+                .single()
+                .then(({ data, error }) => {
+                  if (!error && data) {
+                    handleAuthoritativeUpdate(data as MotorideRide);
+                  }
+                });
+            }
+          });
       } catch (err) {
         console.warn('Supabase ride channel setup warning:', err);
       }
