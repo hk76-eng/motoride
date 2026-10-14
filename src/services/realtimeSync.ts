@@ -318,13 +318,22 @@ class RealtimeSyncManager {
   }
 
   /**
-   * Broadcasts an event locally AND across all connected browsers/devices via Supabase Realtime.
+   * Broadcasts an event locally, through backend server SSE, AND across all connected browsers/devices via Supabase Realtime.
    */
   public broadcast(event: string, data: any) {
     // 1. Emit locally immediately
     this.emit(event, data);
 
-    // 2. Broadcast via Supabase channel to all other clients across devices
+    // 2. Broadcast via backend server SSE stream
+    try {
+      fetch(getApiUrl('/api/motoride/realtime/broadcast'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event, payload: data }),
+      }).catch(() => {});
+    } catch {}
+
+    // 3. Broadcast via Supabase channel to all other clients across devices
     if (this.supabaseChannel) {
       try {
         this.supabaseChannel
@@ -370,10 +379,46 @@ class RealtimeSyncManager {
     }
   }
 
+  public reconnect() {
+    this.connectSSE();
+    this.requestSync();
+  }
+
+  public async pingServer(): Promise<{ latencyMs: number; serverUrl: string }> {
+    const start = Date.now();
+    try {
+      const res = await fetch(getApiUrl('/api/motoride/realtime/ping'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientTs: start }),
+      });
+      const data = await res.json();
+      return {
+        latencyMs: Math.max(1, Date.now() - start),
+        serverUrl: data?.serverUrl || 'https://motoride.wasmer.app',
+      };
+    } catch {
+      return { latencyMs: -1, serverUrl: 'https://motoride.wasmer.app' };
+    }
+  }
+
+  public async fetchServerSyncData() {
+    try {
+      const res = await fetch(getApiUrl('/api/motoride/realtime/sync-data'));
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (e) {
+      console.warn('Failed to fetch server sync data:', e);
+    }
+    return null;
+  }
+
   public getStatus() {
     return {
       isConnected: this.isConnected,
       isSupabaseActive: isSupabaseConfigured(),
+      hasBroadcastChannel: !!this.localBroadcastChannel,
     };
   }
 }

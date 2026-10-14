@@ -1905,7 +1905,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    if (!activeRide || !['requested', 'captain_offered'].includes(activeRide.status)) {
+    const canonical = activeRide ? toCanonicalStatus(activeRide.status) : null;
+    if (!activeRide || !['requested', 'captain_offered'].includes(canonical || '')) {
       setFocusedOfferId(null);
       return;
     }
@@ -1954,7 +1955,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
   );
 
   useEffect(() => {
-    if (!activeRide || !['requested', 'captain_offered'].includes(activeRide.status)) {
+    const canonical = activeRide ? toCanonicalStatus(activeRide.status) : null;
+    if (!activeRide || !['requested', 'captain_offered'].includes(canonical || '')) {
       prevOffersCountRef.current = 0;
       prevOffersRideIdRef.current = null;
       return;
@@ -1977,7 +1979,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
 
   // Track unread captain chat messages across all live ride statuses (including starting & active trip)
   useEffect(() => {
-    const isLiveRide = activeRide && activeRide.id && activeRide.status !== 'completed' && activeRide.status !== 'trip_completed' && !activeRide.status.includes('cancelled');
+    const canonical = activeRide ? toCanonicalStatus(activeRide.status) : null;
+    const isLiveRide = activeRide && activeRide.id && canonical !== 'completed' && !canonical?.includes('cancelled');
     if (!isLiveRide || !activeRide.id) {
       setHasUnreadMessages(false);
       return;
@@ -3425,14 +3428,16 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=0284c7&color=fff&bold=true`;
   };
 
-  const renderControlPanel = () => (
-    <div className="flex flex-col gap-4 h-full">
-      {activeRide ? (
+  const renderControlPanel = () => {
+    const canonicalStatus = activeRide ? toCanonicalStatus(activeRide.status) : null;
+    const isSearchPhase = canonicalStatus === 'requested' || canonicalStatus === 'captain_offered';
+
+    return (
+      <div className="flex flex-col gap-4 h-full">
+        {activeRide ? (
           /* Active Ride Cards - Full Height for Search, Booking Form Sized for Captain Accepted / Active Trip */
           <div className={`bg-white border-2 border-black ${
-            activeRide.status === 'requested' || activeRide.status === 'captain_offered'
-              ? 'rounded-none sm:rounded-3xl'
-              : 'rounded-3xl'
+            isSearchPhase ? 'rounded-none sm:rounded-3xl' : 'rounded-3xl'
           } p-4 sm:p-5 flex flex-col justify-between h-full shadow-2xl text-black overflow-y-auto scrollbar-thin`}>
             {/* Top Pull Down / Drop Down Handle Bar */}
             <div
@@ -3444,20 +3449,20 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             </div>
 
             {/* Status Header - Hidden only during Finding Captain / Search state to streamline radar */}
-            {activeRide.status !== 'requested' && activeRide.status !== 'captain_offered' && (
+            {!isSearchPhase && (
               <div className="flex items-center justify-between pb-3 border-b border-black/20">
                 <div>
                   <span className="text-[11px] font-mono-num font-black text-black block">
                     {activeRide.ride_code}
                   </span>
                   <h2 className="text-base font-black text-black">
-                    {activeRide.status === 'captain_arrived'
+                    {canonicalStatus === 'captain_arrived'
                       ? '🚕 Captain Has Arrived'
-                      : activeRide.status === 'trip_started' || activeRide.status === 'in_progress'
+                      : canonicalStatus === 'in_progress'
                       ? '🚕 Trip Started / In Progress'
-                      : activeRide.status === 'trip_completed' || activeRide.status === 'completed'
+                      : canonicalStatus === 'completed'
                       ? '✓ Trip completed'
-                      : activeRide.status === 'captain_accepted' || activeRide.status === 'accepted' || activeRide.status === 'captain_arriving'
+                      : canonicalStatus === 'accepted'
                       ? 'Captain is on the way'
                       : activeRide.status.replace(/_/g, ' ')}
                   </h2>
@@ -3726,16 +3731,12 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
         )}
 
             {/* Case 2: Captain Accepted / Arrived / Trip Started */}
-            {(activeRide.status === 'captain_accepted' ||
-              activeRide.status === 'accepted' ||
-              activeRide.status === 'captain_arriving' ||
-              activeRide.status === 'captain_assigned' ||
-              activeRide.status === 'captain_arrived' ||
-              activeRide.status === 'trip_started' ||
-              activeRide.status === 'in_progress') && (
+            {(canonicalStatus === 'accepted' ||
+              canonicalStatus === 'captain_arrived' ||
+              canonicalStatus === 'in_progress') && (
               <div className="flex flex-col gap-2.5 text-black">
                 {/* Digital Watch on Top of Ride Details (Shown ONLY when captain is on the way to pickup) */}
-                {toCanonicalStatus(activeRide.status) === 'accepted' && (
+                {canonicalStatus === 'accepted' && (
                   <DigitalWatchETA
                     ride={activeRide}
                     captainLat={animatedCaptainPos?.lat ?? activeRide.captain_current_lat}
@@ -4601,7 +4602,8 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
           </div>
         )}
     </div>
-  );
+    );
+  };
 
   return (
     <div className="relative w-full h-[calc(100dvh-64px)] sm:h-[calc(100vh-68px)] overflow-hidden bg-slate-100">
@@ -4781,7 +4783,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             </div>
 
             {/* Quick Chat with Captain in Minimized bar */}
-            {activeRide && ['accepted', 'captain_accepted', 'captain_arrived', 'in_progress', 'trip_started'].includes(activeRide.status) && (
+            {activeRide && ['accepted', 'captain_arrived', 'in_progress'].includes(toCanonicalStatus(activeRide.status)) && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -4804,7 +4806,7 @@ export const PassengerWorkspace: React.FC<PassengerWorkspaceProps> = ({
             )}
 
             {/* Quick Cancel Ride Request in Minimized bar */}
-            {activeRide && (activeRide.status === 'requested' || activeRide.status === 'captain_offered') && (
+            {activeRide && ['requested', 'captain_offered'].includes(toCanonicalStatus(activeRide.status)) && (
               <button
                 type="button"
                 onClick={(e) => {

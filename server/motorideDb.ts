@@ -27,6 +27,33 @@ const dbSupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 type SSEClient = (data: { event: string; payload: any }) => void;
 const sseClients = new Set<SSEClient>();
 
+export interface RealtimeServerEventLog {
+  id: string;
+  event: string;
+  timestamp: number;
+  timeStr: string;
+  clientsCount: number;
+  summary: string;
+}
+
+const recentRealtimeEvents: RealtimeServerEventLog[] = [];
+let totalRealtimeEventsBroadcast = 0;
+
+export function getRecentRealtimeEvents(): RealtimeServerEventLog[] {
+  return [...recentRealtimeEvents];
+}
+
+export function getRealtimeServerStats() {
+  return {
+    status: 'online',
+    connectedClients: sseClients.size,
+    totalEventsBroadcast: totalRealtimeEventsBroadcast,
+    recentEvents: recentRealtimeEvents.slice(0, 50),
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  };
+}
+
 export function subscribeSSE(client: SSEClient) {
   sseClients.add(client);
   return () => {
@@ -35,6 +62,37 @@ export function subscribeSSE(client: SSEClient) {
 }
 
 export function broadcastEvent(event: string, payload: any) {
+  totalRealtimeEventsBroadcast++;
+  const now = Date.now();
+  const summary = (() => {
+    try {
+      if (payload?.ride_code) return `Ride #${payload.ride_code} (${payload.status || 'updated'})`;
+      if (payload?.ride?.ride_code) return `Ride #${payload.ride.ride_code} (${payload.status || payload.ride.status || 'updated'})`;
+      if (payload?.request?.id) return `Topup #${payload.request.id} (₹${payload.request.amount || 0})`;
+      if (payload?.balance !== undefined) return `Wallet user ${payload.user_id || ''}: ₹${payload.balance}`;
+      if (payload?.message) return String(payload.message).slice(0, 60);
+      return typeof payload === 'object' ? Object.keys(payload).slice(0, 4).join(', ') : String(payload);
+    } catch {
+      return '';
+    }
+  })();
+
+  const logEntry: RealtimeServerEventLog = {
+    id: `evt_${now}_${Math.random().toString(36).substring(2, 6)}`,
+    event,
+    timestamp: now,
+    timeStr: new Date(now).toISOString(),
+    clientsCount: sseClients.size,
+    summary,
+  };
+
+  recentRealtimeEvents.unshift(logEntry);
+  if (recentRealtimeEvents.length > 100) {
+    recentRealtimeEvents.pop();
+  }
+
+  console.log(`[Realtime Sync] ${new Date().toISOString()} Event: ${event} -> ${sseClients.size} clients (${summary})`);
+
   for (const client of sseClients) {
     try {
       client({ event, payload });

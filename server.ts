@@ -20,7 +20,7 @@ import { motorideRouter } from './server/motorideRouter';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // Universal CORS middleware for all clients (browser, mobile web, APK, Capacitor, file://)
   app.use((req, res, next) => {
@@ -787,7 +787,10 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const fs = await import('fs');
+    const distPath = fs.existsSync(path.join(process.cwd(), 'dist'))
+      ? path.join(process.cwd(), 'dist')
+      : __dirname;
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -795,7 +798,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚴 PedalMeter server listening on port ${PORT}`);
+    console.log(`🏍️ Motoride backend server listening on port ${PORT} (Universal Realtime Sync Active)`);
   });
 }
 

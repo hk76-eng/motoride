@@ -2641,6 +2641,9 @@ export const motorideApi = {
         if (newEmail) {
           await supabase.from('profiles').update(updatePayload).eq('email', newEmail);
         }
+        if (newPhone) {
+          await supabase.from('profiles').update(updatePayload).eq('phone', newPhone);
+        }
 
         const cptPayload: any = { updated_at: now };
         if (newName) cptPayload.name = newName;
@@ -2655,6 +2658,9 @@ export const motorideApi = {
         }
         if (newEmail) {
           await supabase.from('captains').update(cptPayload).eq('email', newEmail);
+        }
+        if (newPhone) {
+          await supabase.from('captains').update(cptPayload).eq('phone', newPhone);
         }
       } catch (err) {
         console.warn('Supabase updateCaptainProfile notice:', err);
@@ -3805,8 +3811,8 @@ export const motorideApi = {
       try {
         const { data: profData } = await supabase
           .from('profiles')
-          .select('avatar_url, phone')
-          .eq('email', 'motoride_topup_store@motoride.com')
+          .select('avatar_url')
+          .or('id.eq.00000000-0000-0000-0000-000000000001,email.eq.motoride_topup_store@motoride.com')
           .maybeSingle();
         if (profData?.avatar_url) {
           const parsed = JSON.parse(profData.avatar_url);
@@ -3853,12 +3859,13 @@ export const motorideApi = {
       // Also persist to Supabase profile store JSON backup in background
       if (supabase) {
         supabase.from('profiles').upsert([{
+          id: '00000000-0000-0000-0000-000000000001',
           email: 'motoride_topup_store@motoride.com',
-          full_name: 'Motoride Topup Store',
+          name: 'Motoride Topup Store',
           role: 'admin',
           avatar_url: JSON.stringify(finalRequests),
           updated_at: new Date().toISOString(),
-        }], { onConflict: 'email' }).then(() => {});
+        }], { onConflict: 'id' }).then(() => {});
       }
     } catch {}
 

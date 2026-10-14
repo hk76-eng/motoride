@@ -19,6 +19,7 @@ interface WorkspaceHeaderProps {
   unreadNotificationsCount?: number;
   onOpenNotifications?: () => void;
   onOpenWallet?: () => void;
+  onOpenRealtimeSync?: () => void;
 }
 
 export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
@@ -30,6 +31,7 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
   isCaptainOnline = true,
   onToggleCaptainOnline,
   onOpenWallet,
+  onOpenRealtimeSync,
 }) => {
   const handleToggleApp = () => {
     if (currentRole === 'passenger') {
@@ -186,6 +188,19 @@ export const WorkspaceHeader: React.FC<WorkspaceHeaderProps> = ({
                   </svg>
                 </div>
                 <span>Wallet: ₹{walletBalance !== undefined ? walletBalance.toFixed(2) : '0.00'}</span>
+              </button>
+            )}
+
+            {/* Real-Time Backend Server Sync Console Button */}
+            {onOpenRealtimeSync && (
+              <button
+                type="button"
+                onClick={onOpenRealtimeSync}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 active:scale-95 transition-all cursor-pointer shadow-sm"
+                title="View Backend Server Real-Time Synchronization Console (motoride.wasmer.app)"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="hidden xs:inline">Server Sync</span>
               </button>
             )}
           </div>
