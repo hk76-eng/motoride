@@ -16,6 +16,7 @@ import { RideChatModal } from '../components/common/RideChatModal';
 import { motorideApi } from '../services/motorideApi';
 import { SUPABASE_SQL_SCHEMA } from '../lib/sqlSchema';
 import { isSupabaseConfigured, getSupabase, SUPABASE_CONFIG_STATUS } from '../lib/supabase';
+import { isAppwriteConfigured, APPWRITE_CONFIG_STATUS } from '../lib/appwrite';
 import { realtimeSync } from '../services/realtimeSync';
 import { AuthUser, supabaseAuth, syncAllAccountsToSupabase, isDemoAccount, isDemoRide } from '../lib/supabaseAuth';
 import { ensureMediaBucketExists, uploadMediaToSupabase, MOTORIDE_MEDIA_BUCKET, StorageStatus } from '../lib/supabaseStorage';
@@ -3265,6 +3266,58 @@ export const AdminWorkspace: React.FC<AdminWorkspaceProps> = ({
                   ? 'Connected and operational'
                   : 'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY can be configured'}
               </span>
+            </div>
+          </div>
+
+          {/* Appwrite Database & Real-Time Synchronization Card */}
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col gap-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400 flex items-center justify-center font-bold text-sm">
+                  ⚡
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-white flex items-center gap-2">
+                    <span>Appwrite Database &amp; Real-Time Synchronization</span>
+                    <span className="px-2 py-0.5 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-400 text-[10px] font-bold">
+                      Live Network
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Real-time document events &amp; data persistence synchronized across all captain, passenger, and admin sessions.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[11px] font-bold text-emerald-400">Connected</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 text-xs font-mono">
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
+                <span className="text-[10px] text-slate-400 font-sans font-medium">Network Web URL</span>
+                <a
+                  href={APPWRITE_CONFIG_STATUS.networkUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-pink-400 hover:text-pink-300 font-bold truncate underline flex items-center gap-1 mt-0.5"
+                >
+                  <span>{APPWRITE_CONFIG_STATUS.networkUrl}</span>
+                </a>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
+                <span className="text-[10px] text-slate-400 font-sans font-medium">Appwrite Project ID</span>
+                <span className="text-white font-bold truncate mt-0.5">{APPWRITE_CONFIG_STATUS.projectId}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col">
+                <span className="text-[10px] text-slate-400 font-sans font-medium">API Endpoint</span>
+                <span className="text-slate-300 truncate mt-0.5">{APPWRITE_CONFIG_STATUS.endpoint}</span>
+              </div>
             </div>
           </div>
 

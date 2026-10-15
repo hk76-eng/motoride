@@ -1,4 +1,11 @@
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
+import {
+  isAppwriteConfigured,
+  subscribeAppwriteRealtime,
+  syncRideToAppwrite,
+  appwriteNetworkUrl,
+  appwriteProjectId,
+} from '../lib/appwrite';
 import { MotorideRide } from '../types/motoride';
 import { getApiUrl } from '../utils/apiUrl';
 
@@ -11,6 +18,7 @@ class RealtimeSyncManager {
   private reconnectTimeout: any = null;
   private supabaseChannel: any = null;
   private localBroadcastChannel: BroadcastChannel | null = null;
+  private appwriteUnsubscribe: (() => void) | null = null;
 
   constructor() {
     this.init();
@@ -232,6 +240,52 @@ class RealtimeSyncManager {
       window.addEventListener('focus', handleWake);
       window.addEventListener('online', handleWake);
     }
+
+    // 5. Initialize Appwrite Real-Time Synchronization (https://motoride.appwrite.network/)
+    if (isAppwriteConfigured()) {
+      try {
+        this.appwriteUnsubscribe = subscribeAppwriteRealtime((event) => {
+          this.handleAppwriteRealtimeEvent(event);
+        });
+      } catch (err) {
+        console.warn('Appwrite Realtime setup warning:', err);
+      }
+    }
+  }
+
+  private handleAppwriteRealtimeEvent(eventData: { events: string[]; payload: any }) {
+    const { events, payload } = eventData;
+    if (!payload) return;
+
+    const isCreate = events.some((e) => e.includes('.create'));
+    const isUpdate = events.some((e) => e.includes('.update'));
+    const isDelete = events.some((e) => e.includes('.delete'));
+
+    if (events.some((e) => e.includes('rides'))) {
+      if (isCreate) {
+        this.emit('RIDE_CREATED', payload);
+      } else if (isUpdate) {
+        this.emit('RIDE_UPDATED', payload);
+        if (payload.status === 'accepted' || payload.status === 'captain_accepted') {
+          this.emit('RIDE_ACCEPTED', payload);
+        }
+        if (payload.status && payload.status.includes('cancelled')) {
+          this.emit('RIDE_CANCELLED', {
+            ride: payload,
+            ride_id: payload.$id || payload.id,
+            status: payload.status,
+          });
+        }
+        this.emit('RIDE_STATUS_CHANGED', { ride: payload, status: payload.status });
+      } else if (isDelete) {
+        this.emit('RIDE_DELETED', { id: payload.$id || payload.id });
+        this.emit('RIDE_CANCELLED', { ride_id: payload.$id || payload.id });
+      }
+    } else if (events.some((e) => e.includes('captains') || e.includes('locations'))) {
+      this.emit('CAPTAIN_LOCATION_UPDATED', payload);
+    } else if (events.some((e) => e.includes('wallets'))) {
+      this.emit('WALLET_UPDATED', payload);
+    }
   }
 
   private connectSSE() {
@@ -349,6 +403,23 @@ class RealtimeSyncManager {
         console.warn('Supabase broadcast send failed:', err);
       }
     }
+
+    // 4. Synchronize state with Appwrite Database (https://motoride.appwrite.network/)
+    if (isAppwriteConfigured()) {
+      if (
+        event === 'RIDE_CREATED' ||
+        event === 'RIDE_UPDATED' ||
+        event === 'RIDE_ACCEPTED' ||
+        event === 'RIDE_STATUS_CHANGED'
+      ) {
+        const rideToSync = data?.ride || data;
+        if (rideToSync && (rideToSync.id || rideToSync.ride_code)) {
+          syncRideToAppwrite(rideToSync).catch((err) => {
+            console.warn('[Appwrite Sync] Realtime sync notice:', err);
+          });
+        }
+      }
+    }
   }
 
   public requestSync() {
@@ -418,6 +489,9 @@ class RealtimeSyncManager {
     return {
       isConnected: this.isConnected,
       isSupabaseActive: isSupabaseConfigured(),
+      isAppwriteActive: isAppwriteConfigured(),
+      appwriteUrl: appwriteNetworkUrl,
+      appwriteProjectId: appwriteProjectId,
       hasBroadcastChannel: !!this.localBroadcastChannel,
     };
   }

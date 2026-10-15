@@ -18,6 +18,7 @@ import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 import { safeStorage } from '../lib/safeStorage';
 import { supabaseAuth, isDemoAccount } from '../lib/supabaseAuth';
 import { realtimeSync } from './realtimeSync';
+import { isAppwriteConfigured, syncRideToAppwrite, APPWRITE_CONFIG_STATUS } from '../lib/appwrite';
 import { saveApkBlobToIndexedDb, getApkBlobFromIndexedDb, deleteApkBlobFromIndexedDb } from '../lib/apkStorage';
 
 import { getApiUrl } from '../utils/apiUrl';
@@ -44,6 +45,8 @@ export {
   toCanonicalStatus,
   CANONICAL_STATUSES,
 };
+
+export { isAppwriteConfigured, syncRideToAppwrite, APPWRITE_CONFIG_STATUS };
 
 export const SUPABASE_RIDES_COLUMNS = new Set([
   'id',
@@ -763,6 +766,13 @@ export const motorideApi = {
       }
     }
 
+    // 5. Post to Appwrite database (https://motoride.appwrite.network/)
+    if (isAppwriteConfigured()) {
+      syncRideToAppwrite(payload).catch((err) => {
+        console.warn('Appwrite sync ride notice:', err);
+      });
+    }
+
     return payload;
   },
 
@@ -1319,6 +1329,13 @@ export const motorideApi = {
         { ride: confirmedRide }
       ).catch(() => {});
     } catch {}
+
+    // 7. Sync with Appwrite database (https://motoride.appwrite.network/)
+    if (isAppwriteConfigured()) {
+      syncRideToAppwrite(confirmedRide).catch((err) => {
+        console.warn('Appwrite update ride status notice:', err);
+      });
+    }
 
     return confirmedRide;
   },

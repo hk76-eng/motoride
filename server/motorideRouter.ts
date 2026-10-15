@@ -135,6 +135,9 @@ motorideRouter.get('/realtime/sync-data', (req: Request, res: Response) => {
   res.json({
     success: true,
     serverUrl: 'https://motoride.wasmer.app',
+    appwriteUrl: 'https://motoride.appwrite.network/',
+    appwriteProjectId: '6ad0ec7900143b6a777b',
+    appwriteEndpoint: 'https://nyc.cloud.appwrite.io/v1',
     timestamp: new Date().toISOString(),
     stats: getRealtimeServerStats(),
     activeRides,
@@ -144,6 +147,70 @@ motorideRouter.get('/realtime/sync-data', (req: Request, res: Response) => {
     totalPassengersCount: passengersStore.size,
     recentEvents: getRecentRealtimeEvents().slice(0, 50),
   });
+});
+
+// Proxy endpoint to sync ride to Appwrite with registered Origin header
+motorideRouter.post('/appwrite/sync-ride', async (req: Request, res: Response) => {
+  const ride = req.body?.ride || req.body;
+  if (!ride) return res.status(400).json({ error: 'ride data required' });
+
+  try {
+    const docData = {
+      ride_code: String(ride.ride_code || ride.id || ''),
+      status: String(ride.status || 'requested'),
+      passenger_id: String(ride.passenger_id || ''),
+      passenger_name: String(ride.passenger_name || ''),
+      captain_id: String(ride.captain_id || ''),
+      captain_name: String(ride.captain_name || ''),
+      pickup_address: String(ride.pickup_address || ''),
+      dropoff_address: String(ride.dropoff_address || ''),
+      pickup_lat: Number(ride.pickup_lat || 0),
+      pickup_lng: Number(ride.pickup_lng || 0),
+      dropoff_lat: Number(ride.dropoff_lat || 0),
+      dropoff_lng: Number(ride.dropoff_lng || 0),
+      fare: Number(ride.agreed_fare || ride.final_fare || ride.estimated_fare || ride.fare || 0),
+      updated_at: new Date().toISOString(),
+    };
+
+    const appwriteEndpoint = process.env.VITE_APPWRITE_ENDPOINT || 'https://nyc.cloud.appwrite.io/v1';
+    const appwriteProjectId = process.env.VITE_APPWRITE_PROJECT_ID || '6ad0ec7900143b6a777b';
+    const appwriteDatabaseId = process.env.VITE_APPWRITE_DATABASE_ID || 'motoride';
+
+    const updateRes = await fetch(
+      `${appwriteEndpoint}/databases/${appwriteDatabaseId}/collections/rides/documents/${ride.id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Appwrite-Project': appwriteProjectId,
+          'Origin': 'https://motoride.appwrite.network',
+        },
+        body: JSON.stringify({ data: docData }),
+      }
+    );
+
+    if (updateRes.status === 404) {
+      await fetch(
+        `${appwriteEndpoint}/databases/${appwriteDatabaseId}/collections/rides/documents`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Appwrite-Project': appwriteProjectId,
+            'Origin': 'https://motoride.appwrite.network',
+          },
+          body: JSON.stringify({
+            documentId: ride.id,
+            data: docData,
+          }),
+        }
+      );
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.json({ success: false, error: err?.message || 'Sync failed' });
+  }
 });
 
 // Server-Side Supabase Realtime Bridge (Syncs database events into the backend SSE stream)

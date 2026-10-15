@@ -5,6 +5,9 @@
  */
 
 export const WASMER_BACKEND_URL = 'https://motoride.wasmer.app';
+export const APPWRITE_NETWORK_URL = 'https://motoride.appwrite.network/';
+export const APPWRITE_ENDPOINT = 'https://nyc.cloud.appwrite.io/v1';
+export const APPWRITE_PROJECT_ID = '6ad0ec7900143b6a777b';
 
 export function getApiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
