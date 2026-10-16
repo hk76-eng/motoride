@@ -833,33 +833,37 @@ export const motorideApi = {
 
     // 2. Atomically save status change to Supabase database BEFORE confirming
     if (supabase && isSupabaseConfigured()) {
-      const updatePayload = {
-        captain_id: captainData.captain_id,
-        captain_name: captainData.captain_name,
-        captain_avatar: updatedRide.captain_avatar,
-        captain_phone: captainData.captain_phone,
-        vehicle_model: captainData.vehicle_model,
-        plate_number: captainData.plate_number,
-        final_fare: agreedFare,
-        fare_amount: agreedFare,
-        status: 'accepted',
-        updated_at: nowIso,
-      };
+      try {
+        const updatePayload = {
+          captain_id: captainData.captain_id,
+          captain_name: captainData.captain_name,
+          captain_avatar: updatedRide.captain_avatar,
+          captain_phone: captainData.captain_phone,
+          vehicle_model: captainData.vehicle_model,
+          plate_number: captainData.plate_number,
+          final_fare: agreedFare,
+          fare_amount: agreedFare,
+          status: 'accepted',
+          updated_at: nowIso,
+        };
 
-      const { data: confirmedDb, error: sbErr } = await supabase
-        .from('rides')
-        .update(sanitizeForSupabaseRides(updatePayload))
-        .eq('id', rideId)
-        .select()
-        .single();
+        const { data: confirmedDb, error: sbErr } = await supabase
+          .from('rides')
+          .update(sanitizeForSupabaseRides(updatePayload))
+          .eq('id', rideId)
+          .select()
+          .single();
 
-      if (sbErr) {
-        console.warn(`[Motoride Database] Notice updating ride ${rideId} in Supabase:`, sbErr);
-      }
+        if (sbErr) {
+          console.warn(`[Motoride Database] Notice updating ride ${rideId} in Supabase:`, sbErr);
+        }
 
-      if (confirmedDb) {
-        Object.assign(updatedRide, confirmedDb);
-        updatedRide.status = 'accepted';
+        if (confirmedDb) {
+          Object.assign(updatedRide, confirmedDb);
+          updatedRide.status = 'accepted';
+        }
+      } catch (sbEx) {
+        console.warn(`[Motoride Database] Supabase connection notice in acceptRide:`, sbEx);
       }
     }
 
@@ -1278,21 +1282,25 @@ export const motorideApi = {
 
     // 3. Atomically update Supabase database as authoritative record
     if (supabase && isSupabaseConfigured()) {
-      const sanitized = sanitizeForSupabaseRides(updatePayload);
-      const { data: updatedDb, error: sbErr } = await supabase
-        .from('rides')
-        .update(sanitized)
-        .eq('id', rideId)
-        .select()
-        .single();
+      try {
+        const sanitized = sanitizeForSupabaseRides(updatePayload);
+        const { data: updatedDb, error: sbErr } = await supabase
+          .from('rides')
+          .update(sanitized)
+          .eq('id', rideId)
+          .select()
+          .single();
 
-      if (sbErr) {
-        console.warn(`[Motoride Database] Notice updating ride ${rideId} to "${canonicalStatus}" in Supabase:`, sbErr);
-      }
+        if (sbErr) {
+          console.warn(`[Motoride Database] Notice updating ride ${rideId} to "${canonicalStatus}" in Supabase:`, sbErr);
+        }
 
-      if (updatedDb) {
-        confirmedRide = resolveAuthoritativeRide(confirmedRide, updatedDb as MotorideRide);
-        confirmedRide.status = canonicalStatus;
+        if (updatedDb) {
+          confirmedRide = resolveAuthoritativeRide(confirmedRide, updatedDb as MotorideRide);
+          confirmedRide.status = canonicalStatus;
+        }
+      } catch (sbEx) {
+        console.warn(`[Motoride Database] Supabase connection notice in updateRideStatus:`, sbEx);
       }
     }
 
