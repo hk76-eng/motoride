@@ -8,6 +8,7 @@ import {
 } from '../lib/appwrite';
 import { MotorideRide } from '../types/motoride';
 import { getApiUrl } from '../utils/apiUrl';
+import { toCanonicalStatus } from './rideStateMachine';
 
 type EventCallback = (payload: any) => void;
 
@@ -223,6 +224,20 @@ class RealtimeSyncManager {
             }
           } catch {}
         }
+        if (event.key === 'motoride_rides_store' && event.newValue) {
+          try {
+            const rides = JSON.parse(event.newValue);
+            if (Array.isArray(rides) && rides.length > 0) {
+              const latest = rides[0];
+              if (latest && latest.id) {
+                this.emit('RIDE_UPDATED', latest, false);
+                if (latest.status) {
+                  this.emit('RIDE_STATUS_CHANGED', { ride: latest, status: latest.status }, false);
+                }
+              }
+            }
+          } catch {}
+        }
       });
     }
 
@@ -262,29 +277,56 @@ class RealtimeSyncManager {
     const isDelete = events.some((e) => e.includes('.delete'));
 
     if (events.some((e) => e.includes('rides'))) {
+      const rideId = payload.id || payload.$id || payload.ride_code;
+      if (!rideId) return;
+
+      const normalizedRide: MotorideRide = {
+        ...payload,
+        id: rideId,
+        ride_code: payload.ride_code || rideId,
+        status: toCanonicalStatus(payload.status),
+        pickup_lat: Number(payload.pickup_lat ?? payload.pickupLatitude ?? 0),
+        pickup_lng: Number(payload.pickup_lng ?? payload.pickupLongitude ?? 0),
+        dropoff_lat: Number(payload.dropoff_lat ?? payload.dropoffLatitude ?? 0),
+        dropoff_lng: Number(payload.dropoff_lng ?? payload.dropoffLongitude ?? 0),
+        final_fare: Number(payload.fare ?? payload.final_fare ?? payload.agreed_fare ?? payload.estimated_fare ?? 0),
+        agreed_fare: Number(payload.fare ?? payload.agreed_fare ?? payload.final_fare ?? payload.estimated_fare ?? 0),
+        updated_at: payload.updated_at || payload.$updatedAt || new Date().toISOString(),
+      };
+
       if (isCreate) {
-        this.emit('RIDE_CREATED', payload);
+        this.emit('RIDE_CREATED', normalizedRide);
       } else if (isUpdate) {
-        this.emit('RIDE_UPDATED', payload);
-        if (payload.status === 'accepted' || payload.status === 'captain_accepted') {
-          this.emit('RIDE_ACCEPTED', payload);
+        this.emit('RIDE_UPDATED', normalizedRide);
+        if (normalizedRide.status === 'accepted' || normalizedRide.status === 'captain_accepted') {
+          this.emit('RIDE_ACCEPTED', normalizedRide);
         }
-        if (payload.status && payload.status.includes('cancelled')) {
+        if (normalizedRide.status && normalizedRide.status.includes('cancelled')) {
           this.emit('RIDE_CANCELLED', {
-            ride: payload,
-            ride_id: payload.$id || payload.id,
-            status: payload.status,
+            ride: normalizedRide,
+            ride_id: rideId,
+            status: normalizedRide.status,
           });
         }
-        this.emit('RIDE_STATUS_CHANGED', { ride: payload, status: payload.status });
+        this.emit('RIDE_STATUS_CHANGED', { ride: normalizedRide, status: normalizedRide.status });
       } else if (isDelete) {
-        this.emit('RIDE_DELETED', { id: payload.$id || payload.id });
-        this.emit('RIDE_CANCELLED', { ride_id: payload.$id || payload.id });
+        this.emit('RIDE_DELETED', { id: rideId, ride_id: rideId });
+        this.emit('RIDE_CANCELLED', { ride_id: rideId, status: 'cancelled' });
       }
     } else if (events.some((e) => e.includes('captains') || e.includes('locations'))) {
-      this.emit('CAPTAIN_LOCATION_UPDATED', payload);
+      this.emit('CAPTAIN_LOCATION_UPDATED', {
+        ...payload,
+        captain_id: payload.captain_id || payload.$id || payload.id,
+        lat: Number(payload.lat ?? payload.latitude ?? 0),
+        lng: Number(payload.lng ?? payload.longitude ?? 0),
+        heading: Number(payload.heading ?? 0),
+      });
     } else if (events.some((e) => e.includes('wallets'))) {
-      this.emit('WALLET_UPDATED', payload);
+      this.emit('WALLET_UPDATED', {
+        ...payload,
+        user_id: payload.user_id || payload.$id || payload.id,
+        balance: Number(payload.balance ?? 0),
+      });
     }
   }
 

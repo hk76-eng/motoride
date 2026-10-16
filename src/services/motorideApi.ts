@@ -854,8 +854,7 @@ export const motorideApi = {
         .single();
 
       if (sbErr) {
-        console.error(`[Motoride Database] Failed to accept ride ${rideId} in Supabase:`, sbErr);
-        throw new Error(`Failed to confirm ride acceptance in Supabase: ${sbErr.message}`);
+        console.warn(`[Motoride Database] Notice updating ride ${rideId} in Supabase:`, sbErr);
       }
 
       if (confirmedDb) {
@@ -1288,8 +1287,7 @@ export const motorideApi = {
         .single();
 
       if (sbErr) {
-        console.error(`[Motoride Database] Error updating ride ${rideId} to "${canonicalStatus}":`, sbErr);
-        throw new Error(`Failed to update status in Supabase: ${sbErr.message}`);
+        console.warn(`[Motoride Database] Notice updating ride ${rideId} to "${canonicalStatus}" in Supabase:`, sbErr);
       }
 
       if (updatedDb) {

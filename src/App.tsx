@@ -21,8 +21,22 @@ export default function App() {
     return supabaseAuth.getCurrentUser();
   });
 
-  // Active Workspace Role: locked to authenticated user's role
+  // Helper to extract explicit role from URL (e.g. ?role=captain or ?role=passenger)
+  const getExplicitUrlRole = (): UserRole | null => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const r = (params.get('role') || params.get('tab') || params.get('view') || '').toLowerCase();
+    if (r === 'captain' || r === 'passenger' || r === 'admin') return r as UserRole;
+    if (window.location.pathname === '/captain') return 'captain';
+    if (window.location.pathname === '/passenger') return 'passenger';
+    if (window.location.pathname === '/admin') return 'admin';
+    return null;
+  };
+
+  // Active Workspace Role: prioritize URL search param for effortless multi-tab testing, then saved user
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    const urlRole = getExplicitUrlRole();
+    if (urlRole) return urlRole;
     const savedUser = supabaseAuth.getCurrentUser();
     return savedUser?.role || 'passenger';
   });
@@ -76,13 +90,17 @@ export default function App() {
         if (isMounted) {
           if (sessionUser) {
             setCurrentUser(sessionUser);
-            setCurrentRole(sessionUser.role);
+            if (!getExplicitUrlRole()) {
+              setCurrentRole(sessionUser.role);
+            }
           } else {
             // Keep user logged in from local storage cache; NEVER sign out on page refresh
             const localUser = supabaseAuth.getCurrentUser();
             if (localUser) {
               setCurrentUser(localUser);
-              setCurrentRole(localUser.role);
+              if (!getExplicitUrlRole()) {
+                setCurrentRole(localUser.role);
+              }
             }
           }
         }
@@ -91,7 +109,9 @@ export default function App() {
         const localUser = supabaseAuth.getCurrentUser();
         if (localUser && isMounted) {
           setCurrentUser(localUser);
-          setCurrentRole(localUser.role);
+          if (!getExplicitUrlRole()) {
+            setCurrentRole(localUser.role);
+          }
         }
       }
     };
@@ -99,7 +119,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (currentUser?.role) {
+    if (currentUser?.role && !getExplicitUrlRole()) {
       setCurrentRole(currentUser.role);
     }
   }, [currentUser]);
@@ -162,6 +182,13 @@ export default function App() {
 
   const handleRoleChange = (role: UserRole) => {
     setCurrentRole(role);
+    try {
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('role', role);
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch {}
   };
 
   const handleToggleCaptainOnline = async () => {
@@ -213,9 +240,16 @@ export default function App() {
       <main className="flex-1 w-full relative">
         {currentRole === 'passenger' && (
           <PassengerWorkspace
-            currentPassengerId={currentUser.id}
-            passengerName={currentUser.name}
-            currentUser={currentUser}
+            currentPassengerId={currentUser.role === 'passenger' ? currentUser.id : 'usr_passenger_tab'}
+            passengerName={currentUser.role === 'passenger' ? currentUser.name : 'Passenger'}
+            currentUser={currentUser.role === 'passenger' ? currentUser : {
+              id: 'usr_passenger_tab',
+              email: 'passenger@motoride.app',
+              name: 'Passenger',
+              phone: '+91 9811223344',
+              role: 'passenger',
+              walletBalance: 250,
+            }}
             onOpenWallet={() => setIsWalletOpen(true)}
             onSignOut={handleSignOut}
           />
@@ -223,27 +257,38 @@ export default function App() {
 
         {currentRole === 'captain' && (
           <CaptainWorkspace
-            captainId={currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? 'cpt_mojobiketaxi' : currentUser.id}
+            captainId={
+              currentUser.role === 'captain' && currentUser.email?.toLowerCase().trim() !== 'mojobiketaxi@gmail.com'
+                ? currentUser.id
+                : 'cpt_mojobiketaxi'
+            }
             captainName={
               safeStorage.getItem('motoride_captain_name') ||
-              currentUser.name ||
-              (currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? 'Hemant kashyap' : 'Captain')
+              (currentUser.role === 'captain' ? currentUser.name : null) ||
+              'Hemant kashyap'
             }
-            currentUser={currentUser.email?.toLowerCase().trim() === 'mojobiketaxi@gmail.com' ? {
-              ...currentUser,
-              id: 'cpt_mojobiketaxi',
-              name: safeStorage.getItem('motoride_captain_name') || currentUser.name || 'Hemant kashyap',
-              phone: safeStorage.getItem('motoride_captain_phone') || currentUser.phone || '+91 9876543210',
-              vehicleModel: safeStorage.getItem('motoride_captain_vehicle_model') || currentUser.vehicleModel || 'Honda Activa 6G',
-              plateNumber: safeStorage.getItem('motoride_captain_plate') || currentUser.plateNumber || 'PB65AX9922',
-              vehicleType: currentUser.vehicleType || 'bike',
-            } : {
-              ...currentUser,
-              name: safeStorage.getItem('motoride_captain_name') || currentUser.name,
-              phone: safeStorage.getItem('motoride_captain_phone') || currentUser.phone,
-              vehicleModel: safeStorage.getItem('motoride_captain_vehicle_model') || currentUser.vehicleModel,
-              plateNumber: safeStorage.getItem('motoride_captain_plate') || currentUser.plateNumber,
-            }}
+            currentUser={
+              currentUser.role === 'captain'
+                ? {
+                    ...currentUser,
+                    name: safeStorage.getItem('motoride_captain_name') || currentUser.name || 'Hemant kashyap',
+                    phone: safeStorage.getItem('motoride_captain_phone') || currentUser.phone || '+91 9876543210',
+                    vehicleModel: safeStorage.getItem('motoride_captain_vehicle_model') || currentUser.vehicleModel || 'Honda Activa 6G',
+                    plateNumber: safeStorage.getItem('motoride_captain_plate') || currentUser.plateNumber || 'PB65AX9922',
+                    vehicleType: currentUser.vehicleType || 'bike',
+                  }
+                : {
+                    id: 'cpt_mojobiketaxi',
+                    email: 'mojobiketaxi@gmail.com',
+                    name: safeStorage.getItem('motoride_captain_name') || 'Hemant kashyap',
+                    phone: safeStorage.getItem('motoride_captain_phone') || '+91 9876543210',
+                    role: 'captain',
+                    vehicleModel: safeStorage.getItem('motoride_captain_vehicle_model') || 'Honda Activa 6G',
+                    plateNumber: safeStorage.getItem('motoride_captain_plate') || 'PB65AX9922',
+                    vehicleType: 'bike',
+                    walletBalance: walletBalance,
+                  }
+            }
             walletBalance={walletBalance}
             onWalletBalanceUpdated={(newBal) => {
               setWalletBalance(newBal);
@@ -269,8 +314,8 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating One-Switch Button for Instant App Switch (Hidden for specific passenger/captain account sessions) */}
-      {currentRole !== 'admin' && currentUser?.role !== 'passenger' && currentUser?.role !== 'captain' && (
+      {/* Floating One-Switch Button for Instant App Switch */}
+      {currentRole !== 'admin' && !isCaptainOnActiveTrip && (
         <aside aria-label="Quick App Switcher" className="fixed bottom-4 right-4 z-40">
           <button
             type="button"
@@ -305,10 +350,16 @@ export default function App() {
         </aside>
       )}
 
-      {/* Bottom Footer with Hyperlink to Admin Dashboard on 'Real Time' (Hidden for specific passenger/captain account sessions) */}
-      {currentUser?.role !== 'passenger' && currentUser?.role !== 'captain' && (
-        <footer className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 py-4 text-center border-t border-slate-800/80 text-xs text-slate-400 bg-slate-950/90 backdrop-blur-sm">
-          MotoRide Mobility Platform &copy; {new Date().getFullYear()} •{' '}
+      {/* Bottom Footer with Realtime Network Status & Admin Dashboard Link */}
+      <footer className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 py-3.5 text-center border-t border-slate-800/80 text-xs text-slate-400 bg-slate-950/90 backdrop-blur-sm flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-[11px] text-slate-400">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Real-time Sync Active: <strong className="text-slate-300 font-mono">motoride.appwrite.network</strong></span>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs">
+          <span>MotoRide Mobility Platform &copy; {new Date().getFullYear()}</span>
+          <span>•</span>
           <button
             type="button"
             onClick={() => handleRoleChange('admin')}
@@ -316,10 +367,9 @@ export default function App() {
             title="Open Admin Dashboard"
           >
             Real Time
-          </button>{' '}
-          Urban Transportation Engine
-        </footer>
-      )}
+          </button>
+        </div>
+      </footer>
 
       {/* Wallet Modal */}
       <WalletModal

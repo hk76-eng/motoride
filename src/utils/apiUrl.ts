@@ -14,8 +14,13 @@ export function getApiUrl(path: string): string {
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
-    // Prepend live backend host if running in native Android APK, WebView (file://), or local wrapper
-    if (protocol === 'file:' || hostname === 'localhost' || hostname === '127.0.0.1') {
+    // Prepend live backend host if running in native Android APK, WebView (file://), local wrapper,
+    // or static CDN/edge deployments (appwrite.network, vercel.app)
+    if (
+      protocol === 'file:' ||
+      hostname.includes('appwrite.network') ||
+      hostname.includes('vercel.app')
+    ) {
       const remoteBase = (import.meta as any)?.env?.VITE_API_BASE_URL || WASMER_BACKEND_URL;
       return `${remoteBase.replace(/\/$/, '')}${cleanPath}`;
     }

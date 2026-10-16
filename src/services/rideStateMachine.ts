@@ -12,6 +12,7 @@ import { MotorideRide, MotorideRideStatus } from '../types/motoride';
 
 export const CANONICAL_STATUSES = [
   'requested',
+  'captain_offered',
   'accepted',
   'captain_arrived',
   'in_progress',
@@ -22,14 +23,14 @@ export const CANONICAL_STATUSES = [
 export type CanonicalRideStatus = typeof CANONICAL_STATUSES[number];
 
 export const STATUS_RANK: Record<string, number> = {
-  // Rank 1: requested / searching
+  // Rank 1: requested / searching / captain_offered (negotiation & search phase)
   requested: 1,
   searching: 1,
+  captain_offered: 1,
 
   // Rank 2: captain accepted
   accepted: 2,
   captain_accepted: 2,
-  captain_offered: 2,
   captain_assigned: 2,
   captain_arriving: 2,
 
@@ -58,10 +59,10 @@ export function toCanonicalStatus(status: string | null | undefined): MotorideRi
   if (!status) return 'requested';
   const s = status.trim().toLowerCase();
   if (s === 'requested' || s === 'searching') return 'requested';
+  if (s === 'captain_offered') return 'captain_offered';
   if (
     s === 'accepted' ||
     s === 'captain_accepted' ||
-    s === 'captain_offered' ||
     s === 'captain_assigned' ||
     s === 'captain_arriving'
   ) {
@@ -135,6 +136,16 @@ export function shouldApplyIncomingStatus(
   // Once terminal (completed rank 5, cancelled rank 99), NEVER allow an earlier status
   if (currentRank >= 5 && incomingRank < currentRank) {
     return false;
+  }
+
+  // Allow bidirectional updates between requested and captain_offered during bidding phase
+  const curCanonical = toCanonicalStatus(currentStatus);
+  const inCanonical = toCanonicalStatus(incomingStatus);
+  if (
+    (curCanonical === 'requested' && inCanonical === 'captain_offered') ||
+    (curCanonical === 'captain_offered' && inCanonical === 'requested')
+  ) {
+    return true;
   }
 
   // Stale backwards status: ignore
